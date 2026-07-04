@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v8.0
 milestone_name: Authoritative Data Foundation
 status: executing
-stopped_at: Phase 179 context gathered
-last_updated: "2026-07-04T18:15:13.495Z"
-last_activity: 2026-07-04 -- Phase 179 planning complete
+stopped_at: Completed 179-01-PLAN.md
+last_updated: "2026-07-04T18:28:21.113Z"
+last_activity: 2026-07-04
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 20
-  completed_plans: 20
-  percent: 60
+  total_plans: 26
+  completed_plans: 21
+  percent: 81
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants. Long-term: become the gathering place for the Washington Bee Atlas.
-**Current focus:** Phase 179 — notes-feature-harvest-bake (ready to plan)
+**Current focus:** Phase 179 — notes-feature-harvest-build-time-bake
 
 ## Current Position
 
-Phase: 179
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-07-04 -- Phase 179 planning complete
+Phase: 179 (notes-feature-harvest-build-time-bake) — EXECUTING
+Plan: 2 of 6
+Status: Plan 179-01 complete; 179-02 ready to execute
+Last activity: 2026-07-04
 
 Progress: [██████████] 100%
 
@@ -43,10 +43,10 @@ Introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-specifi
 | 176 | Build-Seam Refoundation (Thread 1) | SEAM-01..05 | — | Complete (2026-07-02) |
 | 177 | Authoritative Store, Migrations & Backup/DR | STORE-01..04 | — | Complete (2026-07-03) |
 | 178 | Thin Write Layer + iNat OAuth | WRITE-01..04 | yes | Complete (2026-07-04) |
-| 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Not started (next) |
+| 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Executing (1/6 plans) |
 | 180 | Moderation Loop | MOD-01..04 | yes | Not started |
 
-**Progress:** [██████████] 100%
+**Progress:** [████████░░] 81%
 
 **Phase dependency chain:** 176 (independent) → 177 → 178 → 179 (also needs 176's contract) → 180.
 
@@ -86,6 +86,7 @@ Load-bearing conventions carried forward (relevant to v8.0):
 - [Phase ?]: [Phase 178] 178-07: fetchWhoami normalizes the API's snake_case is_author to AuthState.isAuthor at the client boundary
 - [Phase ?]: [Phase 178] 178-07: sign-in/sign-out rendered as text .auth-btn pills, not .icon-btn glyph chrome
 - [Phase ?]: [Phase 178] 178-07: auth controller wired only into entries/bee-header.ts (standalone pages); bee-atlas.ts's own <bee-header> is not yet wired -- sign-in button is a no-op on the map page until a follow-up plan wires it
+- [Phase ?]: 179-01: nh3 default link_rel="noopener noreferrer" satisfies D-06 (never pass rel in the attributes allowlist alongside it); three-step SQLite batch pattern (add nullable body_html -> backfill via render_note_markdown -> tighten NOT NULL) + author_id String->Integer FK to users.id, all in migration 0003
 
 ### Roadmap Evolution
 
@@ -132,9 +133,9 @@ Items acknowledged and carried forward from prior milestone closes:
 
 ## Session Continuity
 
-Last session: 2026-07-04T17:31:14.333Z
-Stopped at: Phase 179 context gathered
-Resume file: .planning/phases/179-notes-feature-harvest-build-time-bake/179-CONTEXT.md
+Last session: 2026-07-04T18:28:21.104Z
+Stopped at: Completed 179-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 

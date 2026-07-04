@@ -95,8 +95,8 @@ Which phases cover which requirements. Filled during roadmap creation (2026-07-0
 | WRITE-02 | Phase 178 | Complete |
 | WRITE-03 | Phase 178 | Complete |
 | WRITE-04 | Phase 178 | Complete |
-| NOTES-01 | Phase 179 | Pending |
-| NOTES-02 | Phase 179 | Pending |
+| NOTES-01 | Phase 179 | In Progress (179-01 foundation shipped; write API/UI in 179-02/04/05) |
+| NOTES-02 | Phase 179 | In Progress (179-01 foundation shipped; write API/UI in 179-02/04/05) |
 | NOTES-03 | Phase 179 | Pending |
 | NOTES-04 *(optional)* | Phase 179 | Pending |
 | MOD-01 | Phase 180 | Pending |

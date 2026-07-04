@@ -71,7 +71,7 @@
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
 | 177. Authoritative Store, Migrations & Backup/DR | 7/7 | Complete   | 2026-07-03 |
 | 178. Thin Write Layer + iNat OAuth | 9/9 | Complete    | 2026-07-04 |
-| 179. Notes Feature + Harvest Bake | 0/6 | Not started | - |
+| 179. Notes Feature + Harvest Bake | 1/6 | In Progress|  |
 | 180. Moderation Loop | 0/TBD | Not started | - |
 
 ### Phase 176: Build-Seam Refoundation (Thread 1)
@@ -205,7 +205,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 179-01-PLAN.md — Shared render+sanitize helper (markdown-it-py "zero" preset + nh3 tag/attribute/scheme allowlist) + forward-only Alembic migration 0003 (body_html NOT NULL backfilled through the renderer; author_id integer FK -> users.id) [NOTES-01, NOTES-02]
+- [x] 179-01-PLAN.md — Shared render+sanitize helper (markdown-it-py "zero" preset + nh3 tag/attribute/scheme allowlist) + forward-only Alembic migration 0003 (body_html NOT NULL backfilled through the renderer; author_id integer FK -> users.id) [NOTES-01, NOTES-02]
 
 **Wave 2** *(blocked on Wave 1)*
 
