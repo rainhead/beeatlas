@@ -33,6 +33,23 @@ anchor line is a mitigation, not a fix.
    via the `query` tool") rather than imperative, so it reads as a capability, not a directive.
    Upstream change to the QMD plugin (`~/.claude/plugins/cache/qmd/qmd/.../mcp/server.ts`).
 
+## Prototype status (2026-07-04)
+
+Option 3 (reframe QMD's instructions from imperative directive → optional capability) was
+**prototyped and applied**:
+- **Live/running server patched:** `~/.nvm/.../@tobilu/qmd/dist/mcp/server.js` (v2.5.3 — the
+  dist the `qmd mcp` command actually runs). Backup at `dist/mcp/server.js.bak-preqmdfix`.
+  Syntax-checked (`node --check` OK). Takes effect on the next MCP reconnect (instructions are
+  only emitted at `initialize`).
+- **Upstream twin patched:** `~/.claude/plugins/cache/qmd/qmd/0.1.0/src/mcp/server.ts` (v2.6.3).
+- **Writeup + unified diff + test/revert steps:** scratchpad `qmd-instructions-framing.md`
+  (session-local — copy into this repo or a QMD PR branch before it's swept).
+
+Finding: **option 1 (per-subagent scoping) is NOT achievable inside QMD** — MCP `instructions`
+are a single server-level string with no per-consumer variation; that scoping is a Claude Code
+harness concern. Remaining durable work: open the upstream PR to tobi/qmd with the src diff
+(the live dist edit is a prototype an `npm update -g` will overwrite).
+
 ## Related
 
 - Memory `feedback_subagent_mcp_instruction_derailment` (the failure mode + working mitigation).
