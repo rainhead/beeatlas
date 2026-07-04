@@ -70,7 +70,7 @@
 |-------|----------------|--------|-----------|
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
 | 177. Authoritative Store, Migrations & Backup/DR | 7/7 | Complete   | 2026-07-03 |
-| 178. Thin Write Layer + iNat OAuth | 5/9 | In Progress|  |
+| 178. Thin Write Layer + iNat OAuth | 6/9 | In Progress|  |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
 | 180. Moderation Loop | 0/TBD | Not started | - |
 
@@ -170,7 +170,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 178-06-PLAN.md — Routes + app factory + flask-cors scoped to beeatlas.net (D-11) + `ProxyFix` (one hop) + `api/serve.py` Waitress serve entrypoint (loopback-only) + generic error handler (debug=False; Pitfall 5) (D-17) + guarded `POST /api/write-check` (WRITE-03 authz/CSRF test target) [WRITE-01, WRITE-02, WRITE-03]
+- [x] 178-06-PLAN.md — Routes + app factory + flask-cors scoped to beeatlas.net (D-11) + `ProxyFix` (one hop) + `api/serve.py` Waitress serve entrypoint (loopback-only) + generic error handler (debug=False; Pitfall 5) (D-17) + guarded `POST /api/write-check` (WRITE-03 authz/CSRF test target) [WRITE-01, WRITE-02, WRITE-03]
 
 **Wave 5** *(blocked on Wave 4)*
 
