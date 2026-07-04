@@ -131,6 +131,9 @@ def test_exchange_code_posts_expected_body_and_returns_access_token():
     assert data["redirect_uri"] == "https://api.beeatlas.net/auth/callback"
     assert data["grant_type"] == "authorization_code"
     assert data["code_verifier"] == "verifier-abc"
+    # WR-01: an explicit timeout on every outbound call — `requests` defaults
+    # to none, and a hung iNat would otherwise pin a Waitress worker thread.
+    assert kwargs["timeout"] == oauth.REQUEST_TIMEOUT
     resp.raise_for_status.assert_called_once()
 
 
@@ -184,11 +187,13 @@ def test_fetch_identity_uses_bearer_on_api_token_and_raw_on_users_me():
     first_call = mock_get.call_args_list[0]
     assert first_call.args[0] == f"{oauth.INAT_BASE}/users/api_token"
     assert first_call.kwargs["headers"]["Authorization"] == "Bearer access-tok-123"
+    assert first_call.kwargs["timeout"] == oauth.REQUEST_TIMEOUT  # WR-01
 
     second_call = mock_get.call_args_list[1]
     assert second_call.args[0] == "https://api.inaturalist.org/v1/users/me"
     # RAW header — no "Bearer " prefix (matches the official inaturalistjs client).
     assert second_call.kwargs["headers"]["Authorization"] == "jwt-xyz"
+    assert second_call.kwargs["timeout"] == oauth.REQUEST_TIMEOUT  # WR-01
 
 
 def test_fetch_identity_returns_identity_dict_from_results_zero():

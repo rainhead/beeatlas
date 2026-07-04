@@ -38,6 +38,14 @@ import requests
 INAT_BASE = "https://www.inaturalist.org"
 INAT_API_BASE = "https://api.inaturalist.org"
 
+# (connect, read) timeout for every outbound iNat call. `requests` defaults
+# to NO timeout, so a hung inaturalist.org response would pin a Waitress
+# worker thread indefinitely — a handful of stuck callbacks could exhaust
+# the small fixed pool and wedge the whole write API. A timeout surfaces as
+# requests.exceptions.Timeout, which the app's generic error handler turns
+# into a clean 500 instead.
+REQUEST_TIMEOUT: tuple[int, int] = (5, 15)
+
 
 def make_pkce_pair() -> tuple[str, str]:
     """RFC 7636 S256: verifier is 43-128 chars, challenge is its base64url(sha256(...))."""
@@ -79,6 +87,7 @@ def exchange_code(
             "grant_type": "authorization_code",
             "code_verifier": verifier,  # PKCE defense-in-depth (D-02)
         },
+        timeout=REQUEST_TIMEOUT,
     )
     resp.raise_for_status()
     return resp.json()["access_token"]
@@ -99,6 +108,7 @@ def fetch_identity(access_token: str) -> dict:
     jwt_resp = requests.get(
         f"{INAT_BASE}/users/api_token",
         headers={"Authorization": f"Bearer {access_token}"},
+        timeout=REQUEST_TIMEOUT,
     )
     jwt_resp.raise_for_status()
     jwt = jwt_resp.json()["api_token"]
@@ -106,6 +116,7 @@ def fetch_identity(access_token: str) -> dict:
     me_resp = requests.get(
         f"{INAT_API_BASE}/v1/users/me",
         headers={"Authorization": jwt},
+        timeout=REQUEST_TIMEOUT,
     )
     me_resp.raise_for_status()
     return me_resp.json()["results"][0]  # {id, login, ...}
