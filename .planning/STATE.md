@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v8.0
 milestone_name: Authoritative Data Foundation
 status: executing
-stopped_at: 178-08-PLAN.md Task 1 done; awaiting operator maderas deploy (Task 2 checkpoint)
-last_updated: "2026-07-04T05:18:59.218Z"
+stopped_at: Phase 178 complete (verified passed) — ready to plan Phase 179
+last_updated: "2026-07-04T16:54:36.395Z"
 last_activity: 2026-07-04
 progress:
-  total_phases: 47
-  completed_phases: 25
-  total_plans: 77
-  completed_plans: 77
-  percent: 53
+  total_phases: 5
+  completed_phases: 3
+  total_plans: 20
+  completed_plans: 20
+  percent: 60
 ---
 
 # Project State
@@ -21,16 +21,13 @@ progress:
 See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants. Long-term: become the gathering place for the Washington Bee Atlas.
-**Current focus:** Phase 178 — thin-write-layer-inat-oauth
+**Current focus:** Phase 179 — notes-feature-harvest-bake (ready to plan)
 
 ## Current Position
 
-Phase: 178 (thin-write-layer-inat-oauth) — EXECUTING
-Plan: 8 of 9
-Status: Task 1 of 178-08 committed (api A-record + go-live runbook). Blocked on Task 2
-  (checkpoint:human-action, gate=blocking) — operator must deploy on maderas (Apache
-  mod_proxy_http vhost + certbot TLS + Waitress supervisor + secrets + migration 0002).
-  Resume with "deployed" for Task 2, then "writes open" for Task 3. Plan NOT complete.
+Phase: 179
+Plan: Not started
+Status: Phase 178 COMPLETE (2026-07-04, verification passed 4/4; live at api.beeatlas.net, writes open). Phase 179 not yet planned.
 Last activity: 2026-07-04
 
 Progress: [██████████] 100%
@@ -43,10 +40,10 @@ Introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-specifi
 
 | Phase | Name | Requirements | UI | Status |
 |-------|------|--------------|----|--------|
-| 176 | Build-Seam Refoundation (Thread 1) | SEAM-01..05 | — | Not started (ready to plan) |
-| 177 | Authoritative Store, Migrations & Backup/DR | STORE-01..04 | — | Not started |
-| 178 | Thin Write Layer + iNat OAuth | WRITE-01..04 | yes | Not started |
-| 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Not started |
+| 176 | Build-Seam Refoundation (Thread 1) | SEAM-01..05 | — | Complete (2026-07-02) |
+| 177 | Authoritative Store, Migrations & Backup/DR | STORE-01..04 | — | Complete (2026-07-03) |
+| 178 | Thin Write Layer + iNat OAuth | WRITE-01..04 | yes | Complete (2026-07-04) |
+| 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Not started (next) |
 | 180 | Moderation Loop | MOD-01..04 | yes | Not started |
 
 **Progress:** [██████████] 100%
@@ -107,7 +104,7 @@ Carried forward (non-blocking, pre-existing):
 - **No active blockers for v8.0.** The nightly pipeline is unblocked (Phase 163 Ecdysis-auth resolved 2026-06-24).
 - **Operational confirmation (NOT a code gap, carried from v7.0 close):** one-time `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas to refresh the S3 `species.json` baseline post-PR-#39 — confirm the latest nightly published cleanly. Phase 176's byte-identical-manifest goal assumes the current publish behavior is the baseline to preserve.
 - ~~178-07: bee-atlas.ts (map page /) <bee-header> sign-in was a no-op~~ — RESOLVED 2026-07-03 (commit e137418c): map-page header now wired to auth-client (fetchWhoami/startSignIn/signOut) as bee-atlas-owned state, mirroring entries/bee-header.ts; +5 tests, full JS suite 923 green.
-- **178-08 awaiting operator (human-action/human-verify, gate=blocking):** write layer built + unit-green through Wave 6 Task 1 (A-record + go-live runbook committed). Tasks 2–3 need the maderas deploy (interactive sudo: cdk deploy, Apache mod_proxy_http + certbot, Waitress supervisor, real secrets, alembic upgrade → 0002) and the WRITE-04 launch gate (confirm 177-07 restore PASS → flip writes_enabled → add first author → 503→200). Runbook: docs/runbooks/notes-write-launch-gate.md. Resume signals: "deployed" (Task 2), "writes open" (Task 3). 178-09 security UAT blocks on this going live. Phase 178 NOT complete; verification deferred until all plans done.
+- ~~178-08 awaiting operator~~ — RESOLVED 2026-07-04: maderas deploy complete (systemd-user Waitress, TLS vhost, migration 0002), WRITE-04 gate closed (restore re-confirmed, 503→200, first author committed), 178-09 security UAT PASS (all 7 items, operator-approved). Write layer LIVE at api.beeatlas.net.
 
 ### Quick Tasks Completed
 
