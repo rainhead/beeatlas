@@ -60,7 +60,7 @@
 
 - [x] **Phase 176: Build-Seam Refoundation (Thread 1)** — Collapse the triple hand-synced manifest key lists (nightly.sh upload/manifest block, the inline classifier heredoc, deploy.yml fetch) into one declarative `data/artifacts.toml` + tested `data/artifacts.py`; establish the explicit derived-vs-authoritative classification and the two schema-evolution regimes. Pure, regression-safe refactor — byte-identical manifest, no user-visible change; de-risks everything downstream.
 - [x] **Phase 177: Authoritative Store, Migrations & Backup/DR** — Stand up the first non-reproducible store (technology decided here), a forward-only migration runner, notes/roles schema shaped for moderation + attribution, physical + IAM separation from the derived pipeline and `/data/` prefix, and a demonstrated test-restore. No public writes until restore is proven.
-- [ ] **Phase 178: Thin Write Layer + iNat OAuth** — A thin write app on maderas (Flask under Apache `mod_fcgid`, per 177 D-01 — NOT API Gateway + Lambda); iNat OAuth2 server-side code exchange with PKCE, server-derived identity + a minted long-lived app session; allowlist authz (per-write recheck) + CSRF; public-write launch gate on the proven restore. The only phase that consciously bends "no server runtime" — kept isolated in one owned maderas runtime.
+- [ ] **Phase 178: Thin Write Layer + iNat OAuth** — A thin write app on maderas (Flask served by Waitress behind Apache `mod_proxy_http`, per 177 D-01 + 178 D-17 — NOT `mod_fcgid`/flup6, NOT API Gateway + Lambda); iNat OAuth2 server-side code exchange with PKCE, server-derived identity + a minted long-lived app session; allowlist authz (per-write recheck) + CSRF; public-write launch gate on the proven restore. The only phase that consciously bends "no server runtime" — kept isolated in one owned maderas runtime.
 - [ ] **Phase 179: Notes Feature + Harvest → Build-Time Bake** — Allowlisted authors create/edit/delete attributed notes; nightly harvest of published notes into a build-time `notes.json` (mirroring the shipped `species_hosts.js` bake); species pages render an attributed stacked list with an empty state; read path stays static/offline-safe. First user-visible slice.
 - [ ] **Phase 180: Moderation Loop** — reader/author/curator roles from a declared, auditable source; deploy-free curator takedown excluded from harvest; XSS sanitization + audit fields; takedown clears the public site within one build cycle (and the live island if NOTES-04 shipped).
 
@@ -140,12 +140,12 @@
 
 ### Phase 178: Thin Write Layer + iNat OAuth
 
-**Goal**: A thin managed write app — a maderas-hosted Flask (WSGI) service behind Apache `mod_fcgid`, isolated alongside the existing pipeline (per 177 D-01; NOT API Gateway + Lambda) — accepts authenticated, authorized writes while the read path stays fully static. iNaturalist OAuth2 **server-side code exchange with PKCE** authenticates authors with server-derived identity and a minted **long-lived** app session (revocation via per-write allowlist recheck, given the low threat model); an author allowlist + CSRF/origin protection gate writes; enabling public writes is gated on the demonstrated Phase-177 restore. This is the only phase that consciously bends the "static hosting only, no server runtime" constraint — kept isolated in one owned maderas runtime.
+**Goal**: A thin managed write app — a maderas-hosted Flask (WSGI) service served by Waitress (maintained pure-Python WSGI server) behind Apache `mod_proxy_http` (per 177 D-01 + 178 D-17; NOT `mod_fcgid`/flup6, NOT API Gateway + Lambda) — accepts authenticated, authorized writes while the read path stays fully static. iNaturalist OAuth2 **server-side code exchange with PKCE** authenticates authors with server-derived identity and a minted **long-lived** app session (revocation via per-write allowlist recheck, given the low threat model); an author allowlist + CSRF/origin protection gate writes; enabling public writes is gated on the demonstrated Phase-177 restore. This is the only phase that consciously bends the "static hosting only, no server runtime" constraint — kept isolated in one owned maderas runtime.
 **Depends on**: Phase 177 (the store must exist and its backup restore must be demonstrated before any write is accepted)
 **Requirements**: WRITE-01, WRITE-02, WRITE-03, WRITE-04
 **Success Criteria** (what must be TRUE):
 
-  1. A thin write app (maderas Flask under Apache `mod_fcgid`, isolated alongside the existing pipeline per 177 D-01) accepts authenticated writes; the read path remains fully static — no runtime dependency is added to species-page loads.
+  1. A thin write app (maderas Flask served by Waitress behind Apache `mod_proxy_http`, isolated alongside the existing pipeline per 177 D-01 + 178 D-17) accepts authenticated writes; the read path remains fully static — no runtime dependency is added to species-page loads.
   2. An author signs in via iNaturalist OAuth2 (server-side code exchange with PKCE); the write app derives identity server-side (never trusting client-supplied identity) and mints its own long-lived app session rather than calling iNat per request — no secret ships in the client bundle, no token in `localStorage`/URL, minimal (identity-only) OAuth scope, exact-pinned redirect URI.
   3. Only allowlisted experts can create/edit notes; the endpoint enforces server-side authorization with CSRF/origin protection — a forged-author request and a cross-origin POST are both rejected.
   4. Public writes are not enabled until the Phase-177 backup restore has been demonstrated — an explicit launch-checklist gate, verified before the endpoint accepts its first non-test write.
@@ -178,7 +178,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5; operator-only, autonomous: false)*
 
-- [ ] 178-08-PLAN.md — Operator: CDK `api` A-record + Apache/mod_fcgid/certbot deploy + migration 0002 on maderas + WRITE-04 launch gate (flip `writes_enabled` after confirming the 177-07 restore) [WRITE-01, WRITE-04]
+- [ ] 178-08-PLAN.md — Operator: CDK `api` A-record + Apache `mod_proxy_http`/Waitress/certbot deploy + Waitress supervision (systemd-user or cron @reboot) + migration 0002 on maderas + WRITE-04 launch gate (flip `writes_enabled` after confirming the 177-07 restore) [WRITE-01, WRITE-04]
 
 **Wave 7** *(blocked on Wave 6; human UAT, autonomous: false — do NOT auto-advance)*
 
