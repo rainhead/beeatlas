@@ -34,8 +34,12 @@ def client():
 
 @pytest.fixture(autouse=True)
 def _base_env(monkeypatch):
-    """Sane defaults for every test: real-looking signing key, gate on."""
+    """Sane defaults for every test: real-looking signing key + client_id,
+    gate on. INAT_CLIENT_ID must be pinned here for hermeticity: it defaults
+    to "" when api/secrets.toml is absent (CI), and require_real_secrets()
+    rejects an empty client_id (WR-05)."""
     monkeypatch.setattr(config, "SESSION_SIGNING_KEY", TEST_SIGNING_KEY)
+    monkeypatch.setattr(config, "INAT_CLIENT_ID", "test-client-id")
     monkeypatch.setattr(config, "WRITES_ENABLED", True)
 
 

@@ -127,7 +127,7 @@ if DEV_MODE:
 
 
 def require_real_secrets() -> None:
-    """Raise loudly if any secret still carries a REPLACE_ME placeholder.
+    """Raise loudly if any secret is still a placeholder or missing.
 
     Call this from request/route code (later 178 plans), NOT at import
     time — tests and the static-site build must never need real secrets.
@@ -145,5 +145,17 @@ def require_real_secrets() -> None:
             "api/secrets.toml has unfilled REPLACE_ME placeholder(s) for: "
             f"{', '.join(sorted(placeholders))}. The operator must fill in "
             "real values before the write layer can serve authenticated "
+            "requests."
+        )
+    # INAT_CLIENT_ID defaults to "" (not the REPLACE_ME sentinel) when
+    # secrets.toml is absent or the key unset — a deployment that filled the
+    # secret + signing key but omitted the client_id would otherwise pass
+    # this gate and send `client_id=` (empty) to iNat, failing opaquely on
+    # their side instead of loudly here.
+    if not INAT_CLIENT_ID or _PLACEHOLDER in INAT_CLIENT_ID:
+        raise RuntimeError(
+            "api/secrets.toml is missing inaturalist_oauth.client_id (empty "
+            "or placeholder). The operator must fill in the real iNat app "
+            "client_id before the write layer can serve authenticated "
             "requests."
         )
