@@ -71,7 +71,7 @@
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
 | 177. Authoritative Store, Migrations & Backup/DR | 7/7 | Complete   | 2026-07-03 |
 | 178. Thin Write Layer + iNat OAuth | 9/9 | Complete    | 2026-07-04 |
-| 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
+| 179. Notes Feature + Harvest Bake | 0/6 | Not started | - |
 | 180. Moderation Loop | 0/TBD | Not started | - |
 
 ### Phase 176: Build-Seam Refoundation (Thread 1)
@@ -199,7 +199,30 @@ Plans:
   3. Published (non-hidden) notes are harvested nightly into a build-time `notes.json` (mirroring `species_hosts.js`); species pages render them as an attributed, stacked list with a sensible empty state (most of ~560 species have none); the read path stays static and offline-safe with no runtime call on page load.
   4. *(Optional, NOTES-04)* A per-species live island shows an author their just-written note immediately, before the next build refreshes `notes.json`; offline / no-JS still shows the baked note (the island is pure enhancement, never the sole display path).
 
-**Plans**: TBD
+**Plans**: 6 plans (5 waves)
+
+Plans:
+
+**Wave 1**
+
+- [ ] 179-01-PLAN.md — Shared render+sanitize helper (markdown-it-py "zero" preset + nh3 tag/attribute/scheme allowlist) + forward-only Alembic migration 0003 (body_html NOT NULL backfilled through the renderer; author_id integer FK -> users.id) [NOTES-01, NOTES-02]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 179-02-PLAN.md — Note CRUD + public read API in api/main.py (POST/PATCH/DELETE + GET /api/notes; @require_author + per-note ownership 403; soft-delete via note_revisions; approved-only read with own-note body_md) [NOTES-01, NOTES-02, NOTES-04]
+- [ ] 179-03-PLAN.md — Harvest -> notes.json (read-only WAL store read, collectors.json byline reuse, approved-only newest-first) + run.py `notes-harvest` STEP + authoritative `[artifacts.notes]` (build_time_fetch + optional) + `_data/notes.js` loader; narrows the run.py-isolation test to allow the read-only step [NOTES-03]
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 179-04-PLAN.md — Baked notes `<section>` on species-detail.njk (newest-first, linked/plain byline, graceful empty state, always-present `<bee-notes>` mount) + `formatDate` Eleventy filter + Phase-179 CSS; static, offline-safe, no page-load API call [NOTES-03]
+
+**Wave 4** *(blocked on Waves 2-3)*
+
+- [ ] 179-05-PLAN.md — `<bee-notes>` light-DOM hydrating Lit island + note CRUD client (independent fetchWhoami gate, inline editor, own-note edit/delete, confirm-then-refetch live re-render) [NOTES-01, NOTES-02, NOTES-04]
+
+**Wave 5** *(blocked on Wave 4; human UAT, autonomous: false — do NOT auto-advance)*
+
+- [ ] 179-06-PLAN.md — Security + end-to-end UAT: live author create/edit/delete, forged-author + cross-origin write rejection, notes.json rendering on the static site after a nightly cycle [NOTES-01, NOTES-02, NOTES-03, NOTES-04]
 **Notes**: The harvest → bake is an exact structural mirror of the Phase 175 `species_hosts.js` build-time bake — established pattern, no `--research-phase` for harvest/render. Never commit the harvested `notes.json` to git (memory `feedback_no_committed_data_artifacts`); it ships via the S3 + `manifest.json` + `deploy.yml` fetch pattern (published through the Phase-176 contract). XSS backstop lives in Phase 180 but escape-on-render applies here. NOTES-04 is a differentiator, not table stakes — build only if 178/179 scope allows.
 **UI hint**: yes
 
