@@ -12,6 +12,7 @@ import type { FeatureCollection, Point } from 'geojson';
 import { makeStaleGuard } from './stale-guard.ts';
 import type { CachePrimeProgressDetail, CacheStateChangedDetail } from './prime-orchestrator.ts';
 import { loadFreshnessLabel, resolveDataUrl } from './manifest.ts';
+import { fetchWhoami, signOut, startSignIn, type AuthState } from './auth-client.ts';
 import './bee-header.ts';
 import './bee-pane.ts';
 import './bee-map.ts';
@@ -146,6 +147,10 @@ export class BeeAtlas extends LitElement {
   @state() private _installable: boolean = false;
   // D-11/D-12: true on iOS Safari (not standalone); computed once at construction time.
   @state() private _iosInstructable: boolean = isIosSafari() && !isStandalone();
+  // 178-07 gap fix: server-derived identity for the map-page <bee-header>, fetched by
+  // this component (the state owner — bee-header stays a pure presenter). Mirrors the
+  // controller in src/entries/bee-header.ts, which wires every non-map page.
+  @state() private _authState: AuthState | null = null;
 
   // LOC-02: location state owned by bee-atlas (pure-presenter invariant — bee-map only emits)
   @state() private _userLocation: { lat: number; lon: number; accuracy: number } | null = null;
@@ -481,6 +486,7 @@ bee-map {
         .updateAvailable=${this._updateAvailable}
         .installable=${this._installable}
         .iosInstructable=${this._iosInstructable}
+        .authState=${this._authState}
       ></bee-header>
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
       ${this._loading ? html`<div class="loading-overlay">Loading…</div>` : ''}
@@ -730,6 +736,12 @@ bee-map {
     window.addEventListener('focus', this._refreshFreshness);
     // Phase 157: close the relocated region menu on outside click.
     document.addEventListener('click', this._onDocumentClick);
+    // 178-07 gap fix: fetch whoami for the map-page header. fetchWhoami() never
+    // throws — resolves {authenticated:false} on any network error — so this
+    // never blocks or delays map init (mirrors src/entries/bee-header.ts).
+    void fetchWhoami().then((state) => { this._authState = state; });
+    this.addEventListener('sign-in', this._onSignIn);
+    this.addEventListener('sign-out', this._onSignOut);
   }
 
   disconnectedCallback() {
@@ -749,6 +761,8 @@ bee-map {
     this._standaloneQuery.removeEventListener('change', this._onStandaloneChange);
     window.removeEventListener('focus', this._refreshFreshness);
     document.removeEventListener('click', this._onDocumentClick);
+    this.removeEventListener('sign-in', this._onSignIn);
+    this.removeEventListener('sign-out', this._onSignOut);
   }
 
   // --- Filter query ---
@@ -1173,6 +1187,22 @@ bee-map {
       this._installable = false;
       this._iosInstructable = false;
     }
+  };
+
+  // --- 178-07 gap fix: map-page auth wiring (mirrors src/entries/bee-header.ts) ---
+
+  // sign-in: upward CustomEvent from <bee-header> when the "Sign in with
+  // iNaturalist" button is clicked. No fetch/mutation here — startSignIn()
+  // navigates the browser away.
+  private _onSignIn = () => {
+    startSignIn(window.location.href);
+  };
+
+  // sign-out: upward CustomEvent from <bee-header> when the "Sign out" button
+  // is clicked. Calls auth-client's signOut() then re-fetches whoami so the
+  // header re-renders as anonymous.
+  private _onSignOut = () => {
+    void signOut().then(() => fetchWhoami()).then((state) => { this._authState = state; });
   };
 
   private _onPopoverToggle = async (e: Event) => {
