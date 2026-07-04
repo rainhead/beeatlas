@@ -230,6 +230,25 @@ def test_callback_no_flow_cookie_is_400(client):
     assert resp.status_code == 400
 
 
+def test_login_flow_cookie_is_samesite_lax(client, monkeypatch):
+    """Regression (found live, 178-08 go-live): the flow cookie MUST be
+    SameSite=Lax, not Strict — /auth/callback arrives as a top-level
+    navigation from inaturalist.org (cross-site), and browsers do not attach
+    Strict cookies to cross-site navigations, so Strict 400s every real
+    login. CSRF on this hop is the signed state + PKCE verifier, not
+    SameSite."""
+    monkeypatch.setattr(config, "INAT_CLIENT_SECRET", "real-looking-secret")
+    resp = client.get("/auth/login")
+    assert resp.status_code == 302
+    flow_cookie = next(
+        h for h in resp.headers.getlist("Set-Cookie")
+        if h.startswith(main.FLOW_COOKIE_NAME + "=")
+    )
+    assert "SameSite=Lax" in flow_cookie
+    assert "Secure" in flow_cookie
+    assert "HttpOnly" in flow_cookie
+
+
 def test_callback_state_mismatch_is_400(client, monkeypatch):
     """oauth is mocked so this test can never accidentally reach a live call --
     the state check must reject before exchange_code is ever invoked."""

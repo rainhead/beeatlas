@@ -170,12 +170,21 @@ def auth_login():
             code_challenge=challenge,
         )
     )
+    # SameSite=Lax — NOT Strict — is load-bearing here: /auth/callback arrives
+    # as a top-level navigation FROM inaturalist.org (cross-site), and browsers
+    # do not attach Strict cookies to cross-site navigations, which 400s every
+    # real login (found live during the 178-08 go-live). Lax cookies ARE sent
+    # on top-level GET navigations — exactly the legitimate callback shape.
+    # CSRF on this hop is carried by the signed `state` + PKCE verifier
+    # (RFC 6749 §10.12), not by SameSite; the long-lived session cookie
+    # (api/session.py) stays Strict because beeatlas.net → api.beeatlas.net
+    # is same-site.
     resp.set_cookie(
         FLOW_COOKIE_NAME,
         flow_token,
         httponly=True,
         secure=True,
-        samesite="Strict",
+        samesite="Lax",
         max_age=FLOW_COOKIE_MAX_AGE,
     )
     return resp
