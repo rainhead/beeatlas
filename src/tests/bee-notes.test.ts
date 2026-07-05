@@ -6,6 +6,7 @@ const authClientMocks = vi.hoisted(() => ({
   createNote: vi.fn(),
   updateNote: vi.fn(),
   deleteNote: vi.fn(),
+  takedownNote: vi.fn(),
 }));
 
 vi.mock('../auth-client.ts', () => authClientMocks);
@@ -276,5 +277,108 @@ describe('bee-notes: author view', () => {
 
     expect(authClientMocks.createNote).not.toHaveBeenCalled();
     expect(el.querySelector('.note-textarea')).not.toBeNull();
+  });
+});
+
+describe('bee-notes: curator controls (D-01/D-02/D-03)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    document.body.innerHTML = '';
+  });
+
+  async function mountAsCurator(bakedNotes: unknown[] = []) {
+    authClientMocks.fetchWhoami.mockResolvedValue({
+      authenticated: true, login: 'curator1', role: 'curator', isAuthor: true, isCurator: true,
+    });
+    const el = await mountBeeNotes('Agapostemon femoratus', bakedNotes);
+    await el.updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await el.updateComplete;
+    return el;
+  }
+
+  test('curator-only login (isAuthor true server-side) still passes the top-level render gate', async () => {
+    const el = await mountAsCurator([OTHER_NOTE]);
+
+    expect(el.querySelector('.notes-section')).not.toBeNull();
+  });
+
+  test('curator sees a Take down control on a note they do NOT own (can_edit: false)', async () => {
+    const el = await mountAsCurator([OTHER_NOTE]);
+
+    const article = el.querySelector('[data-note-id="2"]');
+    const takedownBtn = article?.querySelector('[aria-label="Take down this note (curator)"]');
+    expect(takedownBtn).not.toBeNull();
+    expect(takedownBtn?.textContent).toContain('Take down');
+    // Curator is not the owner of this note -- no owner controls should render.
+    expect(article?.querySelector('.note-owner-controls .note-btn--edit')).toBeNull();
+  });
+
+  test('a signed-in non-curator author does NOT see the Take down control', async () => {
+    authClientMocks.fetchWhoami.mockResolvedValue({
+      authenticated: true, login: 'author1', role: 'author', isAuthor: true, isCurator: false,
+    });
+    const el = await mountBeeNotes('Agapostemon femoratus', [OWN_NOTE, OTHER_NOTE]);
+    await el.updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await el.updateComplete;
+
+    expect(el.querySelector('[aria-label="Take down this note (curator)"]')).toBeNull();
+  });
+
+  test('clicking Take down opens inline confirm; confirming POSTs takedown then refetches (no optimistic removal)', async () => {
+    const el = await mountAsCurator([OTHER_NOTE]);
+
+    el.querySelector('[data-note-id="2"] [aria-label="Take down this note (curator)"]').click();
+    await el.updateComplete;
+
+    expect(el.querySelector('.note-delete-confirm')).not.toBeNull();
+    expect(el.querySelector('.note-delete-confirm')?.textContent).toContain('Take down this note?');
+
+    authClientMocks.takedownNote.mockResolvedValue({ ok: true, data: { id: 2 } });
+    authClientMocks.fetchSpeciesNotes.mockResolvedValue([]);
+
+    el.querySelector('.note-delete-confirm .note-btn--danger').click();
+    await el.updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await el.updateComplete;
+
+    expect(authClientMocks.takedownNote).toHaveBeenCalledWith(2);
+    expect(authClientMocks.fetchSpeciesNotes).toHaveBeenCalledWith('Agapostemon femoratus');
+    expect(el.querySelector('[data-note-id="2"]')).toBeNull();
+    expect(el.querySelector('.note-status')?.textContent).toContain('Note taken down.');
+  });
+
+  test('Take down confirm Cancel reverts to the plain control without calling takedownNote', async () => {
+    const el = await mountAsCurator([OTHER_NOTE]);
+
+    el.querySelector('[data-note-id="2"] [aria-label="Take down this note (curator)"]').click();
+    await el.updateComplete;
+    expect(el.querySelector('.note-delete-confirm')).not.toBeNull();
+
+    el.querySelector('.note-delete-confirm .note-btn:not(.note-btn--danger)').click();
+    await el.updateComplete;
+
+    expect(el.querySelector('.note-delete-confirm')).toBeNull();
+    expect(el.querySelector('[aria-label="Take down this note (curator)"]')).not.toBeNull();
+    expect(authClientMocks.takedownNote).not.toHaveBeenCalled();
+  });
+
+  test('a mocked 403 (curator revoked mid-session) shows the revoked-permission banner and refetches', async () => {
+    const el = await mountAsCurator([OTHER_NOTE]);
+
+    el.querySelector('[data-note-id="2"] [aria-label="Take down this note (curator)"]').click();
+    await el.updateComplete;
+
+    authClientMocks.takedownNote.mockResolvedValue({ ok: false, status: 403 });
+    authClientMocks.fetchSpeciesNotes.mockResolvedValue([{ ...OTHER_NOTE }]);
+
+    el.querySelector('.note-delete-confirm .note-btn--danger').click();
+    await el.updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await el.updateComplete;
+
+    expect(el.querySelector('.note-error')?.textContent).toContain('no longer have curator permission');
+    expect(authClientMocks.fetchSpeciesNotes).toHaveBeenCalled();
   });
 });

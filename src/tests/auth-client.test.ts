@@ -23,7 +23,46 @@ describe('auth-client: fetchWhoami', () => {
     const [url, opts] = call;
     expect(String(url)).toContain('/auth/whoami');
     expect(opts).toMatchObject({ credentials: 'include' });
-    expect(state).toEqual({ authenticated: true, login: 'someuser', role: 'author', isAuthor: true });
+    expect(state).toEqual({ authenticated: true, login: 'someuser', role: 'author', isAuthor: true, isCurator: false });
+  });
+
+  test('role: curator => isCurator true (D-03)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ authenticated: true, login: 'curator1', role: 'curator', is_author: true }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { fetchWhoami } = await import('../auth-client.ts');
+    const state = await fetchWhoami();
+
+    expect(state.isCurator).toBe(true);
+  });
+
+  test('role: author => isCurator false (D-03)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ authenticated: true, login: 'author1', role: 'author', is_author: true }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { fetchWhoami } = await import('../auth-client.ts');
+    const state = await fetchWhoami();
+
+    expect(state.isCurator).toBe(false);
+  });
+
+  test('unauthenticated => isCurator falsy (D-03)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ authenticated: false }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { fetchWhoami } = await import('../auth-client.ts');
+    const state = await fetchWhoami();
+
+    expect(state.isCurator).toBeFalsy();
   });
 
   test('returns {authenticated:false} on a rejected fetch', async () => {
