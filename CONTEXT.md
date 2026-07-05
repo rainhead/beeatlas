@@ -6,7 +6,8 @@ Shared vocabulary for BeeAtlas. Use these terms precisely — ambiguity here has
 
 - **Specimen** — a physical bee, the real-world thing. May be represented by an iNat observation (photo posted by collector), an Ecdysis record, both, or neither for months after collection.
 - **Sample** — all bees collected off one floral host, by one person, on one day, at one place. Represented by an iNat observation (usually of the plant; occasionally a blank record when bees were collected off a non-plant substrate). Carries sample ID (sequential per person per day) and bee count as metadata.
-- **Floral host** — the plant a sample was collected from. Identified by the iNat observation that represents the sample.
+- **Sample host** (a.k.a. *floral host*) — the plant a sample was collected from, identified by the iNat observation that represents the sample. The *retrospective* host — what bees were actually collected on. Contrast **target host**.
+- **Target host** — a plant volunteers are directed to *seek out* because collecting on it is likely to yield wanted bees; the *prospective* counterpart to the sample host. The set is drawn from curated project-leader lists, Washington-endemic native plants, and the hosts of specialist bees.
 - **Observation** — a record on iNaturalist. Could represent a specimen (photo posted by collector), a floral host (plant ID), or a sample (collection record with sample ID + bee count metadata).
 - **Occurrence record** — any data record of a bee occurrence: an iNat observation or an Ecdysis record.
 - **Collection event** — a scheduled group outing; implicitly yields many samples from multiple people. No data record exists for events yet.
