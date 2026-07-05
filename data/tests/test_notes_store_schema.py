@@ -98,12 +98,75 @@ def test_schema_notes(tmp_path):
         "editor_id",
         "revised_at",
         "action",
+        "reason",
     }
     assert expected_revisions_cols <= revisions_cols, (
         f"note_revisions missing columns: {expected_revisions_cols - revisions_cols}"
     )
 
     con.close()
+
+
+# ---------------------------------------------------------------------------
+# test_note_revisions_reason_column_nullable — MOD-03/D-09 (Phase 180, migration 0004)
+# ---------------------------------------------------------------------------
+
+
+def test_note_revisions_reason_column_nullable(tmp_path):
+    """note_revisions.reason exists and is nullable (D-09, migration 0004).
+
+    A curator takedown/restore accepts an optional free-text reason (empty
+    allowed, D-09) -- the column must accept NULL so a reason-less action
+    never forces a placeholder value. This is verification only (D-11):
+    migration 0004 (Plan 01) already added the column; nothing here changes
+    production code.
+    """
+    engine = _make_db(tmp_path)
+    db_path = tmp_path / "notes.db"
+
+    con = sqlite3.connect(db_path)
+    try:
+        # PRAGMA table_info row shape: (cid, name, type, notnull, dflt_value, pk)
+        cols = {
+            row[1]: row
+            for row in con.execute("PRAGMA table_info(note_revisions)").fetchall()
+        }
+        assert "reason" in cols, (
+            "note_revisions missing 'reason' column (migration 0004, D-09)"
+        )
+        notnull = cols["reason"][3]
+        assert notnull == 0, (
+            f"Expected note_revisions.reason to be nullable (notnull=0), got notnull={notnull}"
+        )
+    finally:
+        con.close()
+
+    # And an actual insert with reason=None succeeds (belt-and-suspenders, ORM path).
+    now = datetime.datetime(2026, 7, 5, 12, 0, 0)
+    with Session(engine) as session:
+        gina = _make_user(session, "gina_inat", 6, now)
+        note = Note(
+            canonical_name="apis mellifera",
+            author_id=gina.id,
+            body="Gina's note.",
+            body_html="<p>Gina's note.</p>",
+            status="approved",
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(note)
+        session.flush()
+        session.add(
+            NoteRevision(
+                note_id=note.id,
+                body=note.body,
+                editor_id=str(gina.id),
+                revised_at=now,
+                action="create",
+                reason=None,
+            )
+        )
+        session.commit()
 
 
 # ---------------------------------------------------------------------------
