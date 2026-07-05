@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v8.0
 milestone_name: Authoritative Data Foundation
 status: executing
-stopped_at: Completed 180-03-PLAN.md
-last_updated: "2026-07-05T01:33:14.405Z"
+stopped_at: Completed 180-02-PLAN.md
+last_updated: "2026-07-05T01:41:51.361Z"
 last_activity: 2026-07-05
 progress:
   total_phases: 47
   completed_phases: 27
   total_plans: 88
-  completed_plans: 87
+  completed_plans: 88
   percent: 57
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation
 ## Current Position
 
 Phase: 180 (moderation-loop) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-07-05
 
@@ -46,7 +46,7 @@ Introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-specifi
 | 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Complete (2026-07-04) |
 | 180 | Moderation Loop | MOD-01..04 | yes | Not started |
 
-**Progress:** [██████████] 99%
+**Progress:** [██████████] 100%
 
 **Phase dependency chain:** 176 (independent) → 177 → 178 → 179 (also needs 176's contract) → 180.
 
@@ -99,6 +99,8 @@ Load-bearing conventions carried forward (relevant to v8.0):
 - [Phase 179]: 179-06: operator-triggered nightly gotcha — bash parses nightly.sh at invocation, so `git pull` on the host BEFORE running it (its own internal pull updates the file too late for the loaded process).
 - [Phase 180-03]: isCurator derived client-side as role === 'curator' (D-03); server always re-checks authz on write
 - [Phase 180-03]: Curator Take-down control reuses .note-owner-controls/.note-delete-confirm/.note-btn--danger verbatim, zero new CSS classes
+- [Phase 180]: [Phase 180-02] Curator gate (_is_curator_fresh) runs BEFORE the note load in takedown/restore, unlike the post-load ownership check in edit_note/delete_note -- a blanket non-curator 403 leaks no note-specific info
+- [Phase 180]: [Phase 180-02] restore route is fully implemented and tested but has zero UI wiring in this plan -- curl-only per D-07, consumed directly by the operator
 
 ### Roadmap Evolution
 
@@ -145,8 +147,8 @@ Items acknowledged and carried forward from prior milestone closes:
 
 ## Session Continuity
 
-Last session: 2026-07-05T01:33:14.395Z
-Stopped at: Completed 180-03-PLAN.md
+Last session: 2026-07-05T01:41:51.352Z
+Stopped at: Completed 180-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

@@ -45,10 +45,10 @@ Scope: introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-
 
 ### Moderation
 
-- [ ] **MOD-01**: Three roles exist — reader / author / curator — with the author allowlist and curator set sourced from a declared, auditable place.
-- [ ] **MOD-02**: A curator can hide/take down any note **without a code deploy**; hidden notes are excluded from the harvest.
-- [ ] **MOD-03**: Note content is XSS-sanitized on write, and every note carries audit fields (`author_id`, `status`, `created`, `updated`).
-- [ ] **MOD-04**: A takedown removes a note from the public site within one harvest/build cycle (and immediately from the live island, if NOTES-04 shipped).
+- [x] **MOD-01**: Three roles exist — reader / author / curator — with the author allowlist and curator set sourced from a declared, auditable place.
+- [x] **MOD-02**: A curator can hide/take down any note **without a code deploy**; hidden notes are excluded from the harvest.
+- [x] **MOD-03**: Note content is XSS-sanitized on write, and every note carries audit fields (`author_id`, `status`, `created`, `updated`).
+- [x] **MOD-04**: A takedown removes a note from the public site within one harvest/build cycle (and immediately from the live island, if NOTES-04 shipped).
 
 ## Future Requirements (deferred)
 
@@ -99,7 +99,7 @@ Which phases cover which requirements. Filled during roadmap creation (2026-07-0
 | NOTES-02 | Phase 179 | Complete (179-01 schema + 179-02 edit/delete routes; UI in 179-04/05) |
 | NOTES-03 | Phase 179 | Complete |
 | NOTES-04 *(optional)* | Phase 179 | Complete (179-02 read endpoint; live island UI in 179-04) |
-| MOD-01 | Phase 180 | Pending |
-| MOD-02 | Phase 180 | Pending |
-| MOD-03 | Phase 180 | Pending |
-| MOD-04 | Phase 180 | Pending |
+| MOD-01 | Phase 180 | Complete |
+| MOD-02 | Phase 180 | Complete |
+| MOD-03 | Phase 180 | Complete |
+| MOD-04 | Phase 180 | Complete |
