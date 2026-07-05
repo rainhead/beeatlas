@@ -671,7 +671,14 @@ surface without deprecating anything from 177-179.
 narrowly scoped to execution-ordering details, not to any of the D-01..D-11
 locked decisions themselves.
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+**RESOLVED (planning, 2026-07-04):** Both questions were answered during
+planning and are reflected in the plans. (1) Curator-check ordering → **check
+before load**, implemented in 180-02 (the non-curator 403 reveals nothing about
+whether the note id exists). (2) Reason-input UI scope → **bare "Take down"
+button, no reason field in v1**; `reason` stays API/curl-only, per 180-03 and
+180-UI-SPEC.md.
 
 1. **Exact ordering of the curator-role check relative to the note load in
    takedown/restore.**

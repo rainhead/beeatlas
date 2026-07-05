@@ -238,7 +238,13 @@ Plans:
   3. Note content is XSS-sanitized on write and every note carries audit fields (`author_id`, `status`, `created`, `updated`) — a `<script>`/`onerror=` payload renders inert.
   4. A takedown removes a note from the public site within one harvest/build cycle (and immediately from the live island, if NOTES-04 shipped) — verified by an end-to-end submit → publish → takedown walkthrough.
 
-**Plans**: TBD
+**Plans**: 5 plans (3 waves)
+  Plans:
+  - [ ] 180-01-PLAN.md — Wave 1: nullable `note_revisions.reason` column (NoteRevision model + forward-only Alembic migration 0004 + apply/no-downgrade tests) [D-09]
+  - [ ] 180-02-PLAN.md — Wave 2: curator-override authz — `_is_curator_fresh` fresh per-request check + `POST /api/notes/{id}/takedown` (status='hidden', action='takedown') + curl-only `POST /api/notes/{id}/restore` (status='approved', action='restore'), load-before-authz, Origin+launch gates, ledger attribution [D-04,D-05,D-06,D-07,D-08,D-10]
+  - [ ] 180-03-PLAN.md — Wave 1: frontend — `AuthState.isCurator` derivation + `takedownNote` client + curator-gated inline "Take down" control (confirm/pending/error/403 states) in `<bee-notes>`, server-driven refetch [D-01,D-02,D-03]
+  - [ ] 180-04-PLAN.md — Wave 2: verification — hidden-status harvest-exclusion test (MOD-04 by construction) + reason/audit-field schema assertion + run pre-shipped MOD-01 roles / MOD-03 XSS tests [D-06,D-11]
+  - [ ] 180-05-PLAN.md — Wave 3 (autonomous:false): operator applies migration 0004 on maderas + BLOCKING end-to-end MOD-04 human UAT (submit→publish→takedown→curl-restore); do NOT auto-advance
 **Notes**: The moderator/curator-role *source* (committed allowlist vs a `roles` column vs external roster) is an open decision resolved here; the schema affordances already land in Phase 177. Scope guardrail: this is allowlist + author-vs-curator check + curator takedown — NOT a pre-moderation queue, reader flagging/voting, or a moderation workbench (all deferred). End-to-end human UAT gate; do not auto-advance past UAT.
 **UI hint**: yes
 

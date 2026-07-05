@@ -4,8 +4,8 @@ milestone: v8.0
 milestone_name: Authoritative Data Foundation
 status: verifying
 stopped_at: Phase 180 UI-SPEC approved
-last_updated: "2026-07-05T00:56:45.152Z"
-last_activity: 2026-07-04
+last_updated: "2026-07-05T01:16:41.332Z"
+last_activity: 2026-07-05 -- Phase 180 planning complete
 progress:
   total_phases: 5
   completed_phases: 4
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation
 Phase: 179 (notes-feature-harvest-build-time-bake) — COMPLETE (verified pass 2026-07-04)
 Plan: 6 of 6 complete
 Status: Phase 179 done — all 3 human-UAT gates approved; NOTES-01..04 verified. Next: Phase 180 (Moderation Loop).
-Last activity: 2026-07-04
+Last activity: 2026-07-05 -- Phase 180 planning complete
 
 Progress: [██████░░░░] 57%
 
