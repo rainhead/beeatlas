@@ -20,6 +20,9 @@ Tests:
                                  rows through render_note_markdown and recasts
                                  author_id to an int FK -> users.id (D-05/D-08)
   test_no_downgrade_0003      — downgrade() on 0003 raises NotImplementedError
+  test_migration_0004_adds_reason_nullable — 0004 adds a nullable reason column
+                                 to note_revisions (D-09)
+  test_no_downgrade_0004      — downgrade() on 0004 raises NotImplementedError
 """
 
 import datetime
@@ -280,5 +283,85 @@ def test_migration_0003_backfills_body_html(tmp_path, monkeypatch):
 def test_no_downgrade_0003():
     """downgrade() on the 0003 migration raises NotImplementedError."""
     mod = _load_migration_module("0003")
+    with pytest.raises(NotImplementedError):
+        mod.downgrade()
+
+
+# ---------------------------------------------------------------------------
+# test_migration_0004_adds_reason_nullable — D-09
+# ---------------------------------------------------------------------------
+
+
+def test_migration_0004_adds_reason_nullable(tmp_path, monkeypatch):
+    """alembic upgrade 0003 -> 0004 adds a nullable reason column to note_revisions.
+
+    Seeds a DB at revision 0003, upgrades to 0004, and verifies:
+      - PRAGMA table_info(note_revisions) lists a 'reason' column with notnull == 0
+      - inserting a note_revisions row WITHOUT a reason succeeds (reason stored NULL)
+    """
+    from alembic import command
+
+    db_path = tmp_path / "notes.db"
+    cfg = _make_alembic_config(db_path, monkeypatch)
+    command.upgrade(cfg, "0003")
+
+    now = datetime.datetime(2026, 7, 5, 12, 0, 0).isoformat(sep=" ")
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute(
+            "INSERT INTO users (id, inat_user_id, inat_login, created_at, updated_at) "
+            "VALUES (1, 100, 'alice_inat', ?, ?)",
+            (now, now),
+        )
+        conn.execute(
+            "INSERT INTO notes (id, canonical_name, author_id, body, body_html, "
+            "status, created_at, updated_at) VALUES (1, 'apis mellifera', 1, "
+            "'**x**', '<p><strong>x</strong></p>', 'approved', ?, ?)",
+            (now, now),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    command.upgrade(cfg, "0004")
+
+    conn = sqlite3.connect(db_path)
+    try:
+        columns = conn.execute("PRAGMA table_info(note_revisions)").fetchall()
+        # PRAGMA table_info row shape: (cid, name, type, notnull, dflt_value, pk)
+        reason_col = next((c for c in columns if c[1] == "reason"), None)
+        assert reason_col is not None, (
+            f"'reason' column missing from note_revisions after upgrade to 0004; "
+            f"got columns {[c[1] for c in columns]}"
+        )
+        assert reason_col[3] == 0, (
+            f"Expected 'reason' column to be nullable (notnull=0), got notnull={reason_col[3]}"
+        )
+
+        # Inserting a note_revisions row WITHOUT a reason succeeds (NULL).
+        conn.execute(
+            "INSERT INTO note_revisions (id, note_id, body, editor_id, revised_at, action) "
+            "VALUES (1, 1, '**x**', '1', ?, 'create')",
+            (now,),
+        )
+        conn.commit()
+
+        row = conn.execute(
+            "SELECT reason FROM note_revisions WHERE id = 1"
+        ).fetchone()
+        assert row is not None, "seeded note_revisions row missing after insert"
+        assert row[0] is None, f"Expected reason to be NULL, got {row[0]!r}"
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# test_no_downgrade_0004 — Pitfall 4 / D-09
+# ---------------------------------------------------------------------------
+
+
+def test_no_downgrade_0004():
+    """downgrade() on the 0004 migration raises NotImplementedError."""
+    mod = _load_migration_module("0004")
     with pytest.raises(NotImplementedError):
         mod.downgrade()
