@@ -93,6 +93,134 @@ def _query_counts(
     return {row[0]: {"specimen_count": int(row[1]), "sample_count": int(row[2])} for row in rows}
 
 
+# Shared occ_id synthesis CTE — identical priority to _query_counts / occIdFromRow
+# (src/occurrence.ts:23-30). Reused by the per-place species and month queries so
+# the bridge JOIN sees the same synthetic occ_id everywhere.
+_OCC_ID_CTE = """
+    WITH occ AS (
+        SELECT *,
+            CASE
+                WHEN ecdysis_id IS NOT NULL THEN 'ecdysis:' || ecdysis_id
+                WHEN observation_id IS NOT NULL THEN 'inat:' || observation_id
+                WHEN specimen_observation_id IS NOT NULL THEN 'inat_obs:' || specimen_observation_id
+                WHEN checklist_id IS NOT NULL THEN 'checklist:' || checklist_id
+            END AS occ_id
+        FROM read_parquet(?)
+    )
+"""
+
+# Below this many dated records a peak month is noise, not signal (cyv / phase 1
+# design: "don't fabricate a pattern from noise"). The month bars still render.
+_PEAK_MIN_RECORDS = 10
+
+
+def _query_species_by_place(
+    con: duckdb.DuckDBPyConnection,
+    occ_parquet: Path,
+    bridge_parquet: Path,
+    species_parquet: Path,
+) -> dict[str, list[dict]]:
+    """Per-place species-rank list grouped by genus (mirrors the collector page).
+
+    Returns {slug: [{"genus": g, "species": [{"name", "slug", "count"}, ...]}, ...]}.
+    Predicate tier='atlas' (includes uncatalogued specimens); species-rank only
+    (sp.specific_epithet IS NOT NULL). Display name is the cased sp.scientificName;
+    sp.slug links the /species/ page. Same taxon_id join as collectors_export.
+    """
+    if not species_parquet.exists():
+        raise FileNotFoundError(
+            f"{species_parquet} not found — run species-export before places-export"
+        )
+    rows = con.execute(
+        _OCC_ID_CTE
+        + """
+        SELECT b.place_slug, sp.genus, sp.scientificName, sp.slug, COUNT(*) AS cnt
+        FROM occ
+        JOIN read_parquet(?) b ON b.occ_id = occ.occ_id
+        LEFT JOIN read_parquet(?) sp ON sp.taxon_id = occ.taxon_id
+        WHERE occ.tier = 'atlas' AND sp.specific_epithet IS NOT NULL
+        GROUP BY b.place_slug, sp.genus, sp.scientificName, sp.slug
+        ORDER BY b.place_slug, sp.genus, sp.scientificName
+        """,
+        [str(occ_parquet), str(bridge_parquet), str(species_parquet)],
+    ).fetchall()
+    # SQL ORDER BY (slug, genus, scientificName) makes dict insertion order correct;
+    # genera come out alphabetical, species alphabetical within genus.
+    by_slug: dict[str, dict[str, list]] = {}
+    for slug, genus, sci, sp_slug, cnt in rows:
+        genus_map = by_slug.setdefault(slug, {})
+        genus_map.setdefault(genus, []).append(
+            {"name": sci, "slug": sp_slug, "count": int(cnt)}
+        )
+    return {
+        slug: [{"genus": g, "species": sp_list} for g, sp_list in genus_map.items()]
+        for slug, genus_map in by_slug.items()
+    }
+
+
+def _query_collection_months(
+    con: duckdb.DuckDBPyConnection,
+    occ_parquet: Path,
+    bridge_parquet: Path,
+) -> dict[str, list[int]]:
+    """Per-place collection-timing histogram: a 12-int array (index 0=Jan … 11=Dec)
+    of atlas occurrences by collection month, aggregated across all years.
+
+    Returns {slug: [12 ints]}. Months are the retrospective 'when were bees
+    collected here' signal (peak-framed); rows lacking a month are excluded.
+    """
+    rows = con.execute(
+        _OCC_ID_CTE
+        + """
+        SELECT b.place_slug, occ.month, COUNT(*) AS cnt
+        FROM occ
+        JOIN read_parquet(?) b ON b.occ_id = occ.occ_id
+        WHERE occ.tier = 'atlas' AND occ.month IS NOT NULL
+        GROUP BY b.place_slug, occ.month
+        """,
+        [str(occ_parquet), str(bridge_parquet)],
+    ).fetchall()
+    result: dict[str, list[int]] = {}
+    for slug, month, cnt in rows:
+        m = int(month)
+        if 1 <= m <= 12:
+            result.setdefault(slug, [0] * 12)[m - 1] = int(cnt)
+    return result
+
+
+def _write_place_details(
+    species_by_place: dict[str, list[dict]],
+    months_by_place: dict[str, list[int]],
+    out_path: Path,
+) -> None:
+    """Write place_details.json — the heavy per-place feed (species + timing).
+
+    A build_time_fetch artifact (like collectors.json), NOT the committed
+    places.json: it changes with every nightly occurrence update, so it flows
+    through the S3/manifest fetch and _data/places.js merges it by slug.
+    """
+    records = []
+    for slug in sorted(set(species_by_place) | set(months_by_place)):
+        months = months_by_place.get(slug, [0] * 12)
+        dated_total = sum(months)
+        peak_month = (
+            months.index(max(months)) + 1 if dated_total >= _PEAK_MIN_RECORDS else None
+        )
+        records.append(
+            {
+                "slug": slug,
+                "species_by_genus": species_by_place.get(slug, []),
+                "collection_months": months,
+                "dated_total": dated_total,
+                "peak_month": peak_month,
+            }
+        )
+    out_path.write_text(json.dumps(records, indent=2), encoding="utf-8")
+    print(  # noqa: T201
+        f"  place_details.json: {len(records):,} places, {out_path.stat().st_size:,} bytes"
+    )
+
+
 def _write_places_geojson(con: duckdb.DuckDBPyConnection, out_path: Path) -> None:
     """Write compact GeoJSON FeatureCollection (slug + geometry) to out_path.
 
@@ -159,14 +287,22 @@ def export_places(con: duckdb.DuckDBPyConnection | None = None) -> None:
 
     try:
         ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+        occ_parquet = ASSETS_DIR / "occurrences.parquet"
+        bridge_parquet = ASSETS_DIR / "occurrence_places.parquet"
         places_meta = _load_place_metadata(_PLACES_TOML_PATH)
-        counts = _query_counts(
-            con,
-            ASSETS_DIR / "occurrences.parquet",
-            ASSETS_DIR / "occurrence_places.parquet",
-        )
+        counts = _query_counts(con, occ_parquet, bridge_parquet)
         _write_places_geojson(con, ASSETS_DIR / "places.geojson")
         _write_places_json(places_meta, counts, ASSETS_DIR / "places.json")
+
+        # Heavy per-place feed (species + collection timing) — separate
+        # build_time_fetch artifact, NOT the committed places.json.
+        species_by_place = _query_species_by_place(
+            con, occ_parquet, bridge_parquet, ASSETS_DIR / "species.parquet"
+        )
+        months_by_place = _query_collection_months(con, occ_parquet, bridge_parquet)
+        _write_place_details(
+            species_by_place, months_by_place, ASSETS_DIR / "place_details.json"
+        )
     finally:
         if _owned:
             con.close()

@@ -20,4 +20,52 @@ layout: default.njk
   </div>
   <p class="metadata">{{ place.specimen_count | quantify("specimen") }} · {{ place.land_owner }}</p>
   <a href="/?place={{ place.slug }}">View occurrences on the atlas →</a>
+
+  {#- Phase 1 (cyv): collection-timing histogram — retrospective 'when have bees
+      been collected here', peak-framed. Bars are honest at any N; the peak caption
+      only shows once dated_total ≥ 10 (peak_month is null below that). -#}
+  {%- if place.dated_total and place.dated_total > 0 -%}
+  {%- set month_letters = ["J","F","M","A","M","J","J","A","S","O","N","D"] -%}
+  {%- set month_names = ["January","February","March","April","May","June","July","August","September","October","November","December"] -%}
+  {%- set max_month = place.collection_months | sort | last -%}
+  <section class="timing-section">
+    <h2>When bees have been collected here</h2>
+    {%- if place.peak_month -%}
+    <p class="metadata">{{ place.dated_total | quantify("dated record") }} · most collected in {{ month_names[place.peak_month - 1] }}</p>
+    {%- else -%}
+    <p class="metadata">{{ place.dated_total | quantify("dated record") }}</p>
+    {%- endif -%}
+    <ol class="month-histogram" aria-label="Collections by month of year">
+    {%- for count in place.collection_months -%}
+      <li class="month-bar{% if place.peak_month == loop.index %} month-bar--peak{% endif %}">
+        <span class="month-bar__fill" style="height: {% if max_month > 0 %}{{ (count / max_month * 100) | round }}{% else %}0{% endif %}%"></span>
+        <span class="month-bar__count">{{ count if count > 0 else "" }}</span>
+        <span class="month-bar__label">{{ month_letters[loop.index0] }}</span>
+      </li>
+    {%- endfor -%}
+    </ol>
+  </section>
+  {%- endif -%}
+
+  {#- Phase 1 (cyv): 'Bees found here' — species-by-genus, reusing the collector-page
+      markup + places.css classes. Present only for places with atlas records. -#}
+  {%- if place.species_by_genus and place.species_by_genus.length > 0 -%}
+  <section class="species-section">
+    <h2>Bees found here</h2>
+    <div class="species-by-genus">
+    {%- for genus_group in place.species_by_genus -%}
+      <div class="genus-section">
+        <h3 class="genus-heading"><em>{{ genus_group.genus }}</em></h3>
+        <ul class="species-list">
+        {%- for sp in genus_group.species -%}
+          <li>
+            <a href="/species/{{ sp.slug }}/">{{ sp.name }}</a> <span class="species-count">— {{ sp.count | quantify("specimen") }}</span>
+          </li>
+        {%- endfor -%}
+        </ul>
+      </div>
+    {%- endfor -%}
+    </div>
+  </section>
+  {%- endif -%}
 </article>

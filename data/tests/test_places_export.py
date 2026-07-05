@@ -94,6 +94,10 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
         ("sample_id", pa.int64()),
         ("lon", pa.float64()),
         ("lat", pa.float64()),
+        # Columns the phase-1 (cyv) species + timing queries read.
+        ("tier", pa.string()),
+        ("month", pa.int64()),
+        ("taxon_id", pa.int64()),
     ])
     table = pa.table(
         {
@@ -105,10 +109,41 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
             "sample_id":               [10,    10,    None],
             "lon":                     [-120.92, -120.97, -120.88],
             "lat":                     [47.05, 47.05, 47.05],
+            "tier":                    ["atlas", "atlas", "atlas"],
+            "month":                   [6,     7,     6],
+            # taxon 100 = Andrena foo (ecdysis:42, inat:99); 200 = Bombus bar (ecdysis:7)
+            "taxon_id":                [100,   100,   200],
         },
         schema=schema,
     )
     out_path = tmp_path / "occurrences.parquet"
+    pq.write_table(table, out_path)
+    return out_path
+
+
+def _write_test_species_parquet(tmp_path: Path) -> Path:
+    """Write species.parquet keyed by taxon_id for the per-place species join.
+
+    Two species-rank taxa (specific_epithet non-null): 100=Andrena foo, 200=Bombus bar.
+    """
+    schema = pa.schema([
+        ("taxon_id", pa.int64()),
+        ("genus", pa.string()),
+        ("scientificName", pa.string()),
+        ("slug", pa.string()),
+        ("specific_epithet", pa.string()),
+    ])
+    table = pa.table(
+        {
+            "taxon_id":         [100,          200],
+            "genus":            ["Andrena",    "Bombus"],
+            "scientificName":   ["Andrena foo", "Bombus bar"],
+            "slug":             ["Andrena/foo", "Bombus/bar"],
+            "specific_epithet": ["foo",        "bar"],
+        },
+        schema=schema,
+    )
+    out_path = tmp_path / "species.parquet"
     pq.write_table(table, out_path)
     return out_path
 
@@ -147,6 +182,7 @@ def _setup_env(tmp_path: Path, monkeypatch) -> object:
     _seed_places_db(tmp_path / "test.duckdb")
     _write_test_occurrences_parquet(tmp_path)
     _write_test_bridge_parquet(tmp_path)
+    _write_test_species_parquet(tmp_path)
     monkeypatch.setattr(places_export, "_PLACES_TOML_PATH", _write_test_toml(tmp_path))
 
     return places_export
@@ -235,3 +271,62 @@ def test_places_json_counts(tmp_path, monkeypatch):
     assert by_slug["place-b"]["sample_count"] == 1, (
         f"place-b sample_count: {by_slug['place-b']['sample_count']}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 1 (cyv): place_details.json — per-place species + collection timing
+# ---------------------------------------------------------------------------
+
+def test_place_details_species_by_genus(tmp_path, monkeypatch):
+    """place_details.json groups a place's species by genus, with cased name, slug, count.
+
+    Membership (bridge) × taxa (fixture):
+        place-a: ecdysis:42 (taxon 100) + inat:99 (taxon 100) → Andrena foo ×2
+        place-b: ecdysis:42 (taxon 100) + ecdysis:7 (taxon 200) → Andrena foo ×1, Bombus bar ×1
+    """
+    pe_mod = _setup_env(tmp_path, monkeypatch)
+    pe_mod.export_places_step()
+
+    out = tmp_path / "place_details.json"
+    assert out.exists(), "place_details.json was not produced"
+    by_slug = {r["slug"]: r for r in json.loads(out.read_text())}
+
+    a = by_slug["place-a"]["species_by_genus"]
+    assert a == [
+        {"genus": "Andrena", "species": [
+            {"name": "Andrena foo", "slug": "Andrena/foo", "count": 2}]}
+    ], a
+
+    b = by_slug["place-b"]["species_by_genus"]
+    assert [g["genus"] for g in b] == ["Andrena", "Bombus"], "genera alphabetical"
+    assert b[0]["species"][0]["count"] == 1  # Andrena foo, place-b
+    assert b[1]["species"][0] == {"name": "Bombus bar", "slug": "Bombus/bar", "count": 1}
+
+
+def test_place_details_collection_months_and_peak(tmp_path, monkeypatch):
+    """collection_months is a 12-int Jan..Dec histogram; peak_month is suppressed below
+    _PEAK_MIN_RECORDS (both test places have only 2 dated records)."""
+    pe_mod = _setup_env(tmp_path, monkeypatch)
+    pe_mod.export_places_step()
+
+    by_slug = {r["slug"]: r for r in json.loads((tmp_path / "place_details.json").read_text())}
+
+    # place-a: month 6 (×1) + month 7 (×1); place-b: month 6 (×2).
+    assert by_slug["place-a"]["collection_months"] == [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0]
+    assert by_slug["place-b"]["collection_months"] == [0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0]
+    assert by_slug["place-a"]["dated_total"] == 2
+    # Below the 10-record threshold → no fabricated peak.
+    assert by_slug["place-a"]["peak_month"] is None
+    assert by_slug["place-b"]["peak_month"] is None
+
+
+def test_place_details_peak_month_when_above_threshold(tmp_path, monkeypatch):
+    """peak_month is the 1-based modal month once dated_total ≥ _PEAK_MIN_RECORDS."""
+    pe_mod = _setup_env(tmp_path, monkeypatch)
+    months = {"place-a": [0, 0, 0, 3, 9, 4, 0, 0, 0, 0, 0, 0]}  # total 16, mode May(=5)
+    out = tmp_path / "place_details.json"
+    pe_mod._write_place_details({}, months, out)
+    rec = {r["slug"]: r for r in json.loads(out.read_text())}["place-a"]
+    assert rec["dated_total"] == 16
+    assert rec["peak_month"] == 5
+    assert rec["species_by_genus"] == []  # no species supplied → empty, not missing

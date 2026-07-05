@@ -90,6 +90,14 @@ source_file = "places.json"
 hash_basename = "places_meta"
 content_type = "application/json"
 
+[artifacts.place_details]
+provenance = "derived"
+kind = "hashed"
+source_file = "place_details.json"
+hash_basename = "place_details"
+build_time_fetch = true
+build_time_fetch_optional = true
+
 [artifacts.checklist]
 provenance = "derived"
 kind = "hashed"
