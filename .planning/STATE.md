@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v8.0
 milestone_name: Authoritative Data Foundation
 status: executing
-stopped_at: Completed 180-02-PLAN.md
-last_updated: "2026-07-05T01:41:51.361Z"
+stopped_at: Completed 180-04-PLAN.md
+last_updated: "2026-07-05T01:47:56.270Z"
 last_activity: 2026-07-05
 progress:
   total_phases: 47
   completed_phases: 27
   total_plans: 88
-  completed_plans: 88
+  completed_plans: 89
   percent: 57
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation
 ## Current Position
 
 Phase: 180 (moderation-loop) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5 (04 complete — verification tests; 05 remaining — operator migration apply)
 Status: Ready to execute
 Last activity: 2026-07-05
 
@@ -44,7 +44,7 @@ Introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-specifi
 | 177 | Authoritative Store, Migrations & Backup/DR | STORE-01..04 | — | Complete (2026-07-03) |
 | 178 | Thin Write Layer + iNat OAuth | WRITE-01..04 | yes | Complete (2026-07-04) |
 | 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Complete (2026-07-04) |
-| 180 | Moderation Loop | MOD-01..04 | yes | Not started |
+| 180 | Moderation Loop | MOD-01..04 | yes | In Progress (4/5) |
 
 **Progress:** [██████████] 100%
 
@@ -101,6 +101,7 @@ Load-bearing conventions carried forward (relevant to v8.0):
 - [Phase 180-03]: Curator Take-down control reuses .note-owner-controls/.note-delete-confirm/.note-btn--danger verbatim, zero new CSS classes
 - [Phase 180]: [Phase 180-02] Curator gate (_is_curator_fresh) runs BEFORE the note load in takedown/restore, unlike the post-load ownership check in edit_note/delete_note -- a blanket non-curator 403 leaks no note-specific info
 - [Phase 180]: [Phase 180-02] restore route is fully implemented and tested but has zero UI wiring in this plan -- curl-only per D-07, consumed directly by the operator
+- [Phase ?]: [Phase 180-04]: verification-only plan — 2 new tests (hidden-status harvest exclusion, note_revisions.reason nullable) lock MOD-01/03/04 by construction; zero production code touched
 
 ### Roadmap Evolution
 
@@ -147,8 +148,8 @@ Items acknowledged and carried forward from prior milestone closes:
 
 ## Session Continuity
 
-Last session: 2026-07-05T01:41:51.352Z
-Stopped at: Completed 180-02-PLAN.md
+Last session: 2026-07-05T01:47:56.261Z
+Stopped at: Completed 180-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
