@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v8.0
 milestone_name: Authoritative Data Foundation
 status: executing
-stopped_at: Phase 180 UI-SPEC approved
-last_updated: "2026-07-05T01:25:02.387Z"
+stopped_at: Completed 180-03-PLAN.md
+last_updated: "2026-07-05T01:33:14.405Z"
 last_activity: 2026-07-05
 progress:
   total_phases: 47
   completed_phases: 27
   total_plans: 88
-  completed_plans: 86
+  completed_plans: 87
   percent: 57
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation
 ## Current Position
 
 Phase: 180 (moderation-loop) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-07-05
 
@@ -46,7 +46,7 @@ Introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-specifi
 | 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Complete (2026-07-04) |
 | 180 | Moderation Loop | MOD-01..04 | yes | Not started |
 
-**Progress:** [██████████] 98%
+**Progress:** [██████████] 99%
 
 **Phase dependency chain:** 176 (independent) → 177 → 178 → 179 (also needs 176's contract) → 180.
 
@@ -97,6 +97,8 @@ Load-bearing conventions carried forward (relevant to v8.0):
 - [Phase 179]: 179-06: nightly.sh must export NOTES_DB_PATH ($HOME/beeatlas-store/notes.db) so the harvest reads the SAME live store the write API writes to — the code default (/opt/beeatlas-store/notes.db) is absent on maderas (commit 3154a07a). Producer store path is an env-var contract matching the systemd unit + runbook §A4, not the make_engine default. Surfaced by 179-06 Checkpoint 3 UAT.
 - [Phase 179]: 179-06: notes-harvest kept FAIL-LOUD (a store-open error aborts the whole nightly before publish) — user decision 2026-07-04, over graceful-degrade; a broken notes pipeline must be impossible to miss.
 - [Phase 179]: 179-06: operator-triggered nightly gotcha — bash parses nightly.sh at invocation, so `git pull` on the host BEFORE running it (its own internal pull updates the file too late for the loaded process).
+- [Phase 180-03]: isCurator derived client-side as role === 'curator' (D-03); server always re-checks authz on write
+- [Phase 180-03]: Curator Take-down control reuses .note-owner-controls/.note-delete-confirm/.note-btn--danger verbatim, zero new CSS classes
 
 ### Roadmap Evolution
 
@@ -143,8 +145,8 @@ Items acknowledged and carried forward from prior milestone closes:
 
 ## Session Continuity
 
-Last session: 2026-07-05T01:25:02.378Z
-Stopped at: Phase 180 UI-SPEC approved
+Last session: 2026-07-05T01:33:14.395Z
+Stopped at: Completed 180-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
