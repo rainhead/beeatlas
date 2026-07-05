@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v8.0
 milestone_name: Authoritative Data Foundation
-status: verifying
+status: executing
 stopped_at: Phase 180 UI-SPEC approved
-last_updated: "2026-07-05T01:16:41.332Z"
-last_activity: 2026-07-05 -- Phase 180 planning complete
+last_updated: "2026-07-05T01:25:02.387Z"
+last_activity: 2026-07-05
 progress:
-  total_phases: 5
-  completed_phases: 4
-  total_plans: 26
-  completed_plans: 26
-  percent: 80
+  total_phases: 47
+  completed_phases: 27
+  total_plans: 88
+  completed_plans: 86
+  percent: 57
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants. Long-term: become the gathering place for the Washington Bee Atlas.
-**Current focus:** Phase 180 — Moderation Loop (next; 179 complete)
+**Current focus:** Phase 180 — moderation-loop
 
 ## Current Position
 
-Phase: 179 (notes-feature-harvest-build-time-bake) — COMPLETE (verified pass 2026-07-04)
-Plan: 6 of 6 complete
-Status: Phase 179 done — all 3 human-UAT gates approved; NOTES-01..04 verified. Next: Phase 180 (Moderation Loop).
-Last activity: 2026-07-05 -- Phase 180 planning complete
+Phase: 180 (moderation-loop) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-07-05
 
 Progress: [██████░░░░] 57%
 
@@ -46,7 +46,7 @@ Introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-specifi
 | 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Complete (2026-07-04) |
 | 180 | Moderation Loop | MOD-01..04 | yes | Not started |
 
-**Progress:** [██████░░░░] 57% (27/47 phases complete project-wide; v8.0 milestone itself is 4/5 phases complete — only Phase 180 Moderation Loop remains)
+**Progress:** [██████████] 98%
 
 **Phase dependency chain:** 176 (independent) → 177 → 178 → 179 (also needs 176's contract) → 180.
 
@@ -143,9 +143,9 @@ Items acknowledged and carried forward from prior milestone closes:
 
 ## Session Continuity
 
-Last session: 2026-07-05T00:56:45.146Z
+Last session: 2026-07-05T01:25:02.378Z
 Stopped at: Phase 180 UI-SPEC approved
-Resume file: .planning/phases/180-moderation-loop/180-UI-SPEC.md
+Resume file: None
 
 ## Operator Next Steps
 

@@ -72,7 +72,7 @@
 | 177. Authoritative Store, Migrations & Backup/DR | 7/7 | Complete   | 2026-07-03 |
 | 178. Thin Write Layer + iNat OAuth | 9/9 | Complete    | 2026-07-04 |
 | 179. Notes Feature + Harvest Bake | 6/6 | Complete | 2026-07-04 |
-| 180. Moderation Loop | 0/TBD | Not started | - |
+| 180. Moderation Loop | 1/5 | In Progress|  |
 
 ### Phase 176: Build-Seam Refoundation (Thread 1)
 
@@ -240,7 +240,7 @@ Plans:
 
 **Plans**: 5 plans (3 waves)
   Plans:
-  - [ ] 180-01-PLAN.md — Wave 1: nullable `note_revisions.reason` column (NoteRevision model + forward-only Alembic migration 0004 + apply/no-downgrade tests) [D-09]
+  - [x] 180-01-PLAN.md — Wave 1: nullable `note_revisions.reason` column (NoteRevision model + forward-only Alembic migration 0004 + apply/no-downgrade tests) [D-09]
   - [ ] 180-02-PLAN.md — Wave 2: curator-override authz — `_is_curator_fresh` fresh per-request check + `POST /api/notes/{id}/takedown` (status='hidden', action='takedown') + curl-only `POST /api/notes/{id}/restore` (status='approved', action='restore'), load-before-authz, Origin+launch gates, ledger attribution [D-04,D-05,D-06,D-07,D-08,D-10]
   - [ ] 180-03-PLAN.md — Wave 1: frontend — `AuthState.isCurator` derivation + `takedownNote` client + curator-gated inline "Take down" control (confirm/pending/error/403 states) in `<bee-notes>`, server-driven refetch [D-01,D-02,D-03]
   - [ ] 180-04-PLAN.md — Wave 2: verification — hidden-status harvest-exclusion test (MOD-04 by construction) + reason/audit-field schema assertion + run pre-shipped MOD-01 roles / MOD-03 XSS tests [D-06,D-11]
