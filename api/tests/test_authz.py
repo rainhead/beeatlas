@@ -198,6 +198,36 @@ def test_forged_author_id_in_body_is_ignored(client, monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# _is_curator_fresh (180-02; D-04/D-05 curator-only fresh recheck)
+# ---------------------------------------------------------------------------
+
+
+def test_is_curator_fresh_true_for_curator_only(monkeypatch, tmp_path):
+    allowlist_path = _allowlist_toml(tmp_path, {"curator_login": "curator"})
+    monkeypatch.setattr(auth.roles_module, "_ALLOWLIST", allowlist_path)
+
+    assert auth._is_curator_fresh("curator_login") is True
+
+
+def test_is_curator_fresh_false_for_author(monkeypatch, tmp_path):
+    allowlist_path = _allowlist_toml(tmp_path, {"allowed_author": "author"})
+    monkeypatch.setattr(auth.roles_module, "_ALLOWLIST", allowlist_path)
+
+    assert auth._is_curator_fresh("allowed_author") is False
+
+
+def test_curator_recheck_reflects_disk_change_not_cookie_role(monkeypatch, tmp_path):
+    """A demoted curator loses takedown/restore power on the very next check (D-05)."""
+    allowlist_path = _allowlist_toml(tmp_path, {"curator_login": "curator"})
+    monkeypatch.setattr(auth.roles_module, "_ALLOWLIST", allowlist_path)
+    assert auth._is_curator_fresh("curator_login") is True
+
+    # Operator demotes the curator on disk mid-session.
+    allowlist_path.write_text('[roles]\ncurator_login = "author"')
+    assert auth._is_curator_fresh("curator_login") is False
+
+
+# ---------------------------------------------------------------------------
 # origin_allowed pure helper
 # ---------------------------------------------------------------------------
 

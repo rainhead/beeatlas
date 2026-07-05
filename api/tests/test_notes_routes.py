@@ -352,8 +352,205 @@ def test_delete_note_missing_is_404(client, monkeypatch, tmp_path, tmp_engine):
 
 
 # ---------------------------------------------------------------------------
+# POST /api/notes/<id>/takedown (180-02; MOD-02)
+# ---------------------------------------------------------------------------
+
+
+def test_takedown_by_curator_succeeds(client, monkeypatch, tmp_path, tmp_engine):
+    owner_uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=owner_uid, body_md="original")
+
+    curator_uid = _make_user(tmp_engine, login="curator_login")
+    _sign_in(client, monkeypatch, tmp_path, login="curator_login", role="curator", uid=curator_uid)
+
+    resp = client.post(f"/api/notes/{note_id}/takedown", headers={"Origin": ALLOWED_ORIGIN}, json={})
+    assert resp.status_code == 200
+
+    with Session(tmp_engine) as db_session:
+        note = db_session.get(Note, note_id)
+        assert note.status == "hidden"
+
+        revisions = db_session.query(NoteRevision).filter_by(note_id=note_id).order_by(NoteRevision.id).all()
+        assert [r.action for r in revisions] == ["create", "takedown"]
+        assert revisions[-1].editor_id == str(curator_uid)
+
+
+def test_takedown_by_non_curator_author_is_403(client, monkeypatch, tmp_path, tmp_engine):
+    owner_uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=owner_uid, body_md="original")
+
+    author_uid = _make_user(tmp_engine, login="plain_author")
+    _sign_in(client, monkeypatch, tmp_path, login="plain_author", role="author", uid=author_uid)
+
+    resp = client.post(f"/api/notes/{note_id}/takedown", headers={"Origin": ALLOWED_ORIGIN}, json={})
+    assert resp.status_code == 403
+
+    with Session(tmp_engine) as db_session:
+        note = db_session.get(Note, note_id)
+        assert note.status == "approved"
+        revisions = db_session.query(NoteRevision).filter_by(note_id=note_id).all()
+        assert [r.action for r in revisions] == ["create"]
+
+
+def test_takedown_missing_is_404(client, monkeypatch, tmp_path, tmp_engine):
+    curator_uid = _make_user(tmp_engine, login="curator_login")
+    _sign_in(client, monkeypatch, tmp_path, login="curator_login", role="curator", uid=curator_uid)
+
+    resp = client.post("/api/notes/999999/takedown", headers={"Origin": ALLOWED_ORIGIN}, json={})
+    assert resp.status_code == 404
+
+
+def test_takedown_foreign_origin_is_403(client, monkeypatch, tmp_path, tmp_engine):
+    owner_uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=owner_uid)
+
+    curator_uid = _make_user(tmp_engine, login="curator_login")
+    _sign_in(client, monkeypatch, tmp_path, login="curator_login", role="curator", uid=curator_uid)
+
+    resp = client.post(
+        f"/api/notes/{note_id}/takedown",
+        headers={"Origin": "https://evil.example.com"},
+        json={},
+    )
+    assert resp.status_code == 403
+
+    with Session(tmp_engine) as db_session:
+        note = db_session.get(Note, note_id)
+        assert note.status == "approved"
+
+
+def test_takedown_launch_gate_off_is_503(client, monkeypatch, tmp_path, tmp_engine):
+    owner_uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=owner_uid)
+
+    curator_uid = _make_user(tmp_engine, login="curator_login")
+    _sign_in(client, monkeypatch, tmp_path, login="curator_login", role="curator", uid=curator_uid)
+    monkeypatch.setattr(config, "WRITES_ENABLED", False)
+
+    resp = client.post(f"/api/notes/{note_id}/takedown", headers={"Origin": ALLOWED_ORIGIN}, json={})
+    assert resp.status_code == 503
+
+
+def test_takedown_appends_ledger(client, monkeypatch, tmp_path, tmp_engine):
+    """Reason supplied -> stored verbatim; reason omitted -> NULL, never '' (D-09)."""
+    owner_uid = _make_user(tmp_engine, login="owner")
+    note_with_reason = _make_note(tmp_engine, author_id=owner_uid, body_md="reasoned")
+    note_without_reason = _make_note(tmp_engine, author_id=owner_uid, body_md="unreasoned")
+
+    curator_uid = _make_user(tmp_engine, login="curator_login")
+    _sign_in(client, monkeypatch, tmp_path, login="curator_login", role="curator", uid=curator_uid)
+
+    resp = client.post(
+        f"/api/notes/{note_with_reason}/takedown",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"reason": "spam content"},
+    )
+    assert resp.status_code == 200
+
+    resp = client.post(
+        f"/api/notes/{note_without_reason}/takedown",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={},
+    )
+    assert resp.status_code == 200
+
+    with Session(tmp_engine) as db_session:
+        with_reason = (
+            db_session.query(NoteRevision).filter_by(note_id=note_with_reason, action="takedown").one()
+        )
+        assert with_reason.reason == "spam content"
+
+        without_reason = (
+            db_session.query(NoteRevision).filter_by(note_id=note_without_reason, action="takedown").one()
+        )
+        assert without_reason.reason is None
+
+
+# ---------------------------------------------------------------------------
+# POST /api/notes/<id>/restore (180-02; MOD-02, D-07 curl-only)
+# ---------------------------------------------------------------------------
+
+
+def test_restore_by_curator_sets_approved(client, monkeypatch, tmp_path, tmp_engine):
+    owner_uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=owner_uid, body_md="original", status="hidden")
+
+    curator_uid = _make_user(tmp_engine, login="curator_login")
+    _sign_in(client, monkeypatch, tmp_path, login="curator_login", role="curator", uid=curator_uid)
+
+    resp = client.post(f"/api/notes/{note_id}/restore", headers={"Origin": ALLOWED_ORIGIN}, json={})
+    assert resp.status_code == 200
+
+    with Session(tmp_engine) as db_session:
+        note = db_session.get(Note, note_id)
+        assert note.status == "approved"
+
+        revisions = db_session.query(NoteRevision).filter_by(note_id=note_id).order_by(NoteRevision.id).all()
+        assert [r.action for r in revisions] == ["create", "restore"]
+        assert revisions[-1].editor_id == str(curator_uid)
+
+
+def test_restore_missing_is_404(client, monkeypatch, tmp_path, tmp_engine):
+    curator_uid = _make_user(tmp_engine, login="curator_login")
+    _sign_in(client, monkeypatch, tmp_path, login="curator_login", role="curator", uid=curator_uid)
+
+    resp = client.post("/api/notes/999999/restore", headers={"Origin": ALLOWED_ORIGIN}, json={})
+    assert resp.status_code == 404
+
+
+def test_restore_foreign_origin_is_403(client, monkeypatch, tmp_path, tmp_engine):
+    owner_uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=owner_uid, status="hidden")
+
+    curator_uid = _make_user(tmp_engine, login="curator_login")
+    _sign_in(client, monkeypatch, tmp_path, login="curator_login", role="curator", uid=curator_uid)
+
+    resp = client.post(
+        f"/api/notes/{note_id}/restore",
+        headers={"Origin": "https://evil.example.com"},
+        json={},
+    )
+    assert resp.status_code == 403
+
+    with Session(tmp_engine) as db_session:
+        note = db_session.get(Note, note_id)
+        assert note.status == "hidden"
+
+
+def test_restore_appends_ledger(client, monkeypatch, tmp_path, tmp_engine):
+    owner_uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=owner_uid, status="hidden")
+
+    curator_uid = _make_user(tmp_engine, login="curator_login")
+    _sign_in(client, monkeypatch, tmp_path, login="curator_login", role="curator", uid=curator_uid)
+
+    resp = client.post(
+        f"/api/notes/{note_id}/restore",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"reason": "appeal accepted"},
+    )
+    assert resp.status_code == 200
+
+    with Session(tmp_engine) as db_session:
+        revision = db_session.query(NoteRevision).filter_by(note_id=note_id, action="restore").one()
+        assert revision.reason == "appeal accepted"
+
+
+# ---------------------------------------------------------------------------
 # GET /api/notes?species=<canonical_name>
 # ---------------------------------------------------------------------------
+
+
+def test_hidden_note_excluded_from_read(client, tmp_engine):
+    uid = _make_user(tmp_engine, login="author_one")
+    hidden_id = _make_note(
+        tmp_engine, canonical_name="apis mellifera", author_id=uid, body_md="hidden note", status="hidden"
+    )
+
+    resp = client.get("/api/notes?species=apis mellifera")
+    assert resp.status_code == 200
+    returned_ids = [item["id"] for item in resp.get_json()]
+    assert hidden_id not in returned_ids
 
 
 def test_read_notes_approved_only_newest_first(client, tmp_engine):
