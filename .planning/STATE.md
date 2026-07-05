@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v8.0
 milestone_name: Authoritative Data Foundation
-status: executing
-stopped_at: Completed 180-04-PLAN.md
-last_updated: "2026-07-05T01:47:56.270Z"
+status: ready_to_plan
+stopped_at: Phase 180 complete (5/5) — ready to discuss Phase 999.11
+last_updated: 2026-07-05T04:39:47.525Z
 last_activity: 2026-07-05
 progress:
   total_phases: 47
   completed_phases: 27
   total_plans: 88
-  completed_plans: 89
+  completed_plans: 101
   percent: 57
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants. Long-term: become the gathering place for the Washington Bee Atlas.
-**Current focus:** Phase 180 — moderation-loop
+**Current focus:** Phase 999.11 — add federal wilderness areas as regions
 
 ## Current Position
 
-Phase: 180 (moderation-loop) — EXECUTING
-Plan: 5 of 5 (04 complete — verification tests; 05 remaining — operator migration apply)
-Status: Ready to execute
+Phase: 999.11
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-07-05
 
 Progress: [██████░░░░] 57%
