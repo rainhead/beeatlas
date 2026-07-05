@@ -471,6 +471,109 @@ def delete_note(note_id):
         return jsonify({"id": note.id}), 200
 
 
+@app.post("/api/notes/<int:note_id>/takedown")
+@auth.require_author
+def takedown_note(note_id):
+    """POST /api/notes/<id>/takedown: a curator hides ANY note (MOD-02/D-04).
+
+    Distinct from the owner-only `edit_note`/`delete_note` routes above --
+    those stay untouched. `@auth.require_author` already verifies the
+    session, re-reads the allowlist fresh, checks Origin, and checks the
+    WRITE-04 launch gate; this view additionally requires the fresh-reread
+    `_is_curator_fresh` curator role (D-05 revocation -- a demoted curator
+    loses this power on the very next request).
+
+    The curator check runs BEFORE the note load: "are you a curator at
+    all" is an identity-level gate that leaks nothing note-specific (unlike
+    an ownership check, whose very existence as a check depends on which
+    note is targeted) -- see 180-RESEARCH.md Pattern 2 / Open Question #1.
+    A missing note id still correctly 404s for a real curator.
+
+    Sets `status='hidden'` (D-06 -- distinct from author-delete 'removed'
+    so the two moderation paths stay auditable-distinguishable) and appends
+    a `note_revisions` row with `action='takedown'` and `editor_id` = the
+    CURATOR's uid (D-08 -- the ledger must show a curator acted, not the
+    author). Attribution lives ONLY in this ledger row -- no
+    `moderated_by`/`moderated_at` column is added to `notes` (D-10).
+    `hidden` is a new non-'approved' value, so `list_notes_for_species`
+    below and the nightly harvest already exclude it with zero new code
+    (MOD-04, by construction).
+    """
+    identity = g.identity
+    if not auth._is_curator_fresh(identity["login"]):
+        abort(403)
+
+    payload = request.get_json(silent=True) or {}
+    reason = (payload.get("reason") or "").strip() or None
+    if reason is not None and len(reason) > _NOTE_BODY_MAX_LENGTH:
+        abort(400)
+
+    now = datetime.datetime.now(datetime.UTC)
+    with Session(_ENGINE) as db_session:
+        note = db_session.get(Note, note_id)
+        if note is None:
+            abort(404)
+
+        note.status = "hidden"
+        note.updated_at = now
+        db_session.add(
+            NoteRevision(
+                note_id=note.id,
+                body=note.body,
+                editor_id=str(identity["uid"]),
+                revised_at=now,
+                action="takedown",
+                reason=reason,
+            )
+        )
+        db_session.commit()
+        return jsonify({"id": note.id}), 200
+
+
+@app.post("/api/notes/<int:note_id>/restore")
+@auth.require_author
+def restore_note(note_id):
+    """POST /api/notes/<id>/restore: a curator un-hides a note (MOD-02/D-07).
+
+    Curl-only -- deliberately NOT wired to any UI (D-07): the read endpoint
+    below must never return non-approved content, so there is no inline
+    surface from which a curator could discover a hidden note to restore
+    it. Structurally identical to `takedown_note` above (same
+    require_author + pre-load `_is_curator_fresh` gate, same
+    NoteRevision-append shape) but flips `status` back to 'approved' and
+    records `action='restore'`.
+    """
+    identity = g.identity
+    if not auth._is_curator_fresh(identity["login"]):
+        abort(403)
+
+    payload = request.get_json(silent=True) or {}
+    reason = (payload.get("reason") or "").strip() or None
+    if reason is not None and len(reason) > _NOTE_BODY_MAX_LENGTH:
+        abort(400)
+
+    now = datetime.datetime.now(datetime.UTC)
+    with Session(_ENGINE) as db_session:
+        note = db_session.get(Note, note_id)
+        if note is None:
+            abort(404)
+
+        note.status = "approved"
+        note.updated_at = now
+        db_session.add(
+            NoteRevision(
+                note_id=note.id,
+                body=note.body,
+                editor_id=str(identity["uid"]),
+                revised_at=now,
+                action="restore",
+                reason=reason,
+            )
+        )
+        db_session.commit()
+        return jsonify({"id": note.id}), 200
+
+
 @app.get("/api/notes")
 def list_notes_for_species():
     """GET /api/notes?species=<canonical_name>: public read (NOTES-04/D-02).
