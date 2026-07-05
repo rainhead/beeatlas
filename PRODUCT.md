@@ -35,7 +35,7 @@ Deliver value from *existing* data first; don't build community features until p
 
 ## Requirements & History
 
-BeeAtlas has shipped 40+ milestones (v1.0, 2026-02-22 → v8.0, in progress). Per-milestone requirement sets are archived under `.planning/` history; the enduring product capabilities are the list above. The most recent milestone, **v8.0 Authoritative Data Foundation**, added the live write layer (`api.beeatlas.net`) and community notes.
+BeeAtlas has shipped 40+ milestones (v1.0, 2026-02-22 → v8.0, in progress). Per-milestone requirement sets are archived in git history; the enduring product capabilities are the list above. The most recent milestone, **v8.0 Authoritative Data Foundation**, added the live write layer (`api.beeatlas.net`) and community notes.
 
 ## Future Directions (unscheduled)
 

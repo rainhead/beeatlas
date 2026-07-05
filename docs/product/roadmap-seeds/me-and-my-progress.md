@@ -18,11 +18,11 @@ A volunteer self-identifies and sees their own slice: their samples and occurren
 them, with the **collection → identification lifecycle** visible (what's awaiting ID, what came
 back, new county records, etc.).
 
-**Depends on** `.planning/todos/pending/rebuild-source-into-facets.md` — the data must be
-expressible as collector-attributed occurrence–sample pairs with an ID-status lifecycle, which the
-current `source` model obscures.
+**Depends on** the `source`→facets rebuild — **shipped as Phase 170** (`source` decomposed into
+`tier` + `record_type`; see [CONTEXT.md](../../../CONTEXT.md)). The data is now expressible as
+collector-attributed occurrence–sample pairs with an ID-status lifecycle.
 
-## Shape (resolved 2026-06-24 — see `.planning/research/questions.md`)
+## Shape (resolved 2026-06-24)
 
 **Status THEN accomplishment.**
 
@@ -38,4 +38,4 @@ nightly pipeline emits a snapshot. Either the pipeline retains status-history / 
 timestamps, or the client diffs against a locally-stored "last seen" watermark. This makes the
 ID-status lifecycle in the source→facets rebuild **temporal**, not just a current-state label.
 
-Part of the **"work" half** of the site (see `.planning/notes/work-vs-learning-two-halves.md`).
+Part of the **"work" half** of the site (see [two-halves.md](../two-halves.md)).

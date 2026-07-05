@@ -5,7 +5,7 @@ One-off curation tooling to add the **WABA** observation field (iNat field `1811
 catalog/label number in their *description* but never had the field set — so they re-enter
 the BeeAtlas provisional/matched path instead of falling out.
 
-See the decision record: [`158-CONTEXT.md`](../../.planning/phases/158-capture-specimen-photos-from-non-waba-field-inat-users/158-CONTEXT.md).
+The phase-158 decision record (`158-CONTEXT.md`) lives in pre-migration git history under `.planning/phases/158-capture-specimen-photos-from-non-waba-field-inat-users/` (the `.planning/` GSD directory was retired in the 2026-07 docs migration).
 
 ## Run
 

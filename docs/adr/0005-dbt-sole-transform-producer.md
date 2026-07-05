@@ -12,7 +12,7 @@ The pipeline previously validated the ingestion→transform boundary at runtime 
 
 **dbt-duckdb is the sole producer of transformed data**, and the ingestion-vs-transform boundary is a **contract**. The dbt contract on `marts/occurrences` (36 columns as of Phase 160) is enforced at every `bash data/dbt/run.sh build`; there is no separate JS schema validator. The runtime `_apply_migrations()` / `validate-schema.mjs` machinery is retired.
 
-The full decision, with its five prerequisites, is the **GO-WITH-CONDITIONS verdict** in `.planning/v3.3-MILESTONE-AUDIT.md` (preserved at `docs/history/`).
+The full decision, with its five prerequisites, is the **GO-WITH-CONDITIONS verdict** in [docs/history/v3.3-MILESTONE-AUDIT.md](../history/v3.3-MILESTONE-AUDIT.md).
 
 ## Consequences
 
@@ -22,4 +22,4 @@ The full decision, with its five prerequisites, is the **GO-WITH-CONDITIONS verd
 
 ---
 
-*Source: `.planning/v3.3-MILESTONE-AUDIT.md`; `.planning/RETROSPECTIVE.md` §v3.4.*
+*Source: [docs/history/v3.3-MILESTONE-AUDIT.md](../history/v3.3-MILESTONE-AUDIT.md); [docs/history/RETROSPECTIVE.md](../history/RETROSPECTIVE.md) §v3.4.*

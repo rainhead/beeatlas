@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-Decisions with rationale and rejected alternatives. Add a new numbered record when a decision is made; mark superseded records rather than deleting them. `0003+` were retro-recorded from `.planning/RETROSPECTIVE.md` during the 2026-07 GSD migration.
+Decisions with rationale and rejected alternatives. Add a new numbered record when a decision is made; mark superseded records rather than deleting them. `0003+` were retro-recorded from the retrospective (preserved at [../history/RETROSPECTIVE.md](../history/RETROSPECTIVE.md)) during the 2026-07 GSD migration.
 
 | # | Decision | Status |
 |---|----------|--------|

@@ -26,8 +26,7 @@ facets above. The frontend re-interprets `source` in three independent ad-hoc sw
 
 **The `source` rebuild is the substrate, not the goal** — it's the prerequisite that lets the data
 be expressed as collector-attributed occurrence–sample pairs with an ID-status lifecycle, which is
-what the "work" surface needs. Captured as actionable work in
-`.planning/todos/pending/rebuild-source-into-facets.md`.
+what the "work" surface needs. **Shipped as Phase 170** (`source` → `tier` + `record_type`).
 
 ## The two halves
 
@@ -43,5 +42,5 @@ Both work use cases are reachable on **public data without auth** — "my work" 
 *self-identification* (pick your iNat handle), not authentication. That dissolves the assumed
 auth blocker.
 
-See seeds: `me-and-my-progress.md`, `where-to-go-next.md`. Related: existing seed
-`collection-event-coordination.md` (the community half of "work").
+See seeds under [roadmap-seeds/](roadmap-seeds/): `me-and-my-progress.md`, `where-to-go-next.md`,
+and `collection-event-coordination.md` (the community half of "work").

@@ -17,4 +17,4 @@ collect next**. Three inputs, all public:
 No auth required. Less personal than "me and my progress," so likely sequenced after it — but the
 phenology-ingest piece could be scoped independently.
 
-Part of the **"work" half** (see `.planning/notes/work-vs-learning-two-halves.md`).
+Part of the **"work" half** (see [two-halves.md](../two-halves.md)).
