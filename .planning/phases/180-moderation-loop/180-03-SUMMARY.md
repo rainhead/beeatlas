@@ -94,3 +94,7 @@ None — no external service configuration required. This plan has no backend de
 - `isCurator` and `takedownNote` are available for any other frontend surface that needs curator-affordance UI.
 - The `<bee-notes>` island's Take-down control is fully wired to `takedownNote()` and will function end-to-end once Plan 180-02's `POST /api/notes/{id}/takedown` endpoint is live — no further frontend work needed for MOD-02's UI surface.
 - No blockers. Full frontend suite (965 tests) and `npm run build` (`tsc --noEmit`) both green.
+
+## Self-Check: PASSED
+
+All created/modified files verified present; all 4 commits (759435c0, 78e2338b, 64d3d9f1, ebef3b59) verified present in git log.
