@@ -35,6 +35,7 @@ import {
   createNote,
   updateNote,
   deleteNote,
+  takedownNote,
   type AuthState,
   type NoteView,
 } from './auth-client.ts';
@@ -42,6 +43,8 @@ import { formatDate } from './lib/formatDate.js';
 
 const SAVE_ERROR_COPY = "Couldn't save your note. Check your connection and try again.";
 const OWNERSHIP_LOST_COPY = 'You no longer have permission to edit this note.';
+const TAKEDOWN_ERROR_COPY = "Couldn't take down this note. Check your connection and try again.";
+const CURATOR_LOST_COPY = 'You no longer have curator permission for this action.';
 
 type EditorMode = 'add' | 'edit' | null;
 
@@ -66,6 +69,14 @@ export class BeeNotes extends LitElement {
   @state() private _deleteConfirmId: number | null = null;
   @state() private _deleteErrorNoteId: number | null = null;
   @state() private _deleteError: string | null = null;
+
+  // Curator take-down state (D-01/D-02) -- kept independent of the owner's
+  // delete-confirm slices above: a curator viewing their own note could in
+  // principle have both an owner-delete-confirm row and a curator-takedown
+  // -confirm row open at once.
+  @state() private _takedownConfirmId: number | null = null;
+  @state() private _takedownErrorNoteId: number | null = null;
+  @state() private _takedownError: string | null = null;
 
   // Persistent aria-live announcement / ownership-lost notice shown near the
   // heading row (survives the editor closing, per UI-SPEC's "announce
@@ -92,6 +103,13 @@ export class BeeNotes extends LitElement {
 
   private get _isAuthor(): boolean {
     return this._authState?.authenticated === true && this._authState?.isAuthor === true;
+  }
+
+  // Curator-only signal (D-03): a UX affordance only -- the takedown POST is
+  // always independently re-authorized server-side (a forged/stale client
+  // flag yields a 403, surfaced via CURATOR_LOST_COPY + refetch).
+  private get _isCurator(): boolean {
+    return this._authState?.authenticated === true && this._authState?.isCurator === true;
   }
 
   private get _notes(): NoteView[] {
@@ -238,6 +256,47 @@ export class BeeNotes extends LitElement {
     this._deleteError = SAVE_ERROR_COPY;
   };
 
+  private _openTakedownConfirm = (noteId: number): void => {
+    this._takedownConfirmId = noteId;
+    this._takedownErrorNoteId = null;
+    this._takedownError = null;
+  };
+
+  private _cancelTakedownConfirm = (): void => {
+    this._takedownConfirmId = null;
+  };
+
+  private _confirmTakedown = async (noteId: number): Promise<void> => {
+    this._inFlight = true;
+    this._takedownError = null;
+
+    const result = await takedownNote(noteId);
+
+    this._inFlight = false;
+
+    if (result.ok) {
+      await this._refetch();
+      this._takedownConfirmId = null;
+      this._banner = 'Note taken down.';
+      this._bannerIsError = false;
+      return;
+    }
+
+    if (result.status === 403) {
+      this._takedownConfirmId = null;
+      this._banner = CURATOR_LOST_COPY;
+      this._bannerIsError = true;
+      // Server truth wins -- re-fetch drops the now-stale "Take down"
+      // control for this curator on the next render.
+      await this._refetch();
+      return;
+    }
+
+    this._takedownConfirmId = null;
+    this._takedownErrorNoteId = noteId;
+    this._takedownError = TAKEDOWN_ERROR_COPY;
+  };
+
   private _renderEditor(submitLabel: string) {
     return html`
       <div class="note-editor">
@@ -288,6 +347,28 @@ export class BeeNotes extends LitElement {
     `;
   }
 
+  private _renderCuratorControls(note: NoteView) {
+    if (this._takedownConfirmId === note.id) {
+      return html`
+        <div class="note-delete-confirm">
+          Take down this note?
+          <button
+            class="note-btn note-btn--danger"
+            @click=${() => this._confirmTakedown(note.id)}
+            ?disabled=${this._inFlight}
+          >${this._inFlight ? 'Taking down…' : 'Take down'}</button>
+          <button class="note-btn" @click=${this._cancelTakedownConfirm} ?disabled=${this._inFlight}>Cancel</button>
+          ${this._inFlight ? html`<span class="note-status" aria-live="polite">Taking down…</span>` : ''}
+        </div>
+      `;
+    }
+    return html`
+      <div class="note-owner-controls">
+        <button class="note-btn note-btn--danger" aria-label="Take down this note (curator)" @click=${() => this._openTakedownConfirm(note.id)}>Take down</button>
+      </div>
+    `;
+  }
+
   private _renderNote(note: NoteView) {
     const isEditingThis = this._editorMode === 'edit' && this._editTargetId === note.id;
     const byline = note.byline.display_name ?? `@${note.byline.login}`;
@@ -305,8 +386,12 @@ export class BeeNotes extends LitElement {
           ${note.updated !== note.created ? html`<span class="note-edited">(edited)</span>` : ''}
         </footer>
         ${note.can_edit && !isEditingThis ? this._renderOwnerControls(note) : ''}
+        ${this._isCurator && !isEditingThis ? this._renderCuratorControls(note) : ''}
         ${this._deleteErrorNoteId === note.id && this._deleteError
           ? html`<p class="note-error" role="alert">${this._deleteError}</p>`
+          : ''}
+        ${this._takedownErrorNoteId === note.id && this._takedownError
+          ? html`<p class="note-error" role="alert">${this._takedownError}</p>`
           : ''}
       </article>
     `;
