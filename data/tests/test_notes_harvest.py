@@ -159,6 +159,62 @@ def test_harvest_approved_only_newest_first_with_byline(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# test_harvest_excludes_hidden — MOD-04 (Phase 180)
+# ---------------------------------------------------------------------------
+
+
+def test_harvest_excludes_hidden(tmp_path):
+    """A status='hidden' note (curator takedown) never appears in export_notes() output.
+
+    Mirrors the pending/removed exclusion already covered by
+    test_harvest_approved_only_newest_first_with_byline -- `hidden` (Phase 180's
+    curator-takedown status, distinct from author self-delete `removed`, D-06) is
+    a third non-approved value, excluded by the same pre-existing
+    `Note.status == "approved"` filter with zero new harvest code (MOD-04 by
+    construction, verification only -- data/notes_harvest.py is unchanged).
+    """
+    engine = _make_db(tmp_path)
+    assets_dir = tmp_path / "assets"
+    now = datetime.datetime(2026, 7, 5, 12, 0, 0)
+
+    with Session(engine) as session:
+        erin = _make_user(session, "erin_inat", 5, now)
+        session.add_all(
+            [
+                Note(
+                    canonical_name="apis mellifera",
+                    author_id=erin.id,
+                    body="approved, visible",
+                    body_html="<p>approved, visible</p>",
+                    status="approved",
+                    created_at=now,
+                    updated_at=now,
+                ),
+                Note(
+                    canonical_name="apis mellifera",
+                    author_id=erin.id,
+                    body="taken down by a curator, excluded",
+                    body_html="<p>taken down by a curator, excluded</p>",
+                    status="hidden",
+                    created_at=now,
+                    updated_at=now,
+                ),
+            ]
+        )
+        session.commit()
+
+    export_notes(engine=engine, assets_dir=assets_dir)
+
+    out = json.loads((assets_dir / "notes.json").read_text(encoding="utf-8"))
+
+    apis_notes = out["apis mellifera"]
+    assert len(apis_notes) == 1, (
+        f"Expected only the approved note, got {len(apis_notes)}: {apis_notes}"
+    )
+    assert apis_notes[0]["html"] == "<p>approved, visible</p>"
+
+
+# ---------------------------------------------------------------------------
 # test_harvest_empty_store_emits_empty_record
 # ---------------------------------------------------------------------------
 
