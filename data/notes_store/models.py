@@ -55,7 +55,7 @@ class Note(Base):
 class NoteRevision(Base):
     """Append-only audit ledger entry for a note edit or soft-delete.
 
-    ``action`` values: 'create', 'edit', 'remove'.
+    ``action`` values: 'create', 'edit', 'remove', 'takedown', 'restore'.
     Rows are never deleted — this is the moderation audit trail.
     """
 
@@ -66,7 +66,8 @@ class NoteRevision(Base):
     body: Mapped[str] = mapped_column(Text, nullable=False)
     editor_id: Mapped[str] = mapped_column(String, nullable=False)
     revised_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
-    action: Mapped[str] = mapped_column(String, nullable=False)  # 'create'/'edit'/'remove'
+    action: Mapped[str] = mapped_column(String, nullable=False)  # 'create'/'edit'/'remove'/'takedown'/'restore'
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     note: Mapped["Note"] = relationship(back_populates="revisions")
 
