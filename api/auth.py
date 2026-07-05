@@ -91,6 +91,16 @@ def _is_author_fresh(login: str) -> bool:
     return _current_roles().get(login) in ("author", "curator")
 
 
+def _is_curator_fresh(login: str) -> bool:
+    """Curator-only fresh recheck (D-04/D-05) — mirrors `_is_author_fresh`
+    exactly but with a strict `== "curator"` equality, not the "author OR
+    curator" union that `_is_author_fresh` uses. Never reuse
+    `notes_store.roles.is_curator()`: it reads the import-time-cached
+    `ROLES` dict, so a demoted curator would keep curator power until the
+    Waitress worker restarts (RESEARCH.md Pitfall 1)."""
+    return _current_roles().get(login) == "curator"
+
+
 def require_session(view):
     """Reject (401) any request without a valid, unexpired session cookie.
 
