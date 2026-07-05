@@ -466,6 +466,58 @@ def test_takedown_appends_ledger(client, monkeypatch, tmp_path, tmp_engine):
         assert without_reason.reason is None
 
 
+def test_takedown_removed_note_is_409(client, monkeypatch, tmp_path, tmp_engine):
+    """CR-01: takedown must not reclassify an author-deleted note ('removed'),
+    which would collapse the author-delete vs curator-takedown distinction (D-06)."""
+    owner_uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=owner_uid, status="removed")
+
+    curator_uid = _make_user(tmp_engine, login="curator_login")
+    _sign_in(client, monkeypatch, tmp_path, login="curator_login", role="curator", uid=curator_uid)
+
+    resp = client.post(f"/api/notes/{note_id}/takedown", headers={"Origin": ALLOWED_ORIGIN}, json={})
+    assert resp.status_code == 409
+
+    with Session(tmp_engine) as db_session:
+        note = db_session.get(Note, note_id)
+        assert note.status == "removed"
+        revisions = db_session.query(NoteRevision).filter_by(note_id=note_id).all()
+        assert [r.action for r in revisions] == ["create"]
+
+
+def test_takedown_already_hidden_is_409(client, monkeypatch, tmp_path, tmp_engine):
+    """Only an 'approved' (public) note is a valid takedown target; a note already
+    taken down cannot be taken down again."""
+    owner_uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=owner_uid, status="hidden")
+
+    curator_uid = _make_user(tmp_engine, login="curator_login")
+    _sign_in(client, monkeypatch, tmp_path, login="curator_login", role="curator", uid=curator_uid)
+
+    resp = client.post(f"/api/notes/{note_id}/takedown", headers={"Origin": ALLOWED_ORIGIN}, json={})
+    assert resp.status_code == 409
+
+
+def test_takedown_non_string_reason_is_400(client, monkeypatch, tmp_path, tmp_engine):
+    """WR-01: a non-string reason is rejected with 400, not a 500 from .strip()."""
+    owner_uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=owner_uid)
+
+    curator_uid = _make_user(tmp_engine, login="curator_login")
+    _sign_in(client, monkeypatch, tmp_path, login="curator_login", role="curator", uid=curator_uid)
+
+    resp = client.post(
+        f"/api/notes/{note_id}/takedown",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"reason": 123},
+    )
+    assert resp.status_code == 400
+
+    with Session(tmp_engine) as db_session:
+        note = db_session.get(Note, note_id)
+        assert note.status == "approved"
+
+
 # ---------------------------------------------------------------------------
 # POST /api/notes/<id>/restore (180-02; MOD-02, D-07 curl-only)
 # ---------------------------------------------------------------------------
@@ -534,6 +586,62 @@ def test_restore_appends_ledger(client, monkeypatch, tmp_path, tmp_engine):
     with Session(tmp_engine) as db_session:
         revision = db_session.query(NoteRevision).filter_by(note_id=note_id, action="restore").one()
         assert revision.reason == "appeal accepted"
+
+
+def test_restore_removed_note_is_409(client, monkeypatch, tmp_path, tmp_engine):
+    """CR-01 (Critical): restore must NOT resurrect an author-deleted note
+    ('removed' -> 'approved'), which would republish content the author
+    intentionally removed. Only a curator-hidden note may be restored."""
+    owner_uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=owner_uid, status="removed")
+
+    curator_uid = _make_user(tmp_engine, login="curator_login")
+    _sign_in(client, monkeypatch, tmp_path, login="curator_login", role="curator", uid=curator_uid)
+
+    resp = client.post(f"/api/notes/{note_id}/restore", headers={"Origin": ALLOWED_ORIGIN}, json={})
+    assert resp.status_code == 409
+
+    with Session(tmp_engine) as db_session:
+        note = db_session.get(Note, note_id)
+        assert note.status == "removed"
+        revisions = db_session.query(NoteRevision).filter_by(note_id=note_id).all()
+        assert [r.action for r in revisions] == ["create"]
+
+
+def test_restore_approved_note_is_409(client, monkeypatch, tmp_path, tmp_engine):
+    """A non-hidden note has nothing to restore -> 409 (no status change, no ledger row)."""
+    owner_uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=owner_uid, status="approved")
+
+    curator_uid = _make_user(tmp_engine, login="curator_login")
+    _sign_in(client, monkeypatch, tmp_path, login="curator_login", role="curator", uid=curator_uid)
+
+    resp = client.post(f"/api/notes/{note_id}/restore", headers={"Origin": ALLOWED_ORIGIN}, json={})
+    assert resp.status_code == 409
+
+    with Session(tmp_engine) as db_session:
+        revisions = db_session.query(NoteRevision).filter_by(note_id=note_id).all()
+        assert [r.action for r in revisions] == ["create"]
+
+
+def test_restore_non_string_reason_is_400(client, monkeypatch, tmp_path, tmp_engine):
+    """WR-01: a non-string reason is rejected with 400, not a 500 from .strip()."""
+    owner_uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=owner_uid, status="hidden")
+
+    curator_uid = _make_user(tmp_engine, login="curator_login")
+    _sign_in(client, monkeypatch, tmp_path, login="curator_login", role="curator", uid=curator_uid)
+
+    resp = client.post(
+        f"/api/notes/{note_id}/restore",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"reason": ["not", "a", "string"]},
+    )
+    assert resp.status_code == 400
+
+    with Session(tmp_engine) as db_session:
+        note = db_session.get(Note, note_id)
+        assert note.status == "hidden"
 
 
 # ---------------------------------------------------------------------------

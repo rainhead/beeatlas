@@ -504,7 +504,10 @@ def takedown_note(note_id):
         abort(403)
 
     payload = request.get_json(silent=True) or {}
-    reason = (payload.get("reason") or "").strip() or None
+    raw_reason = payload.get("reason")
+    if raw_reason is not None and not isinstance(raw_reason, str):
+        abort(400)
+    reason = (raw_reason or "").strip() or None
     if reason is not None and len(reason) > _NOTE_BODY_MAX_LENGTH:
         abort(400)
 
@@ -513,6 +516,15 @@ def takedown_note(note_id):
         note = db_session.get(Note, note_id)
         if note is None:
             abort(404)
+
+        # Guard the current status: takedown acts only on a live (public)
+        # note. 'approved' is the sole publicly-visible state, so a 'hidden'
+        # (already taken down), 'removed' (author-deleted -- D-06), or
+        # 'pending' note is not a valid takedown target. 409 rather than a
+        # silent reclassification that would collapse the author-delete vs
+        # curator-takedown distinction D-06 preserves.
+        if note.status != "approved":
+            abort(409)
 
         note.status = "hidden"
         note.updated_at = now
@@ -548,7 +560,10 @@ def restore_note(note_id):
         abort(403)
 
     payload = request.get_json(silent=True) or {}
-    reason = (payload.get("reason") or "").strip() or None
+    raw_reason = payload.get("reason")
+    if raw_reason is not None and not isinstance(raw_reason, str):
+        abort(400)
+    reason = (raw_reason or "").strip() or None
     if reason is not None and len(reason) > _NOTE_BODY_MAX_LENGTH:
         abort(400)
 
@@ -557,6 +572,14 @@ def restore_note(note_id):
         note = db_session.get(Note, note_id)
         if note is None:
             abort(404)
+
+        # Guard the current status: restore only ever reverses a curator
+        # takedown ('hidden' -> 'approved'). It must NOT resurrect an
+        # author-deleted note ('removed' -- D-06), which would republish
+        # content the author intentionally removed. 409 on any non-'hidden'
+        # note.
+        if note.status != "hidden":
+            abort(409)
 
         note.status = "approved"
         note.updated_at = now

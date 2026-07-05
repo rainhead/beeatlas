@@ -35,7 +35,8 @@ class Note(Base):
     Multiple Note rows may share the same ``canonical_name`` (D-06 — stacked list).
     There is NO unique constraint on ``canonical_name``; only an index for fast lookup.
 
-    ``status`` values (D-08): 'approved' (default), 'pending', 'removed'.
+    ``status`` values: 'approved' (default), 'pending', 'removed' (author
+    soft-delete, D-08), 'hidden' (curator takedown, Phase 180/D-06).
     """
 
     __tablename__ = "notes"
