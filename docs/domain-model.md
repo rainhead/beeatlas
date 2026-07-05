@@ -6,7 +6,7 @@ vocabulary, and the same-occurrence identity rule. Written for human readers; cr
 authoritative source files rather than duplicating them.
 
 For the canonical vocabulary definitions (Specimen, Sample, Floral host, Observation, Occurrence
-record, Collection event), see [CLAUDE.md § Domain Vocabulary](../CLAUDE.md).
+record, Collection event), see [CONTEXT.md](../CONTEXT.md).
 
 ---
 

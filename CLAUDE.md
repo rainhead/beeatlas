@@ -1,22 +1,28 @@
 # BeeAtlas — AI Context
 
+## Product Memory
+
+Durable knowledge lives in a few places — keep them current; it is the product's memory:
+
+- **[PRODUCT.md](PRODUCT.md)** — what BeeAtlas is, for whom, the two-halves thesis, capabilities, scope.
+- **[CONTEXT.md](CONTEXT.md)** — the domain glossary. Use its terms exactly (Specimen, Sample, `tier`/`record_type`, `occ_id`, Collector…). Update when a term is coined or sharpened.
+- **[docs/domain-model.md](docs/domain-model.md)** — the deep occurrence data model (five arms, facets, identity rule).
+- **[docs/adr/](docs/adr/)** — numbered decision records with rationale and rejected alternatives. **When a decision is made, add an ADR before moving on.** Mark superseded records; don't delete them.
+- **[docs/lessons-learned.md](docs/lessons-learned.md)** — reusable engineering lessons. **[docs/concerns.md](docs/concerns.md)** — live tech debt & scaling ceiling.
+
+Work tracking: **beads (`bd`), local-only** — issues live in the Dolt DB, not git. Use `bd` for all task tracking (not TodoWrite or markdown TODO lists). Decisions and their *why* go in `docs/adr/`; bd issues track work in flight and *reference* ADRs.
+
 ## Domain Vocabulary
 
-Use these terms precisely — ambiguity here has caused confusion before.
+Moved to **[CONTEXT.md](CONTEXT.md)**; the deep occurrence model (five `int_combined` arms, `tier`/`record_type` facets, `is_provisional`, `occ_id` vocabulary) is in **[docs/domain-model.md](docs/domain-model.md)**.
 
-**Specimen** — a physical bee, the real-world thing. May be represented by an iNat observation (photo posted by collector), an Ecdysis record, both, or neither for months after collection.
+## Agent skills
 
-**Sample** — all bees collected off one floral host, by one person, on one day, at one place. Represented by an iNat observation (usually of the plant; occasionally a blank record when bees were collected off a non-plant substrate). Carries sample ID (sequential per person per day) and bee count as metadata fields.
+Config the engineering skills (`to-issues`, `to-prd`, `grill-with-docs`, `improve-codebase-architecture`, …) read from:
 
-**Floral host** — the plant a sample was collected from. Identified by the iNat observation that represents the sample.
-
-**Observation** — a record on iNaturalist. Could represent a specimen (photo posted by collector), a floral host (plant ID), or a sample (collection record with sample ID + bee count metadata).
-
-**Occurrence record** — any data record of a bee occurrence: either an iNat observation or an Ecdysis record.
-
-**Collection event** — a scheduled group outing; implicitly yields many samples from multiple people. No data record exists for events yet.
-
-See [docs/domain-model.md](docs/domain-model.md) for the full occurrence data model: the five `int_combined` source categories, the corrected `is_provisional` definition, and the synthetic `occ_id` prefix vocabulary.
+- **Issue tracker** — beads (`bd`), local-only; no GitHub Issues workflow. See [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
+- **Triage labels** — canonical roles mapped to bd labels. See [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
+- **Domain docs** — single-context: CONTEXT.md + PRODUCT.md + docs/domain-model.md + docs/adr/. See [docs/agents/domain-docs.md](docs/agents/domain-docs.md).
 
 ## Architecture Invariants
 

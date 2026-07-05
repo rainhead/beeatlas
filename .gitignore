@@ -189,3 +189,6 @@ data/notes-dev.db
 .dolt/
 *.db
 .beads-credential-key
+
+# Beads is local-only: issues live in the Dolt DB, never in git.
+.beads/
