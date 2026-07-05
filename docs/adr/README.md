@@ -14,3 +14,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0008](0008-full-dbt-rebuilds.md) | Full dbt rebuilds (incremental rejected) | Accepted |
 | [0009](0009-build-time-only-external-authority.md) | Build-time-only external authority (static invariant) | Accepted |
 | [0010](0010-curator-gated-audit-csv-integrity.md) | Curator-gated audit-CSV data-integrity policy | Accepted |
+| [0011](0011-bloom-phenology-ingest.md) | Bloom-phenology ingest — sampled, dual-cadence, static aggregates | Proposed |
