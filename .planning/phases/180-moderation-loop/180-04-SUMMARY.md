@@ -117,3 +117,11 @@ None - no external service configuration required.
 ---
 *Phase: 180-moderation-loop*
 *Completed: 2026-07-05*
+
+## Self-Check: PASSED
+
+- FOUND: data/tests/test_notes_harvest.py
+- FOUND: data/tests/test_notes_store_schema.py
+- FOUND: .planning/phases/180-moderation-loop/180-04-SUMMARY.md
+- FOUND commit 833fb392 (test — hidden-status harvest exclusion)
+- FOUND commit 041b64dc (test — reason-column nullable + MOD-01/MOD-03 verification)
