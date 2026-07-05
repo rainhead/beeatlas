@@ -184,3 +184,8 @@ secrets.toml
 __pycache__/
 *.pyc
 data/notes-dev.db
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
