@@ -53,7 +53,7 @@ const TIER_OF: Record<SourceKey, TierKey> = {
 };
 
 export interface UiState {
-  boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places';
+  boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' | 'wilderness';
   paneState: 'list' | 'table' | 'collapsed';
   hiddenTiers?: Set<TierKey>;
 }
@@ -342,9 +342,9 @@ export function parseParams(search: string): ParsedParams {
   const bmRaw = p.get('bm') ?? '';
   // D-01/D-09: any non-empty place= forces boundaryMode='places', overriding bm=
   const placeImplied = selectedPlace !== null && selectedPlace !== '';
-  const boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' = placeImplied
+  const boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' | 'wilderness' = placeImplied
     ? 'places'
-    : (bmRaw === 'counties' || bmRaw === 'ecoregions' || bmRaw === 'places') ? bmRaw : 'off';
+    : (bmRaw === 'counties' || bmRaw === 'ecoregions' || bmRaw === 'places' || bmRaw === 'wilderness') ? bmRaw : 'off';
   const paneRaw = p.get('pane') ?? '';
   const viewRaw = p.get('view') ?? '';
   // Option A precedence: pane= wins; view=table is legacy alias when pane= absent

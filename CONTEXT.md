@@ -36,7 +36,8 @@ Priority order, prefix literals, the positional-coupling rule, and the same-occu
 
 ## Places
 
-- **Place** (data model) vs **Region** (map-UI label) — same thing, two names. Places are hand-curated in `content/places.toml`. Sources: counties, ecoregions, curated places, WDFW wildlife areas, WTA hike corridors (linear features → ~250m buffer). Federal wilderness areas are next.
+- **Place** (data model) vs **Region** (map-UI label) — same thing, two names. Places are hand-curated in `content/places.toml`. Sources: counties, ecoregions, curated places, WDFW wildlife areas, WTA hike corridors (linear features → ~250m buffer).
+- **Wilderness** (no-collect overlay) — a *distinct* Regions overlay, NOT a Place: designated federal wilderness where collecting is prohibited (the semantic inverse of a permitted Place). Sourced from PAD-US, WA-scoped, Olympic Wilderness carved out (BeeAtlas has a collecting relationship with Olympic NP). Display-only red warning layer — no `FilterState` dimension, no place membership. See [ADR 0012](docs/adr/0012-wilderness-no-collect-overlay.md).
 - **Many-to-many membership** — an occurrence belongs to *every* place it falls within, via the `occurrence_places` bridge on `occ_id`. One-place-per-occurrence was an implementation artifact, not domain truth (see [ADR 0006](docs/adr/0006-many-to-many-place-model.md)).
 
 ## Individuals (deferred)

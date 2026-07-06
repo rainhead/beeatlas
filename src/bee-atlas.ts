@@ -99,7 +99,7 @@ export class BeeAtlas extends LitElement {
   @state() private _visibleIds: Set<string> | null = null;
   @state() private _filteredGeoJSON: FeatureCollection<Point, OccurrenceProperties> | null = null;
   @state() private _filteredRowCount: number | null = null;
-  @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' = 'off';
+  @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' | 'wilderness' = 'off';
   // Region control menu open/close (relocated from <bee-map> in Phase 157).
   @state() private _regionMenuOpen = false;
   @state() private _paneState: 'collapsed' | 'list' | 'table' = 'collapsed';
@@ -475,6 +475,7 @@ bee-map {
     const regionLabel = this._boundaryMode === 'off' ? 'Regions'
       : this._boundaryMode === 'counties' ? 'Counties'
       : this._boundaryMode === 'ecoregions' ? 'Ecoregions'
+      : this._boundaryMode === 'wilderness' ? 'Wilderness'
       : 'Places';
     return html`
       <bee-header
@@ -526,6 +527,7 @@ bee-map {
                 <button class=${this._boundaryMode === 'counties' ? 'active' : ''} @click=${() => this._selectBoundaryMode('counties')}>Counties</button>
                 <button class=${this._boundaryMode === 'ecoregions' ? 'active' : ''} @click=${() => this._selectBoundaryMode('ecoregions')}>Ecoregions</button>
                 <button class=${this._boundaryMode === 'places' ? 'active' : ''} @click=${() => this._selectBoundaryMode('places')}>Places</button>
+                <button class=${this._boundaryMode === 'wilderness' ? 'active' : ''} @click=${() => this._selectBoundaryMode('wilderness')}>Wilderness</button>
               </div>
             ` : ''}
             <button class="region-btn" @click=${this._toggleRegionMenu}>
@@ -1743,7 +1745,7 @@ bee-map {
     this._regionMenuOpen = !this._regionMenuOpen;
   }
 
-  private _selectBoundaryMode(mode: 'off' | 'counties' | 'ecoregions' | 'places') {
+  private _selectBoundaryMode(mode: 'off' | 'counties' | 'ecoregions' | 'places' | 'wilderness') {
     this._regionMenuOpen = false;
     if (mode === this._boundaryMode) return;
     this._applyBoundaryMode(mode);
@@ -1763,7 +1765,7 @@ bee-map {
   // Shared boundary-mode side effects (extracted from the former
   // _onBoundaryModeChanged event handler). Set the mode, clear the selected
   // place when leaving 'places' (re-running filter/table queries), and sync URL.
-  private _applyBoundaryMode(newMode: 'off' | 'counties' | 'ecoregions' | 'places') {
+  private _applyBoundaryMode(newMode: 'off' | 'counties' | 'ecoregions' | 'places' | 'wilderness') {
     this._boundaryMode = newMode;
     const leavingPlaces = newMode !== 'places' && this._filterState.selectedPlace !== null;
     if (leavingPlaces) {

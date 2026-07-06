@@ -18,6 +18,9 @@ import {
   placeLineLayerSpec,
   selectedOccurrencesLayerSpec,
   unclusteredPointLayerSpec,
+  wildernessFillLayerSpec,
+  wildernessLabelLayerSpec,
+  wildernessLineLayerSpec,
 } from './style.ts';
 import { resolveDataUrl } from './manifest.ts';
 
@@ -33,7 +36,7 @@ export class BeeMap extends LitElement {
   mapElement!: HTMLDivElement;
 
   // --- @property inputs from bee-atlas ---
-  @property({ attribute: false }) boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' = 'off';
+  @property({ attribute: false }) boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' | 'wilderness' = 'off';
   @property({ attribute: false }) visibleIds: Set<string> | null = null;
   @property({ attribute: false }) filteredGeoJSON: FeatureCollection<Point, OccurrenceProperties> | null = null;
   @property({ attribute: false }) selectedOccIds: Set<string> | null = null;
@@ -410,6 +413,12 @@ export class BeeMap extends LitElement {
           data: { type: 'FeatureCollection', features: [] },
           generateId: true,
         });
+        // Wilderness no-collect overlay: no generateId — it has no click-to-select
+        // feature-state (a constant warning fill), unlike the boundary sources above.
+        this._map!.addSource('wilderness', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
 
         // --- Layers in render order ---
         // Compute initial visibility from URL-restored boundaryMode so layers
@@ -418,6 +427,7 @@ export class BeeMap extends LitElement {
         const countyVis = this.boundaryMode === 'counties' ? 'visible' as const : 'none' as const;
         const ecoVis = this.boundaryMode === 'ecoregions' ? 'visible' as const : 'none' as const;
         const placesVis = this.boundaryMode === 'places' ? 'visible' as const : 'none' as const;
+        const wildernessVis = this.boundaryMode === 'wilderness' ? 'visible' as const : 'none' as const;
 
         this._map!.addLayer(boundaryFillLayerSpec('ecoregions', 'ecoregion-fill', ecoVis));
         this._map!.addLayer(boundaryLineLayerSpec('ecoregions', 'ecoregion-line', ecoVis));
@@ -426,6 +436,9 @@ export class BeeMap extends LitElement {
         this._map!.addLayer(placeFillLayerSpec(placesVis));
         this._map!.addLayer(placeLineLayerSpec(placesVis));
         this._map!.addLayer(placeLabelLayerSpec(placesVis));
+        this._map!.addLayer(wildernessFillLayerSpec(wildernessVis));
+        this._map!.addLayer(wildernessLineLayerSpec(wildernessVis));
+        this._map!.addLayer(wildernessLabelLayerSpec(wildernessVis));
 
         // Ghost points: low-opacity gray dots for filtered-out features
         this._map!.addLayer(ghostPointLayerSpec());
@@ -676,15 +689,19 @@ export class BeeMap extends LitElement {
 
   private async _loadBoundaryData() {
     try {
-      const [countiesResp, ecoregionsResp, placesUrl] = await Promise.all([
+      const [countiesResp, ecoregionsResp, placesUrl, wildernessUrl] = await Promise.all([
         resolveDataUrl('counties').then(url => fetch(url!)),
         resolveDataUrl('ecoregions').then(url => fetch(url!)),
         resolveDataUrl('places'),
+        resolveDataUrl('wilderness'),
       ]);
       const countiesData = await countiesResp.json();
       const ecoregionsData = await ecoregionsResp.json();
       const placesData = placesUrl
         ? await fetch(placesUrl).then(r => r.json())
+        : { type: 'FeatureCollection', features: [] };
+      const wildernessData = wildernessUrl
+        ? await fetch(wildernessUrl).then(r => r.json())
         : { type: 'FeatureCollection', features: [] };
 
       // Build ID-to-name maps (generateId assigns sequential integers)
@@ -708,6 +725,7 @@ export class BeeMap extends LitElement {
       (this._map!.getSource('counties') as mapboxgl.GeoJSONSource).setData(countiesData);
       (this._map!.getSource('ecoregions') as mapboxgl.GeoJSONSource).setData(ecoregionsData);
       (this._map!.getSource('places') as mapboxgl.GeoJSONSource).setData(placesData);
+      (this._map!.getSource('wilderness') as mapboxgl.GeoJSONSource).setData(wildernessData);
 
       // Apply visibility and selection for URL-restored state
       this._applyBoundaryMode();
@@ -722,6 +740,7 @@ export class BeeMap extends LitElement {
     const countyVis = this.boundaryMode === 'counties' ? 'visible' : 'none';
     const ecoVis = this.boundaryMode === 'ecoregions' ? 'visible' : 'none';
     const placesVis = this.boundaryMode === 'places' ? 'visible' : 'none';
+    const wildernessVis = this.boundaryMode === 'wilderness' ? 'visible' : 'none';
     this._map.setLayoutProperty('county-fill', 'visibility', countyVis);
     this._map.setLayoutProperty('county-line', 'visibility', countyVis);
     this._map.setLayoutProperty('ecoregion-fill', 'visibility', ecoVis);
@@ -729,6 +748,9 @@ export class BeeMap extends LitElement {
     this._map.setLayoutProperty('place-fill', 'visibility', placesVis);
     this._map.setLayoutProperty('place-line', 'visibility', placesVis);
     this._map.setLayoutProperty('place-label', 'visibility', placesVis);
+    this._map.setLayoutProperty('wilderness-fill', 'visibility', wildernessVis);
+    this._map.setLayoutProperty('wilderness-line', 'visibility', wildernessVis);
+    this._map.setLayoutProperty('wilderness-label', 'visibility', wildernessVis);
   }
 
   private _applyBoundarySelection() {

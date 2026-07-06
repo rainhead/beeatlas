@@ -43,6 +43,10 @@ _EXPORT_DIR = Path(os.environ.get(
 _SIMPLIFY_PCT: dict[str, str | None] = {
     "counties.geojson": None,
     "ecoregions.geojson": "3%",
+    # Wilderness (PAD-US Designation) polygons carry dense, high-vertex
+    # boundaries traced to terrain; 5% retention keeps recognizable shapes while
+    # holding the file to the tens-of-KB range like ecoregions.
+    "wilderness.geojson": "5%",
 }
 
 
@@ -108,10 +112,18 @@ def main() -> None:
     inter-feature overlaps in WA) and -simplify (brings 6 MB raw down to
     a tens-of-KB lazy-loadable file).
     """
-    for name in ("counties.geojson", "ecoregions.geojson"):
+    for name in ("counties.geojson", "ecoregions.geojson", "wilderness.geojson"):
         path = _EXPORT_DIR / name
         if not path.exists():
             raise FileNotFoundError(f"{path} not found — run dbt build first")
+        # An empty FeatureCollection can occur for wilderness.geojson before the
+        # PAD-US source table is loaded (see dbt_project.yml on-run-start guard).
+        # mapshaper rejects zero-feature input, so skip it and just stamp _meta —
+        # keeps the nightly green while the overlay is still empty.
+        if not json.loads(path.read_text()).get("features"):
+            _inject_meta(path)
+            print(f"  {name}: 0 features — mapshaper skipped")  # noqa: T201
+            continue
         before = path.stat().st_size
         _run_mapshaper(path)
         _inject_meta(path)

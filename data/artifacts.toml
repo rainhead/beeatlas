@@ -76,6 +76,17 @@ hash_basename = "ecoregions"
 baseline_diff = true
 content_type = "application/json"
 
+[artifacts.wilderness]
+provenance = "derived"
+kind = "hashed"
+source_file = "wilderness.geojson"
+hash_basename = "wilderness"
+# baseline_diff intentionally omitted (=false) for the initial ship: a new
+# artifact has no S3 baseline yet, so enrolling it in the nightly drift-diff gate
+# would deadlock the first deploy (project_occurrences_contract_release_sequence).
+# Promote to baseline_diff=true in a follow-up once a baseline exists on S3.
+content_type = "application/json"
+
 [artifacts.places]
 provenance = "derived"
 kind = "hashed"

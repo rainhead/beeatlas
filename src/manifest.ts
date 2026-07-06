@@ -7,6 +7,7 @@ interface Manifest {
   seasonality: string;
   counties: string;
   ecoregions: string;
+  wilderness: string;    // points to hashed wilderness.geojson (no-collect overlay)
   places: string;        // points to hashed places.geojson
   places_meta: string;   // points to hashed places.json
   checklist: string;

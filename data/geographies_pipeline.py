@@ -18,6 +18,7 @@ Sources:
 """
 
 import os
+import sys
 import zipfile
 from pathlib import Path
 
@@ -27,6 +28,25 @@ import requests
 DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
 
 CACHE_DIR = Path(os.environ.get('GEOGRAPHY_CACHE_DIR', '.geography_cache'))
+
+# --- PAD-US (Protected Areas Database of the US) 4.1 ---------------------------
+# Source for the wilderness no-collect overlay (beeatlas-2vj). The National
+# Wilderness Preservation System polygons live in PAD-US's *Designation* feature
+# class (Des_Tp = 'WA' = "Wilderness Area"). PAD-US is distributed as per-state
+# File Geodatabase downloads from ScienceBase; unlike the Census/EPA sources
+# below it is addressed by item-id + filename, so the URL is built from a state
+# code. Add codes here as BeeAtlas expands beyond WA (project_multi_state_expansion).
+#
+# Loaded on demand — this is a ~260 MB/state download and wilderness boundaries
+# change rarely, so it is NOT part of the default `load_geographies()` run.
+# Refresh with: uv run python geographies_pipeline.py wilderness
+PADUS_ITEM = "6759abcfd34edfeb8710a004"  # ScienceBase "PAD-US 4.1 State Downloads"
+PADUS_STATES = ("WA",)
+# Feature-class layer inside each state GDB that carries congressional
+# designations (Wilderness Areas, National Monuments, …). PAD-US 4.1 names it
+# `PADUS4_1Designation`. If a future PAD-US release renames it, the ST_Read call
+# below fails loudly — run `ogrinfo <gdb>` to find the new layer name.
+PADUS_DESIGNATION_LAYER = "PADUS4_1Designation"
 
 SOURCES = {
     "ecoregions": "https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/cec_na/NA_CEC_Eco_Level3.zip",
@@ -161,5 +181,76 @@ def load_geographies() -> None:
     con.close()
 
 
+def _padus_url(state: str) -> str:
+    """ScienceBase name-addressable download URL for a state's PAD-US 4.1 GDB."""
+    return (
+        "https://www.sciencebase.gov/catalog/file/get/"
+        f"{PADUS_ITEM}?name=PADUS4_1_State_{state}_GDB_KMZ.zip"
+    )
+
+
+def _gdb_dir_in_zip(zip_path: Path) -> str:
+    """Return the `.gdb` directory name inside a PAD-US state zip.
+
+    The archive bundles a File Geodatabase directory plus a KMZ; the GDB name is
+    not fixed across releases, so discover it from the zip's entries rather than
+    hard-coding it.
+    """
+    with zipfile.ZipFile(zip_path) as zf:
+        for entry in zf.namelist():
+            if ".gdb/" in entry:
+                return entry[: entry.index(".gdb/") + len(".gdb")]
+    raise FileNotFoundError(f"no .gdb directory found inside {zip_path}")
+
+
+def load_padus_designations() -> None:
+    """Load the PAD-US Designation feature class for each PADUS_STATES entry.
+
+    Populates `geographies.padus_designations` (native PAD-US schema: Unit_Nm,
+    Des_Tp, State_Nm, geom in WGS84). This is a faithful mirror of the source —
+    the WA/Wilderness/Olympic filtering lives downstream in stg_geo__wilderness so
+    the DAG edge is visible and the carve-out is contract-reviewable.
+
+    PAD-US ships in USGS Albers; the source CRS WKT is read from the GDB via
+    ST_Read_Meta and ST_Transform reprojects to EPSG:4326 (same pattern as the
+    projected ecoregions/Statistics-Canada sources above).
+    """
+    con = duckdb.connect(DB_PATH)
+    con.execute("INSTALL spatial; LOAD spatial;")
+    con.execute("CREATE SCHEMA IF NOT EXISTS geographies")
+    con.execute("""
+        CREATE OR REPLACE TABLE geographies.padus_designations (
+            unit_name VARCHAR, des_tp VARCHAR, state_nm VARCHAR, geom GEOMETRY
+        )
+    """)
+
+    for state in PADUS_STATES:
+        path = _download(f"padus_{state}", _padus_url(state))
+        gdb = _gdb_dir_in_zip(path)
+        vsi = f"/vsizip/{path}/{gdb}"
+        print(f"  Loading PAD-US designations for {state} from {gdb}...")  # noqa: T201
+        # PAD-US ships in USGS Albers; read the source CRS WKT from the GDB and
+        # reproject to WGS84 (same pattern as ecoregions above).
+        src_wkt = con.execute(
+            "SELECT layers[1].geom_fields[1].crs.wkt FROM ST_Read_Meta(?)",
+            [vsi],
+        ).fetchone()[0]
+        con.execute(
+            """
+            INSERT INTO geographies.padus_designations
+            SELECT Unit_Nm AS unit_name, Des_Tp AS des_tp, State_Nm AS state_nm,
+                   ST_Transform(geom, ?, 'EPSG:4326', true) AS geom
+            FROM ST_Read(?, layer=?)
+            """,
+            [src_wkt, vsi, PADUS_DESIGNATION_LAYER],
+        )
+        print(f"  PAD-US {state}: done")  # noqa: T201
+
+    con.close()
+
+
 if __name__ == "__main__":
-    load_geographies()
+    if len(sys.argv) > 1 and sys.argv[1] == "wilderness":
+        load_padus_designations()
+    else:
+        load_geographies()

@@ -75,6 +75,7 @@ _GOLDEN_MANIFEST = """\
   "higher_taxa": "higher_taxa-DEADBEEF0000.json",
   "counties": "counties-DEADBEEF0000.geojson",
   "ecoregions": "ecoregions-DEADBEEF0000.geojson",
+  "wilderness": "wilderness-DEADBEEF0000.geojson",
   "places": "places-DEADBEEF0000.geojson",
   "places_meta": "places_meta-DEADBEEF0000.json",
   "place_details": "place_details-DEADBEEF0000.json",
@@ -104,10 +105,10 @@ def _write_toml(tmp_path, content: str):
 # 1. Real contract: load + validate
 # ---------------------------------------------------------------------------
 
-def test_load_returns_18_artifacts():
-    """Loader returns 18 artifacts from the real contract."""
+def test_load_returns_19_artifacts():
+    """Loader returns 19 artifacts from the real contract."""
     spec = load()
-    assert len(spec) == 18
+    assert len(spec) == 19
 
 
 def test_validate_passes_real_contract():
@@ -117,12 +118,12 @@ def test_validate_passes_real_contract():
 
 
 def test_artifact_order():
-    """18 artifacts are declared in manifest order (matching nightly.sh heredoc)."""
+    """19 artifacts are declared in manifest order (matching nightly.sh heredoc)."""
     spec = load()
     expected = [
         "occurrences", "occurrences_db", "species", "seasonality", "higher_taxa",
-        "counties", "ecoregions", "places", "places_meta", "place_details", "checklist",
-        "photos", "species_hosts", "collectors", "collector_event_pages",
+        "counties", "ecoregions", "wilderness", "places", "places_meta", "place_details",
+        "checklist", "photos", "species_hosts", "collectors", "collector_event_pages",
         "notes", "occurrences_db_tables", "generated_at",
     ]
     assert list(spec.keys()) == expected

@@ -229,3 +229,54 @@ export function placeLabelLayerSpec(visibility: Visibility): SymbolLayerSpecific
   };
 }
 
+// Wilderness no-collect overlay (beeatlas-2vj). Unlike the county/ecoregion/place
+// boundaries — which are neutral reference layers with a click-to-select
+// feature-state — wilderness is a WARNING layer: designated federal wilderness
+// where collecting is prohibited. It renders a constant red fill/outline (no
+// feature-state, no selection) so "you can't collect here" reads at a glance.
+export function wildernessFillLayerSpec(visibility: Visibility): FillLayerSpecification {
+  return {
+    id: 'wilderness-fill',
+    type: 'fill',
+    source: 'wilderness',
+    layout: { visibility },
+    paint: {
+      'fill-color': 'rgba(200, 40, 40, 0.14)',
+    },
+  };
+}
+
+export function wildernessLineLayerSpec(visibility: Visibility): LineLayerSpecification {
+  return {
+    id: 'wilderness-line',
+    type: 'line',
+    source: 'wilderness',
+    layout: { visibility, 'line-join': 'round', 'line-cap': 'round' },
+    paint: {
+      'line-color': 'rgba(180, 30, 30, 0.7)',
+      'line-width': 1.5,
+    },
+  };
+}
+
+export function wildernessLabelLayerSpec(visibility: Visibility): SymbolLayerSpecification {
+  return {
+    id: 'wilderness-label',
+    type: 'symbol',
+    source: 'wilderness',
+    layout: {
+      visibility,
+      'text-field': ['get', 'name'],
+      'text-size': 12,
+      'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+      'text-max-width': 10,
+      'symbol-placement': 'point',
+    },
+    paint: {
+      'text-color': '#8a1010',
+      'text-halo-color': '#ffffff',
+      'text-halo-width': 1.5,
+    },
+  };
+}
+

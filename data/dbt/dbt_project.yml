@@ -8,6 +8,20 @@ macro-paths: ["macros"]
 target-path: "target"
 clean-targets: ["target", "dbt_packages", "logs"]
 
+# Ensure the PAD-US wilderness source table exists before any model builds
+# (beeatlas-2vj). It is populated out-of-band by
+# geographies_pipeline.load_padus_designations (a manual, rarely-run step), so a
+# host that hasn't loaded it yet would otherwise fail `dbt build` on the missing
+# source and take down the whole nightly. Creating it empty here is a no-op once
+# real data is loaded (CREATE TABLE IF NOT EXISTS) and yields an empty
+# wilderness.geojson until then — the overlay degrades gracefully.
+on-run-start:
+  - "CREATE SCHEMA IF NOT EXISTS geographies"
+  - >
+    CREATE TABLE IF NOT EXISTS geographies.padus_designations (
+      unit_name VARCHAR, des_tp VARCHAR, state_nm VARCHAR, geom GEOMETRY
+    )
+
 models:
   beeatlas:
     staging:

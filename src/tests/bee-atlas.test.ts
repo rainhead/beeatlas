@@ -599,7 +599,7 @@ describe('PMAP-02/04: place filter wiring in bee-atlas', () => {
     // Phase 157: the boundary-mode side effects moved from the _onBoundaryModeChanged
     // event handler into a shared _applyBoundaryMode method (the relocated region
     // menu calls it directly, no event round-trip through <bee-map>).
-    expect(src).toMatch(/_applyBoundaryMode\(newMode:\s*'off'\s*\|\s*'counties'\s*\|\s*'ecoregions'\s*\|\s*'places'\)/);
+    expect(src).toMatch(/_applyBoundaryMode\(newMode:\s*'off'\s*\|\s*'counties'\s*\|\s*'ecoregions'\s*\|\s*'places'\s*\|\s*'wilderness'\)/);
   });
 
   test('_onFilterChanged passes selectedPlace through from FilterChangedEvent', () => {
