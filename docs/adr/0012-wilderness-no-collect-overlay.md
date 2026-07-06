@@ -41,13 +41,25 @@ to **Washington** (configurable for later expansion).
   `geographies_pipeline.py` "download → DuckDB, changes rarely, run manually"
   pattern rather than the `places.toml` curation pattern.
 
+- **Read via pyogrio, not DuckDB `ST_Read`.** The state GDB's Designation layer
+  is `PADUS4_1Designation_State_WA` (state-suffixed; the unsuffixed name does not
+  exist), and it contains ~645 designations of which ~112 are the WA wilderness
+  units (31 distinct names). Scanning the whole layer in DuckDB crashes: some
+  non-wilderness designations carry geometry types DuckDB can't decode
+  ("Unsupported geometry type in WKB"), and `ST_Read` has no attribute-filter
+  pushdown to skip them. pyogrio (bundled GDAL) pushes `where="Des_Tp='WA'"` into
+  GDAL so only the ~112 clean wilderness features are ever read; DuckDB then
+  reprojects their WKB from USGS Albers (ESRI:102039) to EPSG:4326 and
+  `ST_MakeValid`s the few self-intersecting source polygons. pyogrio is a
+  uv-managed dependency — no reliance on a system GDAL install.
+
 - **Olympic carve-out.** BeeAtlas has a collecting relationship with Olympic
   National Park, so the wilderness inside it is excluded from the overlay
   (`stg_geo__wilderness` drops `Unit_Nm` matching "Olympic Wilderness" / its
   post-2017 name "Daniel J. Evans Wilderness").
 
-- **Standard boundary chain.** `geographies.padus_designations` (DuckDB) →
-  `stg_geo__wilderness` (WA + wilderness filter + Olympic carve-out) →
+- **Standard boundary chain.** `geographies.padus_wilderness` (DuckDB) →
+  `stg_geo__wilderness` (Olympic carve-out) →
   `wilderness_geo` mart (dissolve by name, `emit_feature_collection` post-hook) →
   `topology_postprocess` (mapshaper `-clean`/`-simplify` at 5%) →
   `wilderness.geojson` → contract-driven hash/upload/manifest → runtime fetch.
@@ -65,7 +77,7 @@ to **Washington** (configurable for later expansion).
 
 ## Operator step (one-time, on maderas)
 
-The `wilderness_geo` dbt model reads `geographies.padus_designations`, which the
+The `wilderness_geo` dbt model reads `geographies.padus_wilderness`, which the
 nightly does **not** load (it is a ~260 MB/state download that changes rarely).
 Before the first nightly build that includes the model, run:
 
@@ -74,9 +86,10 @@ cd data && uv run python geographies_pipeline.py wilderness
 ```
 
 Otherwise `bash data/dbt/run.sh build` fails on the missing source table (same
-sequencing as counties/ecoregions). The GDB layer name (`PADUS4_1Designation`)
-and source CRS are read defensively; if a future PAD-US release renames the
-layer, `ST_Read` fails loudly — run `ogrinfo <gdb>` to find the new name.
+sequencing as counties/ecoregions), unless the `on-run-start` guard in
+`dbt_project.yml` has created the empty table (in which case the overlay is
+simply empty until this runs). If a future PAD-US release renames the layer,
+`pyogrio.list_layers(<gdb>)` fails loudly and shows the current layer names.
 
 ## Rejected alternatives
 

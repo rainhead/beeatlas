@@ -38,7 +38,7 @@ sources:
       - name: us_states
       - name: ecoregions
       - name: places
-      - name: padus_designations  # PAD-US 4.1 Designation feature class; loaded by geographies_pipeline.load_padus_designations (wilderness overlay)
+      - name: padus_wilderness  # PAD-US 4.1 wilderness-area polygons; loaded by geographies_pipeline.load_padus_wilderness (no-collect overlay)
 
   - name: inat_obs_data
     schema: inat_obs_data

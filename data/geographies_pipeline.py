@@ -40,13 +40,20 @@ CACHE_DIR = Path(os.environ.get('GEOGRAPHY_CACHE_DIR', '.geography_cache'))
 # Loaded on demand — this is a ~260 MB/state download and wilderness boundaries
 # change rarely, so it is NOT part of the default `load_geographies()` run.
 # Refresh with: uv run python geographies_pipeline.py wilderness
+#
+# Read via pyogrio (bundled GDAL), NOT DuckDB's ST_Read: pyogrio's `where=`
+# pushes the attribute filter into GDAL so only the ~112 WA wilderness features
+# are read. DuckDB's ST_Read has no filter pushdown, so it must scan the whole
+# Designation layer — which contains non-wilderness designations with geometry
+# types DuckDB can't decode ("Unsupported geometry type in WKB"). Filtering in
+# GDAL sidesteps those rows entirely.
 PADUS_ITEM = "6759abcfd34edfeb8710a004"  # ScienceBase "PAD-US 4.1 State Downloads"
 PADUS_STATES = ("WA",)
-# Feature-class layer inside each state GDB that carries congressional
-# designations (Wilderness Areas, National Monuments, …). PAD-US 4.1 names it
-# `PADUS4_1Designation`. If a future PAD-US release renames it, the ST_Read call
-# below fails loudly — run `ogrinfo <gdb>` to find the new layer name.
-PADUS_DESIGNATION_LAYER = "PADUS4_1Designation"
+# Per-state Designation feature-class layer name inside the GDB (state-suffixed).
+# Verified as 'PADUS4_1Designation_State_WA'; the ...Designation (unsuffixed) name
+# does NOT exist in the state download. If a future PAD-US release renames it,
+# pyogrio.list_layers(<gdb>) fails loudly and shows the current names.
+PADUS_LAYER_TEMPLATE = "PADUS4_1Designation_State_{state}"
 
 SOURCES = {
     "ecoregions": "https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/cec_na/NA_CEC_Eco_Level3.zip",
@@ -203,57 +210,62 @@ def _gdb_dir_in_zip(zip_path: Path) -> str:
     raise FileNotFoundError(f"no .gdb directory found inside {zip_path}")
 
 
-def load_padus_designations() -> None:
-    """Load the PAD-US Designation feature class for each PADUS_STATES entry.
+def load_padus_wilderness() -> None:
+    """Load PAD-US wilderness-area polygons for each PADUS_STATES entry.
 
-    Populates `geographies.padus_designations` (native PAD-US schema: Unit_Nm,
-    Des_Tp, State_Nm, geom in WGS84). This is a faithful mirror of the source —
-    the WA/Wilderness/Olympic filtering lives downstream in stg_geo__wilderness so
-    the DAG edge is visible and the carve-out is contract-reviewable.
+    Populates `geographies.padus_wilderness` (unit_name, des_tp, state_nm, geom in
+    WGS84). Only the Wilderness-Area designation (Des_Tp='WA') is read — see the
+    module-level note on why the filter must be applied in GDAL (pyogrio `where=`)
+    rather than by scanning the whole Designation layer in DuckDB.
 
-    PAD-US ships in USGS Albers; the source CRS WKT is read from the GDB via
-    ST_Read_Meta and ST_Transform reprojects to EPSG:4326 (same pattern as the
-    projected ecoregions/Statistics-Canada sources above).
+    PAD-US ships in USGS Albers (ESRI:102039); pyogrio reports the source CRS as
+    WKT, and DuckDB reprojects the ~100 WKB geometries to EPSG:4326. ST_MakeValid
+    repairs the handful of self-intersecting source polygons so the downstream
+    ST_Union_Agg dissolve (wilderness_geo mart) can't choke on them.
     """
+    import pyogrio  # heavy, GDAL-bundling dep; import lazily so the base geographies path stays light
+
     con = duckdb.connect(DB_PATH)
     con.execute("INSTALL spatial; LOAD spatial;")
     con.execute("CREATE SCHEMA IF NOT EXISTS geographies")
     con.execute("""
-        CREATE OR REPLACE TABLE geographies.padus_designations (
+        CREATE OR REPLACE TABLE geographies.padus_wilderness (
             unit_name VARCHAR, des_tp VARCHAR, state_nm VARCHAR, geom GEOMETRY
         )
     """)
 
     for state in PADUS_STATES:
         path = _download(f"padus_{state}", _padus_url(state))
-        gdb = _gdb_dir_in_zip(path)
-        vsi = f"/vsizip/{path}/{gdb}"
-        print(f"  Loading PAD-US designations for {state} from {gdb}...")  # noqa: T201
-        # PAD-US ships in USGS Albers; read the source CRS from the GDB and
-        # reproject to WGS84 (same pattern as ecoregions above). ST_Read_Meta
-        # returns the CRS as a struct — prefer the full WKT, fall back to the
-        # authority code (auth_name:auth_code) if a build leaves WKT empty.
-        crs = con.execute(
-            "SELECT layers[1].geometry_fields[1].crs FROM ST_Read_Meta(?)",
-            [vsi],
-        ).fetchone()[0]
-        src_crs = crs.get("wkt") or f"{crs.get('auth_name')}:{crs.get('auth_code')}"
-        con.execute(
-            """
-            INSERT INTO geographies.padus_designations
-            SELECT Unit_Nm AS unit_name, Des_Tp AS des_tp, State_Nm AS state_nm,
-                   ST_Transform(geom, ?, 'EPSG:4326', true) AS geom
-            FROM ST_Read(?, layer=?)
-            """,
-            [src_crs, vsi, PADUS_DESIGNATION_LAYER],
+        vsi = f"/vsizip/{path}/{_gdb_dir_in_zip(path)}"
+        layer = PADUS_LAYER_TEMPLATE.format(state=state)
+        print(f"  Reading PAD-US wilderness for {state} from {layer}...")  # noqa: T201
+        meta, _fid, geom, fields = pyogrio.raw.read(
+            vsi,
+            layer=layer,
+            where=f"Des_Tp = 'WA' AND State_Nm = '{state}'",
+            columns=["Unit_Nm", "Des_Tp", "State_Nm"],
+            read_geometry=True,
         )
-        print(f"  PAD-US {state}: done")  # noqa: T201
+        field_names = list(meta["fields"])
+        cols = {name: fields[field_names.index(name)] for name in ("Unit_Nm", "Des_Tp", "State_Nm")}
+        src_crs = meta["crs"]  # WKT of ESRI:102039 (USGS Albers)
+        con.executemany(
+            """
+            INSERT INTO geographies.padus_wilderness
+            VALUES (?, ?, ?, ST_MakeValid(ST_Transform(ST_GeomFromWKB(?), ?, 'EPSG:4326', true)))
+            """,
+            [
+                (cols["Unit_Nm"][i], cols["Des_Tp"][i], cols["State_Nm"][i], bytes(geom[i]), src_crs)
+                for i in range(len(geom))
+            ],
+        )
+        print(f"  PAD-US {state}: {len(geom)} wilderness features")  # noqa: T201
 
     con.close()
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "wilderness":
-        load_padus_designations()
+        load_padus_wilderness()
     else:
         load_geographies()
