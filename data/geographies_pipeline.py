@@ -229,12 +229,15 @@ def load_padus_designations() -> None:
         gdb = _gdb_dir_in_zip(path)
         vsi = f"/vsizip/{path}/{gdb}"
         print(f"  Loading PAD-US designations for {state} from {gdb}...")  # noqa: T201
-        # PAD-US ships in USGS Albers; read the source CRS WKT from the GDB and
-        # reproject to WGS84 (same pattern as ecoregions above).
-        src_wkt = con.execute(
-            "SELECT layers[1].geom_fields[1].crs.wkt FROM ST_Read_Meta(?)",
+        # PAD-US ships in USGS Albers; read the source CRS from the GDB and
+        # reproject to WGS84 (same pattern as ecoregions above). ST_Read_Meta
+        # returns the CRS as a struct — prefer the full WKT, fall back to the
+        # authority code (auth_name:auth_code) if a build leaves WKT empty.
+        crs = con.execute(
+            "SELECT layers[1].geometry_fields[1].crs FROM ST_Read_Meta(?)",
             [vsi],
         ).fetchone()[0]
+        src_crs = crs.get("wkt") or f"{crs.get('auth_name')}:{crs.get('auth_code')}"
         con.execute(
             """
             INSERT INTO geographies.padus_designations
@@ -242,7 +245,7 @@ def load_padus_designations() -> None:
                    ST_Transform(geom, ?, 'EPSG:4326', true) AS geom
             FROM ST_Read(?, layer=?)
             """,
-            [src_wkt, vsi, PADUS_DESIGNATION_LAYER],
+            [src_crs, vsi, PADUS_DESIGNATION_LAYER],
         )
         print(f"  PAD-US {state}: done")  # noqa: T201
 
