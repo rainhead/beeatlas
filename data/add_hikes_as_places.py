@@ -134,6 +134,19 @@ HIKES: list[dict] = [
         "land_owner": "USDA Forest Service — Mt. Baker-Snoqualmie National Forest",
         "osm_relation_id": 4830238,
     },
+    {
+        # WTA: https://www.wta.org/go-hiking/hikes/sourdough-ridge (Mount Rainier,
+        # Sunrise). No OSM route relation exists; the ridge trail is several named
+        # "Sourdough Ridge Trail" footway ways (30072703, 179069378, 179069381,
+        # 441869580) — matched by name within the Sunrise bbox. The narrower
+        # per-hike bbox avoids the dense Sunrise trail network overwhelming the
+        # `out geom` query (same reason other osm_name_query hikes carry a bbox).
+        "slug": "sourdough-ridge",
+        "name": "Sourdough Ridge",
+        "land_owner": "National Park Service — Mount Rainier National Park",
+        "osm_name_query": "Sourdough Ridge Trail",
+        "bbox": (46.90, -121.68, 46.93, -121.60),
+    },
 ]
 
 
