@@ -25,6 +25,8 @@ export class BeeHeader extends LitElement {
   @state() private _popoverOpen = false;
   // Transient iOS A2HS popover open/close — local to presenter, not app state.
   @state() private _iosPopoverOpen = false;
+  // Transient mobile account-menu open/close (username + sign-out behind an icon).
+  @state() private _accountPopoverOpen = false;
 
   static styles = css`
     :host {
@@ -306,6 +308,8 @@ export class BeeHeader extends LitElement {
        default (desktop shows the label) and swapped in at the mobile breakpoint. */
     .auth-btn { display: inline-flex; align-items: center; gap: 0.3rem; }
     .auth-icon { display: none; }
+    /* The mobile account menu; desktop shows the inline username + sign-out instead. */
+    .account-btn { display: none; }
 
     /* Mobile: keep primary nav + a compact identity; condense the secondary
        account/status chrome. GitHub and the freshness caption drop (freshness
@@ -319,12 +323,16 @@ export class BeeHeader extends LitElement {
          instead of overflowing horizontally. margin-left:auto keeps it
          right-aligned whether it sits inline or wraps. */
       :host { flex-wrap: wrap; row-gap: 2px; }
-      .right-group { margin-left: auto; }
-      h1 { font-size: 1rem; margin-left: 0.6rem; }
+      /* Reclaim horizontal space so title + 4 nav icons + the collapsed account
+         chrome fit one row down to ~360px (the icon padding keeps tap targets). */
+      .left-group { gap: 0; }
+      .right-group { margin-left: auto; padding-right: 0; }
+      h1 { font-size: 1rem; margin-left: 0.5rem; }
       .freshness-caption { display: none; }
       .github-link { display: none; }
-      .whoami-badge { display: none; }
-      .whoami { max-width: 7rem; overflow: hidden; text-overflow: ellipsis; }
+      /* Signed in: collapse the inline username + sign-out behind the account icon. */
+      .whoami, .sign-out-btn { display: none; }
+      .account-btn { display: flex; }
       .auth-label { display: none; }
       .auth-icon { display: inline-flex; }
       .auth-btn {
@@ -390,6 +398,13 @@ export class BeeHeader extends LitElement {
         this._iosPopoverOpen = false;
       }
     }
+    if (this._accountPopoverOpen) {
+      const accountPopover = this.shadowRoot?.querySelector('.account-popover');
+      const accountBtn = this.shadowRoot?.querySelector('.account-btn');
+      if (accountPopover && !path.includes(accountPopover) && !path.includes(accountBtn as Element)) {
+        this._accountPopoverOpen = false;
+      }
+    }
   };
 
   private _onDocumentKeydown = (e: KeyboardEvent) => {
@@ -403,6 +418,9 @@ export class BeeHeader extends LitElement {
     }
     if (e.key === 'Escape' && this._iosPopoverOpen) {
       this._iosPopoverOpen = false;
+    }
+    if (e.key === 'Escape' && this._accountPopoverOpen) {
+      this._accountPopoverOpen = false;
     }
   };
 
@@ -452,6 +470,16 @@ export class BeeHeader extends LitElement {
   private _dismissIosPopover = (e: Event) => {
     e.stopPropagation();
     this._iosPopoverOpen = false;
+  };
+
+  private _toggleAccountPopover = (e: Event) => {
+    e.stopPropagation();
+    this._accountPopoverOpen = !this._accountPopoverOpen;
+  };
+
+  private _dismissAccountPopover = (e: Event) => {
+    e.stopPropagation();
+    this._accountPopoverOpen = false;
   };
 
   private _cacheButtonState(): 'ready' | 'incomplete' | 'priming' | null {
@@ -616,6 +644,8 @@ export class BeeHeader extends LitElement {
       `;
     }
     return html`
+      <!-- Desktop: inline username + sign-out. Both hide at the mobile breakpoint,
+           where they collapse behind the account icon + popover below. -->
       <span class="whoami" title=${auth.role ?? 'no role'}>
         ${auth.login}
         <span class="whoami-badge ${auth.isAuthor ? 'whoami-badge--author' : 'whoami-badge--guest'}">
@@ -627,10 +657,41 @@ export class BeeHeader extends LitElement {
         @click=${this._onSignOutClick}
         aria-label="Sign out"
         title="Sign out"
+      >Sign out</button>
+      <button
+        class="icon-btn account-btn"
+        @click=${this._toggleAccountPopover}
+        aria-haspopup="dialog"
+        aria-expanded=${String(this._accountPopoverOpen)}
+        aria-label=${`Account: ${auth.login ?? ''}`}
+        title="Account"
       >
-        <svg class="auth-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="20" height="20" aria-hidden="true">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75"/>
-        </svg><span class="auth-label">Sign out</span></button>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+        </svg>
+      </button>
+      ${this._accountPopoverOpen ? this._renderAccountPopover(auth) : ''}
+    `;
+  }
+
+  // Mobile account menu (≤640px): the inline username + sign-out collapse behind
+  // the account icon so the signed-in header fits narrow widths. Reuses the
+  // .cache-popover shell. The fuller hamburger consolidation is beeatlas-e6v.
+  private _renderAccountPopover(auth: AuthState): TemplateResult {
+    return html`
+      <div class="cache-popover account-popover" role="dialog" aria-modal="false" aria-label="Account">
+        <div class="cache-popover__header">
+          <span>Signed in</span>
+          <button class="cache-popover__dismiss" @click=${this._dismissAccountPopover} aria-label="Close">✕</button>
+        </div>
+        <div class="cache-popover__row">
+          ${auth.login}
+          <span class="whoami-badge ${auth.isAuthor ? 'whoami-badge--author' : 'whoami-badge--guest'}">
+            ${auth.isAuthor ? 'Author' : 'Not an editor'}
+          </span>
+        </div>
+        <button class="cache-popover__update-btn" @click=${this._onSignOutClick}>Sign out</button>
+      </div>
     `;
   }
 
