@@ -157,8 +157,9 @@ def test_corridor_area_sane():
 
 def test_all_hike_slugs_match_regex():
     """Every HIKES slug must match ^[a-z0-9-]+$ and end with '-trail'."""
-    # 14 planned; 1 deferred (snoqualmie-pass-to-olallie-meadow-trail, 2026-06-23)
-    assert len(HIKES) == 13, f"Expected 13 HIKES entries, got {len(HIKES)}"
+    # 15 planned; 1 deferred (snoqualmie-pass-to-olallie-meadow-trail, 2026-06-23).
+    # sourdough-ridge-trail added 2026-07-06.
+    assert len(HIKES) == 14, f"Expected 14 HIKES entries, got {len(HIKES)}"
 
     for hike in HIKES:
         slug = hike["slug"]

@@ -1707,7 +1707,7 @@ MULTIPOLYGON (((-120.54360980129356 46.86695948342808, -120.54753712533 46.86891
 permits = []
 
 [[places]]
-slug        = "sourdough-ridge"
+slug        = "sourdough-ridge-trail"
 name        = "Sourdough Ridge"
 land_owner  = "National Park Service — Mount Rainier National Park"
 geometry_wkt = """
