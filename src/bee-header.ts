@@ -301,6 +301,40 @@ export class BeeHeader extends LitElement {
         animation: none;
       }
     }
+
+    /* Auth buttons carry both an icon and a text label; the icon is hidden by
+       default (desktop shows the label) and swapped in at the mobile breakpoint. */
+    .auth-btn { display: inline-flex; align-items: center; gap: 0.3rem; }
+    .auth-icon { display: none; }
+
+    /* Mobile: keep primary nav + a compact identity; condense the secondary
+       account/status chrome. GitHub and the freshness caption drop (freshness
+       still lives in the cache popover); sign-in/out become icon-only, matching
+       the install/cache icon buttons; the editor-role badge is hidden. A
+       hamburger consolidation of this chrome is the planned next step
+       (beeatlas-e6v). */
+    @media (max-width: 640px) {
+      /* Safety net: on the very narrowest screens (or if install + cache + sign-in
+         all show at once) let the account/status group wrap to a second line
+         instead of overflowing horizontally. margin-left:auto keeps it
+         right-aligned whether it sits inline or wraps. */
+      :host { flex-wrap: wrap; row-gap: 2px; }
+      .right-group { margin-left: auto; }
+      h1 { font-size: 1rem; margin-left: 0.6rem; }
+      .freshness-caption { display: none; }
+      .github-link { display: none; }
+      .whoami-badge { display: none; }
+      .whoami { max-width: 7rem; overflow: hidden; text-overflow: ellipsis; }
+      .auth-label { display: none; }
+      .auth-icon { display: inline-flex; }
+      .auth-btn {
+        border: none;
+        padding: 10px;
+        min-width: 44px;
+        min-height: 44px;
+        justify-content: center;
+      }
+    }
   `;
 
   connectedCallback() {
@@ -574,7 +608,11 @@ export class BeeHeader extends LitElement {
           @click=${this._onSignInClick}
           aria-label="Sign in with iNaturalist"
           title="Sign in with iNaturalist"
-        >Sign in with iNaturalist</button>
+        >
+          <!-- Mobile: icon-only (login glyph). Desktop: full text label. -->
+          <svg class="auth-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="20" height="20" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"/>
+          </svg><span class="auth-label">Sign in with iNaturalist</span></button>
       `;
     }
     return html`
@@ -589,7 +627,10 @@ export class BeeHeader extends LitElement {
         @click=${this._onSignOutClick}
         aria-label="Sign out"
         title="Sign out"
-      >Sign out</button>
+      >
+        <svg class="auth-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="20" height="20" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75"/>
+        </svg><span class="auth-label">Sign out</span></button>
     `;
   }
 
