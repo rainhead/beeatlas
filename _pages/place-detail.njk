@@ -54,8 +54,8 @@ layout: default.njk
     <h2>Bees found here</h2>
     <div class="species-by-genus">
     {%- for genus_group in place.species_by_genus -%}
-      <div class="genus-section">
-        <h3 class="genus-heading"><em>{{ genus_group.genus }}</em></h3>
+      <details class="genus-section">
+        <summary class="genus-heading"><em>{{ genus_group.genus }}</em> <span class="group-count">{{ genus_group.species.length | quantify("species", "species") }}</span></summary>
         <ul class="species-list">
         {%- for sp in genus_group.species -%}
           <li>
@@ -63,7 +63,7 @@ layout: default.njk
           </li>
         {%- endfor -%}
         </ul>
-      </div>
+      </details>
     {%- endfor -%}
     </div>
   </section>
@@ -77,14 +77,21 @@ layout: default.njk
   <section class="species-section">
     <h2>Native host plants collected here</h2>
     <p class="metadata">Washington-native plants bees have been collected on at this place — good candidates to seek bees on. Source: Washington Flora Checklist.</p>
-    <ul class="species-list">
-    {%- for h in place.target_hosts -%}
-      <li>
-        <em>{{ h.name }}</em>{% if h.endemic %} (WA endemic){% endif %}
-        <span class="species-count">— {{ h.count | quantify("record") }}</span>
-      </li>
+    <div class="species-by-genus">
+    {%- for family, plants in place.target_hosts | groupby("family") -%}
+      <details class="genus-section">
+        <summary class="genus-heading">{{ family }} <span class="group-count">{{ plants.length | quantify("plant") }}</span></summary>
+        <ul class="species-list">
+        {%- for h in plants -%}
+          <li>
+            <em>{{ h.name }}</em>{% if h.endemic %} (WA endemic){% endif %}
+            <span class="species-count">— {{ h.count | quantify("record") }}</span>
+          </li>
+        {%- endfor -%}
+        </ul>
+      </details>
     {%- endfor -%}
-    </ul>
+    </div>
   </section>
   {%- endif -%}
 </article>

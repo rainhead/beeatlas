@@ -77,8 +77,8 @@ layout: default.njk
     <h2>Species collected</h2>
     <div class="species-by-genus">
     {%- for genus_group in collector.species_by_genus -%}
-      <div class="genus-section">
-        <h3 class="genus-heading"><em>{{ genus_group.genus }}</em></h3>
+      <details class="genus-section">
+        <summary class="genus-heading"><em>{{ genus_group.genus }}</em> <span class="group-count">{{ genus_group.species.length | quantify("species", "species") }}</span></summary>
         <ul class="species-list">
         {%- for sp in genus_group.species -%}
           <li>
@@ -86,7 +86,7 @@ layout: default.njk
           </li>
         {%- endfor -%}
         </ul>
-      </div>
+      </details>
     {%- endfor -%}
     </div>
   </section>
