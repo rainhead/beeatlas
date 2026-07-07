@@ -23,7 +23,17 @@ describe('auth-client: fetchWhoami', () => {
     const [url, opts] = call;
     expect(String(url)).toContain('/auth/whoami');
     expect(opts).toMatchObject({ credentials: 'include' });
-    expect(state).toEqual({ authenticated: true, login: 'someuser', role: 'author', isAuthor: true, isCurator: false });
+    expect(state).toEqual({ authenticated: true, login: 'someuser', role: 'author', isAuthor: true, isCurator: false, iconUrl: null });
+  });
+
+  test('maps icon_url => iconUrl (avatar)', async () => {
+    const icon = 'https://static.inaturalist.org/attachments/users/icons/728554/abc-medium.jpeg';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ authenticated: true, login: 'someuser', role: 'author', is_author: true, icon_url: icon }),
+    }));
+    const { fetchWhoami } = await import('../auth-client.ts');
+    expect((await fetchWhoami()).iconUrl).toBe(icon);
   });
 
   test('role: curator => isCurator true (D-03)', async () => {

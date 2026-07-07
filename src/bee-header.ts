@@ -27,6 +27,8 @@ export class BeeHeader extends LitElement {
   @state() private _iosPopoverOpen = false;
   // Transient mobile account-menu open/close (username + sign-out behind an icon).
   @state() private _accountPopoverOpen = false;
+  // Set if the iNat avatar image fails to load — falls back to the person glyph.
+  @state() private _avatarError = false;
 
   static styles = css`
     :host {
@@ -310,6 +312,14 @@ export class BeeHeader extends LitElement {
     .auth-icon { display: none; }
     /* The mobile account menu; desktop shows the inline username + sign-out instead. */
     .account-btn { display: none; }
+    /* iNaturalist profile image as the account icon (falls back to the person glyph). */
+    .account-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+    }
 
     /* Mobile: keep primary nav + a compact identity; condense the secondary
        account/status chrome. GitHub and the freshness caption drop (freshness
@@ -480,6 +490,10 @@ export class BeeHeader extends LitElement {
   private _dismissAccountPopover = (e: Event) => {
     e.stopPropagation();
     this._accountPopoverOpen = false;
+  };
+
+  private _onAvatarError = () => {
+    this._avatarError = true;
   };
 
   private _cacheButtonState(): 'ready' | 'incomplete' | 'priming' | null {
@@ -666,9 +680,13 @@ export class BeeHeader extends LitElement {
         aria-label=${`Account: ${auth.login ?? ''}`}
         title="Account"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
-        </svg>
+        ${auth.iconUrl && !this._avatarError
+          ? html`<img class="account-avatar" src=${auth.iconUrl} alt="" @error=${this._onAvatarError}>`
+          : html`
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+            </svg>
+          `}
       </button>
       ${this._accountPopoverOpen ? this._renderAccountPopover(auth) : ''}
     `;

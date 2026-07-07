@@ -257,6 +257,7 @@ def auth_callback():
         internal_id=internal_id,
         inat_login=login,
         role=role,
+        icon_url=identity.get("icon_url"),
     )
 
     resp = redirect(flow["return_to"])
@@ -290,6 +291,7 @@ def whoami():
             "login": login,
             "role": role,
             "is_author": role in ("author", "curator"),
+            "icon_url": payload.get("icon_url"),
         }
     )
 

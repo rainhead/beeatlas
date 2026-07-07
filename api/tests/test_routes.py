@@ -98,7 +98,23 @@ def test_whoami_valid_cookie_allowlisted_reports_authenticated_and_is_author(
         "login": "allowed_author",
         "role": "author",
         "is_author": True,
+        "icon_url": None,  # _mint bakes no icon; whoami echoes None
     }
+
+
+def test_whoami_echoes_icon_url_from_cookie(client, monkeypatch, tmp_path):
+    """whoami surfaces the iNat profile-image URL baked into the session (avatar)."""
+    allowlist_path = _allowlist_toml(tmp_path, {"allowed_author": "author"})
+    monkeypatch.setattr(main.roles_module, "_ALLOWLIST", allowlist_path)
+
+    icon = "https://static.inaturalist.org/attachments/users/icons/728554/abc-medium.jpeg"
+    serializer = session.make_serializer(TEST_SIGNING_KEY)
+    token = session.mint_cookie(serializer, internal_id=1, inat_login="allowed_author",
+                                role="author", icon_url=icon)
+    client.set_cookie(session.COOKIE_NAME, token, domain="localhost")
+
+    body = client.get("/auth/whoami").get_json()
+    assert body["icon_url"] == icon
 
 
 def test_whoami_valid_cookie_not_allowlisted_reports_authenticated_not_author(

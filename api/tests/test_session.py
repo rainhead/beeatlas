@@ -19,11 +19,24 @@ import api.session as session
 
 def test_mint_and_verify_round_trips_payload():
     serializer = session.make_serializer("throwaway-test-key")
-    token = session.mint_cookie(serializer, internal_id=7, inat_login="beeperson", role="author")
+    token = session.mint_cookie(
+        serializer, internal_id=7, inat_login="beeperson", role="author",
+        icon_url="https://static.inaturalist.org/attachments/users/icons/7/x-medium.jpeg",
+    )
 
     payload = session.verify_cookie(serializer, token, max_age_seconds=session.COOKIE_MAX_AGE)
 
-    assert payload == {"uid": 7, "login": "beeperson", "role": "author"}
+    assert payload == {
+        "uid": 7, "login": "beeperson", "role": "author",
+        "icon_url": "https://static.inaturalist.org/attachments/users/icons/7/x-medium.jpeg",
+    }
+
+
+def test_mint_cookie_icon_url_defaults_none():
+    serializer = session.make_serializer("throwaway-test-key")
+    token = session.mint_cookie(serializer, internal_id=7, inat_login="beeperson", role="author")
+    payload = session.verify_cookie(serializer, token, max_age_seconds=session.COOKIE_MAX_AGE)
+    assert payload["icon_url"] is None
 
 
 def test_verify_cookie_rejects_tampered_token():

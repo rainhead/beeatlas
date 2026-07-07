@@ -54,9 +54,17 @@ def mint_cookie(
     internal_id: int,
     inat_login: str,
     role: str | None,
+    icon_url: str | None = None,
 ) -> str:
-    """Return a signed, timestamped token embedding {uid, login, role}."""
-    return serializer.dumps({"uid": internal_id, "login": inat_login, "role": role})
+    """Return a signed, timestamped token embedding {uid, login, role, icon_url}.
+
+    icon_url is the user's iNaturalist profile-image URL (public, non-sensitive) —
+    carried so whoami can surface an avatar without a second iNat call. Optional /
+    default None keeps pre-existing cookies and callers valid.
+    """
+    return serializer.dumps(
+        {"uid": internal_id, "login": inat_login, "role": role, "icon_url": icon_url}
+    )
 
 
 def verify_cookie(

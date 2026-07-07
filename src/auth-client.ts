@@ -15,6 +15,8 @@ export interface AuthState {
   role?: string | null;
   isAuthor?: boolean;
   isCurator?: boolean;
+  /** iNaturalist profile-image URL (avatar), or null if the user has none. */
+  iconUrl?: string | null;
 }
 
 // Phase 179-05: note CRUD client. Shapes mirror the read endpoint's JSON
@@ -143,6 +145,7 @@ export async function fetchWhoami(): Promise<AuthState> {
       login?: string;
       role?: string | null;
       is_author?: boolean;
+      icon_url?: string | null;
     };
     if (!body.authenticated) return { authenticated: false };
     return {
@@ -150,6 +153,7 @@ export async function fetchWhoami(): Promise<AuthState> {
       login: body.login,
       role: body.role ?? null,
       isAuthor: body.is_author ?? false,
+      iconUrl: body.icon_url ?? null,
       // Curator-only signal (D-03): the server already echoes the fresh
       // `role` (re-read from the allowlist per request); this is a
       // UX-affordance derivation only -- authz is always re-checked
