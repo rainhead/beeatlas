@@ -31,12 +31,28 @@ them immediately after calling `fetch_identity()`.
 
 import base64
 import hashlib
+import logging
 import secrets
 
 import requests
 
+_log = logging.getLogger("api.oauth")
+
 INAT_BASE = "https://www.inaturalist.org"
 INAT_API_BASE = "https://api.inaturalist.org"
+
+
+def _raise_for_status_logged(resp: requests.Response, what: str) -> None:
+    """raise_for_status(), but first log iNat's error status + body on failure.
+
+    Surfaces WHY iNat rejected an OAuth exchange (e.g. an `invalid_token` /
+    `expired` reason) instead of an opaque 500. Logs only the response body —
+    never a token (D-03): access_token/JWT are request-side, never in the
+    error body, which carries iNat's machine-readable error reason.
+    """
+    if not resp.ok:
+        _log.warning("iNat %s -> %s: %s", what, resp.status_code, resp.text[:400])
+    resp.raise_for_status()
 
 # (connect, read) timeout for every outbound iNat call. `requests` defaults
 # to NO timeout, so a hung inaturalist.org response would pin a Waitress
@@ -89,7 +105,7 @@ def exchange_code(
         },
         timeout=REQUEST_TIMEOUT,
     )
-    resp.raise_for_status()
+    _raise_for_status_logged(resp, "/oauth/token")
     return resp.json()["access_token"]
 
 
@@ -110,7 +126,7 @@ def fetch_identity(access_token: str) -> dict:
         headers={"Authorization": f"Bearer {access_token}"},
         timeout=REQUEST_TIMEOUT,
     )
-    jwt_resp.raise_for_status()
+    _raise_for_status_logged(jwt_resp, "/users/api_token")
     jwt = jwt_resp.json()["api_token"]
 
     me_resp = requests.get(
@@ -118,5 +134,5 @@ def fetch_identity(access_token: str) -> dict:
         headers={"Authorization": jwt},
         timeout=REQUEST_TIMEOUT,
     )
-    me_resp.raise_for_status()
+    _raise_for_status_logged(me_resp, "/v1/users/me")
     return me_resp.json()["results"][0]  # {id, login, ...}
