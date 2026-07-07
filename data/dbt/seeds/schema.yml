@@ -154,3 +154,29 @@ seeds:
               values: ['confirmed', 'rejected']
       - name: note
         description: "Free-text curator rationale for the decision."
+  - name: target_hosts
+    description: "WA-native/endemic target-host plants (prospective; CONTEXT.md 'Target host'). Built by build_target_hosts.py from the Burke Washington Flora Checklist — native terminal angiosperm species reconciled to iNat taxon_id. Cite 'Washington Flora Checklist' (data-use permission WTU / David Giblin 2026-07-06). beeatlas-kuo."
+    columns:
+      - name: canonical_name
+        description: "iNat-accepted binomial name (consistent with inat_taxon_id)."
+        data_tests:
+          - not_null
+      - name: family
+        description: "Plant family (Burke Washington Flora Checklist)."
+        data_tests:
+          - not_null
+      - name: inat_taxon_id
+        description: "iNat taxon_id — the join key to iNat plant observations and host_plant_lineage."
+        data_tests:
+          - not_null
+          - unique
+      - name: endemic
+        description: "Y if the species (or any of its WA taxa) is endemic to Washington."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['Y', 'N']
+      - name: source
+        description: "Provenance tag: 'burke-wa-flora'."
+        data_tests:
+          - not_null
