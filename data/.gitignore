@@ -9,6 +9,7 @@ last_fetch.txt
 beeatlas.duckdb
 beeatlas.duckdb.wal
 .geography_cache/
+.burke_cache/
 .ecdysis_cache/
 raw/ecdysis_cache/
 # Pipeline writeback files — regenerated each run, not version-controlled
