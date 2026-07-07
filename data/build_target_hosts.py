@@ -80,34 +80,33 @@ def build() -> None:
     burke = _download_burke()
     con = duckdb.connect()
 
+    # NOTE: duckdb cannot bind `?` params inside CREATE VIEW/read_csv DDL, so these
+    # trusted local paths (constants, no user input) are interpolated directly.
     # iNat backbone: active-taxon name -> taxon_id. lower/trim for case-insensitive join.
     con.execute(
-        "CREATE VIEW inat AS SELECT lower(trim(name)) AS nm, taxon_id, name AS inat_name "
-        "FROM read_csv(?, delim=chr(9), header=true, all_varchar=true) "
-        "WHERE lower(active) IN ('t','true')",
-        [str(RAW_TAXA)],
+        f"CREATE VIEW inat AS SELECT lower(trim(name)) AS nm, taxon_id, name AS inat_name "
+        f"FROM read_csv('{RAW_TAXA}', delim=chr(9), header=true, all_varchar=true) "
+        f"WHERE lower(active) IN ('t','true')"
     )
     con.execute(
-        "CREATE VIEW waflora AS SELECT * FROM read_csv(?, delim=chr(9), header=true, "
-        "all_varchar=true, ignore_errors=true)",
-        [str(burke / "waflora.txt")],
+        f"CREATE VIEW waflora AS SELECT * FROM read_csv('{burke / 'waflora.txt'}', "
+        f"delim=chr(9), header=true, all_varchar=true, ignore_errors=true)"
     )
     con.execute(
-        "CREATE VIEW synonymy AS SELECT * FROM read_csv(?, delim=chr(9), header=true, "
-        "all_varchar=true, ignore_errors=true)",
-        [str(burke / "synonymy.txt")],
+        f"CREATE VIEW synonymy AS SELECT * FROM read_csv('{burke / 'synonymy.txt'}', "
+        f"delim=chr(9), header=true, all_varchar=true, ignore_errors=true)"
     )
     # Curated overrides: canonical_name (Burke binomial) -> inat_taxon_id, for the
     # genus-reassignment tail. May be header-only.
     con.execute(
-        "CREATE VIEW overrides AS SELECT lower(trim(canonical_name)) AS nm, "
-        "CAST(inat_taxon_id AS VARCHAR) AS taxon_id "
-        "FROM read_csv(?, header=true, all_varchar=true)",
-        [str(OVERRIDES_PATH)],
+        f"CREATE VIEW overrides AS SELECT lower(trim(canonical_name)) AS nm, "
+        f"CAST(inat_taxon_id AS VARCHAR) AS taxon_id "
+        f"FROM read_csv('{OVERRIDES_PATH}', header=true, all_varchar=true)"
     )
 
     # Native terminal angiosperms, rolled up to binomial species. `endemic` is Y if
     # ANY contributing Burke taxon (species or its infraspecifics) is WA-endemic.
+    angiosperm_in = ",".join(f"'{c}'" for c in ANGIOSPERM_CLASSES)
     con.execute(
         f"""
         CREATE TABLE species AS
@@ -119,11 +118,10 @@ def build() -> None:
         FROM waflora
         WHERE TerminalTaxon = 'Y'
           AND Origin LIKE 'Native%'
-          AND InformalClassification IN ({','.join('?' for _ in ANGIOSPERM_CLASSES)})
+          AND InformalClassification IN ({angiosperm_in})
           AND regexp_extract(trim(TaxonName), '^([A-Za-z-]+ [A-Za-z-]+)', 1) <> ''
         GROUP BY 1
-        """,
-        list(ANGIOSPERM_CLASSES),
+        """
     )
 
     # Reconcile: (1) direct name match, (2) Burke synonymy — a synonym ScientificName
