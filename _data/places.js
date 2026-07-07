@@ -38,6 +38,7 @@ for (const place of placesArray) {
     place.collection_months = d.collection_months;
     place.dated_total = d.dated_total;
     place.peak_month = d.peak_month;
+    place.target_hosts = d.target_hosts;
   }
 }
 
