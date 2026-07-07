@@ -14,7 +14,7 @@ Pipeline (license-clean, deterministic, no live iNat API calls):
   1. Download WAFloraChecklist.zip (Burke regenerates it; WA flora is stable, so a
      committed seed snapshot — like bee_specialist_hosts.csv — beats a live source).
   2. Filter waflora.txt to native terminal angiosperms (TerminalTaxon='Y',
-     Origin 'Native%', InformalClassification Dicots|Monocots).
+     OriginCode in N/N?/B, InformalClassification Dicots|Monocots).
   3. Roll up infraspecific taxa (var./ssp.) to binomial species — bees forage at
      the species/genus level, and iNat carries the species even where it lacks the
      variety (93% species match vs 66% at the infraspecific level).
@@ -117,7 +117,12 @@ def build() -> None:
             MIN(TaxonID)                         AS burke_taxon_id
         FROM waflora
         WHERE TerminalTaxon = 'Y'
-          AND Origin LIKE 'Native%'
+          -- OriginCode is Burke's clean coded nativity: N=native, B=both native and
+          -- introduced (has WA-native populations), N?=probably native. The free-text
+          -- Origin column is unreliable ('Both native and introduced populations'
+          -- doesn't start with 'Native', so a LIKE 'Native%' filter drops WA natives
+          -- like Achillea millefolium). I/I?/None (introduced/unknown) are excluded.
+          AND OriginCode IN ('N', 'N?', 'B')
           AND InformalClassification IN ({angiosperm_in})
           AND regexp_extract(trim(TaxonName), '^([A-Za-z-]+ [A-Za-z-]+)', 1) <> ''
         GROUP BY 1
