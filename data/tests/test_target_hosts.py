@@ -41,6 +41,12 @@ def test_inat_taxon_id_unique_and_positive_int():
     assert len(ids) == len(set(ids)), "inat_taxon_id must be unique (join key)"
 
 
+def test_canonical_name_unique():
+    # The place-page host join keys on canonical_name; a duplicate would double-count.
+    names = [r["canonical_name"] for r in _rows()]
+    assert len(names) == len(set(names)), "canonical_name must be unique"
+
+
 def test_endemic_flag_domain():
     assert all(r["endemic"] in ("Y", "N") for r in _rows())
 

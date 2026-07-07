@@ -161,6 +161,7 @@ seeds:
         description: "iNat-accepted binomial name (consistent with inat_taxon_id)."
         data_tests:
           - not_null
+          - unique
       - name: family
         description: "Plant family (Burke Washington Flora Checklist)."
         data_tests:

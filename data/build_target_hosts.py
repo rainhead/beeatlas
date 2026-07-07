@@ -164,12 +164,21 @@ def build() -> None:
     con.execute(
         f"""
         COPY (
+            -- Dedup twice so BOTH keys are unique:
+            --  * per binomial: one Burke species can match >1 active iNat taxon that
+            --    share a name (e.g. two "Achillea millefolium" entries) — keep one.
+            --  * per taxon_id: two Burke binomials can reconcile to one iNat taxon
+            --    (iNat lumps them) — keep one. Prefer endemic, then alphabetical.
+            WITH per_binomial AS (
+                SELECT *, ROW_NUMBER() OVER (
+                    PARTITION BY binomial ORDER BY (endemic = 'Y') DESC, taxon_id
+                ) AS rn_b
+                FROM resolved
+            )
             SELECT inat_name AS canonical_name, family, CAST(taxon_id AS BIGINT) AS inat_taxon_id,
                    endemic, 'burke-wa-flora' AS source
-            FROM resolved
-            -- Two Burke binomials can reconcile to one iNat taxon (iNat lumps them);
-            -- keep one row per taxon_id so the seed's unique(inat_taxon_id) test holds.
-            -- Prefer an endemic-flagged row, then the alphabetically-first name.
+            FROM per_binomial
+            WHERE rn_b = 1
             QUALIFY ROW_NUMBER() OVER (
                 PARTITION BY taxon_id ORDER BY (endemic = 'Y') DESC, inat_name
             ) = 1
