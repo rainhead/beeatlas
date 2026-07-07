@@ -25,6 +25,10 @@ ASSETS_DIR = Path(os.environ.get("EXPORT_DIR", _default_assets))
 # Overridable for testing (tests monkeypatch this constant).
 _PLACES_TOML_PATH = Path(__file__).parent.parent / "content" / "places.toml"
 
+# Committed WA-native/endemic target-host seed (build_target_hosts.py). Joined to
+# per-place sample hosts by name for the "target hosts collected here" panel.
+_TARGET_HOSTS_CSV = Path(__file__).parent / "dbt" / "seeds" / "target_hosts.csv"
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -188,9 +192,52 @@ def _query_collection_months(
     return result
 
 
+def _query_target_hosts_by_place(
+    con: duckdb.DuckDBPyConnection,
+    occ_parquet: Path,
+    bridge_parquet: Path,
+) -> dict[str, list[dict]]:
+    """Per-place native/endemic target hosts bees have been collected on (retrospective).
+
+    Joins each place's atlas occurrences to the committed target_hosts seed by
+    host-plant name — sample_host is an iNat-accepted binomial, the same namespace
+    as target_hosts.canonical_name. Only WA-native/endemic plants (the seed) match,
+    so bees-on-weeds (introduced hosts like Taraxacum, Leucanthemum) are correctly
+    excluded; genus-only host IDs don't match the species-level seed. This is the
+    retrospective 'target hosts seen productive here' layer; a prospective
+    'target hosts observed here' layer (iNat plant obs in the polygon) is a follow-up.
+
+    Returns {slug: [{"name", "family", "endemic" (bool), "count"}, ...]} sorted by
+    record count desc.
+    """
+    if not _TARGET_HOSTS_CSV.exists():
+        raise FileNotFoundError(f"{_TARGET_HOSTS_CSV} not found — the target_hosts seed is required")
+    rows = con.execute(
+        _OCC_ID_CTE
+        + """
+        SELECT b.place_slug, th.canonical_name, th.family, th.endemic, COUNT(*) AS cnt
+        FROM occ
+        JOIN read_parquet(?) b ON b.occ_id = occ.occ_id
+        JOIN read_csv(?, header=true, all_varchar=true) th
+          ON lower(th.canonical_name) = lower(occ.sample_host)
+        WHERE occ.tier = 'atlas' AND occ.sample_host IS NOT NULL
+        GROUP BY b.place_slug, th.canonical_name, th.family, th.endemic
+        ORDER BY b.place_slug, cnt DESC, th.canonical_name
+        """,
+        [str(occ_parquet), str(bridge_parquet), str(_TARGET_HOSTS_CSV)],
+    ).fetchall()
+    by_slug: dict[str, list[dict]] = {}
+    for slug, name, family, endemic, cnt in rows:
+        by_slug.setdefault(slug, []).append(
+            {"name": name, "family": family, "endemic": endemic == "Y", "count": int(cnt)}
+        )
+    return by_slug
+
+
 def _write_place_details(
     species_by_place: dict[str, list[dict]],
     months_by_place: dict[str, list[int]],
+    target_hosts_by_place: dict[str, list[dict]],
     out_path: Path,
 ) -> None:
     """Write place_details.json — the heavy per-place feed (species + timing).
@@ -200,7 +247,7 @@ def _write_place_details(
     through the S3/manifest fetch and _data/places.js merges it by slug.
     """
     records = []
-    for slug in sorted(set(species_by_place) | set(months_by_place)):
+    for slug in sorted(set(species_by_place) | set(months_by_place) | set(target_hosts_by_place)):
         months = months_by_place.get(slug, [0] * 12)
         dated_total = sum(months)
         peak_month = (
@@ -213,6 +260,7 @@ def _write_place_details(
                 "collection_months": months,
                 "dated_total": dated_total,
                 "peak_month": peak_month,
+                "target_hosts": target_hosts_by_place.get(slug, []),
             }
         )
     out_path.write_text(json.dumps(records, indent=2), encoding="utf-8")
@@ -300,8 +348,10 @@ def export_places(con: duckdb.DuckDBPyConnection | None = None) -> None:
             con, occ_parquet, bridge_parquet, ASSETS_DIR / "species.parquet"
         )
         months_by_place = _query_collection_months(con, occ_parquet, bridge_parquet)
+        target_hosts_by_place = _query_target_hosts_by_place(con, occ_parquet, bridge_parquet)
         _write_place_details(
-            species_by_place, months_by_place, ASSETS_DIR / "place_details.json"
+            species_by_place, months_by_place, target_hosts_by_place,
+            ASSETS_DIR / "place_details.json",
         )
     finally:
         if _owned:

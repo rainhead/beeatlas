@@ -68,4 +68,23 @@ layout: default.njk
     </div>
   </section>
   {%- endif -%}
+
+  {#- Native host plants collected here — WA-native/endemic plants bees have been
+      collected on at this place (retrospective target-host layer, beeatlas-kuo).
+      From the Burke Washington Flora Checklist target_hosts seed joined to this
+      place's sample hosts; introduced weeds and genus-only IDs are excluded. -#}
+  {%- if place.target_hosts and place.target_hosts.length > 0 -%}
+  <section class="species-section">
+    <h2>Native host plants collected here</h2>
+    <p class="metadata">Washington-native plants bees have been collected on at this place — good candidates to seek bees on. Source: Washington Flora Checklist.</p>
+    <ul class="species-list">
+    {%- for h in place.target_hosts -%}
+      <li>
+        <em>{{ h.name }}</em>{% if h.endemic %} (WA endemic){% endif %}
+        <span class="species-count">— {{ h.count | quantify("record") }}</span>
+      </li>
+    {%- endfor -%}
+    </ul>
+  </section>
+  {%- endif -%}
 </article>

@@ -98,6 +98,8 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
         ("tier", pa.string()),
         ("month", pa.int64()),
         ("taxon_id", pa.int64()),
+        # Host plant name the target-host join reads (matches target_hosts.canonical_name).
+        ("sample_host", pa.string()),
     ])
     table = pa.table(
         {
@@ -113,6 +115,9 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
             "month":                   [6,     7,     6],
             # taxon 100 = Andrena foo (ecdysis:42, inat:99); 200 = Bombus bar (ecdysis:7)
             "taxon_id":                [100,   100,   200],
+            # ecdysis:42 native target host (both places); inat:99 an introduced weed
+            # (excluded — not in the seed); ecdysis:7 no host.
+            "sample_host":             ["Balsamorhiza sagittata", "Taraxacum officinale", None],
         },
         schema=schema,
     )
@@ -184,6 +189,16 @@ def _setup_env(tmp_path: Path, monkeypatch) -> object:
     _write_test_bridge_parquet(tmp_path)
     _write_test_species_parquet(tmp_path)
     monkeypatch.setattr(places_export, "_PLACES_TOML_PATH", _write_test_toml(tmp_path))
+
+    # Deterministic target-host seed fixture (isolates the test from the real seed).
+    th = tmp_path / "target_hosts.csv"
+    th.write_text(
+        "canonical_name,family,inat_taxon_id,endemic,source\n"
+        '"Balsamorhiza sagittata","Asteraceae",50000,N,burke-wa-flora\n'
+        '"Lomatium cuspidatum","Apiaceae",60000,Y,burke-wa-flora\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(places_export, "_TARGET_HOSTS_CSV", th)
 
     return places_export
 
@@ -325,8 +340,22 @@ def test_place_details_peak_month_when_above_threshold(tmp_path, monkeypatch):
     pe_mod = _setup_env(tmp_path, monkeypatch)
     months = {"place-a": [0, 0, 0, 3, 9, 4, 0, 0, 0, 0, 0, 0]}  # total 16, mode May(=5)
     out = tmp_path / "place_details.json"
-    pe_mod._write_place_details({}, months, out)
+    pe_mod._write_place_details({}, months, {}, out)
     rec = {r["slug"]: r for r in json.loads(out.read_text())}["place-a"]
     assert rec["dated_total"] == 16
     assert rec["peak_month"] == 5
     assert rec["species_by_genus"] == []  # no species supplied → empty, not missing
+    assert rec["target_hosts"] == []  # no hosts supplied → empty, not missing
+
+
+def test_place_details_target_hosts(tmp_path, monkeypatch):
+    """target_hosts lists native seed hosts bees were collected on at the place;
+    introduced weeds (Taraxacum, absent from the seed) are excluded."""
+    pe_mod = _setup_env(tmp_path, monkeypatch)
+    pe_mod.export_places_step()
+    by_slug = {r["slug"]: r for r in json.loads((tmp_path / "place_details.json").read_text())}
+    # ecdysis:42 (Balsamorhiza sagittata, native) is in BOTH places; inat:99
+    # (Taraxacum officinale, introduced) is place-a only and must NOT appear.
+    expected = [{"name": "Balsamorhiza sagittata", "family": "Asteraceae", "endemic": False, "count": 1}]
+    assert by_slug["place-a"]["target_hosts"] == expected, by_slug["place-a"]["target_hosts"]
+    assert by_slug["place-b"]["target_hosts"] == expected, by_slug["place-b"]["target_hosts"]
