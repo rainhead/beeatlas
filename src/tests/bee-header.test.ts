@@ -163,48 +163,61 @@ describe('178-07: bee-header sign-in / whoami / sign-out (D-10)', () => {
     expect(event.bubbles).toBe(true);
   });
 
-  test('renders login + allowlisted badge + sign-out when authenticated and isAuthor', async () => {
+  const _popoverSignOut = (el: { shadowRoot: ShadowRoot }): HTMLButtonElement =>
+    [...el.shadowRoot.querySelectorAll('.account-popover button')]
+      .find((b) => /sign out/i.test(b.textContent || '')) as HTMLButtonElement;
+
+  test('shows an account button; its popover carries username + allowlisted badge + sign-out', async () => {
     await import('../bee-header.ts');
     el = document.createElement('bee-header') as any;
     (el as any).authState = { authenticated: true, login: 'someuser', role: 'author', isAuthor: true };
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const whoami = el.shadowRoot!.querySelector('.whoami');
-    expect(whoami).not.toBeNull();
-    expect(whoami!.textContent).toContain('someuser');
-    const badge = el.shadowRoot!.querySelector('.whoami-badge');
-    expect(badge).not.toBeNull();
-    expect(badge!.textContent).toContain('Author');
-    expect(badge!.classList.contains('whoami-badge--author')).toBe(true);
-    expect(el.shadowRoot!.querySelector('.sign-out-btn')).not.toBeNull();
+    const acct = el.shadowRoot!.querySelector('.account-btn') as HTMLButtonElement;
+    expect(acct).not.toBeNull();
+    expect(acct.getAttribute('aria-label')).toContain('someuser');
     expect(el.shadowRoot!.querySelector('.sign-in-btn')).toBeNull();
+
+    acct.click();
+    await el.updateComplete;
+    const popover = el.shadowRoot!.querySelector('.account-popover')!;
+    expect(popover).not.toBeNull();
+    expect(popover.textContent).toContain('someuser');
+    const badge = popover.querySelector('.whoami-badge')!;
+    expect(badge.textContent).toContain('Author');
+    expect(badge.classList.contains('whoami-badge--author')).toBe(true);
+    expect(_popoverSignOut(el)).toBeTruthy();
   });
 
-  test('renders "Not an editor" badge when authenticated but not allowlisted', async () => {
+  test('account popover shows "Not an editor" badge when authenticated but not allowlisted', async () => {
     await import('../bee-header.ts');
     el = document.createElement('bee-header') as any;
     (el as any).authState = { authenticated: true, login: 'guestuser', role: null, isAuthor: false };
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const badge = el.shadowRoot!.querySelector('.whoami-badge');
+    (el.shadowRoot!.querySelector('.account-btn') as HTMLButtonElement).click();
+    await el.updateComplete;
+    const badge = el.shadowRoot!.querySelector('.account-popover .whoami-badge')!;
     expect(badge).not.toBeNull();
-    expect(badge!.textContent).toContain('Not an editor');
-    expect(badge!.classList.contains('whoami-badge--guest')).toBe(true);
+    expect(badge.textContent).toContain('Not an editor');
+    expect(badge.classList.contains('whoami-badge--guest')).toBe(true);
   });
 
-  test('dispatches a composed+bubbling sign-out event on click', async () => {
+  test('dispatches a composed+bubbling sign-out event from the account popover', async () => {
     await import('../bee-header.ts');
     el = document.createElement('bee-header') as any;
     (el as any).authState = { authenticated: true, login: 'someuser', role: 'author', isAuthor: true };
     document.body.appendChild(el);
     await el.updateComplete;
 
+    (el.shadowRoot!.querySelector('.account-btn') as HTMLButtonElement).click();
+    await el.updateComplete;
+
     const handler = vi.fn();
     document.addEventListener('sign-out', handler);
-    const btn = el.shadowRoot!.querySelector('.sign-out-btn') as HTMLButtonElement;
-    btn.click();
+    _popoverSignOut(el).click();
     document.removeEventListener('sign-out', handler);
 
     expect(handler).toHaveBeenCalledTimes(1);

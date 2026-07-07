@@ -310,15 +310,18 @@ export class BeeHeader extends LitElement {
        default (desktop shows the label) and swapped in at the mobile breakpoint. */
     .auth-btn { display: inline-flex; align-items: center; gap: 0.3rem; }
     .auth-icon { display: none; }
-    /* The mobile account menu; desktop shows the inline username + sign-out instead. */
-    .account-btn { display: none; }
-    /* iNaturalist profile image as the account icon (falls back to the person glyph). */
+    /* Account avatar button: full opacity (identity should read clearly, unlike the
+       dimmed nav icons) and shown at all sizes — the signed-in affordance. */
+    .account-btn { opacity: 1; }
+    /* iNaturalist profile image as the account icon (falls back to the person glyph).
+       Small ring in the same white as the "BeeAtlas" title. */
     .account-avatar {
       width: 26px;
       height: 26px;
       border-radius: 50%;
       object-fit: cover;
       display: block;
+      border: 1.5px solid white;
     }
 
     /* Mobile: keep primary nav + a compact identity; condense the secondary
@@ -340,9 +343,6 @@ export class BeeHeader extends LitElement {
       h1 { font-size: 1rem; margin-left: 0.5rem; }
       .freshness-caption { display: none; }
       .github-link { display: none; }
-      /* Signed in: collapse the inline username + sign-out behind the account icon. */
-      .whoami, .sign-out-btn { display: none; }
-      .account-btn { display: flex; }
       .auth-label { display: none; }
       .auth-icon { display: inline-flex; }
       .auth-btn {
@@ -658,20 +658,8 @@ export class BeeHeader extends LitElement {
       `;
     }
     return html`
-      <!-- Desktop: inline username + sign-out. Both hide at the mobile breakpoint,
-           where they collapse behind the account icon + popover below. -->
-      <span class="whoami" title=${auth.role ?? 'no role'}>
-        ${auth.login}
-        <span class="whoami-badge ${auth.isAuthor ? 'whoami-badge--author' : 'whoami-badge--guest'}">
-          ${auth.isAuthor ? 'Author' : 'Not an editor'}
-        </span>
-      </span>
-      <button
-        class="auth-btn sign-out-btn"
-        @click=${this._onSignOutClick}
-        aria-label="Sign out"
-        title="Sign out"
-      >Sign out</button>
+      <!-- Signed in (all sizes): the account avatar opens a popover with the
+           username, role, and sign-out — no inline username in the header. -->
       <button
         class="icon-btn account-btn"
         @click=${this._toggleAccountPopover}
