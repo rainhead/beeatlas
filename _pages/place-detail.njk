@@ -75,8 +75,8 @@ layout: default.njk
       place's sample hosts; introduced weeds and genus-only IDs are excluded. -#}
   {%- if place.target_hosts and place.target_hosts.length > 0 -%}
   <section class="species-section">
-    <h2>Native host plants collected here</h2>
-    <p class="metadata">Washington-native plants bees have been collected on at this place — good candidates to seek bees on. Source: Washington Flora Checklist.</p>
+    <h2>Native host plants bees use here</h2>
+    <p class="metadata">Washington-native plants on which bees have been collected at this place — good candidates to look for bees on. Source: Burke Washington Flora Checklist.</p>
     <div class="species-by-genus">
     {%- for family, plants in place.target_hosts | groupby("family") -%}
       <details class="genus-section">
