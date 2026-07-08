@@ -15,3 +15,5 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0009](0009-build-time-only-external-authority.md) | Build-time-only external authority (static invariant) | Accepted |
 | [0010](0010-curator-gated-audit-csv-integrity.md) | Curator-gated audit-CSV data-integrity policy | Accepted |
 | [0011](0011-bloom-phenology-ingest.md) | Bloom-phenology ingest — sampled, dual-cadence, static aggregates | Proposed |
+| [0012](0012-wilderness-no-collect-overlay.md) | Wilderness no-collect overlay (PAD-US regions) | Accepted |
+| [0013](0013-event-driven-incremental-notes-publish.md) | Event-driven incremental notes publish (contributions live in seconds) | Accepted |
