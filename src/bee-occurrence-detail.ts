@@ -215,6 +215,66 @@ export class BeeOccurrenceDetail extends LitElement {
       outline-offset: 2px;
       border-radius: 2px;
     }
+    /* Per-record disclosure menu: spells out the outbound links/actions so the
+       user reads labels instead of interpreting inline emoji-glyphs. Native
+       <details>/<summary> so keyboard toggle + the disclosure-triangle affordance
+       come for free (beeatlas-k7g). */
+    .record-menu {
+      display: inline-block;
+      position: relative;
+      vertical-align: baseline;
+    }
+    .record-menu > summary {
+      list-style: none;
+      cursor: pointer;
+      color: var(--text-secondary);
+      font-size: 0.7rem;
+      font-style: normal;
+      line-height: 1;
+      padding: 0 0.15em;
+      user-select: none;
+    }
+    .record-menu > summary::-webkit-details-marker { display: none; }
+    .record-menu > summary::marker { content: ''; }
+    .record-menu > summary::after {
+      content: '▾';
+    }
+    .record-menu[open] > summary { color: var(--text-body); }
+    .record-menu > summary:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+    .menu-items {
+      position: absolute;
+      z-index: 10;
+      /* Anchor to the trigger's right edge and open leftward: the disclosure
+         triangle sits at the end of the row near the sidebar's right edge, so a
+         left-anchored panel would overflow off-screen and clip its labels. */
+      right: 0;
+      top: 1.4em;
+      display: flex;
+      flex-direction: column;
+      min-width: 12rem;
+      padding: 0.25rem 0;
+      background: #fff;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+    .menu-items a {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.8rem;
+      font-style: normal;
+      white-space: nowrap;
+      text-decoration: none;
+      color: var(--text-body);
+    }
+    .menu-items a:hover { background: var(--surface-hover); }
+    .menu-items a:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: -2px;
+    }
   `;
 
   // Keyboard activation for the role="button" taxon spans (WR-159-01): Enter/Space
@@ -266,6 +326,54 @@ export class BeeOccurrenceDetail extends LitElement {
     return html`<span class="quality-badge ${grade}" aria-label="${fullLabel}">${abbr}</span>`;
   }
 
+  // Single source of truth for a record's outbound links (beeatlas-k7g). Every
+  // card variant runs the SAME builder so occurrences present a consistent menu
+  // regardless of tier or source — only the links the record actually has are
+  // listed, each with a spelled-out label. record_type only sets the wording of
+  // the primary iNat observation link (WABA vs plain).
+  private _recordMenuItems(row: OccurrenceRow): { label: string; href: string }[] {
+    const items: { label: string; href: string }[] = [];
+    const inatObs = (id: number) => `https://www.inaturalist.org/observations/${id}`;
+    if (row.ecdysis_id != null) {
+      items.push({ label: 'Specimen on Ecdysis', href: `https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}` });
+    }
+    if (row.host_observation_id != null) {
+      items.push({ label: 'Host plant on iNaturalist', href: inatObs(row.host_observation_id) });
+    }
+    if (row.specimen_observation_id != null) {
+      items.push({ label: 'Specimen photo on iNaturalist', href: inatObs(row.specimen_observation_id) });
+    }
+    // Primary iNat observation of the sample/record itself (sample-only,
+    // provisional, waba_specimen, inat_expert). observation_id and obs_url are
+    // the two shapes this link takes across the arms; they never co-occur with
+    // the specimen host/photo ids above.
+    const obsLabel = isProvisional(row) ? 'WABA observation on iNaturalist' : 'Observation on iNaturalist';
+    if (row.observation_id != null) {
+      items.push({ label: obsLabel, href: inatObs(row.observation_id) });
+    } else if (row.obs_url != null) {
+      items.push({ label: obsLabel, href: row.obs_url });
+    }
+    return items;
+  }
+
+  // Presenter for the disclosure menu. Renders nothing when the record has no
+  // links (e.g. checklist rows) — the ▾ handle only appears when it does something.
+  private _renderMenu(items: { label: string; href: string }[]) {
+    if (items.length === 0) return '';
+    return html`
+      <details class="record-menu">
+        <summary aria-label="Links and actions" title="Links and actions"></summary>
+        <div class="menu-items" role="menu">
+          ${items.map(it => html`<a role="menuitem" href="${it.href}" target="_blank" rel="noopener">${it.label}</a>`)}
+        </div>
+      </details>
+    `;
+  }
+
+  private _renderRecordMenu(row: OccurrenceRow) {
+    return this._renderMenu(this._recordMenuItems(row));
+  }
+
   private _renderCollectorGroup(group: CollectorGroup) {
     return html`
       <div class="sample">
@@ -280,13 +388,8 @@ export class BeeOccurrenceDetail extends LitElement {
                 ? html`<span class="taxon-filter-link" role="button" tabindex="0" @keydown=${this._onTaxonKeydown} @click=${() => this._onTaxonClick(row.taxon_id!, displayName)}>${displayName}</span>`
                 : html`<span class="no-determination">No determination</span>`
               }
-              · <a href="https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}" target="_blank" rel="noopener" aria-label="View on Ecdysis">🔗</a>
-              ${row.host_observation_id != null ? html`
-                · <a href="https://www.inaturalist.org/observations/${row.host_observation_id}" target="_blank" rel="noopener">${this._renderHostInfo(row)}</a>
-              ` : html` · <span class="inat-missing">iNat: —</span>`}
-              ${row.specimen_observation_id != null ? html`
-                · <a href="https://www.inaturalist.org/observations/${row.specimen_observation_id}" target="_blank" rel="noopener" aria-label="View photo on iNaturalist">📷</a>
-              ` : ''}
+              · ${this._renderHostInfo(row)}
+              ${this._renderRecordMenu(row)}
               ${this._renderPlaceNames(row)}
             </li>
           `; })}
@@ -310,15 +413,10 @@ export class BeeOccurrenceDetail extends LitElement {
       : 'identification pending';
     return html`
       <div class="panel-content sample-dot-detail">
-        <div class="event-date">${formatRomanDate(row.date)}</div>
+        <div class="event-date">${formatRomanDate(row.date)} ${this._renderRecordMenu(row)}</div>
         ${row.host_inat_login != null ? html`<div class="event-observer">${row.host_inat_login}</div>` : ''}
         ${row.sample_host != null ? html`<div class="event-host"><em>${row.sample_host}</em></div>` : ''}
         <div class="event-count">${count}</div>
-        ${row.observation_id != null
-          ? html`<div class="event-inat">
-              <a href="https://www.inaturalist.org/observations/${row.observation_id}" target="_blank" rel="noopener">View on iNaturalist</a>
-            </div>`
-          : ''}
         ${this._renderPlaceNames(row)}
       </div>
     `;
@@ -332,18 +430,12 @@ export class BeeOccurrenceDetail extends LitElement {
         : html`<span class="hint">identification pending</span>`;
     return html`
       <div class="panel-content sample-dot-detail">
-        <div class="inat-id-label">iNat ID: ${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)}</div>
+        <div class="inat-id-label">iNat ID: ${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)} ${this._renderRecordMenu(row)}</div>
         <div class="event-date">${formatRomanDate(row.date)}</div>
         ${row.host_inat_login != null ? html`<div class="event-observer">${row.host_inat_login}</div>` : ''}
         ${row.specimen_count != null && !isNaN(row.specimen_count)
           ? html`<div class="event-count">${row.specimen_count} specimen${row.specimen_count === 1 ? '' : 's'} collected</div>`
           : ''}
-        ${row.observation_id != null ? html`
-        <div class="event-inat">
-          <a href="https://www.inaturalist.org/observations/${row.observation_id}"
-             target="_blank" rel="noopener"
-             aria-label="View WABA observation on iNaturalist">View WABA observation</a>
-        </div>` : ''}
         ${this._renderPlaceNames(row)}
       </div>
     `;
@@ -359,15 +451,10 @@ export class BeeOccurrenceDetail extends LitElement {
         : html`<span class="hint">identification unknown</span>`;
     return html`
       <div class="panel-content sample-dot-detail">
-        <div class="inat-id-label">${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)}</div>
+        <div class="inat-id-label">${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)} ${this._renderRecordMenu(row)}</div>
         <div class="event-date">${formatRomanDate(row.date)}</div>
         ${row.user_login != null
           ? html`<div class="event-observer">${row.user_login}</div>` : ''}
-        ${row.obs_url != null ? html`
-          <div class="event-inat">
-            <a href="${row.obs_url}" target="_blank" rel="noopener">View on iNaturalist</a>
-          </div>
-        ` : ''}
         <div class="hint">Awaiting Ecdysis catalogue entry</div>
         ${this._renderPlaceNames(row)}
       </div>
@@ -385,7 +472,7 @@ export class BeeOccurrenceDetail extends LitElement {
         : html`<span class="hint">identification unknown</span>`;
     return html`
       <div class="panel-content sample-dot-detail">
-        <div class="inat-id-label">${taxonEl} ${this._renderQualityBadge(row.inat_quality_grade)}</div>
+        <div class="inat-id-label">${taxonEl} ${this._renderQualityBadge(row.inat_quality_grade)} ${this._renderRecordMenu(row)}</div>
         <div class="event-date">${formatRomanDate(row.date)}</div>
         ${row.user_login != null
           ? html`<div class="event-observer">${row.user_login}</div>` : ''}
@@ -397,11 +484,6 @@ export class BeeOccurrenceDetail extends LitElement {
             alt="Photo of ${inatDisplayName ?? 'bee'} by ${row.user_login ?? 'observer'} on iNaturalist"
             style="width:100%;max-height:200px;object-fit:cover;border-radius:4px;"
           />
-        ` : ''}
-        ${row.obs_url != null ? html`
-          <div class="event-inat">
-            <a href="${row.obs_url}" target="_blank" rel="noopener">View on iNaturalist</a>
-          </div>
         ` : ''}
         ${this._renderPlaceNames(row)}
       </div>
@@ -425,7 +507,7 @@ export class BeeOccurrenceDetail extends LitElement {
     const dateStr = formatRomanDate(row.date);
     return html`
       <div class="panel-content sample-dot-detail">
-        <div class="inat-id-label">${taxonEl}</div>
+        <div class="inat-id-label">${taxonEl} ${this._renderRecordMenu(row)}</div>
         ${row.recordedBy != null ? html`<div class="event-observer">${row.recordedBy}</div>` : ''}
         ${dateStr ? html`<div class="event-date">${dateStr}</div>` : ''}
         ${row.locality != null && row.locality !== '' ? html`<div class="event-host">${row.locality}</div>` : ''}

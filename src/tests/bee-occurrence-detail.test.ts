@@ -163,3 +163,97 @@ describe('bee-occurrence-detail D-04 member-place rendering', () => {
     expect(names).toEqual(['Klickitat Trail']);
   });
 });
+
+describe('bee-occurrence-detail per-record disclosure menu (beeatlas-k7g)', () => {
+  test('specimen row exposes a details/summary menu, no inline emoji-links', async () => {
+    await import('../bee-occurrence-detail.ts');
+    document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
+    const el = document.querySelector('bee-occurrence-detail') as any;
+    el.occurrences = [ecdysisRow(42)];
+    await el.updateComplete;
+    const li = el.shadowRoot.querySelector('.species-list li');
+    // Disclosure affordance present…
+    expect(li.querySelector('details.record-menu > summary')).not.toBeNull();
+    // …and the old emoji-glyph anchors are gone.
+    expect(li.textContent).not.toContain('🔗');
+    expect(li.textContent).not.toContain('📷');
+  });
+
+  test('menu shows only applicable, spelled-out items per record', async () => {
+    await import('../bee-occurrence-detail.ts');
+    document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
+    const el = document.querySelector('bee-occurrence-detail') as any;
+
+    // Ecdysis-only row: single labeled item.
+    el.occurrences = [ecdysisRow(42)];
+    await el.updateComplete;
+    let labels = [...el.shadowRoot.querySelectorAll('.menu-items a')].map((a: any) => a.textContent.trim());
+    expect(labels).toEqual(['Specimen on Ecdysis']);
+
+    // Row with host + photo observations: all three items, no dead entries.
+    const full = ecdysisRow(43);
+    full.host_observation_id = 111;
+    full.specimen_observation_id = 222;
+    el.occurrences = [full];
+    await el.updateComplete;
+    labels = [...el.shadowRoot.querySelectorAll('.menu-items a')].map((a: any) => a.textContent.trim());
+    expect(labels).toEqual([
+      'Specimen on Ecdysis',
+      'Host plant on iNaturalist',
+      'Specimen photo on iNaturalist',
+    ]);
+  });
+
+  const mountRow = async (row: OccurrenceRow) => {
+    await import('../bee-occurrence-detail.ts');
+    document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
+    const el = document.querySelector('bee-occurrence-detail') as any;
+    el.occurrences = [row];
+    await el.updateComplete;
+    return el;
+  };
+  const menuLabels = (el: any) =>
+    [...el.shadowRoot.querySelectorAll('.menu-items a')].map((a: any) => a.textContent.trim());
+
+  test('sample-only record surfaces its iNat observation via the menu', async () => {
+    const row = ecdysisRow(0);
+    row.ecdysis_id = null; // not specimen-backed → sample-only branch
+    row.record_type = null;
+    row.observation_id = 555;
+    const el = await mountRow(row);
+    expect(menuLabels(el)).toEqual(['Observation on iNaturalist']);
+    expect(el.shadowRoot.querySelector('.event-inat')).toBeNull();
+  });
+
+  test('provisional record labels its observation as a WABA observation', async () => {
+    const row = ecdysisRow(0);
+    row.ecdysis_id = null;
+    row.is_provisional = true;
+    row.record_type = 'provisional_sample';
+    row.observation_id = 777;
+    const el = await mountRow(row);
+    expect(menuLabels(el)).toEqual(['WABA observation on iNaturalist']);
+  });
+
+  test('inat-expert record uses obs_url for its observation link', async () => {
+    const row = ecdysisRow(0);
+    row.ecdysis_id = null;
+    row.record_type = 'inat_expert';
+    row.obs_url = 'https://www.inaturalist.org/observations/999';
+    const el = await mountRow(row);
+    const anchors = [...el.shadowRoot.querySelectorAll('.menu-items a')];
+    expect(anchors.map((a: any) => a.textContent.trim())).toEqual(['Observation on iNaturalist']);
+    expect(anchors[0].getAttribute('href')).toBe('https://www.inaturalist.org/observations/999');
+  });
+
+  test('checklist record (no outbound links) renders no menu', async () => {
+    const row = ecdysisRow(0);
+    row.ecdysis_id = null;
+    row.record_type = 'checklist';
+    row.checklist_id = 12;
+    row.observation_id = null;
+    row.obs_url = null;
+    const el = await mountRow(row);
+    expect(el.shadowRoot.querySelector('details.record-menu')).toBeNull();
+  });
+});
