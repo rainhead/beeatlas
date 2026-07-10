@@ -200,31 +200,92 @@ export class BeeOccurrenceDetail extends LitElement {
       border-top: 1px solid var(--border-subtle);
       margin: 0.5rem 0;
     }
-    .taxon-filter-link {
+    /* Per-record disclosure menu: spells out the outbound links/actions so the
+       user reads labels instead of interpreting inline emoji-glyphs. Native
+       <details>/<summary> so keyboard toggle + the disclosure-triangle affordance
+       come for free (beeatlas-k7g). */
+    /* The ▼ handle floats to the right of the record's heading line, so it stays
+       vertically aligned with that line regardless of the container's padding
+       (position:absolute pinned it to the padded top edge, ~15px above the
+       heading on the padded cards). position:relative keeps it the offset parent
+       for the panel, which opens leftward from the sidebar's right edge. */
+    .record-menu {
+      position: relative;
+      float: right;
+      margin-left: 0.35rem;
+    }
+    .record-menu > summary {
+      list-style: none;
       cursor: pointer;
-      text-decoration: underline;
-      text-decoration-style: dotted;
-      color: inherit;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      font-style: normal;
+      line-height: 1;
+      padding: 0.1rem 0.2rem;
+      user-select: none;
     }
-    .taxon-filter-link:hover {
-      text-decoration-style: solid;
+    .record-menu > summary::-webkit-details-marker { display: none; }
+    .record-menu > summary::marker { content: ''; }
+    .record-menu > summary::after {
+      content: '▼';
     }
-    .taxon-filter-link:focus-visible {
-      text-decoration-style: solid;
+    .record-menu > summary:hover,
+    .record-menu[open] > summary { color: var(--text-body); }
+    .record-menu > summary:focus-visible {
       outline: 2px solid currentColor;
       outline-offset: 2px;
       border-radius: 2px;
     }
-  `;
-
-  // Keyboard activation for the role="button" taxon spans (WR-159-01): Enter/Space
-  // trigger the element's own @click handler so we don't thread args through here.
-  private _onTaxonKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      (e.currentTarget as HTMLElement).click();
+    .menu-items {
+      position: absolute;
+      z-index: 10;
+      /* Anchor to the handle's right edge (which sits at the container's right
+         edge) and open leftward, staying inside the sidebar. */
+      right: 0;
+      top: 1.4em;
+      display: flex;
+      flex-direction: column;
+      min-width: 12rem;
+      padding: 0.25rem 0;
+      background: #fff;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     }
-  }
+    .menu-items a,
+    .menu-items button {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.8rem;
+      font-style: normal;
+      white-space: nowrap;
+      text-decoration: none;
+      color: var(--text-body);
+    }
+    /* Reset the <button> used for the in-app filter action so it matches the
+       link items exactly. */
+    .menu-items button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    /* Separate the in-app action from the external links. */
+    .menu-items .menu-action:not(:last-child) {
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 0.25rem;
+      padding-bottom: 0.45rem;
+    }
+    .menu-items a:hover,
+    .menu-items button:hover { background: var(--surface-hover); }
+    .menu-items a:focus-visible,
+    .menu-items button:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: -2px;
+    }
+  `;
 
   private _onTaxonClick(taxonId: number, displayName: string) {
     if (!this.filterState) return;
@@ -266,6 +327,85 @@ export class BeeOccurrenceDetail extends LitElement {
     return html`<span class="quality-badge ${grade}" aria-label="${fullLabel}">${abbr}</span>`;
   }
 
+  // Single source of truth for a record's outbound links (beeatlas-k7g). Every
+  // card variant runs the SAME builder so occurrences present a consistent menu
+  // regardless of tier or source — only the links the record actually has are
+  // listed, each with a spelled-out label. record_type only sets the wording of
+  // the primary iNat observation link (WABA vs plain).
+  private _recordMenuItems(row: OccurrenceRow): { label: string; href: string }[] {
+    const items: { label: string; href: string }[] = [];
+    const inatObs = (id: number) => `https://www.inaturalist.org/observations/${id}`;
+    if (row.ecdysis_id != null) {
+      items.push({ label: 'Specimen on Ecdysis', href: `https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}` });
+    }
+    if (row.host_observation_id != null) {
+      items.push({ label: 'Host plant on iNaturalist', href: inatObs(row.host_observation_id) });
+    }
+    // "Specimen photo" only for specimen-backed rows: there specimen_observation_id
+    // is a photo of the collected specimen. For community observations (inat_expert,
+    // waba_specimen) the SAME field holds the observation itself — identical to the
+    // obs_url link below — so emitting it here would duplicate that link.
+    if (isSpecimenBacked(row) && row.specimen_observation_id != null) {
+      items.push({ label: 'Specimen photo on iNaturalist', href: inatObs(row.specimen_observation_id) });
+    }
+    // Primary iNat observation of the sample/record itself (sample-only,
+    // provisional, waba_specimen, inat_expert). Specimen-backed rows are
+    // EXCLUDED: their observation_id mirrors host_observation_id, so adding it
+    // here would duplicate the "Host plant on iNaturalist" link above.
+    if (!isSpecimenBacked(row)) {
+      const obsLabel = isProvisional(row) ? 'WABA observation on iNaturalist' : 'Observation on iNaturalist';
+      if (row.observation_id != null) {
+        items.push({ label: obsLabel, href: inatObs(row.observation_id) });
+      } else if (row.obs_url != null) {
+        items.push({ label: obsLabel, href: row.obs_url });
+      }
+    }
+    return items;
+  }
+
+  // Presenter for the disclosure menu. `filterTaxon`, when present, adds the
+  // in-app "Filter for this species" action as a <button> above the external
+  // links (this replaced the inline clickable species name). Renders nothing
+  // when there is neither an action nor any link (e.g. checklist rows) — the ▼
+  // handle only appears when it does something.
+  private _renderMenu(
+    items: { label: string; href: string }[],
+    filterTaxon?: { taxonId: number; displayName: string },
+  ) {
+    if (items.length === 0 && filterTaxon == null) return '';
+    // Deliberately NO ARIA menu roles: this is a disclosure of ordinary
+    // tab-navigable links + one action button, not an ARIA menu widget (that
+    // pattern would imply arrow-key/Home/End/Escape behavior we don't implement).
+    // Native <a>/<button> semantics are the correct, accessible thing here.
+    return html`
+      <details class="record-menu">
+        <summary aria-label="Links and actions" title="Links and actions"></summary>
+        <div class="menu-items">
+          ${filterTaxon != null ? html`
+            <button type="button" class="menu-action"
+              @click=${() => this._onTaxonClick(filterTaxon.taxonId, filterTaxon.displayName)}>
+              Filter for this species
+            </button>
+          ` : ''}
+          ${items.map(it => html`<a href="${it.href}" target="_blank" rel="noopener">${it.label}</a>`)}
+        </div>
+      </details>
+    `;
+  }
+
+  // Build the optional filter action for a row: present only when the row has a
+  // determined taxon (taxon_id) AND a resolved display name to label the filter.
+  private _filterTaxon(taxonId: number | null, displayName: string | null) {
+    return taxonId != null && displayName != null ? { taxonId, displayName } : undefined;
+  }
+
+  private _renderRecordMenu(
+    row: OccurrenceRow,
+    filterTaxon?: { taxonId: number; displayName: string },
+  ) {
+    return this._renderMenu(this._recordMenuItems(row), filterTaxon);
+  }
+
   private _renderCollectorGroup(group: CollectorGroup) {
     return html`
       <div class="sample">
@@ -276,17 +416,12 @@ export class BeeOccurrenceDetail extends LitElement {
             const displayName = info?.name ?? null;
             return html`
             <li>
-              ${displayName && row.taxon_id != null
-                ? html`<span class="taxon-filter-link" role="button" tabindex="0" @keydown=${this._onTaxonKeydown} @click=${() => this._onTaxonClick(row.taxon_id!, displayName)}>${displayName}</span>`
+              ${displayName != null
+                ? html`<span class="taxon-name">${displayName}</span>`
                 : html`<span class="no-determination">No determination</span>`
               }
-              · <a href="https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}" target="_blank" rel="noopener" aria-label="View on Ecdysis">🔗</a>
-              ${row.host_observation_id != null ? html`
-                · <a href="https://www.inaturalist.org/observations/${row.host_observation_id}" target="_blank" rel="noopener">${this._renderHostInfo(row)}</a>
-              ` : html` · <span class="inat-missing">iNat: —</span>`}
-              ${row.specimen_observation_id != null ? html`
-                · <a href="https://www.inaturalist.org/observations/${row.specimen_observation_id}" target="_blank" rel="noopener" aria-label="View photo on iNaturalist">📷</a>
-              ` : ''}
+              · ${this._renderHostInfo(row)}
+              ${this._renderRecordMenu(row, this._filterTaxon(row.taxon_id, displayName))}
               ${this._renderPlaceNames(row)}
             </li>
           `; })}
@@ -310,40 +445,27 @@ export class BeeOccurrenceDetail extends LitElement {
       : 'identification pending';
     return html`
       <div class="panel-content sample-dot-detail">
-        <div class="event-date">${formatRomanDate(row.date)}</div>
+        <div class="event-date">${formatRomanDate(row.date)} ${this._renderRecordMenu(row)}</div>
         ${row.host_inat_login != null ? html`<div class="event-observer">${row.host_inat_login}</div>` : ''}
         ${row.sample_host != null ? html`<div class="event-host"><em>${row.sample_host}</em></div>` : ''}
         <div class="event-count">${count}</div>
-        ${row.observation_id != null
-          ? html`<div class="event-inat">
-              <a href="https://www.inaturalist.org/observations/${row.observation_id}" target="_blank" rel="noopener">View on iNaturalist</a>
-            </div>`
-          : ''}
         ${this._renderPlaceNames(row)}
       </div>
     `;
   }
 
   private _renderProvisional(row: OccurrenceRow) {
-    const taxonEl = row.display_name && row.taxon_id != null
-      ? html`<span class="taxon-filter-link" role="button" tabindex="0" @keydown=${this._onTaxonKeydown} @click=${() => this._onTaxonClick(row.taxon_id!, row.display_name!)}><em>${row.display_name}</em></span>`
-      : row.display_name
-        ? html`<em>${row.display_name}</em>`
-        : html`<span class="hint">identification pending</span>`;
+    const taxonEl = row.display_name
+      ? html`<em>${row.display_name}</em>`
+      : html`<span class="hint">identification pending</span>`;
     return html`
       <div class="panel-content sample-dot-detail">
-        <div class="inat-id-label">iNat ID: ${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)}</div>
+        <div class="inat-id-label">iNat ID: ${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)} ${this._renderRecordMenu(row, this._filterTaxon(row.taxon_id, row.display_name))}</div>
         <div class="event-date">${formatRomanDate(row.date)}</div>
         ${row.host_inat_login != null ? html`<div class="event-observer">${row.host_inat_login}</div>` : ''}
         ${row.specimen_count != null && !isNaN(row.specimen_count)
           ? html`<div class="event-count">${row.specimen_count} specimen${row.specimen_count === 1 ? '' : 's'} collected</div>`
           : ''}
-        ${row.observation_id != null ? html`
-        <div class="event-inat">
-          <a href="https://www.inaturalist.org/observations/${row.observation_id}"
-             target="_blank" rel="noopener"
-             aria-label="View WABA observation on iNaturalist">View WABA observation</a>
-        </div>` : ''}
         ${this._renderPlaceNames(row)}
       </div>
     `;
@@ -352,22 +474,15 @@ export class BeeOccurrenceDetail extends LitElement {
   private _renderWabaSpecimen(row: OccurrenceRow) {
     const inatInfo = row.taxon_id != null ? this.taxonCache?.get(row.taxon_id) : null;
     const inatDisplayName = inatInfo?.name ?? row.display_name ?? null;
-    const taxonEl = inatDisplayName && row.taxon_id != null
-      ? html`<span class="taxon-filter-link" role="button" tabindex="0" @keydown=${this._onTaxonKeydown} @click=${() => this._onTaxonClick(row.taxon_id!, inatDisplayName)}><em>${inatDisplayName}</em></span>`
-      : inatDisplayName
-        ? html`<em>${inatDisplayName}</em>`
-        : html`<span class="hint">identification unknown</span>`;
+    const taxonEl = inatDisplayName
+      ? html`<em>${inatDisplayName}</em>`
+      : html`<span class="hint">identification unknown</span>`;
     return html`
       <div class="panel-content sample-dot-detail">
-        <div class="inat-id-label">${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)}</div>
+        <div class="inat-id-label">${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)} ${this._renderRecordMenu(row, this._filterTaxon(row.taxon_id, inatDisplayName))}</div>
         <div class="event-date">${formatRomanDate(row.date)}</div>
         ${row.user_login != null
           ? html`<div class="event-observer">${row.user_login}</div>` : ''}
-        ${row.obs_url != null ? html`
-          <div class="event-inat">
-            <a href="${row.obs_url}" target="_blank" rel="noopener">View on iNaturalist</a>
-          </div>
-        ` : ''}
         <div class="hint">Awaiting Ecdysis catalogue entry</div>
         ${this._renderPlaceNames(row)}
       </div>
@@ -378,14 +493,12 @@ export class BeeOccurrenceDetail extends LitElement {
     const isCC = row.license != null && row.license.toUpperCase().startsWith('CC');
     const inatInfo = row.taxon_id != null ? this.taxonCache?.get(row.taxon_id) : null;
     const inatDisplayName = inatInfo?.name ?? null;
-    const taxonEl = inatDisplayName && row.taxon_id != null
-      ? html`<span class="taxon-filter-link" role="button" tabindex="0" @keydown=${this._onTaxonKeydown} @click=${() => this._onTaxonClick(row.taxon_id!, inatDisplayName)}><em>${inatDisplayName}</em></span>`
-      : inatDisplayName
-        ? html`<em>${inatDisplayName}</em>`
-        : html`<span class="hint">identification unknown</span>`;
+    const taxonEl = inatDisplayName
+      ? html`<em>${inatDisplayName}</em>`
+      : html`<span class="hint">identification unknown</span>`;
     return html`
       <div class="panel-content sample-dot-detail">
-        <div class="inat-id-label">${taxonEl} ${this._renderQualityBadge(row.inat_quality_grade)}</div>
+        <div class="inat-id-label">${taxonEl} ${this._renderQualityBadge(row.inat_quality_grade)} ${this._renderRecordMenu(row, this._filterTaxon(row.taxon_id, inatDisplayName))}</div>
         <div class="event-date">${formatRomanDate(row.date)}</div>
         ${row.user_login != null
           ? html`<div class="event-observer">${row.user_login}</div>` : ''}
@@ -398,11 +511,6 @@ export class BeeOccurrenceDetail extends LitElement {
             style="width:100%;max-height:200px;object-fit:cover;border-radius:4px;"
           />
         ` : ''}
-        ${row.obs_url != null ? html`
-          <div class="event-inat">
-            <a href="${row.obs_url}" target="_blank" rel="noopener">View on iNaturalist</a>
-          </div>
-        ` : ''}
         ${this._renderPlaceNames(row)}
       </div>
     `;
@@ -414,9 +522,9 @@ export class BeeOccurrenceDetail extends LitElement {
     const verbatim = row.verbatim_name;
     let taxonEl;
     if (accepted != null && verbatim != null && accepted !== verbatim) {
-      taxonEl = html`<span class="taxon-filter-link" role="button" tabindex="0" @keydown=${this._onTaxonKeydown} @click=${() => this._onTaxonClick(row.taxon_id!, accepted)}><em>${accepted}</em></span> <span class="hint">(det. as ${verbatim})</span>`;
+      taxonEl = html`<em>${accepted}</em> <span class="hint">(det. as ${verbatim})</span>`;
     } else if (accepted != null) {
-      taxonEl = html`<span class="taxon-filter-link" role="button" tabindex="0" @keydown=${this._onTaxonKeydown} @click=${() => this._onTaxonClick(row.taxon_id!, accepted)}><em>${accepted}</em></span>`;
+      taxonEl = html`<em>${accepted}</em>`;
     } else if (verbatim != null) {
       taxonEl = html`<em>${verbatim}</em>`;
     } else {
@@ -425,7 +533,7 @@ export class BeeOccurrenceDetail extends LitElement {
     const dateStr = formatRomanDate(row.date);
     return html`
       <div class="panel-content sample-dot-detail">
-        <div class="inat-id-label">${taxonEl}</div>
+        <div class="inat-id-label">${taxonEl} ${this._renderRecordMenu(row, this._filterTaxon(row.taxon_id, accepted))}</div>
         ${row.recordedBy != null ? html`<div class="event-observer">${row.recordedBy}</div>` : ''}
         ${dateStr ? html`<div class="event-date">${dateStr}</div>` : ''}
         ${row.locality != null && row.locality !== '' ? html`<div class="event-host">${row.locality}</div>` : ''}
