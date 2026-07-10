@@ -104,9 +104,15 @@ describe('bee-occurrence-detail.ts source structure', () => {
     // The species-name filter moved into the menu as a <button> (natively
     // keyboard-activatable), replacing the old clickable taxon-filter-link span +
     // its bespoke _onTaxonKeydown handler.
-    expect(src).toMatch(/<button type="button" role="menuitem" class="menu-action"/);
+    expect(src).toMatch(/<button type="button" class="menu-action"/);
     expect(src).not.toMatch(/taxon-filter-link/);
     expect(src).not.toMatch(/_onTaxonKeydown/);
+  });
+
+  test('menu uses native link/button semantics, not ARIA menu roles', () => {
+    // A <details> disclosure of tab-navigable links is not an ARIA menu widget.
+    expect(src).not.toMatch(/role="menu"/);
+    expect(src).not.toMatch(/role="menuitem"/);
   });
 
   test('menu items carry a visible :focus-visible outline (WR-159-02)', () => {
@@ -249,6 +255,18 @@ describe('bee-occurrence-detail per-record disclosure menu (beeatlas-k7g)', () =
     const anchors = [...el.shadowRoot.querySelectorAll('.menu-items a')];
     expect(anchors.map((a: any) => a.textContent.trim())).toEqual(['Observation on iNaturalist']);
     expect(anchors[0].getAttribute('href')).toBe('https://www.inaturalist.org/observations/999');
+  });
+
+  test('waba-specimen card renders its observation link (non-provisional label)', async () => {
+    const row = ecdysisRow(0);
+    row.ecdysis_id = null;
+    row.record_type = 'waba_specimen';
+    row.specimen_observation_id = 321; // mirrors obs_url; must not add "Specimen photo"
+    row.obs_url = 'https://www.inaturalist.org/observations/321';
+    const el = await mountRow(row);
+    const anchors = [...el.shadowRoot.querySelectorAll('.menu-items a')];
+    expect(anchors.map((a: any) => a.textContent.trim())).toEqual(['Observation on iNaturalist']);
+    expect(anchors[0].getAttribute('href')).toBe('https://www.inaturalist.org/observations/321');
   });
 
   test('checklist record (no outbound links) renders no menu', async () => {

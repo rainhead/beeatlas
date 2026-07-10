@@ -373,17 +373,21 @@ export class BeeOccurrenceDetail extends LitElement {
     filterTaxon?: { taxonId: number; displayName: string },
   ) {
     if (items.length === 0 && filterTaxon == null) return '';
+    // Deliberately NO ARIA menu roles: this is a disclosure of ordinary
+    // tab-navigable links + one action button, not an ARIA menu widget (that
+    // pattern would imply arrow-key/Home/End/Escape behavior we don't implement).
+    // Native <a>/<button> semantics are the correct, accessible thing here.
     return html`
       <details class="record-menu">
         <summary aria-label="Links and actions" title="Links and actions"></summary>
-        <div class="menu-items" role="menu">
+        <div class="menu-items">
           ${filterTaxon != null ? html`
-            <button type="button" role="menuitem" class="menu-action"
+            <button type="button" class="menu-action"
               @click=${() => this._onTaxonClick(filterTaxon.taxonId, filterTaxon.displayName)}>
               Filter for this species
             </button>
           ` : ''}
-          ${items.map(it => html`<a role="menuitem" href="${it.href}" target="_blank" rel="noopener">${it.label}</a>`)}
+          ${items.map(it => html`<a href="${it.href}" target="_blank" rel="noopener">${it.label}</a>`)}
         </div>
       </details>
     `;
