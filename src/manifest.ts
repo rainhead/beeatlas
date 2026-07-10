@@ -3,9 +3,11 @@ const _RAW_BASE = (import.meta.env.VITE_DATA_BASE_URL as string | undefined) ?? 
 // engine runs in an INLINE (blob:) web worker whose origin cannot resolve
 // path-absolute URLs — a bare '/data/manifest.json' throws "not a valid URL" in
 // that context's fetch()/caches.match(). Absolute bases (prod) pass through.
-const _BASE = /^[a-z]+:\/\//i.test(_RAW_BASE)
-  ? _RAW_BASE
-  : new URL(_RAW_BASE, self.location.origin).href.replace(/\/+$/, '');
+const _BASE = (
+  /^[a-z]+:\/\//i.test(_RAW_BASE)
+    ? _RAW_BASE
+    : new URL(_RAW_BASE, self.location.origin).href
+).replace(/\/+$/, '');
 
 interface Manifest {
   occurrences: string;
