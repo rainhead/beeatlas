@@ -5,7 +5,7 @@ description = "dlt pipelines for Washington Bee Atlas data ingestion"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "dlt[duckdb]>=1.27.2",
+    "dlt[duckdb]>=1.28.1",
     "duckdb>=1.5.3,<2",
     "pyarrow>=12",
     "pyogrio>=0.11",  # GDAL-bundling reader for the PAD-US wilderness GDB (attribute-filter pushdown; see geographies_pipeline)
