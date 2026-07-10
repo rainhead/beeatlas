@@ -78,9 +78,10 @@ describe('bee-occurrence-detail.ts source structure', () => {
     expect(src).toMatch(/composed:\s*true/);
   });
 
-  test('FilterChangedEvent detail carries taxonId from row.taxon_id (D-05)', () => {
-    // _onTaxonClick is called with row.taxon_id! as first arg — verifies exact taxon, no roll-up
-    expect(src).toMatch(/\._onTaxonClick\(row\.taxon_id/);
+  test('FilterChangedEvent detail carries the exact record taxon (D-05)', () => {
+    // The filter action (now a menu button) calls _onTaxonClick with the record's
+    // resolved taxon id — verifies exact taxon, no roll-up.
+    expect(src).toMatch(/\._onTaxonClick\(filterTaxon\.taxonId/);
   });
 
   test('FilterChangedEvent detail preserves filterState dimensions (D-07)', () => {
@@ -99,21 +100,18 @@ describe('bee-occurrence-detail.ts source structure', () => {
     expect(collectorGroupBody).not.toMatch(/href="https:\/\/ecdysis[^"]*"[^>]*>\$\{displayName\}/);
   });
 
-  test('taxon-filter spans are keyboard-activatable (WR-159-01)', () => {
-    // every role="button" filter span wires @keydown so Enter/Space activate it
-    const spanCount = (src.match(/class="taxon-filter-link" role="button"/g) ?? []).length;
-    const keydownCount = (src.match(/role="button" tabindex="0" @keydown=\$\{this\._onTaxonKeydown\}/g) ?? []).length;
-    expect(spanCount).toBeGreaterThan(0);
-    expect(keydownCount).toBe(spanCount);
+  test('filter action is a native menu button, no inline filter-link spans (beeatlas-k7g)', () => {
+    // The species-name filter moved into the menu as a <button> (natively
+    // keyboard-activatable), replacing the old clickable taxon-filter-link span +
+    // its bespoke _onTaxonKeydown handler.
+    expect(src).toMatch(/<button type="button" role="menuitem" class="menu-action"/);
+    expect(src).not.toMatch(/taxon-filter-link/);
+    expect(src).not.toMatch(/_onTaxonKeydown/);
   });
 
-  test('_onTaxonKeydown activates on Enter and Space (WR-159-01)', () => {
-    expect(src).toMatch(/_onTaxonKeydown[\s\S]*?e\.key === 'Enter' \|\| e\.key === ' '/);
-  });
-
-  test('focus styling uses :focus-visible with a visible outline (WR-159-02)', () => {
-    expect(src).toMatch(/\.taxon-filter-link:focus-visible/);
-    expect(src).not.toMatch(/\.taxon-filter-link:focus\s*\{[^}]*outline:\s*none/);
+  test('menu items carry a visible :focus-visible outline (WR-159-02)', () => {
+    expect(src).toMatch(/\.menu-items button:focus-visible/);
+    expect(src).not.toMatch(/\.menu-items (?:a|button):focus\s*\{[^}]*outline:\s*none/);
   });
 });
 
@@ -191,9 +189,12 @@ describe('bee-occurrence-detail per-record disclosure menu (beeatlas-k7g)', () =
     expect(labels).toEqual(['Specimen on Ecdysis']);
 
     // Row with host + photo observations: all three items, no dead entries.
+    // observation_id is ALSO set (real specimen rows mirror host_observation_id
+    // there) — it must NOT add a duplicate 'Observation on iNaturalist' item.
     const full = ecdysisRow(43);
     full.host_observation_id = 111;
     full.specimen_observation_id = 222;
+    full.observation_id = 111;
     el.occurrences = [full];
     await el.updateComplete;
     labels = [...el.shadowRoot.querySelectorAll('.menu-items a')].map((a: any) => a.textContent.trim());
@@ -235,10 +236,14 @@ describe('bee-occurrence-detail per-record disclosure menu (beeatlas-k7g)', () =
     expect(menuLabels(el)).toEqual(['WABA observation on iNaturalist']);
   });
 
-  test('inat-expert record uses obs_url for its observation link', async () => {
+  test('inat-expert record shows a single observation link, not a duplicate "Specimen photo"', async () => {
+    // Real inat_expert rows carry specimen_observation_id == the obs_url observation.
+    // Only specimen-backed rows should surface "Specimen photo"; here it must not
+    // duplicate the "Observation on iNaturalist" link.
     const row = ecdysisRow(0);
     row.ecdysis_id = null;
     row.record_type = 'inat_expert';
+    row.specimen_observation_id = 999;
     row.obs_url = 'https://www.inaturalist.org/observations/999';
     const el = await mountRow(row);
     const anchors = [...el.shadowRoot.querySelectorAll('.menu-items a')];
@@ -255,5 +260,39 @@ describe('bee-occurrence-detail per-record disclosure menu (beeatlas-k7g)', () =
     row.obs_url = null;
     const el = await mountRow(row);
     expect(el.shadowRoot.querySelector('details.record-menu')).toBeNull();
+  });
+
+  test('species name is plain text; the "Filter for this species" menu button dispatches filter-changed with the record taxon', async () => {
+    await import('../bee-occurrence-detail.ts');
+    document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
+    const el = document.querySelector('bee-occurrence-detail') as any;
+    const row = ecdysisRow(42);
+    row.taxon_id = 100;
+    el.occurrences = [row];
+    el.taxonCache = new Map([[100, { name: 'Bombus vosnesenskii' }]]);
+    // _onTaxonClick no-ops without a filterState — provide a minimal one.
+    el.filterState = {
+      yearFrom: null, yearTo: null, months: [], selectedCounties: [],
+      selectedEcoregions: [], selectedCollectors: [], elevMin: null, elevMax: null,
+      selectedPlace: null,
+    };
+    await el.updateComplete;
+
+    // The name renders as plain text, not an interactive filter span.
+    expect(el.shadowRoot.querySelector('.taxon-filter-link')).toBeNull();
+    const li = el.shadowRoot.querySelector('.species-list li');
+    expect(li.textContent).toContain('Bombus vosnesenskii');
+
+    // The filter action lives in the menu as a button.
+    const btn = el.shadowRoot.querySelector('.menu-items button.menu-action');
+    expect(btn).not.toBeNull();
+    expect(btn.textContent.trim()).toBe('Filter for this species');
+
+    let detail: any = null;
+    el.addEventListener('filter-changed', (e: any) => { detail = e.detail; });
+    btn.click();
+    expect(detail).not.toBeNull();
+    expect(detail.taxonId).toBe(100);
+    expect(detail.taxonDisplayName).toBe('Bombus vosnesenskii');
   });
 });
