@@ -3,6 +3,16 @@ import preloadAssets from './vite-plugin-preload.ts';
 
 export default defineConfig({
   plugins: [preloadAssets()],
+  // Lit uses legacy (experimental) decorators — tsconfig sets
+  // `experimentalDecorators: true`. As of vite 8.1 / rolldown 1.1 the oxc
+  // transform no longer auto-derives this from tsconfig, defaulting
+  // `decorator.legacy` to false and emitting raw `@customElement` into the
+  // bundle (illegal `@` → SyntaxError, site-wide outage). Set it explicitly.
+  oxc: {
+    decorator: {
+      legacy: true,
+    },
+  },
   optimizeDeps: {
     exclude: ['wa-sqlite'],
   },

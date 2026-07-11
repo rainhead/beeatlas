@@ -94,6 +94,19 @@ export default function (eleventyConfig) {
       define: {
         __APP_VERSION__: JSON.stringify(buildVersion()),
       },
+      // Lit uses legacy (experimental) decorators; tsconfig sets
+      // `experimentalDecorators: true`. As of vite 8.1 / rolldown 1.1 the oxc
+      // transform stopped auto-deriving that from tsconfig — `decorator.legacy`
+      // defaults to false, so `@customElement`/`@property` are emitted RAW into
+      // the bundle. Browsers reject the `@` (illegal U+0040) → SyntaxError in
+      // every chunk → site-wide outage. Must live HERE (not vite.config.ts):
+      // the plugin runs Vite rooted at `.11ty-vite/` for both dev and build and
+      // never loads vite.config.ts, same as optimizeDeps/server above.
+      oxc: {
+        decorator: {
+          legacy: true,
+        },
+      },
       optimizeDeps: {
         exclude: ["wa-sqlite"],
       },
