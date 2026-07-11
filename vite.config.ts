@@ -3,14 +3,26 @@ import preloadAssets from './vite-plugin-preload.ts';
 
 export default defineConfig({
   plugins: [preloadAssets()],
-  // Lit uses legacy (experimental) decorators — tsconfig sets
-  // `experimentalDecorators: true`. As of vite 8.1 / rolldown 1.1 the oxc
-  // transform no longer auto-derives this from tsconfig, defaulting
-  // `decorator.legacy` to false and emitting raw `@customElement` into the
-  // bundle (illegal `@` → SyntaxError, site-wide outage). Set it explicitly.
+  // Lit uses legacy (experimental) decorators and requires class fields to NOT
+  // be defined (tsconfig: `experimentalDecorators: true`,
+  // `useDefineForClassFields: false`). As of vite 8.1 / rolldown 1.1 the oxc
+  // transform no longer auto-derives EITHER from tsconfig, so set both
+  // explicitly (see eleventy.config.js viteOptions.oxc for the full rationale —
+  // this mirror covers vitest + `vite preview`):
+  //   - decorator.legacy → raw `@customElement` else illegal `@` → SyntaxError.
+  //   - setPublicClassFields + removeClassFieldsWithoutInitializer =
+  //     useDefineForClassFields:false, else a declare-only `@query('#map')`
+  //     field shadows the decorator getter → this.mapElement undefined → map
+  //     never constructs.
   oxc: {
     decorator: {
       legacy: true,
+    },
+    assumptions: {
+      setPublicClassFields: true,
+    },
+    typescript: {
+      removeClassFieldsWithoutInitializer: true,
     },
   },
   optimizeDeps: {
