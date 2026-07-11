@@ -94,3 +94,12 @@ SELECT
 FROM joined j
 JOIN final_county fc ON fc._row_id = j._row_id
 JOIN final_eco    fe ON fe._row_id = j._row_id
+-- Byte-stable determinism (RESEARCH Pitfall 4; sibling occurrence_places.sql ends the
+-- same way). Without a final ORDER BY the parquet row order follows DuckDB's parallel scan
+-- of int_combined and flips between builds (beeatlas-zo7). _row_id can't be the sort key —
+-- it's ROW_NUMBER() OVER () with no ORDER BY, so its assignment is itself nondeterministic.
+-- ORDER BY ALL (not occ_id) because occ_id is NOT guaranteed unique here: the
+-- test_no_duplicate_occ_ids check is severity:warn (known "Shape C" OFV fan-out dupes), so
+-- ordering by occ_id alone would leave duplicate-occ_id rows tied on their other 34 columns.
+-- ORDER BY ALL is a total order over the projection; any genuine tie is byte-identical anyway.
+ORDER BY ALL
