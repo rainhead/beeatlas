@@ -94,17 +94,34 @@ export default function (eleventyConfig) {
       define: {
         __APP_VERSION__: JSON.stringify(buildVersion()),
       },
-      // Lit uses legacy (experimental) decorators; tsconfig sets
-      // `experimentalDecorators: true`. As of vite 8.1 / rolldown 1.1 the oxc
-      // transform stopped auto-deriving that from tsconfig — `decorator.legacy`
-      // defaults to false, so `@customElement`/`@property` are emitted RAW into
-      // the bundle. Browsers reject the `@` (illegal U+0040) → SyntaxError in
-      // every chunk → site-wide outage. Must live HERE (not vite.config.ts):
-      // the plugin runs Vite rooted at `.11ty-vite/` for both dev and build and
-      // never loads vite.config.ts, same as optimizeDeps/server above.
+      // Lit uses legacy (experimental) decorators and REQUIRES class fields to
+      // NOT be defined (tsconfig: `experimentalDecorators: true`,
+      // `useDefineForClassFields: false`). As of vite 8.1 / rolldown 1.1 the oxc
+      // transform stopped auto-deriving BOTH of these from tsconfig, so they
+      // must be set explicitly:
+      //   - decorator.legacy: without it, `@customElement`/`@property` emit RAW
+      //     into the bundle → illegal `@` (U+0040) → SyntaxError, site-wide
+      //     outage (the 2026-07-10 incident).
+      //   - useDefineForClassFields:false equivalent (assumptions
+      //     .setPublicClassFields + typescript.removeClassFieldsWithoutInitializer,
+      //     per the rolldown binding docs): without it, a declare-only field like
+      //     `@query('#map') mapElement!` is emitted as a real class field that
+      //     SHADOWS the decorator's prototype getter → this.mapElement is
+      //     undefined → `new mapboxgl.Map({container:undefined})` throws and the
+      //     map never renders. Silent in unit tests (bee-map is mocked); only a
+      //     real browser catches it.
+      // Must live HERE (not vite.config.ts): the plugin runs Vite rooted at
+      // `.11ty-vite/` for both dev and build and never loads vite.config.ts,
+      // same as optimizeDeps/server above.
       oxc: {
         decorator: {
           legacy: true,
+        },
+        assumptions: {
+          setPublicClassFields: true,
+        },
+        typescript: {
+          removeClassFieldsWithoutInitializer: true,
         },
       },
       optimizeDeps: {
