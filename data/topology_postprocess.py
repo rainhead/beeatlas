@@ -68,6 +68,27 @@ def _resolve_git_sha() -> str:
         return "unknown"
 
 
+def _resolve_built_at() -> str:
+    """Best-effort build timestamp as ``YYYY-MM-DDTHH:MM:SSZ``.
+
+    Honors ``SOURCE_DATE_EPOCH`` (the reproducible-builds convention) when set, so
+    a caller that pins a snapshot-derived epoch — e.g. stelis's content-addressed
+    build (st-4cm/st-3mi) — gets byte-deterministic output: build the same
+    snapshot twice, get the same ``_meta.built_at`` (beeatlas-8td SITE 1). Falls
+    back to wall-clock otherwise (the nightly / ad-hoc runs); that leaves only this
+    one field non-deterministic, which is acceptable outside the stelis parity check.
+    """
+    epoch = os.environ.get("SOURCE_DATE_EPOCH")
+    if epoch:
+        try:
+            ts = datetime.datetime.fromtimestamp(int(epoch), datetime.UTC)
+        except (ValueError, OverflowError, OSError):
+            pass  # malformed epoch → treat as unset (per the SOURCE_DATE_EPOCH spec)
+        else:
+            return ts.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def _inject_meta(path: Path) -> None:
     """Add a `_meta` field to the FeatureCollection root with provenance.
 
@@ -77,7 +98,7 @@ def _inject_meta(path: Path) -> None:
     obj = json.loads(path.read_text())
     obj["_meta"] = {
         "git_sha": _resolve_git_sha(),
-        "built_at": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "built_at": _resolve_built_at(),
     }
     path.write_text(json.dumps(obj, separators=(",", ":")))
 

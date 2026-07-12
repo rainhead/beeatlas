@@ -44,3 +44,28 @@ def test_empty_wilderness_skips_mapshaper(tmp_path, monkeypatch):
     assert "_meta" in json.loads((tmp_path / "wilderness.clean.geojson").read_text())
     # The raw mart copy is left untouched (no in-place mutation / no _meta on it).
     assert "_meta" not in json.loads((tmp_path / "wilderness.geojson").read_text())
+
+
+def test_source_date_epoch_makes_built_at_deterministic(monkeypatch):
+    """beeatlas-8td SITE 1: SOURCE_DATE_EPOCH pins _meta.built_at (reproducible
+    builds) instead of wall-clock, so identical snapshots stamp identical bytes."""
+    # 2026-07-12T22:16:58Z
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1783894618")
+    a = topology_postprocess._resolve_built_at()
+    b = topology_postprocess._resolve_built_at()
+    assert a == b == "2026-07-12T22:16:58Z"
+
+
+def test_built_at_falls_back_to_wall_clock_when_unset(monkeypatch):
+    """No SOURCE_DATE_EPOCH → a formatted UTC timestamp (unchanged behavior)."""
+    monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
+    ts = topology_postprocess._resolve_built_at()
+    # shape YYYY-MM-DDTHH:MM:SSZ (not asserting the value — it's wall-clock)
+    assert len(ts) == 20 and ts.endswith("Z") and ts[4] == "-" and ts[10] == "T"
+
+
+def test_malformed_source_date_epoch_falls_back(monkeypatch):
+    """A non-integer SOURCE_DATE_EPOCH is treated as unset (per the spec)."""
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "not-a-number")
+    ts = topology_postprocess._resolve_built_at()
+    assert len(ts) == 20 and ts.endswith("Z")
