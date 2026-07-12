@@ -76,6 +76,19 @@ jobs:
         env:
           VITE_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
 
+      # b59 gate: prove the built site actually boots in a real browser before it
+      # can be uploaded (and therefore before the deploy job — needs: build — can
+      # sync it to S3). Two all-green-build outages shipped otherwise: raw Lit
+      # decorators leaking into the chunks, and an oxc useDefineForClassFields
+      # regression that left <bee-map>'s @query mapElement undefined so the map
+      # never constructed. `npm test` misses both (bee-map is mocked). If this
+      # fails, the build job fails and nothing reaches prod.
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke-boot gate (b59)
+        run: npm run smoke
+
       - name: Check links (non-blocking)
         run: npm run build:validate-links
         continue-on-error: true
