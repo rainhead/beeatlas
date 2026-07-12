@@ -843,3 +843,83 @@ def test_undetermined_only_specimen_yields_no_events(tmp_path, monkeypatch):
     )
     carol = next(r for r in records if r["login"] == "carol")
     assert carol["total_event_count"] == 0
+
+
+def test_tied_events_have_deterministic_total_order(tmp_path, monkeypatch):
+    """beeatlas-8td: rows tied on (login, sort_ts, ecdysis_id) must emit in a
+    stable, catalog_number-ordered sequence, and the export must be byte-identical
+    across runs.
+
+    Two waba_specimen Collected events for one collector share the same date (=>
+    equal sort_ts) and NULL ecdysis_id, so they tie on the meaningful display keys;
+    only catalog_number distinguishes them. Before the ORDER BY tiebreak, DuckDB's
+    parallel scan returned tied rows in either order run-to-run, so
+    first_page_events / collector_event_pages flipped bytes between identical builds.
+    """
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "tie.duckdb"))
+    monkeypatch.setenv("EXPORT_DIR", str(tmp_path))
+    monkeypatch.setenv("EVENT_CHUNK_SIZE", "100")
+
+    import collectors_events_export  # noqa: PLC0415
+    importlib.reload(collectors_events_export)
+
+    # Two waba specimens for 'dave', identical except catalog_number (reversed so a
+    # no-tiebreak scan order would likely differ from the asserted sorted order).
+    schema = pa.schema([
+        ("collector_inat_login", pa.string()),
+        ("recordedBy", pa.string()),
+        ("host_inat_login", pa.string()),
+        ("ecdysis_id", pa.int64()),
+        ("record_type", pa.string()),
+        ("date", pa.string()),
+        ("canonical_name", pa.string()),
+        ("catalog_number", pa.string()),
+    ])
+    pq.write_table(pa.table({
+        "collector_inat_login": ["dave", "dave"],
+        "recordedBy":           ["Dave D", "Dave D"],
+        "host_inat_login":      ["dave", "dave"],
+        "ecdysis_id":           [None, None],
+        "record_type":          ["waba_specimen", "waba_specimen"],
+        "date":                 ["2024-05-01", "2024-05-01"],
+        "canonical_name":       ["bee sp.", "bee sp."],
+        "catalog_number":       ["WABA_ZZZ", "WABA_AAA"],
+    }, schema=schema), tmp_path / "occurrences.parquet")
+
+    _write_test_species_json(tmp_path)
+    _write_test_higher_taxa_json(tmp_path)
+    (tmp_path / "collectors.json").write_text(json.dumps([{
+        "login": "dave", "display_name": "Dave D", "recordedBy": "Dave D",
+        "host_inat_login": "dave", "specimen_count": 2, "sample_count": 0,
+        "species_count": 0, "status_denominator": 2,
+        "status_identified": 0, "status_awaiting": 2,
+    }]), encoding="utf-8")
+
+    con = duckdb.connect(str(tmp_path / "tie.duckdb"))
+    con.execute("CREATE SCHEMA IF NOT EXISTS ecdysis_data")
+    con.execute("""
+        CREATE TABLE ecdysis_data.identifications (
+            coreid VARCHAR, modified TIMESTAMPTZ, identified_by VARCHAR,
+            scientific_name VARCHAR, date_identified VARCHAR,
+            identification_is_current VARCHAR, genus VARCHAR
+        )
+    """)
+    con.close()
+
+    events_path = tmp_path / "collectors.events.json"
+
+    collectors_events_export.export_collectors_events_step()
+    first_bytes = events_path.read_bytes()
+
+    dave = next(r for r in json.loads(first_bytes) if r["login"] == "dave")
+    cats = [e["catalog_number"] for e in dave["first_page_events"]
+            if e["event_type"] == "Collected"]
+    assert cats == ["WABA_AAA", "WABA_ZZZ"], (
+        f"tied Collected events must sort by the catalog_number tiebreak; got {cats}"
+    )
+
+    # Determinism: re-exporting the same inputs yields byte-identical output.
+    collectors_events_export.export_collectors_events_step()
+    assert events_path.read_bytes() == first_bytes, (
+        "collectors.events.json must be byte-identical across runs (beeatlas-8td)"
+    )

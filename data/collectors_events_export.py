@@ -133,7 +133,25 @@ identified_events AS (
 SELECT * FROM collected_events
 UNION ALL
 SELECT * FROM identified_events
-ORDER BY login, sort_ts DESC NULLS LAST, ecdysis_id ASC NULLS LAST
+-- The first three keys are the meaningful display order (per collector, most
+-- recent first) but are NOT a total order: rows tied on them come back in
+-- DuckDB parallel-scan order, so first_page_events / collector_event_pages
+-- differ byte-to-byte between identical builds (beeatlas-8td). Append every
+-- remaining projected column as tiebreakers — the same total-order-over-the-
+-- projection guarantee as the occurrences mart's ORDER BY ALL (beeatlas-zo7):
+-- any two rows that differ in the emitted event now have a defined order, and a
+-- true all-column tie is byte-identical anyway.
+ORDER BY
+    login,
+    sort_ts DESC NULLS LAST,
+    ecdysis_id ASC NULLS LAST,
+    event_type,
+    species_name NULLS LAST,
+    determiner NULLS LAST,
+    is_current NULLS LAST,
+    is_pending,
+    genus NULLS LAST,
+    catalog_number NULLS LAST
 """
 
 
