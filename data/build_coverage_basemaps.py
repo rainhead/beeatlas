@@ -20,8 +20,12 @@ Usage:
 
 The script reads:
     - County polygons from geographies.us_counties in beeatlas.duckdb (DB_PATH)
-    - Ecoregion polygons from public/data/ecoregions.geojson (ECO_GEOJSON)
-      keyed by NA_L3NAME (NOT "name" — Pitfall 2 from collector_maps.py)
+    - Ecoregion polygons from public/data/ecoregions.clean.geojson (ECO_GEOJSON)
+      keyed by NA_L3NAME (NOT "name" — Pitfall 2 from collector_maps.py).
+      This is topology-postprocess's cleaned output (beeatlas-hyq) — the file the
+      pipeline and scripts/fetch-data.sh actually produce locally; the raw
+      ecoregions.geojson mart copy is an intermediate and is not published/fetched.
+      Re-simplifying an already-cleaned file is fine (it only drops more vertices).
 
 Geometry helpers copied from species_maps.py / collector_maps.py rather than
 imported to avoid runtime coupling with those modules.
@@ -39,7 +43,7 @@ from config import STATE_FIPS
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb"))
 
 _repo_root = Path(__file__).parent.parent
-_default_eco = str(_repo_root / "public" / "data" / "ecoregions.geojson")
+_default_eco = str(_repo_root / "public" / "data" / "ecoregions.clean.geojson")
 ECO_GEOJSON = Path(os.environ.get("ECO_GEOJSON", _default_eco))
 
 _default_out = str(_repo_root / "_includes" / "maps")
@@ -59,9 +63,10 @@ WA_BBOX = (-124.85, 45.54, -116.92, 49.00)
 COUNTY_TOLERANCE = 0.005
 
 # Ecoregion simplification tolerance — 10x more aggressive than counties.
-# public/data/ecoregions.geojson is ~4 MB; without simplification the SVG
-# would be >1 MB. At 0.05° (~5 km) most tiny island features collapse and
-# the Puget Sound coastline is still recognizable. Target: well under 150 KB.
+# The input (ecoregions.clean.geojson) is already mapshaper-simplified (~40 KB),
+# but its vertex density still yields a >150 KB SVG unrendered; at 0.05° (~5 km)
+# most tiny island features collapse and the Puget Sound coastline is still
+# recognizable. Target: well under 150 KB for the committed partial.
 ECO_TOLERANCE = 0.05
 
 # Default fill for all base-map polygons. Per-collector highlights are applied
