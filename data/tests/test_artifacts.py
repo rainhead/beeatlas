@@ -36,13 +36,15 @@ from artifacts import (
 # From nightly.sh lines 153–162 (LOCAL_NAMES dict)
 _EXPECTED_BASELINE = {
     "occurrences": "occurrences.parquet",
-    "counties": "counties.geojson",
-    "ecoregions": "ecoregions.geojson",
+    # counties/ecoregions publish the topology-cleaned .clean.geojson (beeatlas-hyq);
+    # collectors publishes the event-enriched collectors.events.json.
+    "counties": "counties.clean.geojson",
+    "ecoregions": "ecoregions.clean.geojson",
     "species": "species.json",
     "seasonality": "seasonality.json",
     "higher_taxa": "higher_taxa.json",
     "photos": "photos.json",
-    "collectors": "collectors.json",
+    "collectors": "collectors.events.json",
     "species_hosts": "species_hosts.json",
 }
 

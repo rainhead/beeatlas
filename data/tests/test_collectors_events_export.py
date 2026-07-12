@@ -270,9 +270,14 @@ def test_collectors_json_extended_keys(tmp_path, monkeypatch):
     mod = _setup_env(tmp_path, monkeypatch)
     mod.export_collectors_events_step()
 
-    out = tmp_path / "collectors.json"
-    assert out.exists(), "collectors.json not written"
+    out = tmp_path / "collectors.events.json"
+    assert out.exists(), "collectors.events.json not written"
     records = json.loads(out.read_text())
+    # The base collectors.json must be left untouched (single-producer, beeatlas-hyq).
+    base = json.loads((tmp_path / "collectors.json").read_text())
+    assert all("first_page_events" not in r for r in base), (
+        "base collectors.json must NOT gain event fields — those belong to collectors.events.json"
+    )
     assert isinstance(records, list)
 
     by_login = {r["login"]: r for r in records}
@@ -301,7 +306,7 @@ def test_ecdysis_specimen_events(tmp_path, monkeypatch):
     mod = _setup_env(tmp_path, monkeypatch)
     mod.export_collectors_events_step()
 
-    records = json.loads((tmp_path / "collectors.json").read_text())
+    records = json.loads((tmp_path / "collectors.events.json").read_text())
     sub_pages = json.loads((tmp_path / "collector_event_pages.json").read_text())
     all_events = _gather_all_events(records, sub_pages, "alice")
 
@@ -334,7 +339,7 @@ def test_identified_events_sort_above_collected(tmp_path, monkeypatch):
     mod = _setup_env(tmp_path, monkeypatch)
     mod.export_collectors_events_step()
 
-    records = json.loads((tmp_path / "collectors.json").read_text())
+    records = json.loads((tmp_path / "collectors.events.json").read_text())
     sub_pages = json.loads((tmp_path / "collector_event_pages.json").read_text())
     all_events = _gather_all_events(records, sub_pages, "alice")
 
@@ -368,7 +373,7 @@ def test_waba_specimen_is_pending(tmp_path, monkeypatch):
     mod = _setup_env(tmp_path, monkeypatch)
     mod.export_collectors_events_step()
 
-    records = json.loads((tmp_path / "collectors.json").read_text())
+    records = json.loads((tmp_path / "collectors.events.json").read_text())
     sub_pages = json.loads((tmp_path / "collector_event_pages.json").read_text())
     all_events = _gather_all_events(records, sub_pages, "alice")
 
@@ -396,7 +401,7 @@ def test_chunk_bound(tmp_path, monkeypatch):
 
     chunk_size = int(EVENT_CHUNK_SIZE)
 
-    records = json.loads((tmp_path / "collectors.json").read_text())
+    records = json.loads((tmp_path / "collectors.events.json").read_text())
     for rec in records:
         fp = rec.get("first_page_events", [])
         assert len(fp) <= chunk_size, (
@@ -423,7 +428,7 @@ def test_slug_resolution(tmp_path, monkeypatch):
     mod = _setup_env(tmp_path, monkeypatch)
     mod.export_collectors_events_step()
 
-    records = json.loads((tmp_path / "collectors.json").read_text())
+    records = json.loads((tmp_path / "collectors.events.json").read_text())
     sub_pages = json.loads((tmp_path / "collector_event_pages.json").read_text())
     all_events = _gather_all_events(records, sub_pages, "alice")
 
@@ -499,7 +504,7 @@ def test_catalog_number_and_ecdysis_id_fields(tmp_path, monkeypatch):
     mod = _setup_env(tmp_path, monkeypatch)
     mod.export_collectors_events_step()
 
-    records = json.loads((tmp_path / "collectors.json").read_text())
+    records = json.loads((tmp_path / "collectors.events.json").read_text())
     sub_pages = json.loads((tmp_path / "collector_event_pages.json").read_text())
     all_events = _gather_all_events(records, sub_pages, "alice")
 
@@ -557,7 +562,7 @@ def test_is_reidentification_chronological_label(tmp_path, monkeypatch):
     mod = _setup_env(tmp_path, monkeypatch)
     mod.export_collectors_events_step()
 
-    records = json.loads((tmp_path / "collectors.json").read_text())
+    records = json.loads((tmp_path / "collectors.events.json").read_text())
     sub_pages = json.loads((tmp_path / "collector_event_pages.json").read_text())
     all_events = _gather_all_events(records, sub_pages, "alice")
 
@@ -711,7 +716,7 @@ def test_nonbee_inat_url_and_bee_resolution(tmp_path, monkeypatch):
 
     collectors_events_export.export_collectors_events_step()
 
-    records = json.loads((tmp_path / "collectors.json").read_text())
+    records = json.loads((tmp_path / "collectors.events.json").read_text())
     sub_pages = json.loads((tmp_path / "collector_event_pages.json").read_text())
     all_events = _gather_all_events(records, sub_pages, "alice")
 
@@ -829,7 +834,7 @@ def test_undetermined_only_specimen_yields_no_events(tmp_path, monkeypatch):
 
     collectors_events_export.export_collectors_events_step()
 
-    records = json.loads((tmp_path / "collectors.json").read_text())
+    records = json.loads((tmp_path / "collectors.events.json").read_text())
     sub_pages = json.loads((tmp_path / "collector_event_pages.json").read_text())
     events = _gather_all_events(records, sub_pages, "carol")
 

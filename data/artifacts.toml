@@ -63,7 +63,10 @@ build_time_fetch = true
 [artifacts.counties]
 provenance = "derived"
 kind = "hashed"
-source_file = "counties.geojson"
+# topology-postprocess writes the cleaned .clean.geojson (beeatlas-hyq); the raw
+# counties.geojson stays owned by dbt-build. hash_basename is unchanged, so the
+# manifest key + hashed prefix (and thus the frontend runtime) are unaffected.
+source_file = "counties.clean.geojson"
 hash_basename = "counties"
 baseline_diff = true
 content_type = "application/json"
@@ -71,7 +74,7 @@ content_type = "application/json"
 [artifacts.ecoregions]
 provenance = "derived"
 kind = "hashed"
-source_file = "ecoregions.geojson"
+source_file = "ecoregions.clean.geojson"
 hash_basename = "ecoregions"
 baseline_diff = true
 content_type = "application/json"
@@ -79,7 +82,7 @@ content_type = "application/json"
 [artifacts.wilderness]
 provenance = "derived"
 kind = "hashed"
-source_file = "wilderness.geojson"
+source_file = "wilderness.clean.geojson"
 hash_basename = "wilderness"
 # baseline_diff intentionally omitted (=false) for the initial ship: a new
 # artifact has no S3 baseline yet, so enrolling it in the nightly drift-diff gate
@@ -134,7 +137,10 @@ build_time_fetch_optional = true
 [artifacts.collectors]
 provenance = "derived"
 kind = "hashed"
-source_file = "collectors.json"
+# collectors-events-export writes the event-enriched collectors.events.json
+# (beeatlas-hyq); the base collectors.json stays owned by collectors-export.
+# hash_basename is unchanged, so the manifest key + frontend runtime are unaffected.
+source_file = "collectors.events.json"
 hash_basename = "collectors"
 baseline_diff = true
 build_time_fetch = true

@@ -10,8 +10,13 @@ Ecoregions (EPA Level III) have ~160 km² of inter-feature overlaps in WA that
 mapshaper -clean resolves; -simplify then removes redundant vertices on shared
 arcs to keep the file in the ~200 KB range.
 
-Reads from EXPORT_DIR (the same path run.py copies dbt outputs to), writes back
-in place. Idempotent.
+Reads the raw region marts from EXPORT_DIR (the same path run.py copies dbt
+outputs to) and writes a distinctly-named cleaned sibling — ``<name>.clean.geojson``
+— leaving the raw mart copy untouched. This keeps one-producer-per-artifact
+intact (dbt-build owns ``counties.geojson``; this step owns ``counties.clean.geojson``),
+which a content-addressed build graph needs to model each step as a node
+(beeatlas-hyq). Downstream consumers (manifest source_file, frontend map layers)
+point at the ``.clean.geojson`` name. Idempotent.
 
 Sliver policy: gap-fill-area=0.01km2 drops features below 1 hectare (#14
 discussion — 2 sub-hectare Puget Sound rocks in "Strait of Georgia/Puget
@@ -77,27 +82,35 @@ def _inject_meta(path: Path) -> None:
     path.write_text(json.dumps(obj, separators=(",", ":")))
 
 
-def _run_mapshaper(path: Path) -> None:
-    """Run mapshaper -clean (and optionally -simplify) on a GeoJSON file, in place.
+def _clean_name(name: str) -> str:
+    """Map a raw region mart filename to its cleaned sibling.
 
-    Mapshaper refuses to overwrite its input directly; write to a sibling
-    temp file then atomically rename over the original.
+    ``counties.geojson`` -> ``counties.clean.geojson``. The ``.clean`` infix keeps
+    the raw mart copy (dbt-build's output) and the cleaned file (this step's
+    output) as two distinct artifacts — one producer each.
+    """
+    return f"{Path(name).stem}.clean.geojson"
+
+
+def _run_mapshaper(src: Path, dst: Path) -> None:
+    """Run mapshaper -clean (and optionally -simplify) on ``src``, writing ``dst``.
+
+    ``src`` (the raw mart copy) is read-only here; the cleaned result lands in the
+    distinctly-named ``dst`` so the raw input is never mutated in place.
     """
     if shutil.which("npx") is None:
         raise RuntimeError(
             "npx not on PATH — topology_postprocess requires Node.js + mapshaper. "
             "Install Node and run `npm install` at the repo root."
         )
-    if path.name not in _SIMPLIFY_PCT:
-        raise ValueError(f"no mapshaper recipe configured for {path.name}")
-    pct = _SIMPLIFY_PCT[path.name]
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    cmd = ["npx", "mapshaper", str(path), "-clean", "gap-fill-area=0.01km2"]
+    if src.name not in _SIMPLIFY_PCT:
+        raise ValueError(f"no mapshaper recipe configured for {src.name}")
+    pct = _SIMPLIFY_PCT[src.name]
+    cmd = ["npx", "mapshaper", str(src), "-clean", "gap-fill-area=0.01km2"]
     if pct is not None:
         cmd += ["-simplify", f"percentage={pct}", "planar", "keep-shapes"]
-    cmd += ["-o", str(tmp), "format=geojson"]
+    cmd += ["-o", str(dst), "format=geojson"]
     subprocess.run(cmd, check=True, cwd=str(_REPO_ROOT))
-    tmp.replace(path)
 
 
 def main() -> None:
@@ -113,22 +126,25 @@ def main() -> None:
     a tens-of-KB lazy-loadable file).
     """
     for name in ("counties.geojson", "ecoregions.geojson", "wilderness.geojson"):
-        path = _EXPORT_DIR / name
-        if not path.exists():
-            raise FileNotFoundError(f"{path} not found — run dbt build first")
+        src = _EXPORT_DIR / name
+        dst = _EXPORT_DIR / _clean_name(name)
+        if not src.exists():
+            raise FileNotFoundError(f"{src} not found — run dbt build first")
         # An empty FeatureCollection can occur for wilderness.geojson before the
         # PAD-US source table is loaded (see dbt_project.yml on-run-start guard).
-        # mapshaper rejects zero-feature input, so skip it and just stamp _meta —
-        # keeps the nightly green while the overlay is still empty.
-        if not json.loads(path.read_text()).get("features"):
-            _inject_meta(path)
+        # mapshaper rejects zero-feature input, so copy the raw file to the cleaned
+        # name and just stamp _meta — keeps the nightly green (and the downstream
+        # .clean.geojson present) while the overlay is still empty.
+        if not json.loads(src.read_text()).get("features"):
+            shutil.copy2(src, dst)
+            _inject_meta(dst)
             print(f"  {name}: 0 features — mapshaper skipped")  # noqa: T201
             continue
-        before = path.stat().st_size
-        _run_mapshaper(path)
-        _inject_meta(path)
-        after = path.stat().st_size
-        print(f"  {name}: {before:,} -> {after:,} bytes")  # noqa: T201
+        before = src.stat().st_size
+        _run_mapshaper(src, dst)
+        _inject_meta(dst)
+        after = dst.stat().st_size
+        print(f"  {name} -> {dst.name}: {before:,} -> {after:,} bytes")  # noqa: T201
 
 
 if __name__ == "__main__":

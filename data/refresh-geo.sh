@@ -52,9 +52,14 @@ uv run python topology_postprocess.py
 # 5. Upload to S3 with content-type application/json (not application/geo+json)
 # so CloudFront's auto-compression covers these files. AWS's compress allowlist
 # isn't configurable and doesn't include the geo+json subtype.
+#
+# topology_postprocess writes the cleaned <name>.clean.geojson (beeatlas-hyq) and
+# leaves the raw mart copy untouched; upload the CLEANED file (simplified + _meta
+# provenance) to the stable /data/<name>.geojson path, not the raw copy.
 echo "--- uploading to s3://$BUCKET/data/ ---"
-for f in counties.geojson ecoregions.geojson; do
-    aws --profile "$AWS_PROFILE" s3 cp --no-progress "$EXPORT_DIR/$f" "s3://$BUCKET/data/$f" \
+for f in counties ecoregions; do
+    aws --profile "$AWS_PROFILE" s3 cp --no-progress \
+        "$EXPORT_DIR/$f.clean.geojson" "s3://$BUCKET/data/$f.geojson" \
         --content-type application/json
 done
 

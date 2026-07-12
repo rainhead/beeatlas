@@ -1,14 +1,19 @@
 """Export per-collector event feed for the frontend (STREAM-01/02/03).
 
 Writes:
-    ASSETS_DIR/collectors.json          — extended in place: adds first_page_events,
-                                          total_event_pages, total_event_count without
-                                          touching any existing key (display_name, etc.)
+    ASSETS_DIR/collectors.events.json   — the event-enriched collector array: every
+                                          collectors.json record plus first_page_events,
+                                          total_event_pages, total_event_count. A DISTINCT
+                                          file (beeatlas-hyq) — the base collectors.json is
+                                          left owned solely by collectors-export, so each
+                                          artifact has exactly one producer.
     ASSETS_DIR/collector_event_pages.json — flat array of sub-page descriptors for
                                           pages 2+ (compact JSON, ~24 MB build artifact)
 
-Runs AFTER collectors-export: reads the collectors.json written by that step and
-rewrites it with the event fields appended.
+Runs AFTER collectors-export: reads the base collectors.json written by that step
+(without mutating it) and writes the enriched result to collectors.events.json.
+The manifest's `collectors` key points at collectors.events.json (artifacts.toml
+source_file); the frontend loads it via the unchanged `collectors` manifest key.
 
 D-CARD-02 slug resolution (rank-aware, bee classification via JSON taxon files):
     1. Synonym-normalized species name matches species.json → /species/{Genus}/{epithet}/
@@ -267,7 +272,7 @@ def _resolve_slug(
 
 
 def export_collector_events(con: duckdb.DuckDBPyConnection) -> None:
-    """Extend collectors.json with event-feed fields and write collector_event_pages.json.
+    """Write collectors.events.json (base + event-feed fields) and collector_event_pages.json.
 
     Reads ASSETS_DIR/occurrences.parquet (Pitfall 5: always ASSETS_DIR, not the
     dbt build target) and ASSETS_DIR/species.parquet for slug resolution, plus
@@ -379,8 +384,8 @@ def export_collector_events(con: duckdb.DuckDBPyConnection) -> None:
         }
         events_by_login.setdefault(login, []).append(event)
 
-    # Load existing collectors.json; extend records in place without recomputing
-    # any existing key (display_name, specimen_count, etc. must not change).
+    # Load the base collectors.json (read-only); build the enriched array without
+    # recomputing any existing key (display_name, specimen_count, etc. must not change).
     collectors: list[dict] = json.loads(collectors_json.read_text(encoding="utf-8"))
     collector_map: dict[str, dict] = {c["login"]: c for c in collectors}
 
@@ -408,11 +413,13 @@ def export_collector_events(con: duckdb.DuckDBPyConnection) -> None:
         rec.setdefault("total_event_pages", 0)
         rec.setdefault("total_event_count", 0)
 
-    # Write extended collectors.json (human-readable indent to match existing style)
-    out_path = ASSETS_DIR / "collectors.json"
+    # Write the enriched array to a DISTINCT name (beeatlas-hyq) — the base
+    # collectors.json is left untouched, owned solely by collectors-export.
+    # Human-readable indent matches the base file's style.
+    out_path = ASSETS_DIR / "collectors.events.json"
     out_path.write_text(json.dumps(collectors, indent=2), encoding="utf-8")
     print(  # noqa: T201
-        f"  collectors.json: {len(collectors):,} collectors, "
+        f"  collectors.events.json: {len(collectors):,} collectors, "
         f"{out_path.stat().st_size:,} bytes"
     )
 

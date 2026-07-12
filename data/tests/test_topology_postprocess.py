@@ -20,7 +20,15 @@ def _write(path, features):
 def test_empty_wilderness_skips_mapshaper(tmp_path, monkeypatch):
     monkeypatch.setattr(topology_postprocess, "_EXPORT_DIR", tmp_path)
     called = []
-    monkeypatch.setattr(topology_postprocess, "_run_mapshaper", lambda p: called.append(p.name))
+
+    # _run_mapshaper now takes (src, dst); the real one writes the cleaned dst via
+    # mapshaper. Simulate that by copying src->dst so main()'s _inject_meta(dst) has
+    # a file to stamp; record the source name it was asked to clean.
+    def _fake_mapshaper(src, dst):
+        called.append(src.name)
+        dst.write_text(src.read_text())
+
+    monkeypatch.setattr(topology_postprocess, "_run_mapshaper", _fake_mapshaper)
 
     # counties/ecoregions have features (mapshaper runs); wilderness is empty (skipped).
     _write(tmp_path / "counties.geojson", [{"type": "Feature", "geometry": None, "properties": {}}])
@@ -31,5 +39,8 @@ def test_empty_wilderness_skips_mapshaper(tmp_path, monkeypatch):
 
     assert "wilderness.geojson" not in called, "mapshaper must be skipped for a 0-feature file"
     assert set(called) == {"counties.geojson", "ecoregions.geojson"}
-    # _meta is still stamped on the skipped (empty) file so provenance is present.
-    assert "_meta" in json.loads((tmp_path / "wilderness.geojson").read_text())
+    # The cleaned sibling is written (not the raw input); _meta is stamped on the
+    # empty overlay's .clean.geojson so provenance is present downstream.
+    assert "_meta" in json.loads((tmp_path / "wilderness.clean.geojson").read_text())
+    # The raw mart copy is left untouched (no in-place mutation / no _meta on it).
+    assert "_meta" not in json.loads((tmp_path / "wilderness.geojson").read_text())

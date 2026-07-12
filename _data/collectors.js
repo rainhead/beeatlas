@@ -22,10 +22,13 @@ import { dirname, join } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
 
-const collectorsPath = join(repoRoot, 'public/data/collectors.json');
+// collectors.events.json is the event-enriched array (collectors-events-export,
+// beeatlas-hyq); the base collectors.json carries no event fields. deploy.yml's
+// build-time fetch writes it here under the `collectors` manifest key.
+const collectorsPath = join(repoRoot, 'public/data/collectors.events.json');
 const collectorsArray = existsSync(collectorsPath)
   ? JSON.parse(readFileSync(collectorsPath, 'utf8'))
-  : (console.warn('[collectors.js] public/data/collectors.json absent — returning [] (fetch from S3 for full data)'), []);
+  : (console.warn('[collectors.js] public/data/collectors.events.json absent — returning [] (fetch from S3 for full data)'), []);
 
 // collector_event_pages.json is ~19 MB; only load it during a full Eleventy build.
 // Eleventy 3.x sets ELEVENTY_RUN_MODE to 'serve' | 'watch' | 'build'. Only 'build'
