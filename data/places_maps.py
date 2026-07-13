@@ -87,6 +87,13 @@ def generate_place_maps(con: duckdb.DuckDBPyConnection | None = None) -> None:
             SELECT DISTINCT b.place_slug, occ.lon, occ.lat
             FROM occ JOIN read_parquet(?) b ON b.occ_id = occ.occ_id
             WHERE occ.lon IS NOT NULL AND occ.lat IS NOT NULL
+            -- Total order over the projected columns so per-place dot EMISSION
+            -- order is deterministic: without it DuckDB's parallel scan returns
+            -- tied rows in a build-dependent order, making each SVG's <circle>
+            -- sequence differ byte-for-byte across builds (same dot SET, different
+            -- order) — nondeterministic under stelis's parity check (beeatlas-8td
+            -- SITE 3, the places_maps analogue of SITE 1/2).
+            ORDER BY b.place_slug, occ.lon, occ.lat
             """,
             [str(occurrences_parquet), str(bridge_parquet)],
         ).fetchall()

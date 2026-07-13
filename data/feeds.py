@@ -306,11 +306,30 @@ def write_index_json(out_dir: Path, entries: list) -> None:
     )
 
 
+def _run_time() -> datetime.datetime:
+    """The feed-level fallback <updated> for empty feeds (D-02).
+
+    Honors ``SOURCE_DATE_EPOCH`` (the reproducible-builds convention) when set, so
+    a caller that pins a snapshot-derived epoch — stelis's content-addressed build
+    (st-4cm/st-3mi) — gets byte-deterministic feeds: build the same snapshot twice,
+    get identical XML even for empty variants (mirrors topology_postprocess's
+    _build_timestamp, beeatlas-8td). Falls back to wall-clock otherwise (the
+    nightly / ad-hoc runs), which is acceptable outside the stelis parity check.
+    """
+    epoch = os.environ.get('SOURCE_DATE_EPOCH')
+    if epoch:
+        try:
+            return datetime.datetime.fromtimestamp(int(epoch), tz=_UTC)
+        except (ValueError, OverflowError, OSError):
+            pass  # malformed epoch → treat as unset (per the SOURCE_DATE_EPOCH spec)
+    return datetime.datetime.now(tz=_UTC)
+
+
 def main() -> None:
     """Connect to beeatlas.duckdb and write the determinations feed and all variants."""
     con = duckdb.connect(DB_PATH, read_only=True)
     con.execute("INSTALL spatial; LOAD spatial;")
-    run_time = datetime.datetime.now(tz=_UTC)
+    run_time = _run_time()
     write_determinations_feed(con, ASSETS_DIR)
     entries = write_all_variants(con, ASSETS_DIR, run_time)
     write_index_json(ASSETS_DIR, entries)
