@@ -20,6 +20,7 @@ import json
 
 from sqlalchemy.orm import Session
 
+from assemble_notes import assemble_notes
 from notes_harvest import export_notes
 from notes_store.db import make_engine
 from notes_store.models import Base, Note, User
@@ -124,6 +125,7 @@ def test_harvest_approved_only_newest_first_with_byline(tmp_path):
         session.commit()
 
     export_notes(engine=engine, assets_dir=assets_dir)
+    assemble_notes(assets_dir=assets_dir)
 
     out = json.loads((assets_dir / "notes.json").read_text(encoding="utf-8"))
 
@@ -204,6 +206,7 @@ def test_harvest_excludes_hidden(tmp_path):
         session.commit()
 
     export_notes(engine=engine, assets_dir=assets_dir)
+    assemble_notes(assets_dir=assets_dir)
 
     out = json.loads((assets_dir / "notes.json").read_text(encoding="utf-8"))
 
@@ -225,6 +228,7 @@ def test_harvest_empty_store_emits_empty_record(tmp_path):
     assets_dir = tmp_path / "assets"
 
     export_notes(engine=engine, assets_dir=assets_dir)
+    assemble_notes(assets_dir=assets_dir)
 
     out = json.loads((assets_dir / "notes.json").read_text(encoding="utf-8"))
     assert out == {}
@@ -257,6 +261,7 @@ def test_harvest_missing_collectors_json_falls_back(tmp_path):
         session.commit()
 
     export_notes(engine=engine, assets_dir=assets_dir)
+    assemble_notes(assets_dir=assets_dir)
 
     out = json.loads((assets_dir / "notes.json").read_text(encoding="utf-8"))
     assert out["apis mellifera"][0]["byline"] == {
@@ -281,3 +286,123 @@ def test_harvest_uses_make_engine_not_raw_sqlite3():
     assert "make_engine" in source
     assert "sqlite3.connect" not in source
     assert "import sqlite3" not in source
+
+
+# ---------------------------------------------------------------------------
+# test_harvest_partial_rewrites_only_given_keys — Stelis st-pd1 targeting
+# ---------------------------------------------------------------------------
+
+
+def test_harvest_partial_rewrites_only_given_keys(tmp_path):
+    """A partial harvest (rebuild_keys) rewrites only those species' files; every
+    other species' file is left byte-identical, and assemble still sees both."""
+    engine = _make_db(tmp_path)
+    assets_dir = tmp_path / "assets"
+    t = datetime.datetime(2026, 7, 1, 12, 0, 0)
+
+    with Session(engine) as session:
+        amy = _make_user(session, "amy_inat", 9, t)
+        session.add_all(
+            [
+                Note(
+                    canonical_name="apis mellifera",
+                    author_id=amy.id,
+                    body="a",
+                    body_html="<p>a</p>",
+                    status="approved",
+                    created_at=t,
+                    updated_at=t,
+                ),
+                Note(
+                    canonical_name="osmia lignaria",
+                    author_id=amy.id,
+                    body="o",
+                    body_html="<p>o</p>",
+                    status="approved",
+                    created_at=t,
+                    updated_at=t,
+                ),
+            ]
+        )
+        session.commit()
+
+    # full harvest -> one file per species
+    export_notes(engine=engine, assets_dir=assets_dir)
+    notes_dir = assets_dir / "notes"
+    assert {p.name for p in notes_dir.glob("*.json")} == {
+        "apis mellifera.json",
+        "osmia lignaria.json",
+    }
+    apis_before = (notes_dir / "apis mellifera.json").read_text(encoding="utf-8")
+
+    # edit osmia's note, then PARTIALLY harvest only osmia
+    with Session(engine) as session:
+        note = (
+            session.query(Note)
+            .filter(Note.canonical_name == "osmia lignaria")
+            .one()
+        )
+        note.body_html = "<p>edited</p>"
+        session.commit()
+    export_notes(engine=engine, assets_dir=assets_dir, rebuild_keys=["osmia lignaria"])
+
+    # apis is byte-identical (not re-harvested); osmia is rewritten
+    assert (notes_dir / "apis mellifera.json").read_text(
+        encoding="utf-8"
+    ) == apis_before
+    osmia = json.loads(
+        (notes_dir / "osmia lignaria.json").read_text(encoding="utf-8")
+    )
+    assert osmia[0]["html"] == "<p>edited</p>"
+
+    # assemble rolls the whole dir up -> notes.json reflects both species
+    assemble_notes(assets_dir=assets_dir)
+    out = json.loads((assets_dir / "notes.json").read_text(encoding="utf-8"))
+    assert set(out.keys()) == {"apis mellifera", "osmia lignaria"}
+    assert out["osmia lignaria"][0]["html"] == "<p>edited</p>"
+
+
+# ---------------------------------------------------------------------------
+# test_full_harvest_clears_retracted_species — retraction on the full path
+# ---------------------------------------------------------------------------
+
+
+def test_full_harvest_clears_retracted_species(tmp_path):
+    """A FULL harvest is the complete keyset: a species that lost its last approved
+    note has its file removed, so assemble's notes.json drops it — matching the old
+    monolithic behaviour (no stale files linger via run.py's always-full path)."""
+    engine = _make_db(tmp_path)
+    assets_dir = tmp_path / "assets"
+    t = datetime.datetime(2026, 7, 1, 12, 0, 0)
+
+    with Session(engine) as session:
+        amy = _make_user(session, "amy_inat", 9, t)
+        session.add(
+            Note(
+                canonical_name="osmia lignaria",
+                author_id=amy.id,
+                body="o",
+                body_html="<p>o</p>",
+                status="approved",
+                created_at=t,
+                updated_at=t,
+            )
+        )
+        session.commit()
+
+    export_notes(engine=engine, assets_dir=assets_dir)  # full
+    assert (assets_dir / "notes" / "osmia lignaria.json").exists()
+
+    # unapprove the only note -> the species has zero approved notes now
+    with Session(engine) as session:
+        note = session.query(Note).one()
+        note.status = "removed"
+        session.commit()
+
+    export_notes(engine=engine, assets_dir=assets_dir)  # full again
+    assert not (assets_dir / "notes" / "osmia lignaria.json").exists(), (
+        "a full harvest must clear the retracted species' stale file"
+    )
+    assemble_notes(assets_dir=assets_dir)
+    out = json.loads((assets_dir / "notes.json").read_text(encoding="utf-8"))
+    assert out == {}, "notes.json drops the retracted species"

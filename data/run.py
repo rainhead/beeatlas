@@ -61,6 +61,7 @@ from places_load import load_places_step
 from places_export import export_places_step
 from collectors_export import export_collectors_step
 from collectors_events_export import export_collectors_events_step
+from assemble_notes import main as assemble_notes_step
 from notes_harvest import main as export_notes_step
 from places_maps import main as generate_place_maps_step
 from sqlite_export import main as generate_sqlite_export
@@ -146,7 +147,10 @@ STEPS: list[tuple[str, Callable]] = [
     # D-12: notes-harvest runs after collectors-export so collectors.json's
     # login set is available for byline resolution. Read-only against the
     # authoritative notes store (D-09/D-16) -- never migrates or writes it.
+    # It writes the per-species notes/ dir (the keyed unit); notes-assemble then
+    # rolls that dir up into the monolithic notes.json _data/notes.js reads.
     ("notes-harvest", export_notes_step),
+    ("notes-assemble", assemble_notes_step),
     ("places-maps", generate_place_maps_step),
     ("feeds", generate_feeds),
 ]
