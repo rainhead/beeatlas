@@ -185,17 +185,22 @@ def test_run_py_never_migrates():
     step_names = re.findall(r'^\s*\(\s*["\']([^"\']+)["\']', text, re.MULTILINE)
     assert step_names, "Could not parse any STEPS names from run.py — regex may need updating"
 
-    _ALLOWED_NOTES_STEP = "notes-harvest"  # Phase 179 D-09: sanctioned read-only harvest
+    # Sanctioned notes STEPS that never touch the AUTHORITATIVE store (D-03/STORE-02):
+    #   notes-harvest  — read-only build-time harvest of the store (Phase 179 D-09)
+    #   notes-assemble — rolls the DERIVED per-species notes/ dir up into notes.json
+    #                    (st-pd1); reads/writes only derived files, never the store.
+    _ALLOWED_NOTES_STEPS = {"notes-harvest", "notes-assemble"}
     bad_steps = [
         name for name in step_names
         if "migrat" in name.lower()
-        or ("notes" in name.lower() and name != _ALLOWED_NOTES_STEP)
+        or ("notes" in name.lower() and name not in _ALLOWED_NOTES_STEPS)
     ]
     assert not bad_steps, (
         f"run.py STEPS contains entries that look like notes migration/write steps: "
         f"{bad_steps}. The nightly pipeline must never migrate or write the "
-        f"authoritative notes store (D-03, STORE-02); only {_ALLOWED_NOTES_STEP!r} "
-        "(a read-only build-time harvest) is permitted."
+        f"authoritative notes store (D-03, STORE-02); only "
+        f"{sorted(_ALLOWED_NOTES_STEPS)} (read-only harvest + derived-only assemble) "
+        "are permitted."
     )
 
 
