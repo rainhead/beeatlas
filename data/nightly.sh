@@ -15,7 +15,9 @@
 #   6. Pull the DuckDB snapshot from S3 to /tmp.
 #   7. Run the data pipeline (Stelis — a content-addressed build over the
 #      data/ scripts; see github.com/rainhead/stelis).
-#   8. Push exports to S3 + invalidate CloudFront.
+#   8. Publish: merge the rendered site + hashed data into SITE_ROOT (the
+#      Apache-served root, ADR 0007) and — while PUBLISH_S3=1 — push exports
+#      to S3 + invalidate CloudFront + dispatch the GH Actions deploy.
 #   9. EXIT trap: back up the DuckDB to S3 even on failure so partial
 #      progress (e.g. occurrence_links) isn't lost.
 #
@@ -48,6 +50,15 @@ EXPORT_DIR="/tmp/beeatlas-export"
 # an empty notes.json — no author note ever reaches the static site.
 NOTES_DB_PATH="${NOTES_DB_PATH:-$HOME/beeatlas-store/notes.db}"
 AWS_PROFILE="${AWS_PROFILE:-beeatlas}"
+# Local serving root (stelis ADR 0007, st-bgy): when this directory exists, the
+# publish step merges the rendered site + hashed data artifacts into it — the
+# Apache DocumentRoot (infra/maderas/beeatlas.net.conf). Absent = local publish
+# skipped, so the nightly is unchanged until the vhost is installed.
+SITE_ROOT="${SITE_ROOT:-/var/www/beeatlas.net}"
+# Kill switch for the S3/CloudFront/GH-dispatch legs. Default ON until the DNS
+# flip to maderas has soaked; then set PUBLISH_S3=0 in crontab. (Deleting the
+# legs outright is st-vjd's post-soak teardown, not this switch's job.)
+PUBLISH_S3="${PUBLISH_S3:-1}"
 TAXA_S3_KEY="raw/taxa.csv.gz"
 TAXA_CACHE_S3_KEY="raw/taxa_cache.json"
 TAXA_PATH="$SCRIPT_DIR/raw/taxa.csv.gz"
@@ -234,37 +245,53 @@ else
     echo "integration gate passed in $(_elapsed $_t0)"
 fi
 
-# 3. Hash artifacts, write manifest.json, push to S3.
+# 3. Hash artifacts, write manifest.json, publish — locally into SITE_ROOT
+# (ADR 0007: the Apache-served root on this host) and, while PUBLISH_S3=1, to
+# S3 + CloudFront as before.
 #
 # Content-hashed filenames (e.g. occurrences-abc123def456.parquet) get
-# Cache-Control: immutable so browsers never re-validate them. The manifest
-# is uploaded no-cache so browsers always fetch the latest hash list.
-# GeoJSON files are uploaded with Content-Type application/json (not
-# application/geo+json) so CloudFront's auto-compression fires on them —
-# AWS's allowlist covers application/json but not the geo+json subtype.
-echo "--- hashing and uploading exports ---"
+# Cache-Control: immutable so browsers never re-validate them (locally the
+# vhost's LocationMatch sets the header). The manifest is published no-cache
+# so browsers always fetch the latest hash list. GeoJSON files are uploaded
+# with Content-Type application/json (not application/geo+json) so
+# CloudFront's auto-compression fires on them — AWS's allowlist covers
+# application/json but not the geo+json subtype.
+echo "--- hashing and publishing exports ---"
 _t0=$(date +%s)
 
-# Upload a file with a content-hash suffix; print the hashed filename.
+_publish_local=""
+if [[ -d "$SITE_ROOT" ]]; then
+    _publish_local=1
+    mkdir -p "$SITE_ROOT/data"
+    if [[ -d "$EXPORT_DIR/site" ]]; then
+        # Merge the rendered site: assets first (new HTML may reference them),
+        # then the page tree with --delete so removed pages prune. /assets and
+        # /data are never deleted on merge — a cached index.html may still
+        # reference last night's hashed bundle (deploy.yml's old
+        # sync-without-delete semantics); age-pruned instead.
+        rsync -a "$EXPORT_DIR/site/assets/" "$SITE_ROOT/assets/"
+        rsync -a --delete --exclude='/assets' --exclude='/data' \
+            "$EXPORT_DIR/site/" "$SITE_ROOT/"
+        find "$SITE_ROOT/assets" -type f -mtime +30 -delete
+    else
+        echo "WARN: $EXPORT_DIR/site missing — site render not merged" >&2
+    fi
+else
+    echo "NOTE: SITE_ROOT $SITE_ROOT absent — local publish skipped (install: docs/runbooks/serve-from-maderas.md)" >&2
+fi
+
+# Upload a file at its content-hashed name (computed by the publish loop).
 _upload_hashed() {
-    local src="$1" basename="$2"; shift 2
-    local ext="${src##*.}"
-    local hash; hash=$(sha256sum "$src" | awk '{print $1}' | cut -c1-12)
-    local hashed_name="${basename}-${hash}.${ext}"
+    local src="$1" hashed_name="$2"; shift 2
     aws --profile "$AWS_PROFILE" s3 cp --no-progress \
         --cache-control "public, max-age=31536000, immutable" \
         "$@" "$src" "s3://$BUCKET/data/$hashed_name" >&2
-    echo "$hashed_name"
 }
 
 # Like _upload_hashed but pre-compresses with gzip and sets Content-Encoding: gzip.
 # CloudFront won't auto-compress application/octet-stream, so we do it ourselves.
-# Hash is computed from the uncompressed source so content addressing is stable.
 _upload_hashed_gz() {
-    local src="$1" basename="$2"; shift 2
-    local ext="${src##*.}"
-    local hash; hash=$(sha256sum "$src" | awk '{print $1}' | cut -c1-12)
-    local hashed_name="${basename}-${hash}.${ext}"
+    local src="$1" hashed_name="$2"; shift 2
     local gz_tmp; gz_tmp=$(mktemp)
     gzip -9 -c "$src" > "$gz_tmp"
     aws --profile "$AWS_PROFILE" s3 cp --no-progress \
@@ -272,7 +299,6 @@ _upload_hashed_gz() {
         --content-encoding gzip \
         "$@" "$gz_tmp" "s3://$BUCKET/data/$hashed_name" >&2
     rm "$gz_tmp"
-    echo "$hashed_name"
 }
 
 # Read occurrences.db tables (stays in bash — sqlite I/O is local, not S3).
@@ -283,14 +309,25 @@ tables = sorted(r[0] for r in con.execute(\"SELECT name FROM sqlite_master WHERE
 print(json.dumps(tables))
 ")
 
-# Upload each artifact from the declarative contract; accumulate name→hashed pairs.
+# Publish each artifact from the declarative contract at its content-hashed
+# name (hash of the uncompressed source, so addressing is stable across the
+# local/S3 legs); accumulate name→hashed pairs for the manifest.
 _mapfile=$(mktemp)
 while IFS=$'\t' read -r _name _src _basename _gzip _ctype; do
-    _fn="_upload_hashed"
-    [[ "$_gzip" == "true" ]] && _fn="_upload_hashed_gz"
-    _call_args=("$EXPORT_DIR/$_src" "$_basename")
-    [[ "$_ctype" != "-" ]] && _call_args+=(--content-type "$_ctype")
-    _hname=$("$_fn" "${_call_args[@]}")
+    _src_path="$EXPORT_DIR/$_src"
+    _ext="${_src_path##*.}"
+    _hname="${_basename}-$(_hash "$_src_path" | cut -c1-12).${_ext}"
+    if [[ -n "$_publish_local" ]]; then
+        cp "$_src_path" "$SITE_ROOT/data/.$_hname.tmp"
+        mv "$SITE_ROOT/data/.$_hname.tmp" "$SITE_ROOT/data/$_hname"
+    fi
+    if [[ "$PUBLISH_S3" == "1" ]]; then
+        _fn="_upload_hashed"
+        [[ "$_gzip" == "true" ]] && _fn="_upload_hashed_gz"
+        _call_args=("$_src_path" "$_hname")
+        [[ "$_ctype" != "-" ]] && _call_args+=(--content-type "$_ctype")
+        "$_fn" "${_call_args[@]}"
+    fi
     printf '%s\t%s\n' "$_name" "$_hname" >> "$_mapfile"
 done < <(python3 $SCRIPT_DIR/artifacts.py publish-plan)
 
@@ -300,35 +337,58 @@ python3 $SCRIPT_DIR/artifacts.py manifest "$_mapfile" \
     --meta "generated_at=$(_ts)" \
     > "$EXPORT_DIR/manifest.json"
 rm "$_mapfile"
-aws --profile "$AWS_PROFILE" s3 cp --no-progress \
-    --cache-control "no-cache" \
-    "$EXPORT_DIR/manifest.json" "s3://$BUCKET/data/manifest.json"
 
-# Feeds, species-maps, and place-maps use stable (non-hashed) URLs for external consumers.
-# collector-maps removed in Phase 172 GC2 — replaced by committed SVG partials in _includes/maps/.
-aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/feeds/" "s3://$BUCKET/data/feeds/"
-aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/species-maps/" "s3://$BUCKET/data/species-maps/"
-aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/place-maps/" "s3://$BUCKET/data/place-maps/"
-echo "exports uploaded in $(_elapsed $_t0)"
+if [[ -n "$_publish_local" ]]; then
+    # Stable-URL directories for external consumers, then age-prune old hashed
+    # artifacts (manifest.json has no hash suffix — untouched), then the
+    # manifest LAST and atomically: every name it resolves already exists by
+    # the time readers (and the SW's NetworkFirst route) can see it.
+    rsync -a --delete "$EXPORT_DIR/feeds/"        "$SITE_ROOT/data/feeds/"
+    rsync -a --delete "$EXPORT_DIR/species-maps/" "$SITE_ROOT/data/species-maps/"
+    rsync -a --delete "$EXPORT_DIR/place-maps/"   "$SITE_ROOT/data/place-maps/"
+    find "$SITE_ROOT/data" -maxdepth 1 -type f -name '*-*.*' -mtime +30 -delete
+    cp "$EXPORT_DIR/manifest.json" "$SITE_ROOT/data/.manifest.json.tmp"
+    mv "$SITE_ROOT/data/.manifest.json.tmp" "$SITE_ROOT/data/manifest.json"
+    echo "local publish into $SITE_ROOT done"
+fi
 
-# 4. Invalidate CloudFront. Hashed artifacts are new URLs each run — no
-# edge cache to clear. Only the manifest and the stable-URL paths need it.
-echo "--- invalidating CloudFront ---"
-_t0=$(date +%s)
-aws --profile "$AWS_PROFILE" cloudfront create-invalidation \
-    --distribution-id "$DISTRIBUTION_ID" \
-    --paths "/data/manifest.json" "/data/feeds/*" "/data/species-maps/*" "/data/place-maps/*" \
-    --query "Invalidation.Id" --output text
-echo "invalidation requested in $(_elapsed $_t0)"
+if [[ "$PUBLISH_S3" == "1" ]]; then
+    aws --profile "$AWS_PROFILE" s3 cp --no-progress \
+        --cache-control "no-cache" \
+        "$EXPORT_DIR/manifest.json" "s3://$BUCKET/data/manifest.json"
+
+    # Feeds, species-maps, and place-maps use stable (non-hashed) URLs for external consumers.
+    # collector-maps removed in Phase 172 GC2 — replaced by committed SVG partials in _includes/maps/.
+    aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/feeds/" "s3://$BUCKET/data/feeds/"
+    aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/species-maps/" "s3://$BUCKET/data/species-maps/"
+    aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/place-maps/" "s3://$BUCKET/data/place-maps/"
+    echo "exports published in $(_elapsed $_t0)"
+
+    # 4. Invalidate CloudFront. Hashed artifacts are new URLs each run — no
+    # edge cache to clear. Only the manifest and the stable-URL paths need it.
+    echo "--- invalidating CloudFront ---"
+    _t0=$(date +%s)
+    aws --profile "$AWS_PROFILE" cloudfront create-invalidation \
+        --distribution-id "$DISTRIBUTION_ID" \
+        --paths "/data/manifest.json" "/data/feeds/*" "/data/species-maps/*" "/data/place-maps/*" \
+        --query "Invalidation.Id" --output text
+    echo "invalidation requested in $(_elapsed $_t0)"
+else
+    echo "S3/CloudFront publish disabled (PUBLISH_S3=0)"
+fi
 
 echo "=== pipeline complete $(_ts) ==="
 
 [[ -n "$HEALTHCHECK_URL" ]] && curl -fsS --retry 3 --max-time 10 "$HEALTHCHECK_URL" > /dev/null
 
 # Trigger GitHub Actions deploy so collector pages refresh from today's S3 data.
+# Gated with the S3 legs: deploy.yml builds FROM S3, so with PUBLISH_S3=0 a
+# dispatch would rebuild the retired S3 site from stale data.
 GH_DISPATCH_PAT_FILE="${GH_DISPATCH_PAT_FILE:-$HOME/.secrets/beeatlas-github-pat}"
 echo "--- triggering repository_dispatch ---"
-if [[ -f "$GH_DISPATCH_PAT_FILE" && -r "$GH_DISPATCH_PAT_FILE" ]]; then
+if [[ "$PUBLISH_S3" != "1" ]]; then
+    echo "  skipped (PUBLISH_S3=0)"
+elif [[ -f "$GH_DISPATCH_PAT_FILE" && -r "$GH_DISPATCH_PAT_FILE" ]]; then
     GH_PAT=$(cat "$GH_DISPATCH_PAT_FILE")
     curl -fsS --retry 3 --max-time 15 \
         -X POST \
