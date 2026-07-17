@@ -16,10 +16,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { buildDataDir } from '../lib/build-data-dir.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
-const notesPath = join(repoRoot, 'public/data/notes.json');
+const notesPath = join(buildDataDir(repoRoot), 'notes.json');
 
 let result = {};
 if (existsSync(notesPath)) {

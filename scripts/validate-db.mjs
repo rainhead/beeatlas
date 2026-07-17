@@ -12,6 +12,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildDataDir } from '../lib/build-data-dir.js';
 
 const REQUIRED_TABLES = ['geo_blob', 'occurrences', 'occurrence_places'];
 
@@ -28,10 +29,10 @@ const isCli =
 
 if (isCli) {
   const ROOT = new URL('..', import.meta.url).pathname;
-  const MANIFEST_PATH = join(ROOT, 'public/data/manifest.json');
+  const MANIFEST_PATH = join(buildDataDir(ROOT), 'manifest.json');
 
   if (!existsSync(MANIFEST_PATH)) {
-    console.warn('! public/data/manifest.json: not found — skipping occurrences.db schema check');
+    console.warn(`! ${MANIFEST_PATH}: not found — skipping occurrences.db schema check`);
     process.exit(0);
   }
 

@@ -19,16 +19,18 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { buildDataDir } from '../lib/build-data-dir.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
+const dataDir = buildDataDir(repoRoot);
 
-const placesArray = JSON.parse(readFileSync(join(repoRoot, 'public/data/places.json'), 'utf8'));
+const placesArray = JSON.parse(readFileSync(join(dataDir, 'places.json'), 'utf8'));
 
-const detailsPath = join(repoRoot, 'public/data/place_details.json');
+const detailsPath = join(dataDir, 'place_details.json');
 const details = existsSync(detailsPath)
   ? JSON.parse(readFileSync(detailsPath, 'utf8'))
-  : (console.warn('[places.js] public/data/place_details.json absent — place pages render without species/timing (fetch from S3 for full data)'), []);
+  : (console.warn(`[places.js] ${detailsPath} absent — place pages render without species/timing (fetch from S3 for full data)`), []);
 
 const detailBySlug = new Map(details.map((d) => [d.slug, d]));
 for (const place of placesArray) {

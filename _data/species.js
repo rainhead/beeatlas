@@ -12,12 +12,14 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { buildDataDir } from '../lib/build-data-dir.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
-const speciesJsonPath = join(repoRoot, 'public/data/species.json');
-const seasonalityJsonPath = join(repoRoot, 'public/data/seasonality.json');
-const higherTaxaPath = join(repoRoot, 'public/data/higher_taxa.json');
+const dataDir = buildDataDir(repoRoot);
+const speciesJsonPath = join(dataDir, 'species.json');
+const seasonalityJsonPath = join(dataDir, 'seasonality.json');
+const higherTaxaPath = join(dataDir, 'higher_taxa.json');
 
 const raw = JSON.parse(readFileSync(speciesJsonPath, 'utf8'));
 const higherTaxa = JSON.parse(readFileSync(higherTaxaPath, 'utf8'));

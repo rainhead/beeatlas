@@ -19,6 +19,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import TOML from '@iarna/toml';
+import { buildDataDir } from '../lib/build-data-dir.js';
 
 export const LICENSE_WHITELIST = new Set([
   'cc0', 'cc-by', 'cc-by-nc', 'cc-by-sa', 'cc-by-nc-sa',
@@ -76,7 +77,7 @@ const isCli =
 if (isCli) {
   const ROOT = new URL('..', import.meta.url).pathname;
   const MANIFEST = process.argv[2] ? resolve(process.argv[2]) : join(ROOT, 'content/species-photos.toml');
-  const SPECIES_JSON = join(ROOT, 'public/data/species.json');
+  const SPECIES_JSON = join(buildDataDir(ROOT), 'species.json');
 
   if (!existsSync(MANIFEST)) {
     console.error(`x ${MANIFEST}: not found`);

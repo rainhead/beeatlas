@@ -16,10 +16,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { buildDataDir } from '../lib/build-data-dir.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
-const speciesHostsPath = join(repoRoot, 'public/data/species_hosts.json');
+const speciesHostsPath = join(buildDataDir(repoRoot), 'species_hosts.json');
 
 let result = {};
 if (existsSync(speciesHostsPath)) {
