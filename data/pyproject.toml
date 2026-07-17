@@ -11,7 +11,7 @@ dependencies = [
     "pyogrio>=0.11",  # GDAL-bundling reader for the PAD-US wilderness GDB (attribute-filter pushdown; see geographies_pipeline)
     "requests",
     "beautifulsoup4",
-    "boto3>=1.43.45",
+    "boto3>=1.43.50",
     "dateparser",
     "pygbif",
     "rapidfuzz",
