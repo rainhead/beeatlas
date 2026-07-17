@@ -33,23 +33,35 @@ curl -sI -H 'Host: beeatlas.net' http://45.79.96.48/data/manifest.json | grep -i
 # any hashed asset from the manifest: expect max-age=31536000, immutable
 ```
 
-## 3. DNS flip (Route 53)
+## 3. DNS flip — through CDK, never a manual Route 53 edit
 
-The apex is an ALIAS to CloudFront; `www` points there too. Replace both
-with plain A records to maderas (TTL 300 while soaking):
+The apex + `www` records are **CDK-managed** (`infra/lib/beeatlas-stack.ts`,
+the `NetA*` / `NetAAAA*` records). A hand-run `aws route53` UPSERT would drift
+and be reverted on the next `cdk deploy` — the "never hand-edit Route 53"
+invariant lives in that file's comments and in `beeatlas/CLAUDE.md` (line 41,
+"AWS via CDK in `infra/`"). The flip itself is already committed: the records
+now target maderas dual-stack (A `45.79.96.48`, AAAA the Linode IPv6). Applying
+it is a CDK deploy from a **local** checkout, which uses your default AWS
+identity — `rainhead` — **not** `--profile beeatlas` (that is nightly.sh's
+maderas data-plane profile, wrong for CDK):
 
 ```sh
-ZONE=$(aws --profile beeatlas route53 list-hosted-zones-by-name --dns-name beeatlas.net \
-        --query 'HostedZones[0].Id' --output text)
-aws --profile beeatlas route53 change-resource-record-sets --hosted-zone-id "$ZONE" \
-  --change-batch '{"Changes":[
-    {"Action":"UPSERT","ResourceRecordSet":{"Name":"beeatlas.net","Type":"A","TTL":300,"ResourceRecords":[{"Value":"45.79.96.48"}]}},
-    {"Action":"UPSERT","ResourceRecordSet":{"Name":"www.beeatlas.net","Type":"A","TTL":300,"ResourceRecords":[{"Value":"45.79.96.48"}]}}]}'
+cd infra
+npx cdk diff BeeAtlasStack        # expect ONLY the four NetA*/NetAAAA* targets
+                                  # moving off the CloudFront alias to maderas —
+                                  # nothing on the bucket / distribution / IAM
+npm run deploy                    # = cdk deploy --all  (or: npx cdk deploy BeeAtlasStack)
 ```
 
-**Rollback** is re-pointing these records at the CloudFront distribution
-(still warm, untouched): restore the apex ALIAS + `www` CNAME to
-`E3SAI2PQ8FN0E7`'s domain name.
+(This checkout currently needs `TS_NODE_TRANSPILE_ONLY=1` in front of `cdk` —
+a pre-existing `@types/node` / ts-node breakage, unrelated to the records.)
+
+The `NetA*` records use CDK's default TTL (30 min); plan rollback timing for
+that, not a 5-minute TTL.
+
+**Rollback** is reverting the flip commit (restores the CloudFront alias
+target) and redeploying — the distribution + siteBucket stay defined and warm
+throughout, so nothing needs to be rebuilt.
 
 ## 4. TLS (after DNS resolves to maderas)
 
