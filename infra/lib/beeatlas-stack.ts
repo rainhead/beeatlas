@@ -143,14 +143,27 @@ export class BeeAtlasStack extends cdk.Stack {
       }
     );
 
-    // ── Route 53 records for beeatlas.net (apex + www) ────────────────────
-    const siteTarget = route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution));
+    // maderas (the Linode serving host): api.beeatlas.net has always resolved
+    // here; as of stelis ADR 0007 (serve-from-maderas) the apex + www do too.
+    const maderasIpv4 = '45.79.96.48';
+    const maderasIpv6 = '2600:3c01::f03c:92ff:feb3:476f';
+
+    // ── Route 53 records for beeatlas.net (apex + www) → maderas (ADR 0007) ──
+    // Flipped from the CloudFront alias to a direct dual-stack A/AAAA at maderas,
+    // which now serves the rendered site via Apache
+    // (infra/maderas/beeatlas.net.conf, docs/runbooks/serve-from-maderas.md) —
+    // the same shape as the api record below. `distribution` + siteBucket stay
+    // DEFINED (never destroyed here): rollback is reverting these records to the
+    // CloudFront alias below and redeploying, while the distribution is still warm.
+    //   const siteTarget = route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution));
     for (const recordName of [undefined, 'www']) {
       new route53.ARecord(this, `NetA${recordName ?? 'Apex'}`, {
-        zone: netZone, recordName, target: siteTarget,
+        zone: netZone, recordName,
+        target: route53.RecordTarget.fromIpAddresses(maderasIpv4),
       });
       new route53.AaaaRecord(this, `NetAAAA${recordName ?? 'Apex'}`, {
-        zone: netZone, recordName, target: siteTarget,
+        zone: netZone, recordName,
+        target: route53.RecordTarget.fromIpAddresses(maderasIpv6),
       });
     }
 
@@ -165,7 +178,7 @@ export class BeeAtlasStack extends cdk.Stack {
     new route53.ARecord(this, 'ApiA', {
       zone: netZone,
       recordName: 'api',
-      target: route53.RecordTarget.fromIpAddresses('45.79.96.48'),
+      target: route53.RecordTarget.fromIpAddresses(maderasIpv4),
     });
 
     // ── Redirect: beeatlas.com → beeatlas.net ─────────────────────────────
