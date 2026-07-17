@@ -139,69 +139,53 @@ def test_no_downgrade():
 
 
 # ---------------------------------------------------------------------------
-# test_run_py_never_migrates — D-03 / T-177-02 / STORE-02
+# test_pipeline_never_migrates — D-03 / T-177-02 / STORE-02
 # ---------------------------------------------------------------------------
 
 
-def test_run_py_never_migrates():
-    """run.py contains no alembic/notes_store/notes.db references (D-03, STORE-02).
+def test_pipeline_never_migrates():
+    """No pipeline module migrates or writes the authoritative notes store.
 
-    The nightly pipeline (run.py) must never migrate or write the authoritative
-    notes store. This test inspects run.py as plain text (never imports it, since
-    that would pull in the whole pipeline) and asserts:
-      1. None of the banned strings appear anywhere in the file.
-      2. No STEPS entry name contains 'migrat', and no STEPS entry name contains
-         'notes' UNLESS it is exactly "notes-harvest" -- the one sanctioned
-         read-only build-time harvest step (Phase 179 D-09/D-16). This narrowing
-         (vs. a blanket "'notes' in name" ban) exists because the harvest step
-         legitimately needs a 'notes'-bearing STEPS name, but the invariant this
-         test guards -- run.py never MIGRATES or WRITES the store -- is unaffected:
-         data/notes_harvest.py only opens notes_store.db.make_engine for reads,
-         and the banned-substring check above still fails loud if the harvest (or
-         any other step) starts referencing alembic/notes_store internals directly
-         from run.py.
+    Successor to test_run_py_never_migrates: run.py is retired (the orchestrator
+    is now Stelis, ~/dev/stelis), so the pipeline surface is the top-level
+    data/*.py task modules Stelis invokes. Inspected as plain text (never
+    imported — that would pull in the whole pipeline):
 
-    STEPS names are extracted by looking for quoted strings on lines that contain
-    the tuple open-paren pattern that defines STEPS entries.
+      1. Only the SANCTIONED modules may reference the store at all:
+           notes_harvest.py — read-only build-time harvest (Phase 179 D-09/D-16,
+                              via notes_store.db.make_engine)
+           backup_notes.py  — WAL-safe read-only snapshot to the backup bucket
+         Every other top-level module must contain none of the banned strings.
+      2. The sanctioned modules must never reference alembic — reading the store
+         is their job; MIGRATING it is forever the operator's (D-03, STORE-02).
+
+    (Which of these modules actually runs, and in what order, is the Stelis
+    graph's contract — cross-repo verification is st-whm.)
     """
-    run_py = _DATA_DIR / "run.py"
-    assert run_py.exists(), f"run.py not found at {run_py}"
-    text = run_py.read_text()
-
-    # Banned substrings: any of these appearing in run.py would mean the pipeline
-    # touches the authoritative store.
     banned = ["notes_store", "alembic", "notes.db", "NOTES_DB_PATH"]
-    for term in banned:
-        assert term not in text, (
-            f"run.py contains {term!r} — the nightly pipeline must never "
-            "migrate or write the authoritative notes store (D-03, STORE-02). "
-            f"Found in: {run_py}"
-        )
+    sanctioned = {"notes_harvest.py", "backup_notes.py"}
 
-    # Parse STEPS entry names: lines like `    ("step-name", some_callable),`
-    # Extract quoted first elements of tuples from the STEPS list.
-    import re
-
-    step_names = re.findall(r'^\s*\(\s*["\']([^"\']+)["\']', text, re.MULTILINE)
-    assert step_names, "Could not parse any STEPS names from run.py — regex may need updating"
-
-    # Sanctioned notes STEPS that never touch the AUTHORITATIVE store (D-03/STORE-02):
-    #   notes-harvest  — read-only build-time harvest of the store (Phase 179 D-09)
-    #   notes-assemble — rolls the DERIVED per-species notes/ dir up into notes.json
-    #                    (st-pd1); reads/writes only derived files, never the store.
-    _ALLOWED_NOTES_STEPS = {"notes-harvest", "notes-assemble"}
-    bad_steps = [
-        name for name in step_names
-        if "migrat" in name.lower()
-        or ("notes" in name.lower() and name not in _ALLOWED_NOTES_STEPS)
-    ]
-    assert not bad_steps, (
-        f"run.py STEPS contains entries that look like notes migration/write steps: "
-        f"{bad_steps}. The nightly pipeline must never migrate or write the "
-        f"authoritative notes store (D-03, STORE-02); only "
-        f"{sorted(_ALLOWED_NOTES_STEPS)} (read-only harvest + derived-only assemble) "
-        "are permitted."
+    modules = sorted(p for p in _DATA_DIR.glob("*.py"))
+    assert modules, f"no pipeline modules found under {_DATA_DIR}"
+    assert sanctioned <= {p.name for p in modules}, (
+        "sanctioned store-reader module(s) missing — update this test's "
+        "sanctioned set if they were renamed"
     )
+
+    for mod in modules:
+        text = mod.read_text()
+        if mod.name in sanctioned:
+            assert "alembic" not in text, (
+                f"{mod.name} references alembic — pipeline modules read the "
+                "authoritative notes store, they never migrate it (D-03, STORE-02)."
+            )
+            continue
+        for term in banned:
+            assert term not in text, (
+                f"{mod.name} contains {term!r} — only {sorted(sanctioned)} may "
+                "touch the authoritative notes store, read-only "
+                "(D-03, STORE-02)."
+            )
 
 
 # ---------------------------------------------------------------------------
