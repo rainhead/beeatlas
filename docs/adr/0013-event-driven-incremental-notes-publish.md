@@ -1,6 +1,22 @@
 # ADR 0013: Event-Driven Incremental Notes Publish (Contributions Live in Seconds)
 
-**Status:** Accepted (owner decisions 2026-07-07)
+**Status:** SUPERSEDED (2026-07-17) by
+[stelis ADR 0007 — serve from the build host](https://github.com/rainhead/stelis/blob/main/docs/adr/0007-serve-from-build-host.md).
+
+The GOAL — a community note live to everyone in seconds — stands and is now
+delivered, but by the opposite mechanism. This ADR's three async layers (Layer 0
+`/api/notes` live-fetch, Layer 1 debounced-worker → S3 publish, Layer 2 targeted
+rebake + scoped CloudFront invalidation) are all retired: beeatlas.net now serves
+from Apache on maderas out of a directory Stelis owns, and a note write publishes
+**synchronously** by shelling out to `stelis --build site` before the response
+returns — reload-sees-it as a build property, not a publish-path race. The owner
+constraint that shaped the async design ("never couple write latency to the
+build") was deliberately revoked (slow single-user POSTs are fine). S3/CloudFront
+drop out of serving entirely. The original text is kept below as the historical
+record; the write path is stelis `st-nee`, the `/api/notes` + S3/CloudFront
+teardown is stelis `st-vjd`.
+
+**Status (original):** Accepted (owner decisions 2026-07-07)
 
 ---
 
