@@ -13,16 +13,18 @@
 #   4. `npm ci` so mapshaper (and any other node-side tooling) is present.
 #   5. `uv sync` in data/ so the Python pipeline deps are present.
 #   6. Pull the DuckDB snapshot from S3 to /tmp.
-#   7. Run the Python pipeline (`run.py` — pure data transformation).
+#   7. Run the data pipeline (Stelis — a content-addressed build over the
+#      data/ scripts; see github.com/rainhead/stelis).
 #   8. Push exports to S3 + invalidate CloudFront.
 #   9. EXIT trap: back up the DuckDB to S3 even on failure so partial
 #      progress (e.g. occurrence_links) isn't lost.
 #
-# Relationship to run.py: run.py is the pure pipeline orchestrator (STEPS
-# list, env-driven via DB_PATH + EXPORT_DIR). It knows nothing about S3,
-# git, cron, or hosting. nightly.sh wraps run.py with the deployment-time
-# concerns above. Local dev typically runs `uv run python run.py` directly
-# (against data/beeatlas.duckdb) and skips this whole wrapper.
+# Relationship to Stelis: Stelis is the pure pipeline orchestrator (a dependency
+# graph over the data/ scripts, env-driven via DB_PATH + EXPORT_DIR + NOTES_DB_PATH).
+# It knows nothing about S3, git, cron, or hosting. nightly.sh wraps Stelis with the
+# deployment-time concerns above. Local dev can run a single task with
+# `racket src/main.rkt --run <task>` from the Stelis checkout, or the whole build
+# with `--build --all`, and skip this wrapper.
 
 set -euo pipefail
 
@@ -165,31 +167,27 @@ else
     echo "WARN: no manifest.json in S3 (first run) — test_dbt_diff will skip (not fail)"
 fi
 
-# 2. Run pipelines.
+# 2. Run pipelines — Stelis (github.com/rainhead/stelis) orchestrates the build.
 #
-# run.py is retiring in favour of Stelis (github.com/rainhead/stelis): the same
-# STEPS as a content-addressed dependency graph — `--build --all` runs every task,
-# but skips work whose inputs are unchanged and is partial-success (a failed task
-# blocks only its dependents), where run.py always ran everything fail-fast. Stelis
-# shells the SAME data/ scripts via uv; it reads the pipeline's DuckDB (DB_PATH) and
-# the notes store (NOTES_DB_PATH) through the env exported below.
+# Stelis models the pipeline as a content-addressed dependency graph: `--build
+# --all` runs every task, but skips work whose inputs are unchanged and is
+# partial-success (a failed task blocks only its dependents; the resulting
+# non-zero exit then aborts publish below via `set -euo pipefail`). It shells the
+# SAME data/ scripts via uv, reading the pipeline's DuckDB (DB_PATH) and the notes
+# store (NOTES_DB_PATH) through the env exported below. Cache + history persist in
+# $STELIS_DIR/.stelis/ across nightlies, so an unchanged nightly is fast.
 #
-# CUTOVER: set STELIS=1 for a supervised run; once trusted, make it the default and
-# delete run.py. Rollback is unsetting STELIS.
+# Replaced run.py (the imperative STEPS loop that always ran everything fail-fast)
+# at the 2026-07-17 cutover. To roll back to run.py, restore it from git history.
 echo "--- running pipelines ---"
 _t0=$(date +%s)
 mkdir -p "$EXPORT_DIR"
 export DB_PATH EXPORT_DIR NOTES_DB_PATH
 cd "$SCRIPT_DIR"
-if [[ -n "${STELIS:-}" ]]; then
-    STELIS_DIR="${STELIS_DIR:-$HOME/dev/stelis}"
-    echo "  orchestrator: stelis --build --all  (STELIS_DIR=$STELIS_DIR)"
-    ( cd "$STELIS_DIR" && BEEATLAS_DIR="$REPO_ROOT" \
-        racket src/main.rkt --build --all --export-dir "$EXPORT_DIR" )
-else
-    echo "  orchestrator: run.py"
-    uv run python run.py
-fi
+STELIS_DIR="${STELIS_DIR:-$HOME/dev/stelis}"
+echo "  orchestrator: stelis --build --all  (STELIS_DIR=$STELIS_DIR)"
+( cd "$STELIS_DIR" && BEEATLAS_DIR="$REPO_ROOT" \
+    racket src/main.rkt --build --all --export-dir "$EXPORT_DIR" )
 echo "--- pipelines done in $(_elapsed $_t0) ---"
 
 # 2b. Run integration (dataset-validation) tier — HARD GATE before publish.
@@ -199,7 +197,7 @@ echo "--- pipelines done in $(_elapsed $_t0) ---"
 # healthcheck ping. Stale data stays live until fixed; monitoring catches
 # the skipped ping.
 #
-# D-01a: The gate runs AFTER run.py builds fresh dbt artifacts (SANDBOX is
+# D-01a: The gate runs AFTER Stelis builds fresh dbt artifacts (SANDBOX is
 # populated) and AFTER block 1c pulled last-night's live data into public/data/
 # (PUBLIC is populated). test_dbt_diff therefore compares fresh sandbox vs
 # currently-live S3 data — the correct regression-diff baseline.

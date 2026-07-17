@@ -56,7 +56,7 @@ Tracked as beads issues; the durable directions:
 ## Constraints
 
 - **Frontend:** TypeScript, Mapbox GL JS, Lit web components, wa-sqlite + hyparquet (client-side query engine), 11ty over Vite. No data bundled with the build — artifacts fetched from CloudFront at runtime.
-- **Pipeline:** dbt-duckdb transforms; `run.py` orchestrator; nightly cron on the `maderas` server (`data/nightly.sh`); publishes to S3 + CloudFront. Python 3.14+.
+- **Pipeline:** dbt-duckdb transforms; [Stelis](https://github.com/rainhead/stelis) orchestrator (content-addressed dependency graph over the `data/` scripts; replaced `run.py` at the 2026-07-17 cutover); nightly cron on the `maderas` server (`data/nightly.sh`); publishes to S3 + CloudFront. Python 3.14+.
 - **Write layer:** SQLite on maderas + a small Flask/WSGI API (Waitress behind Apache) at `api.beeatlas.net` — the one server-runtime exception.
 - **Infra:** AWS via CDK (`infra/`), deployed via GitHub OIDC.
 

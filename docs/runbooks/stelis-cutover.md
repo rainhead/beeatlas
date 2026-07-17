@@ -1,5 +1,11 @@
 # Runbook: retiring run.py in favour of Stelis
 
+> **✅ COMPLETED 2026-07-17.** `nightly.sh` now runs Stelis unconditionally and
+> `data/run.py` has been deleted (recover from git history if a rollback is ever
+> needed). The first green `STELIS=1` nightly published live on 2026-07-17
+> (build 30 ok · 0 failed; integration gate 58 passed). This runbook is retained
+> as the record of how the cutover was done.
+
 Retire `data/run.py` (the imperative STEPS loop) in favour of
 [Stelis](https://github.com/rainhead/stelis) `--build --all` — the same steps as a
 content-addressed dependency graph. Stelis shells the SAME `data/` scripts via uv;

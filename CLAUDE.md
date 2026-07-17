@@ -52,8 +52,9 @@ npm test
 # Production build (tsc --noEmit -> eleventy + Vite)
 npm run build
 
-# Data pipeline
-cd data && python run.py
+# Data pipeline (orchestrated by Stelis — github.com/rainhead/stelis)
+( cd ~/dev/stelis && BEEATLAS_DIR=~/dev/beeatlas \
+    racket src/main.rkt --build --all --export-dir /tmp/beeatlas-export )
 
 # Data pipeline tests (pytest)
 cd data && uv run pytest
@@ -61,7 +62,7 @@ cd data && uv run pytest
 
 ## Known State
 
-- Pipeline runs as `data/nightly.sh` on maderas (nightly cron) — the sole execution path. `data/nightly.sh` is the single repo entry point for the nightly pipeline: it owns NVM activation, `git pull`, `npm ci`, `uv sync`, S3 pull/push, CloudFront invalidation, and (via `run.py`) the data transforms. The crontab knows only host-specific bits (repo location, log path, schedule) — change deployment behavior in `nightly.sh`, not the crontab. `run.py` is the pure pipeline orchestrator (STEPS list, env-driven via `DB_PATH` + `EXPORT_DIR`) and knows nothing about S3 or git. Local dev runs `uv run python run.py` directly against `data/beeatlas.duckdb` and bypasses the wrapper. The dormant Lambda surface (DockerImageFunction + EventBridge schedulers + Function URL) was retired 2026-05-14 (quick task `260514-fcq`).
+- Pipeline runs as `data/nightly.sh` on maderas (nightly cron) — the sole execution path. `data/nightly.sh` is the single repo entry point for the nightly pipeline: it owns NVM activation, `git pull`, `npm ci`, `uv sync`, S3 pull/push, CloudFront invalidation, and (via **Stelis**) the data transforms. The crontab knows only host-specific bits (repo location, log path, schedule) — change deployment behavior in `nightly.sh`, not the crontab. **Stelis** ([github.com/rainhead/stelis](https://github.com/rainhead/stelis)) is the pure pipeline orchestrator — a content-addressed dependency graph over the `data/` scripts, env-driven via `DB_PATH` + `EXPORT_DIR` + `NOTES_DB_PATH` — and knows nothing about S3 or git. It replaced `run.py` (the imperative STEPS loop) at the 2026-07-17 cutover; recover run.py from git history if a rollback is ever needed. Local dev runs the build from the Stelis checkout (`racket src/main.rkt --build --all`, or `--run <task>` for one step) and bypasses the wrapper. The dormant Lambda surface (DockerImageFunction + EventBridge schedulers + Function URL) was retired 2026-05-14 (quick task `260514-fcq`).
 - The dbt contract on `marts/occurrences` (36 columns as of Phase 160) is enforced at every `bash data/dbt/run.sh build`; there is no separate JS schema validator. (Phase 131 dropped the 4 denormalized rank-string columns — `scientificName`, `genus`, `family`, `specimen_inat_taxon_name`; `canonical_name` is retained. Phase 160 dropped the scalar `place_slug`: place membership is now many-to-many via the separately-contracted `marts/occurrence_places` bridge — an occurrence belongs to every place it falls within. See the `project_place_model_many_to_many` memory.)
 - The `/app` SW caches Mapbox basemap assets (StaleWhileRevalidate, 7-day TTL, `mapbox-basemap` cache, token retained, attribution intact) per §2.8.1 of the Mapbox Product Terms; web-SDK offline basemap serving is NOT licensed. Legal analysis in `docs/adr/0001-mapbox-basemap-cache.md`.
 - `data/artifacts.toml` (+ tested `data/artifacts.py`) is the single declarative contract for every published manifest artifact — each carries a `derived`|`authoritative` provenance and the two schema-evolution regimes are machine-enforced (`authoritative` ⇒ never a dbt model, `baseline_diff=false`, forward-only migrations; rebuild/bypass forbidden). See `docs/adr/0002-derived-vs-authoritative-artifacts.md`.

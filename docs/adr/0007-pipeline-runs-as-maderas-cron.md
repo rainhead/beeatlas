@@ -10,14 +10,16 @@ The nightly data pipeline was originally intended to run on AWS Lambda. In pract
 
 ## Decision
 
-The pipeline runs as a **nightly cron on the `maderas` server** via `data/nightly.sh` — the sole execution path. `nightly.sh` owns NVM activation, `git pull`, `npm ci`, `uv sync`, S3 pull/push, and CloudFront invalidation; `run.py` is the pure orchestrator (env-driven via `DB_PATH`/`EXPORT_DIR`) and knows nothing about S3 or git. The crontab holds only host-specific bits.
+The pipeline runs as a **nightly cron on the `maderas` server** via `data/nightly.sh` — the sole execution path. `nightly.sh` owns NVM activation, `git pull`, `npm ci`, `uv sync`, S3 pull/push, and CloudFront invalidation; the orchestrator is the pure build step (env-driven via `DB_PATH`/`EXPORT_DIR`/`NOTES_DB_PATH`) and knows nothing about S3 or git. The crontab holds only host-specific bits.
+
+> **Update (2026-07-17):** the orchestrator is now [Stelis](https://github.com/rainhead/stelis), a content-addressed dependency graph over the `data/` scripts (see [runbook](../runbooks/stelis-cutover.md)). It replaced `run.py`, the original imperative STEPS loop. This ADR's decision — *pipeline as a maderas cron wrapped by `nightly.sh`* — is unchanged; only the orchestrator behind `nightly.sh` changed.
 
 The dormant CDK Lambda surface (DockerImageFunction + EventBridge schedulers + Function URL) was **retired 2026-05-14** (quick task `260514-fcq`).
 
 ## Consequences
 
 - Deployment behavior changes belong in `nightly.sh`, not the crontab.
-- Local dev runs `uv run python run.py` directly against `data/beeatlas.duckdb`, bypassing the wrapper.
+- Local dev runs the build from the Stelis checkout (`racket src/main.rkt --build --all`) against a local DuckDB via `DB_PATH`, bypassing the wrapper.
 - The write layer's server exception (Flask/WSGI on maderas) is unrelated to this and separately justified (see [CLAUDE.md](../../CLAUDE.md) Constraints).
 
 ---
