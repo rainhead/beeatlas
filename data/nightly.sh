@@ -165,13 +165,31 @@ else
     echo "WARN: no manifest.json in S3 (first run) — test_dbt_diff will skip (not fail)"
 fi
 
-# 2. Run pipelines
+# 2. Run pipelines.
+#
+# run.py is retiring in favour of Stelis (github.com/rainhead/stelis): the same
+# STEPS as a content-addressed dependency graph — `--build --all` runs every task,
+# but skips work whose inputs are unchanged and is partial-success (a failed task
+# blocks only its dependents), where run.py always ran everything fail-fast. Stelis
+# shells the SAME data/ scripts via uv; it reads the pipeline's DuckDB (DB_PATH) and
+# the notes store (NOTES_DB_PATH) through the env exported below.
+#
+# CUTOVER: set STELIS=1 for a supervised run; once trusted, make it the default and
+# delete run.py. Rollback is unsetting STELIS.
 echo "--- running pipelines ---"
 _t0=$(date +%s)
 mkdir -p "$EXPORT_DIR"
 export DB_PATH EXPORT_DIR NOTES_DB_PATH
 cd "$SCRIPT_DIR"
-uv run python run.py
+if [[ -n "${STELIS:-}" ]]; then
+    STELIS_DIR="${STELIS_DIR:-$HOME/dev/stelis}"
+    echo "  orchestrator: stelis --build --all  (STELIS_DIR=$STELIS_DIR)"
+    ( cd "$STELIS_DIR" && BEEATLAS_DIR="$REPO_ROOT" \
+        racket src/main.rkt --build --all --export-dir "$EXPORT_DIR" )
+else
+    echo "  orchestrator: run.py"
+    uv run python run.py
+fi
 echo "--- pipelines done in $(_elapsed $_t0) ---"
 
 # 2b. Run integration (dataset-validation) tier — HARD GATE before publish.
