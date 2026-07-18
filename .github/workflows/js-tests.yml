@@ -1,0 +1,33 @@
+name: JS tests
+
+# The CI test legs that survived deploy.yml's deletion (Model Y, stelis ADR
+# 0007 Amendment: "The GH-Actions deploy leg retires (CI test legs remain)").
+# Build/smoke/Lighthouse are NOT here: `npm run build` needs the data dir
+# (fetch-data or pull-published), which CI does not have — the nightly on
+# maderas is where the built site is exercised.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: vitest + typecheck
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+      - run: npm run typecheck

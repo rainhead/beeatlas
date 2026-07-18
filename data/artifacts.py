@@ -331,6 +331,19 @@ def _cmd_baseline_pull_plan(spec: dict, args) -> None:
         print(f"{key}\t{value}\t{source_file}")
 
 
+def _cmd_baseline_files(spec: dict) -> None:
+    """Emit TSV: name, source_file for baseline_diff artifacts.
+
+    The local snapshot/restore plan (Model Y): nightly.sh snapshots these
+    files from EXPORT_DIR after a successful publish and restores them into
+    public/data/ before the next run's integration gate. Unlike
+    baseline-pull-plan it needs no manifest — the baseline lives on the build
+    host, not behind hashed S3 names.
+    """
+    for name, fields in baseline_diff_artifacts(spec).items():
+        print(f"{name}\t{fields['source_file']}")
+
+
 def _cmd_build_time_fetch(spec: dict) -> None:
     """Emit TSV: name, source_file, optional for build_time_fetch artifacts."""
     for name, fields in build_time_fetch_artifacts(spec).items():
@@ -375,6 +388,11 @@ if __name__ == "__main__":
 
     sub.add_parser("build-time-fetch", help="TSV: name/source_file/optional for build-time fetches")
 
+    sub.add_parser(
+        "baseline-files",
+        help="TSV: name/source_file for baseline_diff artifacts (local snapshot plan)",
+    )
+
     args = parser.parse_args()
     spec = load()
 
@@ -395,3 +413,5 @@ if __name__ == "__main__":
         _cmd_baseline_pull_plan(spec, args)
     elif args.verb == "build-time-fetch":
         _cmd_build_time_fetch(spec)
+    elif args.verb == "baseline-files":
+        _cmd_baseline_files(spec)

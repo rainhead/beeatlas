@@ -14,8 +14,9 @@ records are `NetA*` / `NetAAAA*` / `ApiA` in [`lib/beeatlas-stack.ts`](lib/beeat
 A hand-run `aws route53 change-resource-record-sets` is the wrong tool.
 
 Never `cdk destroy` and never touch, in a way that could replace them, the
-`SiteBucket`, either CloudFront distribution, the `GitHubDeployerRole`, or the
-`AuthoritativeBackupBucket` — they hold or serve production state. Additive,
+`SiteBucket`, either CloudFront distribution, the `GitHubDeployerRole`, the
+`AuthoritativeBackupBucket`, or the `PipelineBackupBucket` — they hold or
+serve production state. Additive,
 surgical edits (a new record, a new behavior) are fine; the `api.beeatlas.net`
 record was added exactly that way.
 
@@ -42,9 +43,11 @@ npm run diff      # cdk diff --all   — always review first
 npm run deploy    # cdk deploy --all — or: npx cdk deploy BeeAtlasStack
 ```
 
-Application deploys (the site itself) do **not** go through this stack — CI
-builds and syncs to S3 via the GitHub-OIDC `GitHubDeployerRole` (see
-`.github/workflows/deploy.yml`). CDK is for the infrastructure, not the content.
+Application deploys (the site itself) do **not** go through this stack — the
+maderas nightly builds and merge-swaps the site into the Apache-served root
+(Model Y; `data/nightly.sh`). The GitHub-OIDC `GitHubDeployerRole` and the S3
+sync it powered are retired-in-place pending the st-vjd teardown. CDK is for
+the infrastructure, not the content.
 
 ### Known quirk
 

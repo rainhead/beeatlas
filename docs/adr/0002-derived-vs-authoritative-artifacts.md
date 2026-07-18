@@ -1,6 +1,18 @@
 # ADR 0002: Derived vs Authoritative Artifacts — Schema-Evolution Regimes
 
-**Status:** Accepted (2026-07-02)
+**Status:** Accepted (2026-07-02); amended 2026-07-17 (Model Y — see below)
+
+> **Amendment (2026-07-17, Model Y — stelis ADR 0007 Amendment):** the
+> *published* manifest this ADR describes no longer exists in its fat form.
+> The site build owns publication: `lib/runtime-artifacts.js` +
+> `scripts/postbuild-data.mjs` hash the 6 runtime-fetched binaries and write
+> the SLIM `manifest.json`; build-time-baked artifacts are inlined by 11ty and
+> never published. `data/artifacts.toml` remains authoritative for what this
+> ADR is actually about — the **derived vs. authoritative provenance regimes**
+> (still machine-enforced) — and operationally drives the integration-gate
+> baseline set (`baseline-files`) and the `pull-published` dev pull. Counts
+> and mechanics below describe the pre-Model-Y publish flow; the regimes
+> stand.
 
 ---
 

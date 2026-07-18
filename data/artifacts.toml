@@ -1,11 +1,15 @@
-# data/artifacts.toml — single source of truth for every published artifact.
+# data/artifacts.toml — declarative contract for the data pipeline's artifacts.
 #
-# Purpose: Declarative contract for all 17 published manifest artifacts
-# (15 hashed + 2 metadata) in manifest order (matching nightly.sh heredoc).
+# Model Y (stelis ADR 0007 Amendment): the PUBLISHED runtime manifest is now
+# owned by the site build (lib/runtime-artifacts.js + scripts/
+# postbuild-data.mjs — the slim manifest). This contract's operational surface
+# is the integration-gate baseline set (`baseline-files`, consumed by
+# nightly.sh's local snapshot/restore) and the `pull-published` dev pull
+# (`baseline-pull-plan` against the live manifest). The provenance regimes
+# below (derived vs. authoritative) remain machine-enforced for every artifact.
 #
-# Python (artifacts.py) emits plans (publish-plan, baseline-pull-plan,
-# build-time-fetch, manifest) as text only. All S3 I/O stays in nightly.sh
-# and .github/workflows/deploy.yml per CLAUDE.md: "Python knows nothing about S3".
+# Python (artifacts.py) emits plans as text only. All S3 I/O stays in the
+# shell callers per CLAUDE.md: "Python knows nothing about S3".
 #
 # Schema fields:
 #   provenance              — "derived" | "authoritative"

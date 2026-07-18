@@ -322,6 +322,18 @@ def test_baseline_diff_source_files():
         )
 
 
+def test_baseline_files_plan(capsys):
+    """Model Y: the baseline-files verb emits name<TAB>source_file for every
+    baseline_diff artifact in declared order — nightly.sh's local
+    snapshot/restore plan for the integration-gate baseline."""
+    from artifacts import _cmd_baseline_files
+    spec = load()
+    _cmd_baseline_files(spec)
+    lines = capsys.readouterr().out.strip().splitlines()
+    assert dict(line.split("\t") for line in lines) == _EXPECTED_BASELINE
+    assert [line.split("\t")[0] for line in lines] == list(baseline_diff_artifacts(spec))
+
+
 def test_build_time_fetch_artifacts_set_equality():
     """SC-3: build_time_fetch artifact names == deploy.yml fetch-step keys (7 names),
     with species_hosts and notes optional=true, all others optional=false."""
