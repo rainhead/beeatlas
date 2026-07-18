@@ -43,7 +43,16 @@ def test_verify_cookie_rejects_tampered_token():
     serializer = session.make_serializer("throwaway-test-key")
     token = session.mint_cookie(serializer, internal_id=7, inat_login="beeperson", role="author")
 
-    tampered = token[:-1] + ("a" if token[-1] != "a" else "b")
+    # Mutate the FIRST character, never the last. The token's final character
+    # encodes the tail of the base64url'd HMAC, where 20 signature bytes (160
+    # bits) span 27 characters (162 bits) — the 2 leftover bits are ignored by
+    # the decoder, so {Y, Z, a, b} all decode to the same byte. Substituting
+    # "a" for a signature ending in "Y" therefore yields a *different string
+    # that verifies fine*, failing this assertion 1-in-16 runs (beeatlas-2pi).
+    # Position 0 always carries 6 significant bits, so any swap there is a real
+    # mutation. The payload segment has the same slack-bit hazard at its own
+    # boundary, so tampering with its last character is not a safe alternative.
+    tampered = ("a" if token[0] != "a" else "b") + token[1:]
 
     assert session.verify_cookie(serializer, tampered, max_age_seconds=session.COOKIE_MAX_AGE) is None
 
