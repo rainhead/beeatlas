@@ -337,6 +337,45 @@ function handler(event) {
       description: 'Authoritative backup bucket → NOTES_BACKUP_BUCKET env var on maderas',
     });
 
+    // ── Pipeline Backup Bucket (Model Y step D, st-pry) ───────────────────
+    // Offsite DR for the nightly's working state: the DuckDB (persistent at
+    // /var/www/beeatlas.net/var/ since Model Y) and the taxa cache. Same-host
+    // is not a backup. Mirrors AuthoritativeBackupBucket rather than sharing
+    // it: the duckdb is derived-but-expensive pipeline state, not the
+    // authoritative store, and the buckets retire on different terms. Moving
+    // these keys out of siteBucket (db/*, raw/*) unblocks st-vjd's
+    // site-bucket teardown.
+    const pipelineBackupBucket = new s3.Bucket(this, 'PipelineBackupBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      versioned: true,
+      lifecycleRules: [
+        {
+          expiration: cdk.Duration.days(180),
+          noncurrentVersionExpiration: cdk.Duration.days(180),
+        },
+      ],
+    });
+
+    // Same grant shape as the authoritative bucket: Put/Get only (versioning
+    // is the recovery layer, no DeleteObject), plus ListBucket for restore
+    // drills. The OIDC deployer role gets NO grant here.
+    pipelineUser.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:PutObject', 's3:GetObject'],
+      resources: [pipelineBackupBucket.arnForObjects('*')],
+    }));
+    pipelineUser.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:ListBucket'],
+      resources: [pipelineBackupBucket.bucketArn],
+    }));
+
+    new cdk.CfnOutput(this, 'PipelineBackupBucketName', {
+      value: pipelineBackupBucket.bucketName,
+      description: 'Pipeline backup bucket → PIPELINE_BACKUP_BUCKET in the maderas crontab (nightly.sh backup trap)',
+    });
+
     // ── Outputs (consumed as GitHub Actions secrets) ──────────────────────
     new cdk.CfnOutput(this, 'BucketName', {
       value: siteBucket.bucketName,
