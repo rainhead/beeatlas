@@ -41,8 +41,9 @@ layout: default.njk
           {% if p.large %}data-large="{{ p.large }}"{% endif %}
           {% if p.attribution %}data-attribution="{{ p.attribution }}"{% endif %}
           {% if p.observation_id %}data-observation-url="https://www.inaturalist.org/observations/{{ p.observation_id }}"{% endif %}
-          {# The first photo is the LCP candidate; the rest defer. #}
-          {% if not loop.first %}loading="lazy"{% endif %}
+          {# The first photo is the LCP candidate — eager, and flagged so the
+             intent is explicit rather than an absent attribute. The rest defer. #}
+          {% if loop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %}
           alt="{{ p.caption or sp.scientificName }}">
         {%- if p.attribution -%}
         <figcaption class="attribution">{{ p.attribution }}</figcaption>

@@ -104,11 +104,37 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(html).toMatch(/View \d+ records on the atlas/);
   });
 
-  test('every <img> on a species page has loading="lazy" (PAGE-07 carry-forward, SPE-02/SPE-03)', () => {
+  // The blanket "every img is lazy" rule held until the photo gallery landed.
+  // The first hero photo is now the LCP candidate and is deliberately eager;
+  // lazy-loading it would defer the largest above-the-fold paint. Everything
+  // after it — later gallery slides, the occurrence map — still defers.
+  test('species page with photos: exactly one eager <img>, the first hero photo (PAGE-07, SPE-02/SPE-03)', () => {
     const html = readFileSync(
       resolve(ROOT, '_site/species/Agapostemon/femoratus/index.html'), 'utf-8'
     );
-    const imgs = html.match(/<img\b[^>]*>/g) ?? [];
+    // Guard against a vacuous pass: this assertion is what makes "exactly one
+    // eager image" meaningful. If this species ever loses its photos, this
+    // fails loudly rather than the contract silently going untested.
+    expect(html, 'page under test must actually have a gallery').toContain('<bee-photo-gallery');
+
+    const imgs: string[] = html.match(/<img\b[^>]*>/g) ?? [];
+    const eager = imgs.filter(img => !/loading="lazy"/.test(img));
+    expect(eager.length, `expected exactly 1 eager img, got:\n${eager.join('\n')}`).toBe(1);
+
+    const hero = eager[0]!;
+    expect(imgs.indexOf(hero), 'the eager image must be first in document order').toBe(0);
+    expect(hero, hero).toMatch(/class="photo-hero"/);
+    expect(hero, hero).toMatch(/fetchpriority="high"/);
+  });
+
+  // A species with no photos has no eager image at all — the map must not
+  // become the LCP fetch just because the gallery is absent.
+  test('species page without photos lazy-loads every <img> (SPE-03)', () => {
+    const html = readFileSync(
+      resolve(ROOT, '_site/species/Hoplitis/orthognatha/index.html'), 'utf-8'
+    );
+    expect(html).toContain('No photo available');
+    const imgs: string[] = html.match(/<img\b[^>]*>/g) ?? [];
     for (const img of imgs) {
       expect(img, img).toMatch(/loading="lazy"/);
     }
