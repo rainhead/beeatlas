@@ -102,8 +102,41 @@ layout: default.njk
   </div>
 
   <div class="species-hero">
-    {# Left column: textual facts. #}
+    {# Left column: community notes, then the textual facts.
+       The baked #notes section and the <bee-notes> island must stay adjacent:
+       the island hides #notes by id and renders its author view in its own
+       position, so separating them would put the two views in different places. #}
     <div class="hero-meta">
+      {%- set notesForSpecies = notes[sp.canonical_name] -%}
+      {%- if notesForSpecies and notesForSpecies.length > 0 -%}
+      <section class="notes-section" id="notes">
+        <h2 class="notes-heading">Community notes</h2>
+        <div class="note-list">
+          {%- for note in notesForSpecies -%}
+          <article class="note" data-note-id="{{ note.id }}">
+            <div class="note-body">{{ note.html | safe }}</div>
+            <footer class="note-meta">
+              {%- if note.byline.collector_url -%}
+              <a class="note-byline" href="{{ note.byline.collector_url }}">{{ note.byline.display_name }}</a>
+              {%- else -%}
+              <span class="note-byline">{{ note.byline.display_name }}</span>
+              {%- endif -%}
+              <time class="note-timestamp" datetime="{{ note.created }}">{{ note.created | formatDate }}</time>
+              {%- if note.updated !== note.created -%}
+              <span class="note-edited">(edited)</span>
+              {%- endif -%}
+            </footer>
+          </article>
+          {%- endfor -%}
+        </div>
+      </section>
+      {%- endif -%}
+      <bee-notes id="notes-el"></bee-notes>
+      <script>customElements.whenDefined('bee-notes').then(function(){
+      var el = document.getElementById('notes-el');
+      el.canonicalName = {{ sp.canonical_name | dump | safe }};
+      el.bakedNotes = {{ (notes[sp.canonical_name] or []) | dump | safe }};
+    });</script>
       {%- set hasSociality  = sp.sociality -%}
       {%- set hasDiet       = sp.diet_breadth -%}
       {%- set hasNesting    = sp.nesting -%}
@@ -212,36 +245,6 @@ layout: default.njk
   var el = document.getElementById('sviz');
   el.data = {{ sp.month_histogram | dump | safe }};
   el.onChecklist = {{ sp.on_checklist | dump | safe }};
-});</script>
-  {%- set notesForSpecies = notes[sp.canonical_name] -%}
-  {%- if notesForSpecies and notesForSpecies.length > 0 -%}
-  <section class="notes-section" id="notes">
-    <h2 class="notes-heading">Community notes</h2>
-    <div class="note-list">
-      {%- for note in notesForSpecies -%}
-      <article class="note" data-note-id="{{ note.id }}">
-        <div class="note-body">{{ note.html | safe }}</div>
-        <footer class="note-meta">
-          {%- if note.byline.collector_url -%}
-          <a class="note-byline" href="{{ note.byline.collector_url }}">{{ note.byline.display_name }}</a>
-          {%- else -%}
-          <span class="note-byline">{{ note.byline.display_name }}</span>
-          {%- endif -%}
-          <time class="note-timestamp" datetime="{{ note.created }}">{{ note.created | formatDate }}</time>
-          {%- if note.updated !== note.created -%}
-          <span class="note-edited">(edited)</span>
-          {%- endif -%}
-        </footer>
-      </article>
-      {%- endfor -%}
-    </div>
-  </section>
-  {%- endif -%}
-  <bee-notes id="notes-el"></bee-notes>
-  <script>customElements.whenDefined('bee-notes').then(function(){
-  var el = document.getElementById('notes-el');
-  el.canonicalName = {{ sp.canonical_name | dump | safe }};
-  el.bakedNotes = {{ (notes[sp.canonical_name] or []) | dump | safe }};
 });</script>
 </article>
 <script type="module" src="/src/entries/taxon-page.ts"></script>

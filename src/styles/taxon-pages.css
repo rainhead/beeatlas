@@ -719,14 +719,15 @@ seasonality-viz .viz-fallback { color: #555; font-style: italic; font-size: 0.85
   margin-top: 0.3rem;
 }
 
-/* Phase 179: community notes section on species detail pages.
-   Promoted out of the uppercase-micro-heading taxonomy used by Traits and
-   Collected from — notes are contributed content, not another fact block,
-   so they read as a section of the page in their own right. */
+/* Phase 179: community notes, first block in the species page's left column.
+   Kept out of the uppercase-micro-heading taxonomy used by Traits and
+   Collected from — notes are contributed content, not another fact block —
+   but the separator is on the BOTTOM: this sits at the top of its column, so
+   a top border would read as a stray rule under the photo. */
 .notes-section {
-  margin: 2rem 0 1.5rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--border, #ddd);
+  margin: 0 0 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border, #ddd);
 }
 
 .notes-heading-row {
