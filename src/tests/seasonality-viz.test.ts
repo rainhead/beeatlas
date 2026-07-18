@@ -71,6 +71,41 @@ describe('seasonality-viz (VIZ-01..05)', () => {
     expect(el.querySelector('.sample-size')?.textContent).toBe(expected);
   });
 
+  // The caption lives here, not in the page template: only this component
+  // knows whether it drew bars or the text fallback, and a "bar height"
+  // caption over the fallback would describe something that isn't rendered.
+  test('bar branch captions the chart and names the year range', async () => {
+    await import('../species/seasonality-viz.ts');
+    document.body.innerHTML = `<seasonality-viz></seasonality-viz>`;
+    const el = document.querySelector('seasonality-viz') as any;
+    el.data = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5];
+    el.yearRange = '2023–2025';
+    await el.updateComplete;
+    const caption = el.querySelector('.viz-caption')?.textContent ?? '';
+    expect(caption).toContain('Bar height is records per month, 2023–2025');
+    expect(caption).toContain('Background bands mark the four seasons');
+  });
+
+  test('fallback branch renders no bar caption', async () => {
+    await import('../species/seasonality-viz.ts');
+    document.body.innerHTML = `<seasonality-viz></seasonality-viz>`;
+    const el = document.querySelector('seasonality-viz') as any;
+    el.data = [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    el.yearRange = '2024';
+    await el.updateComplete;
+    expect(el.querySelector('.viz-caption')).toBeNull();
+  });
+
+  test('omits the year clause when no range is supplied', async () => {
+    await import('../species/seasonality-viz.ts');
+    document.body.innerHTML = `<seasonality-viz></seasonality-viz>`;
+    const el = document.querySelector('seasonality-viz') as any;
+    el.data = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5];
+    await el.updateComplete;
+    const caption = el.querySelector('.viz-caption')?.textContent ?? '';
+    expect(caption).toContain('Bar height is records per month.');
+  });
+
   test('VIZ-04 contract: source contains no kde/kernel terminology (pre-binned only)', () => {
     const src = readFileSync(resolve(ROOT, 'src/species/seasonality-viz.ts'), 'utf8');
     expect(src.toLowerCase()).not.toMatch(/\b(kde|kernel)\b/);

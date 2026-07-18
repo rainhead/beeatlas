@@ -682,11 +682,39 @@ const generatedSubgenusKeys = new Set(subgenusList.map((s) => `${s.genus}::${s.s
 const generatedTribeNames = new Set(tribeList.map((t) => t.tribe));
 const generatedSubfamilyNames = new Set(subfamilyList.map((sf) => sf.subfamily));
 
-// Species pages walk the same ladder in their breadcrumb, so they need the same tagging.
+// Species pages walk the same ladder in their breadcrumb. Build it here as
+// data — [{label, href}], href null when no page was generated — so the
+// template renders one uniform loop instead of repeating a
+// rank/has-page/link-or-text branch per rank.
+//
+// A nominotypical subgenus repeats its genus verbatim ("Andrena / Andrena");
+// that rung is dropped because it reads as a rendering fault rather than
+// taxonomy. See docs/adr/0009.
 for (const sp of speciesList) {
-  sp.subfamilyHasPage = !!sp.subfamily && generatedSubfamilyNames.has(sp.subfamily);
-  sp.tribeHasPage = !!sp.tribe && generatedTribeNames.has(sp.tribe);
-  sp.subgenusHasPage = !!sp.subgenus && generatedSubgenusKeys.has(`${sp.genus}::${sp.subgenus}`);
+  const crumbs = [{ label: sp.family, href: null }];
+
+  if (sp.subfamily) {
+    crumbs.push({
+      label: sp.subfamily,
+      href: generatedSubfamilyNames.has(sp.subfamily) ? `/species/subfamily/${sp.subfamily}/index.html` : null,
+    });
+  }
+  if (sp.tribe) {
+    crumbs.push({
+      label: sp.tribe,
+      href: generatedTribeNames.has(sp.tribe) ? `/species/tribe/${sp.tribe}/index.html` : null,
+    });
+  }
+  crumbs.push({ label: sp.genus, href: `/species/${sp.genus}/index.html` });
+  if (sp.subgenus && sp.subgenus !== sp.genus) {
+    crumbs.push({
+      label: sp.subgenus,
+      href: generatedSubgenusKeys.has(`${sp.genus}::${sp.subgenus}`) ? `/species/${sp.genus}/${sp.subgenus}/index.html` : null,
+    });
+  }
+  crumbs.push({ label: sp.specific_epithet, href: null });
+
+  sp.crumbs = crumbs;
 }
 
 for (const g of genusList) {

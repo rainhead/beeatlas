@@ -16,6 +16,7 @@ Shared vocabulary for BeeAtlas. Use these terms precisely — ambiguity here has
 
 - **Collector** — a volunteer, identified by their iNat handle (**self-identified, no auth** — the work half runs on public data). Resolved host-first: `COALESCE(specimen_inat_login, host_inat_login, user_login)` (the sample owner wins over a third-party specimen-photo poster). `display_name` = most-recent `recordedBy`.
 - **Roles: reader / author / curator** (v8.0 write layer) — reading is open; authoring notes is allowlist-gated; a curator can take content down without a deploy.
+- **Community note** — a free-text note contributed by an author against a species (`canonical_name`), shown on that species page. Named for who writes them, not what they contain: the content is often natural history, but nomenclature, identification tips, and local status are equally in scope. Supersedes the earlier UI label "natural history notes", which described only the commonest case. The stored entity is a **note**; "community notes" is the section as a reader sees it.
 
 ## Provenance Facets (the social cut)
 

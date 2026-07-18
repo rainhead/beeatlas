@@ -72,24 +72,38 @@ export class BeePhotoGallery extends LitElement {
     const figures = Array.from(this.querySelectorAll(':scope > figure'));
     if (figures.length === 0) return;
 
-    this._photos = figures.flatMap((fig) => {
-      const img = fig.querySelector('img');
-      if (!img) return [];
-      return [{
-        src: img.getAttribute('src') ?? '',
-        srcset: img.getAttribute('srcset') ?? '',
-        square: img.dataset.square ?? img.getAttribute('src') ?? '',
-        large: img.dataset.large ?? img.getAttribute('src') ?? '',
-        alt: img.getAttribute('alt') ?? '',
-        attribution: img.dataset.attribution ?? '',
-        observationUrl: img.dataset.observationUrl ?? '',
-      }];
-    });
+    const adopted: Array<{ figure: Element; photo: GalleryPhoto }> = [];
+    for (const figure of figures) {
+      const img = figure.querySelector('img');
+      if (!img) continue;
+      const src = img.getAttribute('src') ?? '';
+      adopted.push({
+        figure,
+        photo: {
+          src,
+          srcset: img.getAttribute('srcset') ?? '',
+          // One fallback tier only: the template always emits data-square and
+          // data-large for iNat URLs, and src is the honest stand-in when a
+          // non-iNat URL has no size variants.
+          square: img.dataset.square || src,
+          large: img.dataset.large || src,
+          alt: img.getAttribute('alt') ?? '',
+          attribution: img.dataset.attribution ?? '',
+          observationUrl: img.dataset.observationUrl ?? '',
+        },
+      });
+    }
 
-    for (const fig of figures) fig.remove();
+    if (adopted.length === 0) return;   // nothing usable — leave the baked markup standing
+
+    this._photos = adopted.map((a) => a.photo);
+    // Remove only what we actually took over. A <figure> we could not read
+    // stays in the light DOM rather than vanishing into a blank slot.
+    for (const { figure } of adopted) figure.remove();
   }
 
-  private get _photo(): GalleryPhoto | undefined {
+  // Current slide, falling back to the first if the index is somehow stale.
+  private get _currentPhoto(): GalleryPhoto | undefined {
     return this._photos[this._current] ?? this._photos[0];
   }
 
@@ -99,6 +113,8 @@ export class BeePhotoGallery extends LitElement {
     this._current = (this._current + delta + n) % n;
   }
 
+  // Document-level: only while the lightbox is open, so the closed gallery
+  // never hijacks the page's arrow keys.
   private _onKeydown(e: KeyboardEvent): void {
     if (!this._lightboxOpen) return;
     if (e.key === 'Escape') {
@@ -110,17 +126,38 @@ export class BeePhotoGallery extends LitElement {
     }
   }
 
+  // Strip-level: arrow keys move between thumbnails while focus is inside the
+  // strip. Paired with roving tabindex, so Tab enters the strip once and the
+  // arrows walk it — the usual pattern for a set of related controls.
+  private async _onStripKeydown(e: KeyboardEvent): Promise<void> {
+    const last = this._photos.length - 1;
+    if (e.key === 'ArrowLeft') this._step(-1);
+    else if (e.key === 'ArrowRight') this._step(1);
+    else if (e.key === 'Home') this._current = 0;
+    else if (e.key === 'End') this._current = last;
+    else return;
+
+    e.preventDefault();
+    await this.updateComplete;
+    this.querySelector<HTMLElement>('.thumb[aria-current="true"]')?.focus();
+  }
+
   // Mark every ancestor's siblings inert so keyboard focus cannot leave the
   // lightbox, without inerting this element (which contains the lightbox).
+  //
+  // The walk must climb THROUGH <body> and stop only at its children: the site
+  // header is a body-level sibling of <main>, so terminating one level early
+  // leaves the header's controls tabbable behind an aria-modal overlay.
   private _applyInert(): void {
     let node: Element = this;
-    while (node.parentElement && node.parentElement.tagName !== 'BODY') {
+    while (node.parentElement) {
       for (const sibling of Array.from(node.parentElement.children)) {
         if (sibling !== node && !sibling.hasAttribute('inert')) {
           sibling.setAttribute('inert', '');
           this._inerted.push(sibling);
         }
       }
+      if (node.parentElement.tagName === 'BODY') break;
       node = node.parentElement;
     }
   }
@@ -146,17 +183,6 @@ export class BeePhotoGallery extends LitElement {
     });
   }
 
-  private _renderCaption(photo: GalleryPhoto): TemplateResult {
-    return html`
-      <figcaption class="attribution gallery-caption">
-        <span>${photo.attribution}</span>
-        ${photo.observationUrl
-          ? html`<a class="gallery-source" href=${photo.observationUrl}>View on iNaturalist →</a>`
-          : nothing}
-      </figcaption>
-    `;
-  }
-
   private _renderLightbox(photo: GalleryPhoto): TemplateResult {
     const many = this._photos.length > 1;
     return html`
@@ -167,7 +193,7 @@ export class BeePhotoGallery extends LitElement {
         aria-label="Full-size photo"
         @click=${(e: MouseEvent) => { if (e.target === e.currentTarget) this._closeLightbox(); }}
       >
-        <img src=${photo.large || photo.src} alt=${photo.alt}>
+        <img src=${photo.large} alt=${photo.alt}>
         ${many ? html`
           <button class="lightbox-prev" aria-label="Previous photo" @click=${() => this._step(-1)}>&#x276E;</button>
           <button class="lightbox-next" aria-label="Next photo" @click=${() => this._step(1)}>&#x276F;</button>
@@ -181,9 +207,9 @@ export class BeePhotoGallery extends LitElement {
   }
 
   render(): unknown {
-    const photo = this._photo;
-    // Nothing baked (no photos, or markup we didn't recognize): render nothing
-    // and let the template's placeholder stand.
+    const photo = this._currentPhoto;
+    // Nothing usable was adopted, so the baked figures are still in place —
+    // render nothing rather than covering them.
     if (!photo) return nothing;
 
     const many = this._photos.length > 1;
@@ -203,16 +229,22 @@ export class BeePhotoGallery extends LitElement {
             alt=${photo.alt}
           >
         </button>
-        ${this._renderCaption(photo)}
+        <figcaption class="attribution gallery-caption">
+          <span>${photo.attribution}</span>
+          ${photo.observationUrl
+            ? html`<a class="gallery-source" href=${photo.observationUrl}>View on iNaturalist →</a>`
+            : nothing}
+        </figcaption>
         ${many ? html`
-          <div class="thumb-strip" role="group" aria-label="Choose a photo">
+          <div class="thumb-strip" role="group" aria-label="Choose a photo" @keydown=${(e: KeyboardEvent) => this._onStripKeydown(e)}>
             ${this._photos.map((p, i) => html`
               <button
                 class="thumb"
                 aria-current=${i === this._current ? 'true' : 'false'}
                 aria-label=${`Photo ${i + 1} of ${this._photos.length}`}
+                tabindex=${i === this._current ? 0 : -1}
                 @click=${() => { this._current = i; }}
-              ><img src=${p.square || p.src} alt="" loading="lazy" width="60" height="60"></button>
+              ><img src=${p.square} alt="" loading="lazy" width="60" height="60"></button>
             `)}
           </div>
         ` : nothing}

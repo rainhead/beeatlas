@@ -17,3 +17,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0011](0011-bloom-phenology-ingest.md) | Bloom-phenology ingest — sampled, dual-cadence, static aggregates | Proposed |
 | [0012](0012-wilderness-no-collect-overlay.md) | Wilderness no-collect overlay (PAD-US regions) | Accepted |
 | [0013](0013-event-driven-incremental-notes-publish.md) | Event-driven incremental notes publish (contributions live in seconds) | Accepted |
+| [0014](0014-species-page-information-hierarchy.md) | Species page information hierarchy (sample-size count supersedes stars) | Accepted |

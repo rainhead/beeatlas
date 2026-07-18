@@ -8,18 +8,37 @@ eleventyComputed:
   title: "{{ sp.scientificName }} — BeeAtlas"
 layout: default.njk
 ---
+{# Per-trait provenance, rendered inline rather than hidden in a title
+   attribute: which database a trait came from — and especially whether it was
+   measured for this species or inherited from its genus — is material to a
+   scientific reader. Short labels here, expanded in the .traits-sources note. #}
+{%- macro traitSource(source) -%}
+  {%- if source === 'genus-backbone' %} <span class="trait-source trait-source--inferred">inferred from genus</span>
+  {%- elif source === 'fowler' %} <span class="trait-source">Fowler &amp; Droege</span>
+  {%- elif source === 'beegap-cuckoo' %} <span class="trait-source">Bee-Gap cuckoo host records</span>
+  {%- elif source === 'beegap-species' %} <span class="trait-source">Bee-Gap</span>
+  {%- endif -%}
+{%- endmacro -%}
+
+{# One host-plant family: name, sample count, then its genera. Shared by the
+   first-six list and the disclosure holding the remainder. #}
+{%- macro hostFamily(fam) -%}
+  <li>
+    <span class="host-family">{{ fam.family }}</span>
+    <span class="host-count">{{ fam.sample_count | quantify("sample") }}</span>
+    <span class="host-genera">{% for g in fam.genera %}{%- if loop.index0 < 8 -%}{%- if not loop.first %}, {% endif %}{{ g.genus }}{%- endif -%}{%- endfor %}</span>
+  </li>
+{%- endmacro -%}
+
 <article class="taxon-page">
-  {# Whitespace between crumbs is deliberate: it is the only wrap opportunity in
-     the chain, and without it the full ladder overflows a phone viewport. #}
+  {# Ladder built in _data/species.js. Whitespace between crumbs is deliberate:
+     it is the only wrap opportunity in the chain, and without it the full
+     ladder overflows a phone viewport. #}
   <nav class="breadcrumb">
-    {{ sp.family }}
-    {% if sp.subfamily %}<span class="sep">/</span> {% if sp.subfamilyHasPage %}<a href="/species/subfamily/{{ sp.subfamily }}/index.html">{{ sp.subfamily }}</a>{% else %}{{ sp.subfamily }}{% endif %}{% endif %}
-    {% if sp.tribe %}<span class="sep">/</span> {% if sp.tribeHasPage %}<a href="/species/tribe/{{ sp.tribe }}/index.html">{{ sp.tribe }}</a>{% else %}{{ sp.tribe }}{% endif %}{% endif %}
-    <span class="sep">/</span> <a href="/species/{{ sp.genus }}/index.html">{{ sp.genus }}</a>
-    {# A nominotypical subgenus repeats the genus name verbatim ("Andrena / Andrena"),
-       which reads as a rendering bug rather than taxonomy. #}
-    {% if sp.subgenus and sp.subgenus !== sp.genus %}<span class="sep">/</span> {% if sp.subgenusHasPage %}<a href="/species/{{ sp.genus }}/{{ sp.subgenus }}/index.html">{{ sp.subgenus }}</a>{% else %}{{ sp.subgenus }}{% endif %}{% endif %}
-    <span class="sep">/</span> {{ sp.specific_epithet }}
+    {% for crumb in sp.crumbs %}
+    {%- if not loop.first %}<span class="sep">/</span> {% endif -%}
+    {% if crumb.href %}<a href="{{ crumb.href }}">{{ crumb.label }}</a>{% else %}{{ crumb.label }}{% endif %}
+    {% endfor %}
   </nav>
   <h1><em>{{ sp.scientificName }}</em></h1>
   {%- set photoEntry = photos[sp.scientificName] -%}
@@ -93,9 +112,6 @@ layout: default.njk
       {%- if sp.on_checklist -%}
       <p class="checklist-attribution">Checklist: <a href="https://jhr.pensoft.net/article/129013/">Bartholomew et al. 2024</a></p>
       {%- endif -%}
-      {%- if sp.occurrence_count > 0 -%}
-      <a class="taxon-action taxon-action--primary" href="/?taxon={{ sp.scientificName | urlencode }}&amp;taxonRank=species">View {{ (sp.occurrence_count + (sp.inat_obs_count or 0)) | quantify("record") }} on the atlas →</a>
-      {%- endif -%}
       {%- if sp.taxon_id -%}
       <a class="taxon-action" href="https://www.inaturalist.org/taxa/{{ sp.taxon_id }}">View on iNaturalist →</a>
       {%- endif -%}
@@ -150,28 +166,28 @@ layout: default.njk
         <dl class="traits-dl">
           {%- if hasSociality -%}
           <dt>Sociality</dt>
-          <dd>{%- if sp.sociality === 'Parasitic' %}Cleptoparasitic{%- else %}{{ sp.sociality }}{%- endif %}{% if sp.sociality_source === 'genus-backbone' %} <span class="trait-inferred">inferred from genus</span>{% endif %}</dd>
+          <dd>{%- if sp.sociality === 'Parasitic' %}Cleptoparasitic{%- else %}{{ sp.sociality }}{%- endif %}{{ traitSource(sp.sociality_source) }}</dd>
           {%- endif -%}
           {%- if hasDiet -%}
           <dt>Diet</dt>
-          <dd>{%- if sp.diet_breadth === 'specialist' %}{%- if sp.dietHost %}Specialist ({{ sp.dietHost }}){%- else %}Specialist{%- endif %}{%- else %}Generalist{%- endif %}</dd>
+          <dd>{%- if sp.diet_breadth === 'specialist' %}{%- if sp.dietHost %}Specialist ({{ sp.dietHost }}){%- else %}Specialist{%- endif %}{%- else %}Generalist{%- endif %}{{ traitSource(sp.diet_breadth_source) }}</dd>
           {%- endif -%}
           {%- if hasNesting -%}
           <dt>Nesting</dt>
-          <dd>{{ sp.nesting }}{% if sp.nesting_source === 'genus-backbone' %} <span class="trait-inferred">inferred from genus</span>{% endif %}</dd>
+          <dd>{{ sp.nesting }}{{ traitSource(sp.nesting_source) }}</dd>
           {%- endif -%}
           {%- if hasNative -%}
           <dt>Native status</dt>
-          <dd>{{ sp.native_status | capitalize }}</dd>
+          <dd>{{ sp.native_status | capitalize }}{{ traitSource('beegap-species') }}</dd>
           {%- endif -%}
           {%- if hasHostBees -%}
           <dt>Host bees</dt>
-          <dd>{%- for hb in sp.resolvedHostBees %}{%- if not loop.first %}, {% endif %}{%- if hb.type === "species" %}<a href="/species/{{ hb.slug }}/index.html"><em>{{ hb.name }}</em></a>{%- elif hb.type === "genus" %}<a href="/species/{{ hb.genusName }}/index.html"><em>{{ hb.name }}</em></a>{%- else %}<em>{{ hb.name }}</em>{%- endif %}{%- endfor %}</dd>
+          <dd>{%- for hb in sp.resolvedHostBees %}{%- if not loop.first %}, {% endif %}{%- if hb.type === "species" %}<a href="/species/{{ hb.slug }}/index.html"><em>{{ hb.name }}</em></a>{%- elif hb.type === "genus" %}<a href="/species/{{ hb.genusName }}/index.html"><em>{{ hb.name }}</em></a>{%- else %}<em>{{ hb.name }}</em>{%- endif %}{%- endfor %}{{ traitSource('beegap-cuckoo') }}</dd>
           {%- endif -%}
         </dl>
         <p class="traits-sources">
-          Sources: Bee-Gap 2017{% if sp.diet_breadth_source === 'fowler' %} · Fowler &amp; Droege specialist list{% endif %}.
-          {%- if inferredFromGenus %} Values marked <span class="trait-inferred">inferred from genus</span> are not measured for this species.{% endif -%}
+          Bee-Gap = Bee-Gap 2017 trait database{% if sp.diet_breadth_source === 'fowler' %}; Fowler &amp; Droege = specialist bee list{% endif %}.
+          {%- if inferredFromGenus %} Values marked <span class="trait-source trait-source--inferred">inferred from genus</span> are not measured for this species.{% endif -%}
         </p>
       </section>
       {%- endif -%}
@@ -180,29 +196,13 @@ layout: default.njk
       <section class="collected-from">
         <h2>Collected from</h2>
         <ul class="host-family-list">
-          {%- for fam in hosts -%}
-          {%- if loop.index0 < 6 -%}
-          <li>
-            <span class="host-family">{{ fam.family }}</span>
-            <span class="host-count">{{ fam.sample_count | quantify("sample") }}</span>
-            <span class="host-genera">{% for g in fam.genera %}{%- if loop.index0 < 8 -%}{%- if not loop.first %}, {% endif %}{{ g.genus }}{%- endif -%}{%- endfor %}</span>
-          </li>
-          {%- endif -%}
-          {%- endfor -%}
+          {%- for fam in hosts -%}{%- if loop.index0 < 6 -%}{{ hostFamily(fam) }}{%- endif -%}{%- endfor -%}
         </ul>
         {%- if hosts.length > 6 -%}
         <details class="host-more">
           <summary>{{ hosts.length - 6 }} more {% if hosts.length - 6 === 1 %}family{% else %}families{% endif %}</summary>
           <ul class="host-family-list">
-            {%- for fam in hosts -%}
-            {%- if loop.index0 >= 6 -%}
-            <li>
-              <span class="host-family">{{ fam.family }}</span>
-              <span class="host-count">{{ fam.sample_count | quantify("sample") }}</span>
-              <span class="host-genera">{% for g in fam.genera %}{%- if loop.index0 < 8 -%}{%- if not loop.first %}, {% endif %}{{ g.genus }}{%- endif -%}{%- endfor %}</span>
-            </li>
-            {%- endif -%}
-            {%- endfor -%}
+            {%- for fam in hosts -%}{%- if loop.index0 >= 6 -%}{{ hostFamily(fam) }}{%- endif -%}{%- endfor -%}
           </ul>
         </details>
         {%- endif -%}
@@ -211,18 +211,13 @@ layout: default.njk
     </div>
     {# Right column: the two visualizations, each labelled. #}
     <div class="hero-viz">
-      {# The chart only draws bars above the component's 5-record threshold;
-         below it renders a text fallback, where a "bar height" caption would
-         describe something that isn't on screen. #}
-      {%- set datedRecords = sp.month_histogram | sum -%}
+      {# The caption lives inside seasonality-viz: only the component knows
+         whether it drew bars (its own record threshold) or the text fallback,
+         and a "bar height" caption over the fallback describes nothing. The
+         page supplies just the year span. #}
       <section class="viz-block">
         <h2 class="viz-heading">Flight season</h2>
         <seasonality-viz id="sviz"></seasonality-viz>
-        {%- if datedRecords >= 5 -%}
-        {%- set firstYear = sp.first_occurrence_date.slice(0, 4) if sp.first_occurrence_date else null -%}
-        {%- set lastYear = sp.last_occurrence_date.slice(0, 4) if sp.last_occurrence_date else null -%}
-        <p class="viz-caption">Bar height is records per month{% if firstYear and lastYear %}, {% if firstYear === lastYear %}{{ firstYear }}{% else %}{{ firstYear }}–{{ lastYear }}{% endif %}{% endif %}. Background bands mark the four seasons.</p>
-        {%- endif -%}
       </section>
       {%- if sp.occurrence_count > 0 or sp.on_checklist -%}
       <section class="viz-block">
@@ -238,14 +233,22 @@ layout: default.njk
           Shaded counties are checklist records. No individually mapped occurrences yet.
           {%- endif -%}
         </p>
+        {# The map is a static preview of what this button opens, so the two
+           belong together (beeatlas-coo). #}
+        {%- if sp.occurrence_count > 0 -%}
+        <a class="taxon-action taxon-action--primary" href="/?taxon={{ sp.scientificName | urlencode }}&amp;taxonRank=species">View {{ (sp.occurrence_count + (sp.inat_obs_count or 0)) | quantify("record") }} on the atlas →</a>
+        {%- endif -%}
       </section>
       {%- endif -%}
     </div>
   </div>
+  {%- set firstYear = sp.first_occurrence_date.slice(0, 4) if sp.first_occurrence_date else null -%}
+  {%- set lastYear = sp.last_occurrence_date.slice(0, 4) if sp.last_occurrence_date else null -%}
   <script>customElements.whenDefined('seasonality-viz').then(function(){
   var el = document.getElementById('sviz');
   el.data = {{ sp.month_histogram | dump | safe }};
   el.onChecklist = {{ sp.on_checklist | dump | safe }};
+  el.yearRange = {{ (("" if not firstYear or not lastYear else (firstYear if firstYear === lastYear else firstYear + "–" + lastYear))) | dump | safe }};
 });</script>
 </article>
 <script type="module" src="/src/entries/taxon-page.ts"></script>

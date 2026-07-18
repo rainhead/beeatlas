@@ -87,6 +87,41 @@ describe('bee-photo-gallery', () => {
     expect(el.querySelector('img')).toBeNull();
   });
 
+  // Removing a figure we could not read would leave a blank slot where a photo
+  // used to be — worse than the un-upgraded markup.
+  test('a figure without an <img> is left in place, not consumed', async () => {
+    const el = await mount('<figure class="hero-photo"><figcaption>orphaned</figcaption></figure>');
+    expect(el.querySelector('figcaption')?.textContent).toBe('orphaned');
+    expect(el.querySelector('.slide-trigger')).toBeNull();
+  });
+
+  test('unreadable figures are skipped while readable ones still upgrade', async () => {
+    const el = await mount('<figure class="hero-photo"><figcaption>orphaned</figcaption></figure>' + PHOTO(1) + PHOTO(2));
+    expect(el.querySelectorAll('.thumb').length).toBe(2);
+    expect(el.querySelector('figcaption')?.textContent).toBe('orphaned');
+  });
+
+  test('thumbnail strip supports arrow, Home and End keys with roving tabindex', async () => {
+    const el = await mount(PHOTO(1) + PHOTO(2) + PHOTO(3));
+    const strip = el.querySelector('.thumb-strip');
+
+    const tabindexes = () => Array.from(el.querySelectorAll('.thumb')).map((t: any) => t.getAttribute('tabindex'));
+    expect(tabindexes()).toEqual(['0', '-1', '-1']);
+
+    strip.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await el.updateComplete;
+    expect(tabindexes()).toEqual(['-1', '0', '-1']);
+    expect(el.querySelector('img.photo-hero').getAttribute('src')).toContain('/photos/2/');
+
+    strip.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    await el.updateComplete;
+    expect(tabindexes()).toEqual(['-1', '-1', '0']);
+
+    strip.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+    await el.updateComplete;
+    expect(tabindexes()).toEqual(['0', '-1', '-1']);
+  });
+
   test('clicking a thumbnail swaps the main image and moves aria-current', async () => {
     const el = await mount(PHOTO(1) + PHOTO(2) + PHOTO(3));
     const thumbs = el.querySelectorAll('.thumb');
@@ -172,6 +207,32 @@ describe('bee-photo-gallery', () => {
     el.querySelector('.lightbox-close').click();
     await el.updateComplete;
     expect(heading.hasAttribute('inert')).toBe(false);
+  });
+
+  // The site header is a body-level sibling of <main>, NOT inside .taxon-page.
+  // A trap that stops climbing at <main> leaves the header tabbable behind an
+  // aria-modal overlay — which the .taxon-page-only assertion above cannot see.
+  test('lightbox inerts body-level siblings, including the site header', async () => {
+    await import('../species/photo-gallery.ts');
+    document.body.innerHTML = '';
+    const header = document.createElement('bee-header');
+    const main = document.createElement('main');
+    const page = document.createElement('div');
+    page.className = 'taxon-page';
+    page.innerHTML = `<bee-photo-gallery>${PHOTO(1)}</bee-photo-gallery>`;
+    main.appendChild(page);
+    document.body.append(header, main);
+
+    const el = document.querySelector('bee-photo-gallery') as any;
+    await el.updateComplete;
+
+    el.querySelector('.slide-trigger').click();
+    await el.updateComplete;
+    expect(header.hasAttribute('inert'), 'site header must be inert while the lightbox is open').toBe(true);
+
+    el.querySelector('.lightbox-close').click();
+    await el.updateComplete;
+    expect(header.hasAttribute('inert')).toBe(false);
   });
 
   test('disconnecting while the lightbox is open releases inert', async () => {

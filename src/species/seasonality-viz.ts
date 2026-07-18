@@ -39,6 +39,10 @@ const SEASON_BANDS = [
 export class SeasonalityViz extends LitElement {
   @property({ attribute: false }) data: number[] = new Array(12).fill(0);
   @property({ attribute: false }) onChecklist = false;
+  // Year span of the underlying records, e.g. "2023–2025" or "2024". Supplied
+  // by the page; the component owns WHETHER a caption appears (only the bar
+  // branch has bars to explain), the page owns what years to name.
+  @property({ attribute: false }) yearRange = '';
 
   protected createRenderRoot(): HTMLElement {
     return this;
@@ -102,6 +106,10 @@ export class SeasonalityViz extends LitElement {
                 text-anchor="middle">${label}</text>`)}
       </svg>
       <p class="sample-size">Based on ${total} dated record${total === 1 ? '' : 's'}.</p>
+      <p class="viz-caption">
+        Bar height is records per month${this.yearRange ? `, ${this.yearRange}` : ''}.
+        Background bands mark the four seasons.
+      </p>
     `;
   }
 }

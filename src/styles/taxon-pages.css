@@ -595,13 +595,19 @@ seasonality-viz .viz-fallback { color: #555; font-style: italic; font-size: 0.85
   color: var(--text-muted, #666);
 }
 
-/* Provenance caveat: rendered inline rather than hidden in a title attribute,
-   since "not measured for this species" is material to a scientific reader. */
-.trait-inferred {
+/* Per-trait provenance: rendered inline rather than hidden in a title
+   attribute, since which database a value came from — and whether it was
+   measured for this species at all — is material to a scientific reader. */
+.trait-source {
   font-size: 0.7rem;
-  font-style: italic;
   color: var(--text-hint, #767676);
   white-space: nowrap;
+}
+
+/* Genus-inherited values are the caveat that actually changes how a reader
+   should treat the number, so they get italics on top of the muted style. */
+.trait-source--inferred {
+  font-style: italic;
 }
 
 .traits-sources {
