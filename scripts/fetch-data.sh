@@ -32,6 +32,11 @@ fi
 
 mkdir -p "$EXPORT_DIR"
 
+# Optional args scope the build; no args = --all (every target). The st-nee
+# note-write path passes the scoped form:
+#   scripts/fetch-data.sh --from notes-harvest notes.json
+if [[ $# -eq 0 ]]; then set -- --all; fi
+
 cd "$STELIS_DIR"
 exec env BEEATLAS_DIR="$REPO_ROOT" \
-    racket src/main.rkt --build --all --export-dir "$EXPORT_DIR"
+    racket src/main.rkt --build --export-dir "$EXPORT_DIR" "$@"

@@ -92,6 +92,21 @@ if _env_writes_enabled is not None:
 else:
     WRITES_ENABLED = bool(_LAUNCH.get("writes_enabled", False))
 
+# st-nee publish gate (stelis ADR 0007): after a note write commits, the API
+# synchronously republishes the site (data/publish-notes.sh). Default False so
+# tests, CI, and dev checkouts never shell out to a build; the operator flips
+# it on (systemd unit env, or `[launch] note_publish_enabled` in secrets.toml)
+# once the maderas htdocs+var layout exists (Model Y step C). While off,
+# writes still succeed and respond "publish": "pending" — the nightly bakes
+# them. Same precedence pattern as WRITES_ENABLED: env override > toml >
+# default-off.
+_env_note_publish = os.environ.get("NOTE_PUBLISH_ENABLED")
+NOTE_PUBLISH_ENABLED: bool
+if _env_note_publish is not None:
+    NOTE_PUBLISH_ENABLED = _env_note_publish.lower() == "true"
+else:
+    NOTE_PUBLISH_ENABLED = bool(_LAUNCH.get("note_publish_enabled", False))
+
 # Loopback port Waitress binds (api/serve.py); Apache mod_proxy_http reverse-
 # proxies https://api.beeatlas.net -> 127.0.0.1:<port> (D-17). Sourced from
 # the `[serve] port` key in api/secrets.toml, default 8080 if absent; a

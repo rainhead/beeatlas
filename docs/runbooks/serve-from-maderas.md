@@ -116,3 +116,32 @@ First-run expectations: the integration diff tests **skip** (no
 `var/baseline/` snapshot yet — it is written after the first successful
 publish); `var/export/` starts empty so Stelis rebuilds everything once. The
 taxa cache stays in the checkout (`data/raw/`) as before.
+
+## 7. Enable the synchronous note publish (st-nee — after §6 + one green nightly)
+
+A committed note write (create/edit/delete/takedown/restore) republishes the
+site before responding (`data/publish-notes.sh`: shared flock → scoped stelis
+notes build → full 11ty render → merge-swap). The gate defaults **off**;
+writes still succeed while it's off and respond `"publish": "pending"` — the
+nightly bakes them. Flip it on only once the §6 layout exists and a nightly
+has published green (the publish script assumes `var/export/` is populated —
+a scoped notes build on an empty export dir has nothing to render against).
+
+```sh
+# in ~/.config/systemd/user/beeatlas-api.service, alongside NOTES_DB_PATH:
+Environment=NOTE_PUBLISH_ENABLED=true
+systemctl --user daemon-reload && systemctl --user restart beeatlas-api
+```
+
+Two operational notes:
+
+- **Proxy timeout.** The publish legitimately takes ~30–90 s (render + rsync,
+  plus up to `PUBLISH_LOCK_WAIT` (60 s) waiting out a concurrent publish).
+  Apache's default `Timeout`/`ProxyTimeout` (60 s) can drop the proxied
+  response mid-publish — set `ProxyTimeout 300` in the `api.beeatlas.net`
+  vhost. The API's own subprocess bound is `NOTE_PUBLISH_TIMEOUT` (default
+  300 s).
+- **Nightly collision.** If the nightly holds the publish lock, the write
+  returns `"pending"` after the lock wait (exit 75 from the script — logged
+  as deferred, not an error): the run holding the lock reads the same
+  committed store, so that nightly (or the next) bakes the note.

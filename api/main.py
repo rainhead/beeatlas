@@ -31,8 +31,11 @@ Do NOT inline note CRUD here — that is Phase 179.
 """
 
 import datetime
+import os
 import secrets as _secrets
+import subprocess
 import tomllib
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from flask import Flask, abort, g, jsonify, redirect, request
@@ -343,6 +346,70 @@ def write_check():
 # cap on note length; not a locked requirement, planner's discretion.
 _NOTE_BODY_MAX_LENGTH = 5000
 
+# ---------------------------------------------------------------------------
+# st-nee: synchronous burned-in publish (stelis ADR 0007). After a write
+# route commits, it calls _publish_notes(); the response's "publish" field
+# distinguishes "live" (the note is baked into the served pages) from
+# "pending" (saved, not yet baked — the nightly repairs). Slow POSTs are
+# accepted with eyes open (ADR: the old "never couple write latency to the
+# build" constraint was revoked).
+# ---------------------------------------------------------------------------
+
+_PUBLISH_SCRIPT = Path(__file__).resolve().parent.parent / "data" / "publish-notes.sh"
+# Bounded so a wedged build can't hold a request forever; generous because a
+# legitimate publish takes ~30s+ (scoped stelis + full 11ty render + rsync,
+# behind up to PUBLISH_LOCK_WAIT of flock wait).
+_PUBLISH_TIMEOUT = int(os.environ.get("NOTE_PUBLISH_TIMEOUT", "300"))
+_PUBLISH_LOCK_BUSY = 75  # EX_TEMPFAIL from publish-notes.sh: the nightly holds the flock
+
+
+def _publish_notes(canonical_name: str) -> str:
+    """Republish the site after a committed note write; never raises.
+
+    Returns "live" or "pending". Commit-first (ADR 0007): the caller has
+    already committed, and nothing here may unwind that — every failure
+    path degrades to "pending" with a loud log, never an exception. The
+    changed canonical_name is for the log only; stelis derives the keys to
+    re-harvest from the notes-store digest itself (st-2k9/st-pd1).
+    """
+    if not config.NOTE_PUBLISH_ENABLED:
+        return "pending"
+    try:
+        proc = subprocess.run(
+            ["bash", str(_PUBLISH_SCRIPT)],
+            capture_output=True,
+            text=True,
+            timeout=_PUBLISH_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        app.logger.error(
+            "note publish TIMED OUT after %ss (%s) — publish pending, nightly repairs",
+            _PUBLISH_TIMEOUT,
+            canonical_name,
+        )
+        return "pending"
+    except OSError:
+        app.logger.exception("note publish failed to launch (%s)", canonical_name)
+        return "pending"
+    if proc.returncode == 0:
+        app.logger.info("note publish live (%s)", canonical_name)
+        return "live"
+    if proc.returncode == _PUBLISH_LOCK_BUSY:
+        app.logger.warning(
+            "note publish deferred (%s): publish lock busy — the holder bakes the committed note",
+            canonical_name,
+        )
+    else:
+        app.logger.error(
+            "note publish FAILED rc=%s (%s) — publish pending, nightly repairs\n"
+            "stdout tail: %s\nstderr tail: %s",
+            proc.returncode,
+            canonical_name,
+            proc.stdout[-2000:],
+            proc.stderr[-2000:],
+        )
+    return "pending"
+
 
 @app.post("/api/notes")
 @auth.require_author
@@ -389,7 +456,12 @@ def create_note():
             )
         )
         db_session.commit()
-        return jsonify({"id": note.id}), 201
+        note_id = note.id
+
+    # st-nee: publish AFTER the session block — the commit is durable and no
+    # DB handle is held open across the ~30s build.
+    publish = _publish_notes(canonical_name)
+    return jsonify({"id": note_id, "publish": publish}), 201
 
 
 @app.patch("/api/notes/<int:note_id>")
@@ -434,7 +506,11 @@ def edit_note(note_id):
             )
         )
         db_session.commit()
-        return jsonify({"id": note.id}), 200
+        note_id = note.id
+        canonical_name = note.canonical_name
+
+    publish = _publish_notes(canonical_name)
+    return jsonify({"id": note_id, "publish": publish}), 200
 
 
 @app.delete("/api/notes/<int:note_id>")
@@ -470,7 +546,13 @@ def delete_note(note_id):
             )
         )
         db_session.commit()
-        return jsonify({"id": note.id}), 200
+        note_id = note.id
+        canonical_name = note.canonical_name
+
+    # st-nee: a delete must also republish — the note has to LEAVE the baked
+    # pages, not just the live endpoint.
+    publish = _publish_notes(canonical_name)
+    return jsonify({"id": note_id, "publish": publish}), 200
 
 
 @app.post("/api/notes/<int:note_id>/takedown")
@@ -541,7 +623,13 @@ def takedown_note(note_id):
             )
         )
         db_session.commit()
-        return jsonify({"id": note.id}), 200
+        note_id = note.id
+        canonical_name = note.canonical_name
+
+    # st-nee: a takedown must republish so the hidden note leaves the baked
+    # pages immediately, not at the next nightly.
+    publish = _publish_notes(canonical_name)
+    return jsonify({"id": note_id, "publish": publish}), 200
 
 
 @app.post("/api/notes/<int:note_id>/restore")
@@ -596,7 +684,11 @@ def restore_note(note_id):
             )
         )
         db_session.commit()
-        return jsonify({"id": note.id}), 200
+        note_id = note.id
+        canonical_name = note.canonical_name
+
+    publish = _publish_notes(canonical_name)
+    return jsonify({"id": note_id, "publish": publish}), 200
 
 
 @app.get("/api/notes")

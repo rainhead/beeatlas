@@ -37,6 +37,9 @@ def _base_env(monkeypatch):
     monkeypatch.setattr(config, "SESSION_SIGNING_KEY", "throwaway-test-signing-key")
     monkeypatch.setattr(config, "INAT_CLIENT_ID", "test-client-id")
     monkeypatch.setattr(config, "WRITES_ENABLED", True)
+    # st-nee: hermetic to the developer's secrets.toml — the suite must never
+    # shell out to a real publish; publish-enabled tests opt back in.
+    monkeypatch.setattr(config, "NOTE_PUBLISH_ENABLED", False)
 
 
 @pytest.fixture
@@ -757,3 +760,172 @@ def test_read_notes_is_public_no_session_needed(client, tmp_engine):
     resp = client.get("/api/notes?species=apis mellifera")
     assert resp.status_code == 200
     assert len(resp.get_json()) == 1
+
+
+# ---------------------------------------------------------------------------
+# st-nee: synchronous burned-in publish after a committed write (stelis ADR
+# 0007). The publish subprocess is ALWAYS faked here -- these tests assert
+# the commit-first contract (a failed publish never unwinds the write), the
+# gate (default off, never shells), and that every mutating route publishes
+# with the note's canonical_name.
+# ---------------------------------------------------------------------------
+
+
+def _fake_proc(returncode=0, stdout="", stderr=""):
+    import types
+
+    return types.SimpleNamespace(returncode=returncode, stdout=stdout, stderr=stderr)
+
+
+def test_publish_disabled_is_pending_and_never_shells(client, monkeypatch, tmp_path, tmp_engine):
+    """NOTE_PUBLISH_ENABLED defaults False: the write succeeds with
+    publish=pending and subprocess is never invoked (tests/CI/dev must never
+    trigger a real build)."""
+    uid = _make_user(tmp_engine)
+    _sign_in(client, monkeypatch, tmp_path, uid=uid)
+
+    def _boom(*args, **kwargs):
+        raise AssertionError("publish subprocess must not run when the gate is off")
+
+    monkeypatch.setattr(main.subprocess, "run", _boom)
+
+    resp = client.post(
+        "/api/notes",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"canonical_name": "apis mellifera", "body_md": "hello"},
+    )
+    assert resp.status_code == 201
+    assert resp.get_json()["publish"] == "pending"
+
+
+def test_create_publish_live_invokes_script(client, monkeypatch, tmp_path, tmp_engine):
+    uid = _make_user(tmp_engine)
+    _sign_in(client, monkeypatch, tmp_path, uid=uid)
+    monkeypatch.setattr(config, "NOTE_PUBLISH_ENABLED", True)
+
+    calls = []
+
+    def _fake_run(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return _fake_proc(returncode=0)
+
+    monkeypatch.setattr(main.subprocess, "run", _fake_run)
+
+    resp = client.post(
+        "/api/notes",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"canonical_name": "apis mellifera", "body_md": "hello"},
+    )
+    assert resp.status_code == 201
+    assert resp.get_json()["publish"] == "live"
+    assert len(calls) == 1
+    argv, kwargs = calls[0]
+    assert argv == ["bash", str(main._PUBLISH_SCRIPT)]
+    assert kwargs["timeout"] == main._PUBLISH_TIMEOUT
+
+
+def test_publish_failure_still_saves_note(client, monkeypatch, tmp_path, tmp_engine):
+    """Commit-first (ADR 0007): a failed publish degrades to publish=pending;
+    the note row and its revision are already durable."""
+    uid = _make_user(tmp_engine)
+    _sign_in(client, monkeypatch, tmp_path, uid=uid)
+    monkeypatch.setattr(config, "NOTE_PUBLISH_ENABLED", True)
+    monkeypatch.setattr(
+        main.subprocess, "run", lambda *a, **k: _fake_proc(returncode=1, stderr="rsync exploded")
+    )
+
+    resp = client.post(
+        "/api/notes",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"canonical_name": "apis mellifera", "body_md": "hello"},
+    )
+    assert resp.status_code == 201
+    body = resp.get_json()
+    assert body["publish"] == "pending"
+
+    with Session(tmp_engine) as db_session:
+        note = db_session.get(Note, body["id"])
+        assert note is not None
+        assert note.status == "approved"
+
+
+def test_publish_timeout_is_pending(client, monkeypatch, tmp_path, tmp_engine):
+    uid = _make_user(tmp_engine)
+    _sign_in(client, monkeypatch, tmp_path, uid=uid)
+    monkeypatch.setattr(config, "NOTE_PUBLISH_ENABLED", True)
+
+    def _timeout(*args, **kwargs):
+        raise main.subprocess.TimeoutExpired(cmd="bash", timeout=main._PUBLISH_TIMEOUT)
+
+    monkeypatch.setattr(main.subprocess, "run", _timeout)
+
+    resp = client.post(
+        "/api/notes",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"canonical_name": "apis mellifera", "body_md": "hello"},
+    )
+    assert resp.status_code == 201
+    assert resp.get_json()["publish"] == "pending"
+
+
+def test_publish_lock_busy_is_pending(client, monkeypatch, tmp_path, tmp_engine):
+    """Exit 75 (EX_TEMPFAIL) = the nightly holds the flock; that run bakes the
+    committed note, so pending is the truthful outcome."""
+    uid = _make_user(tmp_engine)
+    _sign_in(client, monkeypatch, tmp_path, uid=uid)
+    monkeypatch.setattr(config, "NOTE_PUBLISH_ENABLED", True)
+    monkeypatch.setattr(main.subprocess, "run", lambda *a, **k: _fake_proc(returncode=75))
+
+    resp = client.post(
+        "/api/notes",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"canonical_name": "apis mellifera", "body_md": "hello"},
+    )
+    assert resp.status_code == 201
+    assert resp.get_json()["publish"] == "pending"
+
+
+def test_every_write_route_publishes_with_canonical_name(client, monkeypatch, tmp_path, tmp_engine):
+    """create/edit/takedown/restore/delete each publish exactly once, with the
+    touched note's canonical_name, and surface the publish field. A curator
+    session exercises all five (a curator passes require_author and owns the
+    note it creates)."""
+    calls = []
+    monkeypatch.setattr(main, "_publish_notes", lambda name: (calls.append(name), "live")[1])
+    uid = _make_user(tmp_engine, login="curator_author")
+    _sign_in(client, monkeypatch, tmp_path, login="curator_author", role="curator", uid=uid)
+    origin = {"Origin": ALLOWED_ORIGIN}
+
+    resp = client.post(
+        "/api/notes", headers=origin, json={"canonical_name": "bombus mixtus", "body_md": "v1"}
+    )
+    assert resp.status_code == 201
+    note_id = resp.get_json()["id"]
+
+    resp = client.patch(f"/api/notes/{note_id}", headers=origin, json={"body_md": "v2"})
+    assert resp.status_code == 200 and resp.get_json()["publish"] == "live"
+
+    resp = client.post(f"/api/notes/{note_id}/takedown", headers=origin, json={})
+    assert resp.status_code == 200 and resp.get_json()["publish"] == "live"
+
+    resp = client.post(f"/api/notes/{note_id}/restore", headers=origin, json={})
+    assert resp.status_code == 200 and resp.get_json()["publish"] == "live"
+
+    resp = client.delete(f"/api/notes/{note_id}", headers=origin)
+    assert resp.status_code == 200 and resp.get_json()["publish"] == "live"
+
+    assert calls == ["bombus mixtus"] * 5
+
+
+def test_rejected_write_never_publishes(client, monkeypatch, tmp_path, tmp_engine):
+    """A write that aborts (404 here) must not trigger a publish."""
+    uid = _make_user(tmp_engine)
+    _sign_in(client, monkeypatch, tmp_path, uid=uid)
+    calls = []
+    monkeypatch.setattr(main, "_publish_notes", lambda name: (calls.append(name), "live")[1])
+
+    resp = client.patch(
+        "/api/notes/99999", headers={"Origin": ALLOWED_ORIGIN}, json={"body_md": "x"}
+    )
+    assert resp.status_code == 404
+    assert calls == []

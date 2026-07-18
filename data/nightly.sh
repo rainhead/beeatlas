@@ -242,38 +242,22 @@ cd "$REPO_ROOT"
 npm run build
 echo "--- site build done in $(_elapsed $_t0) ---"
 
-# 6. Merge-swap into SITE_ROOT (the Apache DocumentRoot).
-#
-# Order is the publish contract:
-#   a. hashed assets + data first, NO --delete — a cached index.html may still
-#      reference last night's hashed names; age-pruned instead (new URLs each
-#      night, so nothing stale is ever re-served under a current name).
-#   b. stable-URL dirs with --delete so removed species/places prune.
-#   c. the page tree with --delete (excluding /assets and /data).
-#   d. manifest.json LAST and atomically: every name it resolves already
-#      exists by the time readers (and the SW's NetworkFirst route) see it.
+# 6. Merge-swap into SITE_ROOT (the Apache DocumentRoot). The rsync sequence
+# lives in data/merge-swap.sh — THE publish contract, shared with the st-nee
+# note-write path (data/publish-notes.sh). Exit 3 = SITE_ROOT absent, which
+# for the nightly is a skip (fresh host), not a failure.
 echo "--- publishing into $SITE_ROOT ---"
 _t0=$(date +%s)
 _published=""
-if [[ -d "$SITE_ROOT" ]]; then
-    mkdir -p "$SITE_ROOT/data"
-    rsync -a "$REPO_ROOT/_site/assets/" "$SITE_ROOT/assets/"
-    rsync -a --exclude='/manifest.json' --exclude='/feeds' \
-        --exclude='/species-maps' --exclude='/place-maps' \
-        "$REPO_ROOT/_site/data/" "$SITE_ROOT/data/"
-    for _dir in feeds species-maps place-maps; do
-        rsync -a --delete "$REPO_ROOT/_site/data/$_dir/" "$SITE_ROOT/data/$_dir/"
-    done
-    rsync -a --delete --exclude='/assets' --exclude='/data' \
-        "$REPO_ROOT/_site/" "$SITE_ROOT/"
-    find "$SITE_ROOT/assets" -type f -mtime +30 -delete
-    find "$SITE_ROOT/data" -maxdepth 1 -type f -name '*-*.*' -mtime +30 -delete
-    cp "$REPO_ROOT/_site/data/manifest.json" "$SITE_ROOT/data/.manifest.json.tmp"
-    mv "$SITE_ROOT/data/.manifest.json.tmp" "$SITE_ROOT/data/manifest.json"
+_swap_rc=0
+BASE_DIR="$BASE_DIR" SITE_ROOT="$SITE_ROOT" bash "$SCRIPT_DIR/merge-swap.sh" || _swap_rc=$?
+if [[ $_swap_rc -eq 0 ]]; then
     _published=1
     echo "published in $(_elapsed $_t0)"
-else
+elif [[ $_swap_rc -eq 3 ]]; then
     echo "NOTE: SITE_ROOT $SITE_ROOT absent — publish skipped (install: docs/runbooks/serve-from-maderas.md)" >&2
+else
+    exit $_swap_rc
 fi
 
 # 7. Snapshot the baseline for tomorrow's gate — only after a successful
