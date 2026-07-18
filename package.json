@@ -17,7 +17,6 @@
   "scripts": {
     "predev": "node scripts/make-local-manifest.js",
     "dev": "eleventy --serve",
-    "build:data": "cd data && uv run python run.py",
     "validate-species": "node scripts/validate-species.mjs",
     "validate-db": "node scripts/validate-db.mjs",
     "validate-bundle-size": "node scripts/validate-bundle-size.mjs",
@@ -28,6 +27,7 @@
     "preview": "vite preview --outDir _site",
     "smoke": "node scripts/smoke-boot.mjs",
     "fetch-data": "bash scripts/fetch-data.sh",
+    "pull-published": "bash scripts/pull-published.sh",
     "measure-lcp": "bash scripts/measure-lcp.sh"
   },
   "devDependencies": {
