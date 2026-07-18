@@ -22,6 +22,7 @@
     "validate-bundle-size": "node scripts/validate-bundle-size.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:data": "BEEATLAS_DATA_TESTS=1 vitest run",
     "build:validate-links": "lychee --config lychee.toml --root-dir _site '_site/**/*.html'",
     "build": "npm run validate-species && npm run validate-db && npm run typecheck && eleventy && npm run validate-bundle-size",
     "postbuild": "node scripts/postbuild-data.mjs",

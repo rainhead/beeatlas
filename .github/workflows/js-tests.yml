@@ -5,6 +5,12 @@ name: JS tests
 # Build/smoke/Lighthouse are NOT here: `npm run build` needs the data dir
 # (fetch-data or pull-published), which CI does not have — the nightly on
 # maderas is where the built site is exercised.
+#
+# Same reason, and the one this workflow originally got wrong (beeatlas-6q2):
+# `npm test` must stay data-free. Any suite that reads the pipeline's artifacts
+# is named *.data.test.ts, excluded in vite.config.ts, and run by the nightly
+# via `npm run test:data`. This job is deliberately credential-free — do not add
+# an AWS fetch step to make a data-dependent test pass here.
 
 on:
   push:

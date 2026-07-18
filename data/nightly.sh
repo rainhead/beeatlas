@@ -231,6 +231,25 @@ else
     echo "integration gate passed in $(_elapsed $_t0)"
 fi
 
+# 4b. JS suites that need the pipeline's artifacts (*.data.test.ts). These are
+# excluded from `npm test` because a clean CI checkout has no data dir — see
+# vite.config.ts and beeatlas-6q2, which is the CI red this split fixes. Here
+# the data exists, so they run for real: EXPORT_DIR is already exported above
+# and lib/build-data-dir.js resolves it ahead of public/data.
+#
+# This is a hard gate, like the integration gate: a failure here means the
+# rendered site would be wrong, so we abort rather than publish. Note that
+# SKIP_INTEGRATION_GATE does NOT bypass it — that flag is scoped to the pytest
+# contract gate above.
+echo "--- JS data-dependent test gate ---"
+_t0=$(date +%s)
+cd "$REPO_ROOT"
+if ! npm run test:data; then
+    echo "JS DATA TEST GATE FAILED in $(_elapsed $_t0) — aborting publish" >&2
+    exit 1
+fi
+echo "JS data test gate passed in $(_elapsed $_t0)"
+
 # 5. Render the site. 11ty inlines the baked artifacts straight from
 # $EXPORT_DIR (lib/build-data-dir.js honors the env), Vite hashes the
 # bundles, and the postbuild step derives _site/data (hashed runtime
