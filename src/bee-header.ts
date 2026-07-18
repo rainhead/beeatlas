@@ -22,11 +22,12 @@ export class BeeHeader extends LitElement {
   // (entry or app root) — bee-header stays a pure presenter, no fetch here.
   @property({ attribute: false }) authState: AuthState | null = null;
 
-  @state() private _popoverOpen = false;
+  // Single account/status menu (beeatlas-j96): one popover behind the account
+  // button carrying auth, offline-cache status, freshness, source link and build.
+  // Replaces the separate cache and account popovers.
+  @state() private _menuOpen = false;
   // Transient iOS A2HS popover open/close — local to presenter, not app state.
   @state() private _iosPopoverOpen = false;
-  // Transient mobile account-menu open/close (username + sign-out behind an icon).
-  @state() private _accountPopoverOpen = false;
   // Set if the iNat avatar image fails to load — falls back to the person glyph.
   @state() private _avatarError = false;
 
@@ -102,19 +103,6 @@ export class BeeHeader extends LitElement {
       border-bottom-color: var(--accent);
     }
 
-    .github-link {
-      color: white;
-      display: flex;
-      align-items: center;
-      padding: 0 0.5rem;
-      opacity: 0.8;
-      text-decoration: none;
-    }
-
-    .github-link:hover {
-      opacity: 1;
-    }
-
     .offline-pill {
       font-size: 0.75rem;
       background: rgba(255, 255, 255, 0.2);
@@ -124,100 +112,31 @@ export class BeeHeader extends LitElement {
       color: white;
     }
 
-    /* D-10 (178-07): sign-in / whoami / sign-out affordance. Text pill buttons
-       rather than .icon-btn chrome since these carry a label, not a glyph. */
-    .auth-btn {
-      background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.4);
-      border-radius: 999px;
-      color: white;
-      cursor: pointer;
-      font-size: 0.75rem;
-      font-family: inherit;
-      padding: 0.35rem 0.75rem;
-      white-space: nowrap;
-      opacity: 0.85;
-    }
-
-    .auth-btn:hover { opacity: 1; }
-
-    .auth-btn:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
-    }
-
-    .whoami {
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-      font-size: 0.75rem;
-      color: white;
-      white-space: nowrap;
-    }
-
+    /* Editor-role chip. Lives inside the white menu surface (its only render
+       site since beeatlas-j96) — NOT on the dark header, so it takes body/accent
+       colours rather than the white-alpha ones it carried when it sat inline in
+       the header, which rendered as invisible bare text on white. */
     .whoami-badge {
+      flex: none;
       font-size: 0.7rem;
+      font-weight: 400;
+      line-height: 1.4;
       border-radius: 999px;
       padding: 0.1rem 0.5rem;
-      border: 1px solid rgba(255, 255, 255, 0.4);
+      border: 1px solid var(--border, #ddd);
+      color: var(--text-hint, #767676);
     }
 
-    .whoami-badge--author { background: rgba(255, 255, 255, 0.25); }
-    .whoami-badge--guest { opacity: 0.7; }
-
-    /* Cache-state button reuses the .icon-btn chrome from the nav icons (44px tap target,
-       opacity ladder, focus ring) so it fits mobile headers without horizontal pressure.
-       The full text status lives in .cache-popover (D-17) — the icon is the entry point. */
-    .cache-icon-btn {
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      color: white;
-      opacity: 0.6;
-      padding: 10px;
-      box-sizing: border-box;
-      min-width: 44px;
-      min-height: 44px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      transition: opacity 200ms ease-out;
-      font-family: inherit;
-    }
-
-    .cache-icon-btn:hover { opacity: 0.9; }
-
-    .cache-icon-btn[data-state="ready"] { opacity: 1.0; }
-    .cache-icon-btn[data-state="incomplete"] { opacity: 0.85; }
-
-    .cache-icon-btn:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
+    .whoami-badge--author {
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+      color: var(--accent);
     }
 
     /* Install button (D-09/D-11): reuses .icon-btn chrome. Focus ring only — no fill accent. */
     .install-btn:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: 2px;
-    }
-
-    .cache-icon-btn__progress-arc {
-      position: absolute;
-      inset: 4px;
-      pointer-events: none;
-    }
-
-    .cache-icon-btn__progress-arc circle {
-      fill: none;
-      stroke: rgba(255, 255, 255, 0.65);
-      stroke-width: 2;
-      stroke-linecap: round;
-      /* circle r=16, circumference ≈ 100.53 — use 100 so pct ≈ stroke-dashoffset */
-      stroke-dasharray: 100;
-      transition: stroke-dashoffset 200ms ease-out;
-      transform: rotate(-90deg);
-      transform-origin: center;
     }
 
     .cache-popover {
@@ -280,38 +199,130 @@ export class BeeHeader extends LitElement {
       line-height: 1.4;
     }
 
-    .cache-popover__update-btn {
-      background: transparent;
-      border: 1px solid var(--accent);
-      border-radius: 4px;
-      color: var(--accent);
-      cursor: pointer;
-      font-size: 0.875rem;
-      padding: 6px 12px;
-      text-align: left;
-      width: 100%;
+    /* ── Account/status menu rows ───────────────────────────────────────────
+       Row treatments follow docs/product/research/menu-patterns-mixed-content.md
+       §8-10. The load-bearing rules, since they are easy to erode by accident:
+
+         · ONE visual treatment per row type. A link row is styled IDENTICALLY
+           to an action row (Primer: LinkItem == Item) — link-vs-action is not a
+           distinction worth drawing visually.
+         · Interactive rows get a 44px min-height and a hover/press background.
+           Status rows get NEITHER: the absent touch box and the absent hover are
+           the signal that a status line is not something you can press. Do not
+           "tidy" them into matching heights.
+         · Actions are plain rows, never outlined buttons (no surveyed system
+           renders an in-menu action as a bordered button; M3 menu items are
+           container-color:transparent with no border token).
+         · Exactly ONE divider, and it separates INTERACTIVE from PASSIVE — not
+           topic from topic (Primer states this explicitly).
+         · Caps: 3 type sizes, 2 text colours, 1 divider, 1 border (the surface's).
+
+       Values here are the §9 proposed tokens inlined; extracting them into real
+       custom properties is beeatlas-06g. */
+
+    /* The menu overrides the shared shell's padding: rows run full-bleed and
+       carry their own inline padding, so the surface contributes block padding
+       only. The A2HS popover keeps the original .cache-popover padding. */
+    .account-popover {
+      padding: 8px 0;
+      gap: 0;
     }
 
-    .cache-popover__update-btn:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
+    /* Non-interactive header block — the account identity. Not a row: no hover,
+       no min-height, no tab stop. */
+    .menu-identity {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      line-height: 1.4;
+      color: var(--text-body, #213547);
     }
+
+    /* Interactive row — actions and links alike. */
+    .menu-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      box-sizing: border-box;
+      min-height: 44px;
+      padding: 10px 16px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      color: var(--text-body, #213547);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.875rem;
+      line-height: 1.5;
+      text-align: left;
+      text-decoration: none;
+    }
+
+    .menu-row:hover { background: rgba(0, 0, 0, 0.05); }
+    .menu-row:active { background: rgba(0, 0, 0, 0.09); }
+
+    .menu-row:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+
+    /* The one emphasized row (update available). Emphasis is a tinted
+       background, never an outline. */
+    .menu-row--emphasis {
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      color: var(--accent);
+    }
+
+    .menu-row--emphasis:hover {
+      background: color-mix(in srgb, var(--accent) 16%, transparent);
+    }
+
+    .menu-row__icon {
+      flex: none;
+      width: 16px;
+      height: 16px;
+    }
+
+    /* The single divider: interactive zone above, passive zone below. */
+    .menu-divider {
+      height: 1px;
+      margin: 8px 0;
+      border: none;
+      background: var(--border, #ddd);
+    }
+
+    /* Passive status — deliberately no min-height, no hover, no focus ring. */
+    .menu-status {
+      padding: 2px 16px;
+      font-size: 0.875rem;
+      line-height: 1.4;
+      color: var(--text-hint, #767676);
+    }
+
+    .menu-meta {
+      padding: 2px 16px;
+      font-size: 0.75rem;
+      line-height: 1.4;
+      color: var(--text-hint, #767676);
+    }
+
+    /* A description belonging to the status line above it, not a peer row. */
+    .menu-status .menu-meta { padding: 0; }
 
     @media (prefers-reduced-motion: reduce) {
-      .cache-popover,
-      .cache-icon-btn__progress-arc circle,
-      .cache-icon-btn {
+      .cache-popover {
         transition: none;
         animation: none;
       }
     }
 
-    /* Auth buttons carry both an icon and a text label; the icon is hidden by
-       default (desktop shows the label) and swapped in at the mobile breakpoint. */
-    .auth-btn { display: inline-flex; align-items: center; gap: 0.3rem; }
-    .auth-icon { display: none; }
-    /* Account avatar button: full opacity (identity should read clearly, unlike the
-       dimmed nav icons) and shown at all sizes — the signed-in affordance. */
+    /* Account/menu button: full opacity (identity should read clearly, unlike the
+       dimmed nav icons). Shown at all sizes and in both auth states — it is the
+       only entry point to the account/status menu (beeatlas-j96). */
     .account-btn { opacity: 1; }
     /* iNaturalist profile image as the account icon (falls back to the person glyph).
        Small ring in the same white as the "BeeAtlas" title. */
@@ -324,34 +335,21 @@ export class BeeHeader extends LitElement {
       border: 1.5px solid white;
     }
 
-    /* Mobile: keep primary nav + a compact identity; condense the secondary
-       account/status chrome. GitHub and the freshness caption drop (freshness
-       still lives in the cache popover); sign-in/out become icon-only, matching
-       the install/cache icon buttons; the editor-role badge is hidden. A
-       hamburger consolidation of this chrome is the planned next step
-       (beeatlas-e6v). */
+    /* Mobile: keep primary nav + the single account/menu button. Since
+       beeatlas-j96 the account/status chrome is one button at every width, so
+       the only mobile-specific work left is reclaiming horizontal space and
+       dropping the freshness caption (it is a row in the menu). */
     @media (max-width: 640px) {
-      /* Safety net: on the very narrowest screens (or if install + cache + sign-in
-         all show at once) let the account/status group wrap to a second line
-         instead of overflowing horizontally. margin-left:auto keeps it
-         right-aligned whether it sits inline or wraps. */
+      /* Safety net: on the very narrowest screens (install + account together)
+         let the trailing group wrap to a second line instead of overflowing.
+         margin-left:auto keeps it right-aligned inline or wrapped. */
       :host { flex-wrap: wrap; row-gap: 2px; }
-      /* Reclaim horizontal space so title + 4 nav icons + the collapsed account
-         chrome fit one row down to ~360px (the icon padding keeps tap targets). */
+      /* Reclaim horizontal space so title + 4 nav icons + the trailing chrome
+         fit one row down to ~360px (the icon padding keeps tap targets). */
       .left-group { gap: 0; }
       .right-group { margin-left: auto; padding-right: 0; }
       h1 { font-size: 1rem; margin-left: 0.5rem; }
       .freshness-caption { display: none; }
-      .github-link { display: none; }
-      .auth-label { display: none; }
-      .auth-icon { display: inline-flex; }
-      .auth-btn {
-        border: none;
-        padding: 10px;
-        min-width: 44px;
-        min-height: 44px;
-        justify-content: center;
-      }
     }
   `;
 
@@ -367,38 +365,31 @@ export class BeeHeader extends LitElement {
     document.removeEventListener('keydown', this._onDocumentKeydown);
   }
 
-  private _togglePopover = (e: Event) => {
-    e.stopPropagation();
-    this._popoverOpen = !this._popoverOpen;
+  // The menu still emits `cache-popover-toggle` on every open/close: bee-atlas
+  // (bee-atlas.ts) uses detail.open to lazily call navigator.storage.estimate()
+  // only when the storage row is about to be shown. Renaming the event would
+  // silently break that lazy fetch.
+  private _setMenuOpen(open: boolean) {
+    this._menuOpen = open;
     this.dispatchEvent(new CustomEvent('cache-popover-toggle', {
-      detail: { open: this._popoverOpen },
+      detail: { open },
       composed: true,
       bubbles: true,
     }));
-  };
+  }
 
-  private _onPopoverDismiss = (e: Event) => {
+  private _toggleMenu = (e: Event) => {
     e.stopPropagation();
-    this._popoverOpen = false;
-    this.dispatchEvent(new CustomEvent('cache-popover-toggle', {
-      detail: { open: false },
-      composed: true,
-      bubbles: true,
-    }));
+    this._setMenuOpen(!this._menuOpen);
   };
 
   private _onDocumentClick = (e: Event) => {
     const path = e.composedPath();
-    if (this._popoverOpen) {
-      const popover = this.shadowRoot?.querySelector('.cache-popover');
-      const pill = this.shadowRoot?.querySelector('.cache-icon-btn');
-      if (popover && !path.includes(popover) && !path.includes(pill as Element)) {
-        this._popoverOpen = false;
-        this.dispatchEvent(new CustomEvent('cache-popover-toggle', {
-          detail: { open: false },
-          composed: true,
-          bubbles: true,
-        }));
+    if (this._menuOpen) {
+      const menu = this.shadowRoot?.querySelector('.account-popover');
+      const menuBtn = this.shadowRoot?.querySelector('.account-btn');
+      if (menu && !path.includes(menu) && !path.includes(menuBtn as Element)) {
+        this._setMenuOpen(false);
       }
     }
     if (this._iosPopoverOpen) {
@@ -408,29 +399,14 @@ export class BeeHeader extends LitElement {
         this._iosPopoverOpen = false;
       }
     }
-    if (this._accountPopoverOpen) {
-      const accountPopover = this.shadowRoot?.querySelector('.account-popover');
-      const accountBtn = this.shadowRoot?.querySelector('.account-btn');
-      if (accountPopover && !path.includes(accountPopover) && !path.includes(accountBtn as Element)) {
-        this._accountPopoverOpen = false;
-      }
-    }
   };
 
   private _onDocumentKeydown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && this._popoverOpen) {
-      this._popoverOpen = false;
-      this.dispatchEvent(new CustomEvent('cache-popover-toggle', {
-        detail: { open: false },
-        composed: true,
-        bubbles: true,
-      }));
+    if (e.key === 'Escape' && this._menuOpen) {
+      this._setMenuOpen(false);
     }
     if (e.key === 'Escape' && this._iosPopoverOpen) {
       this._iosPopoverOpen = false;
-    }
-    if (e.key === 'Escape' && this._accountPopoverOpen) {
-      this._accountPopoverOpen = false;
     }
   };
 
@@ -482,88 +458,23 @@ export class BeeHeader extends LitElement {
     this._iosPopoverOpen = false;
   };
 
-  private _toggleAccountPopover = (e: Event) => {
-    e.stopPropagation();
-    this._accountPopoverOpen = !this._accountPopoverOpen;
-  };
-
-  private _dismissAccountPopover = (e: Event) => {
-    e.stopPropagation();
-    this._accountPopoverOpen = false;
-  };
-
   private _onAvatarError = () => {
     this._avatarError = true;
   };
 
-  private _cacheButtonState(): 'ready' | 'incomplete' | 'priming' | null {
+  // beeatlas-j96: the one account/status menu. Carries auth (sign in, or account
+  // + sign out), offline-cache status, freshness, storage, the update button, the
+  // source link and the build id. Keeps the .cache-popover shell class so the
+  // existing popover styling + outside-click/Escape patterns apply unchanged
+  // (PATTERNS.md §bee-header.ts).
+  private _renderMenu(): TemplateResult {
     const cs = this.cacheState;
-    if (!cs) return null;
-    if (cs.ready) return 'ready';
-    if (this.offline) return 'incomplete';
-    return 'priming';
-  }
+    const auth = this.authState;
 
-  private _cacheButtonAriaLabel(state: 'ready' | 'incomplete' | 'priming'): string {
-    if (state === 'ready') return 'Offline-ready — tap for details';
-    if (state === 'incomplete') return 'Finish on WiFi — tap for details';
-    const pp = this.primeProgress;
-    if (pp && pp.total > 0) {
-      const pct = Math.max(0, Math.min(99, Math.floor(pp.received / pp.total * 100)));
-      return `Caching ${pct}% — tap for details`;
-    }
-    return 'Caching — tap for details';
-  }
-
-  private _renderCacheIcon(state: 'ready' | 'incomplete' | 'priming'): TemplateResult {
-    // 24x24 stroke icons matching the rest of the header chrome (Heroicons-style).
-    if (state === 'ready') {
-      // Cloud with check (offline-ready)
-      return html`
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z"/>
-          <path stroke-linecap="round" stroke-linejoin="round" d="m8.75 13.5 2.25 2.25 4.25-4.5"/>
-        </svg>
-      `;
-    }
-    if (state === 'incomplete') {
-      // Cloud with slash — finish on WiFi
-      return html`
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z"/>
-          <path stroke-linecap="round" stroke-linejoin="round" d="M4 4l16 16"/>
-        </svg>
-      `;
-    }
-    // Priming — cloud with downward arrow
-    return html`
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z"/>
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5v5.25m0 0-2-2m2 2 2-2"/>
-      </svg>
-    `;
-  }
-
-  private _renderProgressArc(): TemplateResult {
-    const pp = this.primeProgress;
-    if (!pp || pp.total <= 0) return html``;
-    const pct = Math.max(0, Math.min(99, Math.floor(pp.received / pp.total * 100)));
-    // Reveal the arc proportional to pct: dashoffset 100→0 as pct 0→100.
-    const dashoffset = 100 - pct;
-    return html`
-      <svg class="cache-icon-btn__progress-arc" viewBox="0 0 36 36" aria-hidden="true">
-        <circle cx="18" cy="18" r="16" style="stroke-dashoffset: ${dashoffset};"></circle>
-      </svg>
-    `;
-  }
-
-  private _renderPopover(): TemplateResult {
-    const cs = this.cacheState;
-
-    // Row 1: status mirroring pill state in larger form
-    let statusContent: TemplateResult;
+    // Cache status line — mirrors what the old cache pill showed, in larger form.
+    let statusContent: TemplateResult | null;
     if (!cs) {
-      statusContent = html``;
+      statusContent = null;
     } else if (cs.ready) {
       statusContent = html`<span style="color: var(--accent)">✓</span> Offline-ready`;
     } else if (this.offline) {
@@ -579,34 +490,71 @@ export class BeeHeader extends LitElement {
       }
     }
 
+    const signedIn = Boolean(auth?.authenticated);
+
+    // No ✕ and no header row: the account button stays visible and toggles, so
+    // it IS the close control (Radix ships no Close part on DropdownMenu, only
+    // on Popover). Escape + outside-click + focus return are what the specs
+    // require, and they are implemented. Dropping the ✕ is what lets the
+    // identity below be a plain non-interactive header block. See §11.
     return html`
-      <div class="cache-popover" role="dialog" aria-modal="false" aria-label="Offline cache details">
-        <div class="cache-popover__header">
-          <span>Offline cache</span>
-          <button
-            class="cache-popover__dismiss"
-            @click=${this._onPopoverDismiss}
-            aria-label="Close"
-          >✕</button>
-        </div>
-        <div class="cache-popover__row">${statusContent}</div>
-        ${this.freshnessLabel ? html`
-          <div class="cache-popover__row">${this.freshnessLabel}</div>
-        ` : ''}
-        ${this.storageEstimate ? html`
-          <div class="cache-popover__row">
-            ${this.storageEstimate.usageMB} MB stored on this device
-            ${this.storageEstimate.quotaMB ? html`
-              <div class="cache-popover__row--meta">of ${this.storageEstimate.quotaMB} MB available</div>
-            ` : ''}
-          </div>
-        ` : ''}
+      <div class="cache-popover account-popover" role="dialog" aria-modal="false" aria-label="Account and app status">
         ${this.updateAvailable ? html`
-          <button class="cache-popover__update-btn" @click=${this._onUpdateActed}>
+          <button class="menu-row menu-row--emphasis" @click=${this._onUpdateActed}>
+            <svg class="menu-row__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 12a8 8 0 0 1 13.7-5.6L20 8m0 0V4m0 4h-4M20 12a8 8 0 0 1-13.7 5.6L4 16m0 0v4m0-4h4"/>
+            </svg>
             App update available — tap to reload
           </button>
         ` : ''}
-        <div class="cache-popover__row--meta">Build ${BUILD_VERSION}</div>
+
+        ${signedIn ? html`
+          <div class="menu-identity">
+            ${auth?.login}
+            <span class="whoami-badge ${auth?.isAuthor ? 'whoami-badge--author' : 'whoami-badge--guest'}">
+              ${auth?.isAuthor ? 'Author' : 'Not an editor'}
+            </span>
+          </div>
+          <button class="menu-row" @click=${this._onSignOutClick}>
+            <svg class="menu-row__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"/>
+            </svg>
+            Sign out
+          </button>
+        ` : html`
+          <button class="menu-row" @click=${this._onSignInClick}>
+            <svg class="menu-row__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"/>
+            </svg>
+            Sign in with iNaturalist
+          </button>
+        `}
+
+        <a
+          class="menu-row"
+          href="https://github.com/rainhead/beeatlas"
+          target="_blank"
+          rel="noopener"
+        >
+          <svg class="menu-row__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+          </svg>
+          Source code
+        </a>
+
+        <hr class="menu-divider">
+
+        ${statusContent ? html`<div class="menu-status">${statusContent}</div>` : ''}
+        ${this.freshnessLabel ? html`<div class="menu-status">${this.freshnessLabel}</div>` : ''}
+        ${this.storageEstimate ? html`
+          <div class="menu-status">
+            ${this.storageEstimate.usageMB} MB stored on this device
+            ${this.storageEstimate.quotaMB ? html`
+              <div class="menu-meta">of ${this.storageEstimate.quotaMB} MB available</div>
+            ` : ''}
+          </div>
+        ` : ''}
+        <div class="menu-meta">Build ${BUILD_VERSION}</div>
       </div>
     `;
   }
@@ -639,36 +587,24 @@ export class BeeHeader extends LitElement {
     `;
   }
 
-  // D-10 (178-07): sign-in entry point / whoami indicator / sign-out. Pure
-  // render off the `authState` property — no fetch, no window.location here.
+  // D-10 (178-07) + beeatlas-j96: the single trailing menu button. Renders in
+  // BOTH auth states — avatar when signed in, person glyph when signed out —
+  // because the menu now also carries cache status, freshness, the update
+  // button and the source link, which signed-out visitors still need. Pure
+  // render off `authState`; no fetch, no window.location here.
   private _renderAuth(): TemplateResult {
     const auth = this.authState;
-    if (!auth?.authenticated) {
-      return html`
-        <button
-          class="auth-btn sign-in-btn"
-          @click=${this._onSignInClick}
-          aria-label="Sign in with iNaturalist"
-          title="Sign in with iNaturalist"
-        >
-          <!-- Mobile: icon-only (login glyph). Desktop: full text label. -->
-          <svg class="auth-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="20" height="20" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"/>
-          </svg><span class="auth-label">Sign in with iNaturalist</span></button>
-      `;
-    }
+    const signedIn = Boolean(auth?.authenticated);
     return html`
-      <!-- Signed in (all sizes): the account avatar opens a popover with the
-           username, role, and sign-out — no inline username in the header. -->
       <button
         class="icon-btn account-btn"
-        @click=${this._toggleAccountPopover}
+        @click=${this._toggleMenu}
         aria-haspopup="dialog"
-        aria-expanded=${String(this._accountPopoverOpen)}
-        aria-label=${`Account: ${auth.login ?? ''}`}
-        title="Account"
+        aria-expanded=${String(this._menuOpen)}
+        aria-label=${signedIn ? `Account: ${auth?.login ?? ''}` : 'Account and app status'}
+        title=${signedIn ? 'Account' : 'Account and app status'}
       >
-        ${auth.iconUrl && !this._avatarError
+        ${signedIn && auth?.iconUrl && !this._avatarError
           ? html`<img class="account-avatar" src=${auth.iconUrl} alt="" @error=${this._onAvatarError}>`
           : html`
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true">
@@ -676,28 +612,7 @@ export class BeeHeader extends LitElement {
             </svg>
           `}
       </button>
-      ${this._accountPopoverOpen ? this._renderAccountPopover(auth) : ''}
-    `;
-  }
-
-  // Mobile account menu (≤640px): the inline username + sign-out collapse behind
-  // the account icon so the signed-in header fits narrow widths. Reuses the
-  // .cache-popover shell. The fuller hamburger consolidation is beeatlas-e6v.
-  private _renderAccountPopover(auth: AuthState): TemplateResult {
-    return html`
-      <div class="cache-popover account-popover" role="dialog" aria-modal="false" aria-label="Account">
-        <div class="cache-popover__header">
-          <span>Signed in</span>
-          <button class="cache-popover__dismiss" @click=${this._dismissAccountPopover} aria-label="Close">✕</button>
-        </div>
-        <div class="cache-popover__row">
-          ${auth.login}
-          <span class="whoami-badge ${auth.isAuthor ? 'whoami-badge--author' : 'whoami-badge--guest'}">
-            ${auth.isAuthor ? 'Author' : 'Not an editor'}
-          </span>
-        </div>
-        <button class="cache-popover__update-btn" @click=${this._onSignOutClick}>Sign out</button>
-      </div>
+      ${this._menuOpen ? this._renderMenu() : ''}
     `;
   }
 
@@ -736,7 +651,6 @@ export class BeeHeader extends LitElement {
         </a>
       </div>
       <div class="right-group">
-        ${this._renderAuth()}
         ${this.offline ? html`<span class="offline-pill">Offline</span>` : ''}
         ${this.installable ? html`
           <button
@@ -768,30 +682,7 @@ export class BeeHeader extends LitElement {
           </button>
           ${this._iosPopoverOpen ? this._renderIosPopover() : ''}
         ` : ''}
-        ${(() => {
-          const state = this._cacheButtonState();
-          if (!state) return '';
-          return html`
-            <button
-              class="cache-icon-btn"
-              data-state=${state}
-              @click=${this._togglePopover}
-              aria-haspopup="dialog"
-              aria-expanded=${String(this._popoverOpen)}
-              aria-label=${this._cacheButtonAriaLabel(state)}
-              title=${this._cacheButtonAriaLabel(state)}
-            >
-              ${this._renderCacheIcon(state)}
-              ${state === 'priming' ? this._renderProgressArc() : ''}
-            </button>
-          `;
-        })()}
-        ${this._popoverOpen ? this._renderPopover() : ''}
-        <a href="https://github.com/rainhead/beeatlas" target="_blank" rel="noopener" aria-label="GitHub repository" title="GitHub repository" class="github-link">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
-          </svg>
-        </a>
+        ${this._renderAuth()}
       </div>
     `;
   }

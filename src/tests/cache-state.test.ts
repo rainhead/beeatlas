@@ -135,56 +135,70 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     if (el && el.isConnected) el.remove();
   });
 
-  test('cache-icon state A: priming online → data-state="priming" + progress arc + aria-label includes %', async () => {
+  // beeatlas-j96: the standalone cache icon button is gone — cache status is now
+  // a row inside the one account/status menu, opened from `.account-btn`.
+  const openMenu = async () => {
+    const btn = el.shadowRoot!.querySelector('.account-btn') as HTMLElement;
+    expect(btn).not.toBeNull();
+    btn.click();
+    await (el as any).updateComplete;
+  };
+
+  test('menu status row A: priming online → "Caching N MB of M MB"', async () => {
     (el as any).cacheState = { ready: false, cached: [], missing: ['db'] };
-    (el as any).primeProgress = { received: 47_000, total: 100_000, assetInFlight: 'occurrences.db' };
+    (el as any).primeProgress = { received: 47_000_000, total: 100_000_000, assetInFlight: 'occurrences.db' };
     (el as any).offline = false;
     await (el as any).updateComplete;
+    await openMenu();
 
-    const btn = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
-    expect(btn).not.toBeNull();
-    expect(btn.getAttribute('data-state')).toBe('priming');
-    expect(btn.getAttribute('aria-label')).toMatch(/Caching 47% — tap for details/);
-
-    const arc = el.shadowRoot!.querySelector('.cache-icon-btn__progress-arc');
-    expect(arc).not.toBeNull();
+    const text = el.shadowRoot!.querySelector('.account-popover')!.textContent!;
+    expect(text).toMatch(/Caching 44\.8 MB of 95\.4 MB/);
   });
 
-  test('cache-icon state B: priming + offline → data-state="incomplete" + "Finish on WiFi" aria-label + no progress arc', async () => {
+  test('menu status row B: priming + offline → "Finish on WiFi to complete cache"', async () => {
     (el as any).cacheState = { ready: false, cached: [], missing: ['db'] };
     (el as any).primeProgress = { received: 10_000, total: 100_000, assetInFlight: 'occurrences.db' };
     (el as any).offline = true;
     await (el as any).updateComplete;
+    await openMenu();
 
-    const btn = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
-    expect(btn).not.toBeNull();
-    expect(btn.getAttribute('data-state')).toBe('incomplete');
-    expect(btn.getAttribute('aria-label')).toMatch(/Finish on WiFi — tap for details/);
-
-    const arc = el.shadowRoot!.querySelector('.cache-icon-btn__progress-arc');
-    expect(arc).toBeNull();
+    const text = el.shadowRoot!.querySelector('.account-popover')!.textContent!;
+    expect(text).toMatch(/Finish on WiFi to complete cache/);
   });
 
-  test('cache-icon state C: ready → data-state="ready" + "Offline-ready" aria-label', async () => {
+  test('menu status row C: ready → "Offline-ready"', async () => {
     (el as any).cacheState = {
       ready: true,
       cached: ['url1', 'url2', 'url3', 'url4'],
       missing: [],
     };
     await (el as any).updateComplete;
+    await openMenu();
 
-    const btn = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
-    expect(btn).not.toBeNull();
-    expect(btn.getAttribute('data-state')).toBe('ready');
-    expect(btn.getAttribute('aria-label')).toMatch(/Offline-ready — tap for details/);
+    const text = el.shadowRoot!.querySelector('.account-popover')!.textContent!;
+    expect(text).toMatch(/Offline-ready/);
   });
 
-  test('cache-icon hidden when cacheState is null', async () => {
+  test('menu status row absent when cacheState is null — menu still opens', async () => {
     (el as any).cacheState = null;
     await (el as any).updateComplete;
+    await openMenu();
 
-    const btn = el.shadowRoot!.querySelector('.cache-icon-btn');
-    expect(btn).toBeNull();
+    const popover = el.shadowRoot!.querySelector('.account-popover');
+    expect(popover).not.toBeNull();
+    expect(popover!.textContent).not.toMatch(/Offline-ready|Caching|Finish on WiFi/);
+  });
+
+  test('menu is reachable when signed out (authState null) — carries source + build', async () => {
+    (el as any).authState = null;
+    await (el as any).updateComplete;
+    await openMenu();
+
+    const popover = el.shadowRoot!.querySelector('.account-popover')!;
+    expect(popover.textContent).toMatch(/Source code/);
+    expect(popover.textContent).toMatch(/Build /);
+    expect(popover.querySelector('a.menu-row')!.getAttribute('href'))
+      .toBe('https://github.com/rainhead/beeatlas');
   });
 
   test('freshness-caption renders when freshnessLabel non-null', async () => {
@@ -213,7 +227,7 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     const parentListener = (e: Event) => { capturedEvent = e as CustomEvent; };
     document.body.addEventListener('cache-popover-toggle', parentListener);
 
-    const pill = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
+    const pill = el.shadowRoot!.querySelector('.account-btn') as HTMLElement;
     expect(pill).not.toBeNull();
     pill.click();
     await (el as any).updateComplete;
@@ -229,32 +243,46 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     expect((capturedEvent as any).composed).toBe(true);
   });
 
-  test('popover closes on ✕ click + dispatches "cache-popover-toggle" with open=false', async () => {
+  // The menu has no ✕ (beeatlas-j96, research §11): the account button stays
+  // visible and toggles, so it IS the close control. Escape and outside-click
+  // are the dismissal paths — both must still emit the toggle event, because
+  // bee-atlas keys its lazy storage.estimate() off it.
+  test('menu closes on Escape + dispatches "cache-popover-toggle" with open=false', async () => {
     (el as any).cacheState = { ready: true, cached: ['url1'], missing: [] };
     await (el as any).updateComplete;
+    await openMenu();
 
-    // Open the popover first
-    const pill = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
-    pill.click();
-    await (el as any).updateComplete;
+    expect(el.shadowRoot!.querySelector('.account-popover')).not.toBeNull();
+    // No dismiss control should exist in the menu.
+    expect(el.shadowRoot!.querySelector('.account-popover .cache-popover__dismiss')).toBeNull();
 
-    const popoverBefore = el.shadowRoot!.querySelector('.cache-popover');
-    expect(popoverBefore).not.toBeNull();
-
-    // Capture the close event
     let capturedCloseEvent: CustomEvent | null = null;
     document.body.addEventListener('cache-popover-toggle', (e) => {
       capturedCloseEvent = e as CustomEvent;
     }, { once: true });
 
-    const dismiss = el.shadowRoot!.querySelector('.cache-popover__dismiss') as HTMLElement;
-    expect(dismiss).not.toBeNull();
-    dismiss.click();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await (el as any).updateComplete;
 
-    const popoverAfter = el.shadowRoot!.querySelector('.cache-popover');
-    expect(popoverAfter).toBeNull();
+    expect(el.shadowRoot!.querySelector('.account-popover')).toBeNull();
+    expect(capturedCloseEvent).not.toBeNull();
+    expect((capturedCloseEvent as any).detail.open).toBe(false);
+  });
 
+  test('menu closes on outside click + dispatches "cache-popover-toggle" with open=false', async () => {
+    (el as any).cacheState = { ready: true, cached: ['url1'], missing: [] };
+    await (el as any).updateComplete;
+    await openMenu();
+
+    let capturedCloseEvent: CustomEvent | null = null;
+    document.body.addEventListener('cache-popover-toggle', (e) => {
+      capturedCloseEvent = e as CustomEvent;
+    }, { once: true });
+
+    document.body.click();
+    await (el as any).updateComplete;
+
+    expect(el.shadowRoot!.querySelector('.account-popover')).toBeNull();
     expect(capturedCloseEvent).not.toBeNull();
     expect((capturedCloseEvent as any).detail.open).toBe(false);
   });
@@ -265,7 +293,7 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     await (el as any).updateComplete;
 
     // Open popover
-    const pill = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
+    const pill = el.shadowRoot!.querySelector('.account-btn') as HTMLElement;
     pill.click();
     await (el as any).updateComplete;
 
@@ -280,7 +308,7 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     (el as any).storageEstimate = { usageMB: '23.4', quotaMB: null };
     await (el as any).updateComplete;
 
-    const pill = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
+    const pill = el.shadowRoot!.querySelector('.account-btn') as HTMLElement;
     pill.click();
     await (el as any).updateComplete;
 
@@ -295,7 +323,7 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     (el as any).storageEstimate = { usageMB: '23.4', quotaMB: '47' };
     await (el as any).updateComplete;
 
-    const pill = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
+    const pill = el.shadowRoot!.querySelector('.account-btn') as HTMLElement;
     pill.click();
     await (el as any).updateComplete;
 
@@ -309,7 +337,7 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     (el as any).updateAvailable = false;
     await (el as any).updateComplete;
 
-    const pill = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
+    const pill = el.shadowRoot!.querySelector('.account-btn') as HTMLElement;
     pill.click();
     await (el as any).updateComplete;
 
@@ -323,7 +351,7 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     (el as any).updateAvailable = true;
     await (el as any).updateComplete;
 
-    const pill = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
+    const pill = el.shadowRoot!.querySelector('.account-btn') as HTMLElement;
     pill.click();
     await (el as any).updateComplete;
 

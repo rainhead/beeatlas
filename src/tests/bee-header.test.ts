@@ -122,27 +122,41 @@ describe('178-07: bee-header sign-in / whoami / sign-out (D-10)', () => {
     }
   });
 
-  test('renders "Sign in with iNaturalist" when authState is null', async () => {
+  // beeatlas-j96: sign-in is no longer a standalone header button — it is a row
+  // inside the one account/status menu, which renders in both auth states.
+  const _popoverSignIn = (el: { shadowRoot: ShadowRoot }): HTMLButtonElement =>
+    [...el.shadowRoot.querySelectorAll('.account-popover button')]
+      .find((b) => /sign in/i.test(b.textContent || '')) as HTMLButtonElement;
+
+  const _openMenu = async (el: any) => {
+    const btn = el.shadowRoot!.querySelector('.account-btn') as HTMLButtonElement;
+    expect(btn).not.toBeNull();
+    btn.click();
+    await el.updateComplete;
+  };
+
+  test('menu offers "Sign in with iNaturalist" when authState is null', async () => {
     await import('../bee-header.ts');
     el = document.createElement('bee-header') as any;
     document.body.appendChild(el);
     await el.updateComplete;
+    await _openMenu(el);
 
-    const btn = el.shadowRoot!.querySelector('.sign-in-btn');
-    expect(btn).not.toBeNull();
-    expect(btn!.textContent).toContain('Sign in with iNaturalist');
-    expect(el.shadowRoot!.querySelector('.sign-out-btn')).toBeNull();
-    expect(el.shadowRoot!.querySelector('.whoami')).toBeNull();
+    expect(_popoverSignIn(el)).not.toBeUndefined();
+    expect(_popoverSignIn(el).textContent).toContain('Sign in with iNaturalist');
+    expect(el.shadowRoot!.querySelector('.account-popover')!.textContent)
+      .not.toMatch(/Sign out/i);
   });
 
-  test('renders "Sign in with iNaturalist" when authState.authenticated is false', async () => {
+  test('menu offers "Sign in with iNaturalist" when authState.authenticated is false', async () => {
     await import('../bee-header.ts');
     el = document.createElement('bee-header') as any;
     (el as any).authState = { authenticated: false };
     document.body.appendChild(el);
     await el.updateComplete;
+    await _openMenu(el);
 
-    expect(el.shadowRoot!.querySelector('.sign-in-btn')).not.toBeNull();
+    expect(_popoverSignIn(el)).not.toBeUndefined();
   });
 
   test('dispatches a composed+bubbling sign-in event on click', async () => {
@@ -150,11 +164,11 @@ describe('178-07: bee-header sign-in / whoami / sign-out (D-10)', () => {
     el = document.createElement('bee-header') as any;
     document.body.appendChild(el);
     await el.updateComplete;
+    await _openMenu(el);
 
     const handler = vi.fn();
     document.addEventListener('sign-in', handler);
-    const btn = el.shadowRoot!.querySelector('.sign-in-btn') as HTMLButtonElement;
-    btn.click();
+    _popoverSignIn(el).click();
     document.removeEventListener('sign-in', handler);
 
     expect(handler).toHaveBeenCalledTimes(1);
@@ -177,7 +191,7 @@ describe('178-07: bee-header sign-in / whoami / sign-out (D-10)', () => {
     const acct = el.shadowRoot!.querySelector('.account-btn') as HTMLButtonElement;
     expect(acct).not.toBeNull();
     expect(acct.getAttribute('aria-label')).toContain('someuser');
-    expect(el.shadowRoot!.querySelector('.sign-in-btn')).toBeNull();
+    expect(el.shadowRoot!.querySelector('.account-popover')).toBeNull();
 
     acct.click();
     await el.updateComplete;
