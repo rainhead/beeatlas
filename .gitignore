@@ -184,6 +184,9 @@ secrets.toml
 __pycache__/
 *.pyc
 data/notes-dev.db
+# SQLite WAL sidecars — the local api/ dev loop (api/README.md) runs in WAL mode
+data/notes-dev.db-shm
+data/notes-dev.db-wal
 
 # Beads / Dolt files (added by bd init)
 .dolt/
