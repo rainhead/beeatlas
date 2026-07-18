@@ -11,6 +11,8 @@ seasonality-viz .band-summer { fill: #fff4dc; }
 seasonality-viz .band-fall   { fill: #fde8d8; }
 seasonality-viz .bar         { fill: #2a5a8a; }
 seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
+seasonality-viz .sample-size { color: #767676; font-size: 0.75rem; margin: 0.15rem 0 0; }
+seasonality-viz .viz-fallback { color: #555; font-style: italic; font-size: 0.85rem; margin: 0; }
 
 .taxon-page {
   max-width: 1100px;
@@ -57,7 +59,8 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
 }
 
 .breadcrumb .sep {
-  padding: 0 4px;
+  padding: 0 2px;
+  color: var(--text-hint, #767676);
 }
 
 .swatch {
@@ -101,11 +104,94 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
   font-size: 0.85rem;
 }
 
-/* Species detail hero: 2x2 grid — metadata top-left, photo top-right,
-   seasonality + map side by side on the second row. Auto-placement fills
-   row-major from the DOM order (meta, photo, seasonality, map). */
+/* Species detail page layout. Two bands, each its own grid:
+   .species-identity — photo + headline numbers + the atlas call to action.
+   .species-hero     — textual facts (traits, host plants) beside the two
+                       labelled visualizations.
+   Both stack to one column below 768px, where DOM order puts the photo first
+   so the reader sees the bee before scrolling through taxonomy. */
 .taxon-page .hero-photo {
   margin: 0;
+}
+
+.taxon-page .species-identity {
+  margin-bottom: 1.5rem;
+}
+
+/* Headline counts: value over label, the most prominent thing after the binomial.
+   column-reverse puts the number on top while keeping <dt> before <dd> in the
+   DOM — and it keeps the numbers on a shared baseline when a label wraps to
+   two lines, which "Community observations" does at most widths. */
+.taxon-page .stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.75rem 1rem;
+  margin: 0 0 1.25rem;
+  align-items: start;
+}
+
+.taxon-page .stat {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+}
+
+.taxon-page .stat dt {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #666);
+  margin-top: 0.15rem;
+}
+
+.taxon-page .stat dd {
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--text-body, #213547);
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.taxon-page .checklist-attribution {
+  font-size: 0.75rem;
+  color: var(--text-muted, #666);
+  margin: 0.75rem 0 0;
+}
+
+.taxon-page .checklist-attribution a {
+  color: var(--link, #646cff);
+}
+
+.taxon-page .no-occurrences {
+  font-size: 0.85rem;
+  color: var(--text-muted, #666);
+  margin: 0 0 1rem;
+  max-width: 44ch;
+}
+
+/* Labelled visualization blocks (flight season, occurrence map). */
+.taxon-page .hero-viz {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.taxon-page .viz-heading {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary, #444);
+  margin: 0 0 0.4rem;
+}
+
+.taxon-page .viz-caption {
+  font-size: 0.75rem;
+  color: var(--text-muted, #666);
+  margin: 0.25rem 0 0;
+  max-width: 40ch;
 }
 
 @media (min-width: 768px) {
@@ -117,10 +203,19 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
     align-items: start;
   }
 
+  /* Centered, not top-aligned: the facts column is much shorter than the photo,
+     so aligning to the top would leave the same dead space the old 2x2 grid had. */
+  .taxon-page .species-identity {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: center;
+  }
+
   .taxon-page .species-hero {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem 1.5rem;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1.5rem;
     align-items: start;
   }
 }
@@ -131,6 +226,27 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
   display: block;
   width: fit-content;
   margin-top: 0.5rem;
+}
+
+/* The atlas link is the bridge into the interactive half of the product —
+   it gets button weight; secondary links stay plain text beneath it. */
+.taxon-page .taxon-action--primary {
+  padding: 0.5rem 0.9rem;
+  border-radius: 4px;
+  background: var(--accent, #2c7a2c);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.taxon-page .taxon-action--primary:hover {
+  background: var(--accent-hover, #226022);
+  color: #fff;
+}
+
+.taxon-page .taxon-action--primary:focus-visible {
+  outline: 2px solid var(--accent, #2c7a2c);
+  outline-offset: 2px;
 }
 
 .species-index #species-filter {
@@ -340,13 +456,22 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted, #666);
-  cursor: help;
 }
 
-.traits-dl dt:focus-visible {
-  outline: 2px solid var(--accent, #2c7a2c);
-  outline-offset: 2px;
-  border-radius: 2px;
+/* Provenance caveat: rendered inline rather than hidden in a title attribute,
+   since "not measured for this species" is material to a scientific reader. */
+.trait-inferred {
+  font-size: 0.7rem;
+  font-style: italic;
+  color: var(--text-hint, #767676);
+  white-space: nowrap;
+}
+
+.traits-sources {
+  font-size: 0.7rem;
+  color: var(--text-hint, #767676);
+  margin: 0.4rem 0 0;
+  max-width: 44ch;
 }
 
 .traits-dl dd {
@@ -410,15 +535,61 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
   margin: 0 0 0.2rem;
 }
 
-.collected-from .more {
-  font-size: 0.8rem;
-  color: var(--text-muted, #666);
-  margin-top: 0.1rem;
+.host-family-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-/* Phase 179: Natural-history notes section on species detail pages */
+.host-family-list li {
+  font-size: 0.85rem;
+  color: var(--text-body, #213547);
+  margin-bottom: 0.3rem;
+}
+
+.host-family {
+  font-weight: 600;
+}
+
+.host-count {
+  font-size: 0.75rem;
+  color: var(--text-hint, #767676);
+  margin-left: 0.35rem;
+}
+
+.host-genera {
+  display: block;
+  color: var(--text-muted, #666);
+}
+
+.host-more {
+  margin-top: 0.4rem;
+}
+
+.host-more > summary {
+  font-size: 0.8rem;
+  color: var(--link, #646cff);
+  cursor: pointer;
+}
+
+.host-more > summary:focus-visible {
+  outline: 2px solid var(--accent, #2c7a2c);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.host-more .host-family-list {
+  margin-top: 0.3rem;
+}
+
+/* Phase 179: community notes section on species detail pages.
+   Promoted out of the uppercase-micro-heading taxonomy used by Traits and
+   Collected from — notes are contributed content, not another fact block,
+   so they read as a section of the page in their own right. */
 .notes-section {
-  margin: 1rem 0 1.5rem;
+  margin: 2rem 0 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border, #ddd);
 }
 
 .notes-heading-row {
@@ -430,11 +601,13 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
 }
 
 .notes-heading {
-  font-size: 0.85rem;
+  font-size: 1.25rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary, #444);
+  color: var(--text-body, #213547);
+  margin: 0 0 0.5rem;
+}
+
+.notes-heading-row .notes-heading {
   margin: 0;
 }
 

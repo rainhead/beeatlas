@@ -407,7 +407,7 @@ export class BeeNotes extends LitElement {
     return html`
       <section class="notes-section">
         <div class="notes-heading-row">
-          <h2 class="notes-heading">Natural history notes</h2>
+          <h2 class="notes-heading">Community notes</h2>
           ${this._editorMode === null
             ? html`<button class="note-btn note-btn--primary note-add-btn" @click=${this._openAdd}>Add note</button>`
             : ''}

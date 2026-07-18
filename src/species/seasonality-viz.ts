@@ -9,7 +9,8 @@
 //
 // Threshold conventions (BeeSearch, locked):
 //   total >= 5  -> bars; total < 5  -> text fallback (VIZ-02)
-//   stars: *(20-49) **(50-99) ***(100-999) ****(>=1000) (VIZ-05)
+//   sample size is stated as a literal count (VIZ-05); the original star
+//   glyphs had no on-page key, so they read as an unexplained artifact.
 //
 // Season bands (meteorological NH, VIZ-03):
 //   Winter Dec-Feb, Spring Mar-May, Summer Jun-Aug, Fall Sep-Nov.
@@ -52,7 +53,7 @@ export class SeasonalityViz extends LitElement {
     .bar { fill: #2a5a8a; }
     .axis { font: 10px system-ui; fill: #555; }
     .viz-fallback { color: #555; font-style: italic; font-size: 0.85rem; }
-    .sample-stars { color: #555; font-size: 0.8rem; margin-left: 0.4rem; }
+    .sample-size { color: #767676; font-size: 0.75rem; margin: 0.15rem 0 0; }
   `;
 
   render() {
@@ -77,13 +78,6 @@ export class SeasonalityViz extends LitElement {
       return html`<p class="viz-fallback">${recordLabel}${range ? `, ${range}` : ''}</p>`;
     }
 
-    // VIZ-05 sample-size stars
-    const stars = total >= 1000 ? '****'
-                : total >= 100  ? '***'
-                : total >= 50   ? '**'
-                : total >= 20   ? '*'
-                : '';
-
     const max = Math.max(...this.data) || 1;
     const W = 240, H = 80, BAR_W = 18, GAP = 2;
 
@@ -107,7 +101,7 @@ export class SeasonalityViz extends LitElement {
                 y="${H + 12}"
                 text-anchor="middle">${label}</text>`)}
       </svg>
-      ${stars ? html`<span class="sample-stars" aria-label="Sample size ${stars.length}">${stars}</span>` : ''}
+      <p class="sample-size">Based on ${total} dated record${total === 1 ? '' : 's'}.</p>
     `;
   }
 }

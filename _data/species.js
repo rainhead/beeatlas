@@ -680,6 +680,14 @@ const fullTree = buildFullTree();
 // (single source of truth — stays in sync if the filters change).
 const generatedSubgenusKeys = new Set(subgenusList.map((s) => `${s.genus}::${s.subgenus}`));
 const generatedTribeNames = new Set(tribeList.map((t) => t.tribe));
+const generatedSubfamilyNames = new Set(subfamilyList.map((sf) => sf.subfamily));
+
+// Species pages walk the same ladder in their breadcrumb, so they need the same tagging.
+for (const sp of speciesList) {
+  sp.subfamilyHasPage = !!sp.subfamily && generatedSubfamilyNames.has(sp.subfamily);
+  sp.tribeHasPage = !!sp.tribe && generatedTribeNames.has(sp.tribe);
+  sp.subgenusHasPage = !!sp.subgenus && generatedSubgenusKeys.has(`${sp.genus}::${sp.subgenus}`);
+}
 
 for (const g of genusList) {
   for (const sg of g.subgenera) {

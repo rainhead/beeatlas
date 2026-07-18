@@ -119,7 +119,7 @@ describe('bee-notes: author view', () => {
   test('zero-baked author empty state: heading + empty copy + Add note, no network round-trip', async () => {
     const el = await mountAsAuthor([]);
 
-    expect(el.querySelector('.notes-heading')?.textContent).toContain('Natural history notes');
+    expect(el.querySelector('.notes-heading')?.textContent).toContain('Community notes');
     expect(el.querySelector('.note-empty')?.textContent).toContain('No notes yet');
     expect(el.querySelector('.note-add-btn')).not.toBeNull();
     expect(authClientMocks.fetchSpeciesNotes).not.toHaveBeenCalled();

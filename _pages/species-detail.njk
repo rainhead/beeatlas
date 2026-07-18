@@ -9,74 +9,27 @@ eleventyComputed:
 layout: default.njk
 ---
 <article class="taxon-page">
+  {# Whitespace between crumbs is deliberate: it is the only wrap opportunity in
+     the chain, and without it the full ladder overflows a phone viewport. #}
   <nav class="breadcrumb">
-    {{ sp.family }}<span class="sep">/</span><a href="/species/{{ sp.genus }}/index.html">{{ sp.genus }}</a><span class="sep">/</span>{{ sp.specific_epithet }}
+    {{ sp.family }}
+    {% if sp.subfamily %}<span class="sep">/</span> {% if sp.subfamilyHasPage %}<a href="/species/subfamily/{{ sp.subfamily }}/index.html">{{ sp.subfamily }}</a>{% else %}{{ sp.subfamily }}{% endif %}{% endif %}
+    {% if sp.tribe %}<span class="sep">/</span> {% if sp.tribeHasPage %}<a href="/species/tribe/{{ sp.tribe }}/index.html">{{ sp.tribe }}</a>{% else %}{{ sp.tribe }}{% endif %}{% endif %}
+    <span class="sep">/</span> <a href="/species/{{ sp.genus }}/index.html">{{ sp.genus }}</a>
+    {# A nominotypical subgenus repeats the genus name verbatim ("Andrena / Andrena"),
+       which reads as a rendering bug rather than taxonomy. #}
+    {% if sp.subgenus and sp.subgenus !== sp.genus %}<span class="sep">/</span> {% if sp.subgenusHasPage %}<a href="/species/{{ sp.genus }}/{{ sp.subgenus }}/index.html">{{ sp.subgenus }}</a>{% else %}{{ sp.subgenus }}{% endif %}{% endif %}
+    <span class="sep">/</span> {{ sp.specific_epithet }}
   </nav>
   <h1><em>{{ sp.scientificName }}</em></h1>
   {%- set photoEntry = photos[sp.scientificName] -%}
-  <div class="species-hero">
-    {# Top-left: textual metadata #}
-    <div class="hero-meta">
-      <p class="metadata">{{ (sp.specimen_count or 0) | quantify("specimen") }} · {{ (sp.inat_obs_count or 0) | quantify("community observation") }} · {{ sp.county_count | quantify("county", "counties") }} · {{ sp.ecoregion_count | quantify("ecoregion") }}</p>
-      {%- if sp.on_checklist -%}
-      {%- if sp.checklist_record_count > 0 -%}
-      <p class="checklist-attribution">{{ sp.checklist_record_count | quantify("checklist record") }} · <a href="https://jhr.pensoft.net/article/129013/">Bartholomew et al. 2024</a></p>
-      {%- else -%}
-      <p class="checklist-attribution">Listed on the WA Bee Atlas checklist · <a href="https://jhr.pensoft.net/article/129013/">Bartholomew et al. 2024</a></p>
-      {%- endif -%}
-      {%- endif -%}
-      {%- set hasSociality  = sp.sociality -%}
-      {%- set hasDiet       = sp.diet_breadth -%}
-      {%- set hasNesting    = sp.nesting -%}
-      {%- set hasNative     = sp.native_status -%}
-      {%- set hasHostBees   = sp.resolvedHostBees and sp.resolvedHostBees.length > 0 -%}
-      {%- if hasSociality or hasDiet or hasNesting or hasNative or hasHostBees -%}
-      <section class="traits">
-        <h2 class="traits-heading">Traits</h2>
-        <dl class="traits-dl">
-          {%- if hasSociality -%}
-          <dt tabindex="0" title="Source: {% if sp.sociality_source === 'beegap-species' %}Bee-Gap 2017, species-level{% elif sp.sociality_source === 'genus-backbone' %}Genus backbone (inferred from genus){% endif %}">Sociality</dt>
-          <dd>{%- if sp.sociality === 'Parasitic' %}Cleptoparasitic{%- else %}{{ sp.sociality }}{%- endif %}</dd>
-          {%- endif -%}
-          {%- if hasDiet -%}
-          <dt tabindex="0" title="Source: {% if sp.diet_breadth_source === 'fowler' %}Fowler &amp; Droege specialist list{% elif sp.diet_breadth_source === 'beegap-species' %}Bee-Gap 2017, species-level{% endif %}">Diet</dt>
-          <dd>{%- if sp.diet_breadth === 'specialist' %}{%- if sp.dietHost %}Specialist ({{ sp.dietHost }}){%- else %}Specialist{%- endif %}{%- else %}Generalist{%- endif %}</dd>
-          {%- endif -%}
-          {%- if hasNesting -%}
-          <dt tabindex="0" title="Source: {% if sp.nesting_source === 'beegap-species' %}Bee-Gap 2017, species-level{% elif sp.nesting_source === 'genus-backbone' %}Genus backbone (inferred from genus){% endif %}">Nesting</dt>
-          <dd>{{ sp.nesting }}</dd>
-          {%- endif -%}
-          {%- if hasNative -%}
-          <dt tabindex="0" title="Source: Bee-Gap 2017">Native status</dt>
-          <dd>{{ sp.native_status }}</dd>
-          {%- endif -%}
-          {%- if hasHostBees -%}
-          <dt tabindex="0" title="Source: Bee-Gap 2017 cuckoo host records">Host bees</dt>
-          <dd>{%- for hb in sp.resolvedHostBees %}{%- if not loop.first %}, {% endif %}{%- if hb.type === "species" %}<a href="/species/{{ hb.slug }}/index.html"><em>{{ hb.name }}</em></a>{%- elif hb.type === "genus" %}<a href="/species/{{ hb.genusName }}/index.html"><em>{{ hb.name }}</em></a>{%- else %}<em>{{ hb.name }}</em>{%- endif %}{%- endfor %}</dd>
-          {%- endif -%}
-        </dl>
-      </section>
-      {%- endif -%}
-      {%- set hosts = species_hosts[sp.canonical_name] -%}
-      {%- if hosts and hosts.length > 0 -%}
-      <section class="collected-from">
-        <h2>Collected from</h2>
-        {%- for fam in hosts -%}
-        {%- if loop.index0 < 6 -%}
-        <p>{{ fam.family }} · {% for g in fam.genera %}{%- if loop.index0 < 8 -%}{%- if not loop.first %}, {% endif %}{{ g.genus }}{%- endif -%}{%- endfor %}</p>
-        {%- endif -%}
-        {%- endfor -%}
-        {%- if hosts.length > 6 -%}
-        <p class="more">(+{{ hosts.length - 6 }} more {%- if hosts.length - 6 === 1 %} family{%- else %} families{%- endif %})</p>
-        {%- endif -%}
-      </section>
-      {%- endif -%}
-    </div>
-    {# Top-right: photo #}
+
+  {# Identity band: photo alongside the headline numbers. #}
+  <div class="species-identity">
     <figure class="hero-photo">
       {%- if photoEntry and photoEntry.photos and photoEntry.photos.length > 0 -%}
         {%- set p = photoEntry.photos[0] -%}
-        <img class="photo-hero" loading="lazy" src="{{ p.src or p.url }}" alt="{{ p.caption or sp.scientificName }}">
+        <img class="photo-hero" src="{{ p.src or p.url }}" alt="{{ p.caption or sp.scientificName }}">
         {%- if p.attribution -%}
         <figcaption class="attribution">{{ p.attribution }}</figcaption>
         {%- endif -%}
@@ -84,31 +37,168 @@ layout: default.njk
         <div class="photo-placeholder">No photo available</div>
       {%- endif -%}
     </figure>
-    {# Second row: seasonality + map side by side #}
-    <div class="hero-seasonality">
-      <seasonality-viz id="sviz"></seasonality-viz>
+    <div class="identity-facts">
+      {# Checklist-only species have zeros across every occurrence stat; four
+         zeros would bury the one number that does exist. Show the checklist
+         count instead, and let the geographic stats appear only when mapped
+         records back them. #}
+      <dl class="stat-row">
+        {%- if sp.occurrence_count > 0 or not sp.on_checklist -%}
+        <div class="stat">
+          <dt>Specimens</dt>
+          <dd>{{ sp.specimen_count or 0 }}</dd>
+        </div>
+        <div class="stat">
+          <dt>Community observations</dt>
+          <dd>{{ sp.inat_obs_count or 0 }}</dd>
+        </div>
+        <div class="stat">
+          <dt>Counties</dt>
+          <dd>{{ sp.county_count }}</dd>
+        </div>
+        <div class="stat">
+          <dt>Ecoregions</dt>
+          <dd>{{ sp.ecoregion_count }}</dd>
+        </div>
+        {%- endif -%}
+        {%- if sp.on_checklist and sp.checklist_record_count > 0 -%}
+        <div class="stat">
+          <dt>Checklist records</dt>
+          <dd>{{ sp.checklist_record_count }}</dd>
+        </div>
+        {%- endif -%}
+      </dl>
+      {%- if sp.occurrence_count === 0 and sp.on_checklist -%}
+      <p class="no-occurrences">Listed for Washington, but no specimens or community observations are in the atlas yet.</p>
+      {%- endif -%}
+      {%- if sp.on_checklist -%}
+      <p class="checklist-attribution">Checklist: <a href="https://jhr.pensoft.net/article/129013/">Bartholomew et al. 2024</a></p>
+      {%- endif -%}
+      {%- if sp.occurrence_count > 0 -%}
+      <a class="taxon-action taxon-action--primary" href="/?taxon={{ sp.scientificName | urlencode }}&amp;taxonRank=species">View {{ (sp.occurrence_count + (sp.inat_obs_count or 0)) | quantify("record") }} on the atlas →</a>
+      {%- endif -%}
+      {%- if sp.taxon_id -%}
+      <a class="taxon-action" href="https://www.inaturalist.org/taxa/{{ sp.taxon_id }}">View on iNaturalist →</a>
+      {%- endif -%}
     </div>
-    {%- if sp.occurrence_count > 0 or sp.on_checklist -%}
-    <div class="hero-map">
-      <img loading="lazy" src="/data/species-maps/{{ sp.slug }}.svg" alt="Occurrence map for {{ sp.scientificName }}">
+  </div>
+
+  <div class="species-hero">
+    {# Left column: textual facts. #}
+    <div class="hero-meta">
+      {%- set hasSociality  = sp.sociality -%}
+      {%- set hasDiet       = sp.diet_breadth -%}
+      {%- set hasNesting    = sp.nesting -%}
+      {%- set hasNative     = sp.native_status -%}
+      {%- set hasHostBees   = sp.resolvedHostBees and sp.resolvedHostBees.length > 0 -%}
+      {%- if hasSociality or hasDiet or hasNesting or hasNative or hasHostBees -%}
+      {%- set inferredFromGenus = (sp.sociality_source === 'genus-backbone') or (sp.nesting_source === 'genus-backbone') -%}
+      <section class="traits">
+        <h2 class="traits-heading">Traits</h2>
+        <dl class="traits-dl">
+          {%- if hasSociality -%}
+          <dt>Sociality</dt>
+          <dd>{%- if sp.sociality === 'Parasitic' %}Cleptoparasitic{%- else %}{{ sp.sociality }}{%- endif %}{% if sp.sociality_source === 'genus-backbone' %} <span class="trait-inferred">inferred from genus</span>{% endif %}</dd>
+          {%- endif -%}
+          {%- if hasDiet -%}
+          <dt>Diet</dt>
+          <dd>{%- if sp.diet_breadth === 'specialist' %}{%- if sp.dietHost %}Specialist ({{ sp.dietHost }}){%- else %}Specialist{%- endif %}{%- else %}Generalist{%- endif %}</dd>
+          {%- endif -%}
+          {%- if hasNesting -%}
+          <dt>Nesting</dt>
+          <dd>{{ sp.nesting }}{% if sp.nesting_source === 'genus-backbone' %} <span class="trait-inferred">inferred from genus</span>{% endif %}</dd>
+          {%- endif -%}
+          {%- if hasNative -%}
+          <dt>Native status</dt>
+          <dd>{{ sp.native_status | capitalize }}</dd>
+          {%- endif -%}
+          {%- if hasHostBees -%}
+          <dt>Host bees</dt>
+          <dd>{%- for hb in sp.resolvedHostBees %}{%- if not loop.first %}, {% endif %}{%- if hb.type === "species" %}<a href="/species/{{ hb.slug }}/index.html"><em>{{ hb.name }}</em></a>{%- elif hb.type === "genus" %}<a href="/species/{{ hb.genusName }}/index.html"><em>{{ hb.name }}</em></a>{%- else %}<em>{{ hb.name }}</em>{%- endif %}{%- endfor %}</dd>
+          {%- endif -%}
+        </dl>
+        <p class="traits-sources">
+          Sources: Bee-Gap 2017{% if sp.diet_breadth_source === 'fowler' %} · Fowler &amp; Droege specialist list{% endif %}.
+          {%- if inferredFromGenus %} Values marked <span class="trait-inferred">inferred from genus</span> are not measured for this species.{% endif -%}
+        </p>
+      </section>
+      {%- endif -%}
+      {%- set hosts = species_hosts[sp.canonical_name] -%}
+      {%- if hosts and hosts.length > 0 -%}
+      <section class="collected-from">
+        <h2>Collected from</h2>
+        <ul class="host-family-list">
+          {%- for fam in hosts -%}
+          {%- if loop.index0 < 6 -%}
+          <li>
+            <span class="host-family">{{ fam.family }}</span>
+            <span class="host-count">{{ fam.sample_count | quantify("sample") }}</span>
+            <span class="host-genera">{% for g in fam.genera %}{%- if loop.index0 < 8 -%}{%- if not loop.first %}, {% endif %}{{ g.genus }}{%- endif -%}{%- endfor %}</span>
+          </li>
+          {%- endif -%}
+          {%- endfor -%}
+        </ul>
+        {%- if hosts.length > 6 -%}
+        <details class="host-more">
+          <summary>{{ hosts.length - 6 }} more {% if hosts.length - 6 === 1 %}family{% else %}families{% endif %}</summary>
+          <ul class="host-family-list">
+            {%- for fam in hosts -%}
+            {%- if loop.index0 >= 6 -%}
+            <li>
+              <span class="host-family">{{ fam.family }}</span>
+              <span class="host-count">{{ fam.sample_count | quantify("sample") }}</span>
+              <span class="host-genera">{% for g in fam.genera %}{%- if loop.index0 < 8 -%}{%- if not loop.first %}, {% endif %}{{ g.genus }}{%- endif -%}{%- endfor %}</span>
+            </li>
+            {%- endif -%}
+            {%- endfor -%}
+          </ul>
+        </details>
+        {%- endif -%}
+      </section>
+      {%- endif -%}
     </div>
-    {%- endif -%}
+    {# Right column: the two visualizations, each labelled. #}
+    <div class="hero-viz">
+      {# The chart only draws bars above the component's 5-record threshold;
+         below it renders a text fallback, where a "bar height" caption would
+         describe something that isn't on screen. #}
+      {%- set datedRecords = sp.month_histogram | sum -%}
+      <section class="viz-block">
+        <h2 class="viz-heading">Flight season</h2>
+        <seasonality-viz id="sviz"></seasonality-viz>
+        {%- if datedRecords >= 5 -%}
+        {%- set firstYear = sp.first_occurrence_date.slice(0, 4) if sp.first_occurrence_date else null -%}
+        {%- set lastYear = sp.last_occurrence_date.slice(0, 4) if sp.last_occurrence_date else null -%}
+        <p class="viz-caption">Bar height is records per month{% if firstYear and lastYear %}, {% if firstYear === lastYear %}{{ firstYear }}{% else %}{{ firstYear }}–{{ lastYear }}{% endif %}{% endif %}. Background bands mark the four seasons.</p>
+        {%- endif -%}
+      </section>
+      {%- if sp.occurrence_count > 0 or sp.on_checklist -%}
+      <section class="viz-block">
+        <h2 class="viz-heading">Where it has been found</h2>
+        <img loading="lazy" src="/data/species-maps/{{ sp.slug }}.svg" alt="Map of Washington showing {% if sp.occurrence_count > 0 %}{{ sp.scientificName }} occurrence points across {{ sp.county_count }} counties{% else %}the counties where {{ sp.scientificName }} is recorded on the checklist{% endif %}">
+        {# The SVG carries two encodings (red dots, shaded checklist counties);
+           caption whichever are actually present. #}
+        <p class="viz-caption">
+          {%- if sp.occurrence_count > 0 -%}
+          One red dot per record across {{ sp.county_count | quantify("Washington county", "Washington counties") }}.
+          {%- if sp.on_checklist %} Shaded counties are checklist records.{% endif -%}
+          {%- else -%}
+          Shaded counties are checklist records. No individually mapped occurrences yet.
+          {%- endif -%}
+        </p>
+      </section>
+      {%- endif -%}
+    </div>
   </div>
   <script>customElements.whenDefined('seasonality-viz').then(function(){
   var el = document.getElementById('sviz');
   el.data = {{ sp.month_histogram | dump | safe }};
   el.onChecklist = {{ sp.on_checklist | dump | safe }};
 });</script>
-  {%- if sp.occurrence_count > 0 -%}
-  <a class="taxon-action" href="/?taxon={{ sp.scientificName | urlencode }}&amp;taxonRank=species">View {{ (sp.occurrence_count + (sp.inat_obs_count or 0)) | quantify("record") }} on the atlas →</a>
-  {%- endif -%}
-  {%- if sp.taxon_id -%}
-  <a class="taxon-action" href="https://www.inaturalist.org/taxa/{{ sp.taxon_id }}">View on iNaturalist →</a>
-  {%- endif -%}
   {%- set notesForSpecies = notes[sp.canonical_name] -%}
   {%- if notesForSpecies and notesForSpecies.length > 0 -%}
   <section class="notes-section" id="notes">
-    <h2 class="notes-heading">Natural history notes</h2>
+    <h2 class="notes-heading">Community notes</h2>
     <div class="note-list">
       {%- for note in notesForSpecies -%}
       <article class="note" data-note-id="{{ note.id }}">

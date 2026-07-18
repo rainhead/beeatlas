@@ -56,19 +56,19 @@ describe('seasonality-viz (VIZ-01..05)', () => {
     expect(el.querySelector('rect.band-fall')).not.toBeNull();
   });
 
+  // The star glyphs (*/**/***) were replaced by a literal count: the stars
+  // rendered with no key anywhere on the page, so they read as noise.
   test.each([
-    [25, '*'],
-    [75, '**'],
-    [500, '***'],
-    [2000, '****'],
-  ])('VIZ-05 sample-size annotation: total=%i shows %s', async (per, expected) => {
+    [24, 'Based on 24 dated records.'],
+    [72, 'Based on 72 dated records.'],
+    [504, 'Based on 504 dated records.'],
+  ])('VIZ-05 sample-size annotation: total=%i shows "%s"', async (total, expected) => {
     await import('../species/seasonality-viz.ts');
     document.body.innerHTML = `<seasonality-viz></seasonality-viz>`;
     const el = document.querySelector('seasonality-viz') as any;
-    el.data = new Array(12).fill(Math.floor(per / 12));
+    el.data = new Array(12).fill(total / 12);
     await el.updateComplete;
-    const stars = el.querySelector('.sample-stars');
-    expect(stars?.textContent ?? '').toBe(expected);
+    expect(el.querySelector('.sample-size')?.textContent).toBe(expected);
   });
 
   test('VIZ-04 contract: source contains no kde/kernel terminology (pre-binned only)', () => {
