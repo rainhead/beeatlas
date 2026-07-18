@@ -36,8 +36,11 @@ for (const [name, entry] of Object.entries(speciesTable)) {
     .slice()
     .sort((a, b) => (a.ordering ?? 0) - (b.ordering ?? 0))
     .map(p => {
-      const { src, srcset } = deriveSrcset(p.url);
-      return { ...p, src, srcset };
+      // square/large are passed through for the gallery: thumbnails use the
+      // 75w square, the lightbox the ~1024w large. Without them both fall back
+      // to the 500w medium — visually fine, but the wrong bytes at both ends.
+      const { src, srcset, square, large } = deriveSrcset(p.url);
+      return { ...p, src, srcset, square, large };
     });
   result[name] = { description, photos };
 }

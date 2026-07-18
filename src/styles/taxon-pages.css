@@ -118,6 +118,143 @@ seasonality-viz .viz-fallback { color: #555; font-style: italic; font-size: 0.85
   margin-bottom: 1.5rem;
 }
 
+/* Photo gallery (bee-photo-gallery, light DOM — these rules style both the
+   baked <figure> stack and the upgraded markup, which is the point of
+   rendering into the light DOM). Before upgrade the figures stack vertically
+   and every photo is visible; after upgrade only one <figure> remains. */
+.taxon-page .photo-gallery {
+  display: block;
+}
+
+.taxon-page .photo-gallery > figure + figure {
+  margin-top: 0.75rem;
+}
+
+.taxon-page .slide-trigger {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
+}
+
+.taxon-page .slide-trigger:focus-visible {
+  outline: 2px solid var(--accent, #2c7a2c);
+  outline-offset: 2px;
+}
+
+.taxon-page .gallery-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.taxon-page .gallery-source {
+  color: var(--link, #646cff);
+  white-space: nowrap;
+}
+
+.taxon-page .thumb-strip {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+}
+
+.taxon-page .thumb {
+  flex: 0 0 auto;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 3px;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.taxon-page .thumb img {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 2px;
+  display: block;
+}
+
+.taxon-page .thumb[aria-current='true'] {
+  border-color: var(--accent, #2c7a2c);
+}
+
+.taxon-page .thumb:focus-visible {
+  outline: 2px solid var(--accent, #2c7a2c);
+  outline-offset: 2px;
+}
+
+/* Lightbox. Fixed to the viewport, so it sits outside the page grid. */
+.taxon-page .lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.taxon-page .lightbox img {
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+}
+
+.taxon-page .lightbox-caption {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  max-width: 90vw;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #eee;
+}
+
+.taxon-page .lightbox-close,
+.taxon-page .lightbox-prev,
+.taxon-page .lightbox-next {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.taxon-page .lightbox-close {
+  top: 1rem;
+  right: 1rem;
+  background: transparent;
+  font-size: 24px;
+}
+
+.taxon-page .lightbox-prev { left: 1rem; top: 50%; transform: translateY(-50%); }
+.taxon-page .lightbox-next { right: 1rem; top: 50%; transform: translateY(-50%); }
+
+.taxon-page .lightbox-close:hover,
+.taxon-page .lightbox-prev:hover,
+.taxon-page .lightbox-next:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.taxon-page .lightbox-close:focus-visible,
+.taxon-page .lightbox-prev:focus-visible,
+.taxon-page .lightbox-next:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
 /* Headline counts: value over label, the most prominent thing after the binomial.
    column-reverse puts the number on top while keeping <dt> before <dd> in the
    DOM — and it keeps the numbers on a shared baseline when a label wraps to

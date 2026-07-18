@@ -26,17 +26,35 @@ layout: default.njk
 
   {# Identity band: photo alongside the headline numbers. #}
   <div class="species-identity">
-    <figure class="hero-photo">
-      {%- if photoEntry and photoEntry.photos and photoEntry.photos.length > 0 -%}
-        {%- set p = photoEntry.photos[0] -%}
-        <img class="photo-hero" src="{{ p.src or p.url }}" alt="{{ p.caption or sp.scientificName }}">
+    {# One <figure> per photo, baked. bee-photo-gallery reads these and upgrades
+       them into a strip + lightbox; without JS they stand as a plain stack, each
+       with its own attribution (which is per-photo, not per-species). #}
+    {%- if photoEntry and photoEntry.photos and photoEntry.photos.length > 0 -%}
+    <bee-photo-gallery class="photo-gallery">
+      {%- for p in photoEntry.photos -%}
+      <figure class="hero-photo">
+        <img
+          class="photo-hero"
+          src="{{ p.src or p.url }}"
+          {% if p.srcset %}srcset="{{ p.srcset }}" sizes="(min-width: 768px) 50vw, 100vw"{% endif %}
+          {% if p.square %}data-square="{{ p.square }}"{% endif %}
+          {% if p.large %}data-large="{{ p.large }}"{% endif %}
+          {% if p.attribution %}data-attribution="{{ p.attribution }}"{% endif %}
+          {% if p.observation_id %}data-observation-url="https://www.inaturalist.org/observations/{{ p.observation_id }}"{% endif %}
+          {# The first photo is the LCP candidate; the rest defer. #}
+          {% if not loop.first %}loading="lazy"{% endif %}
+          alt="{{ p.caption or sp.scientificName }}">
         {%- if p.attribution -%}
         <figcaption class="attribution">{{ p.attribution }}</figcaption>
         {%- endif -%}
-      {%- else -%}
-        <div class="photo-placeholder">No photo available</div>
-      {%- endif -%}
+      </figure>
+      {%- endfor -%}
+    </bee-photo-gallery>
+    {%- else -%}
+    <figure class="hero-photo">
+      <div class="photo-placeholder">No photo available</div>
     </figure>
+    {%- endif -%}
     <div class="identity-facts">
       {# Checklist-only species have zeros across every occurrence stat; four
          zeros would bury the one number that does exist. Show the checklist
