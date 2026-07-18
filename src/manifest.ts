@@ -9,17 +9,17 @@ const _BASE = (
     : new URL(_RAW_BASE, self.location.origin).href
 ).replace(/\/+$/, '');
 
+// The SLIM manifest (Model Y): only the artifacts the client fetches at
+// runtime. Build-baked data (species, seasonality, notes, …) is inlined by
+// 11ty and never published. Keys mirror lib/runtime-artifacts.js — change
+// them together.
 interface Manifest {
-  occurrences: string;
-  occurrences_db?: string;
-  species: string;
-  seasonality: string;
+  occurrences_db: string; // points to hashed occurrences.db (SQLite engine)
   counties: string;
   ecoregions: string;
   wilderness: string;    // points to hashed wilderness.geojson (no-collect overlay)
   places: string;        // points to hashed places.geojson
   places_meta: string;   // points to hashed places.json
-  checklist: string;
   generated_at: string;
 }
 

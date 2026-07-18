@@ -1,7 +1,7 @@
 // Phase 80/96 architectural boundary tests.
 // Guards three boundaries:
-//   (a) ARCH-04 / PAGE-08: no src/species/**.ts file (seasonality-viz.ts,
-//       seasonality-cache.ts) may import the SPA's mapbox-gl / wa-sqlite /
+//   (a) ARCH-04 / PAGE-08: no src/species/**.ts file (seasonality-viz.ts)
+//       may import the SPA's mapbox-gl / wa-sqlite /
 //       sqlite / filter / bee-map / bee-atlas modules (static OR dynamic).
 //   (b) IDX-02 (Phase 96): src/entries/species-index.ts is restricted to
 //       CSS side-effects + bee-header — no SPA modules allowed.
@@ -61,8 +61,9 @@ function extractImports(src: string, re: RegExp): string[] {
 describe('ARCH-04: src/species boundary (PAGE-08)', () => {
   const files = listTsFiles(SPECIES_DIR);
 
-  // After Phase 96, src/species/ contains only seasonality-viz.ts and
-  // seasonality-cache.ts. The ARCH-04 boundary still applies to those files.
+  // After Model Y, src/species/ contains only seasonality-viz.ts (the runtime
+  // seasonality-cache.ts died with the slim manifest — seasonality is baked at
+  // build time). The ARCH-04 boundary still applies.
   test('src/species/ contains at least one TypeScript file', () => {
     expect(files.length).toBeGreaterThan(0);
   });

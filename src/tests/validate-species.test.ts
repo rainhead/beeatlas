@@ -163,5 +163,8 @@ ordering = 1
     // Order: validate-species -> validate-db -> typecheck -> eleventy -> validate-bundle-size
     // v3.4 CUTOVER-03: validate-schema retired (dbt contract enforces the schema)
     expect(pkg.scripts.build).toBe('npm run validate-species && npm run validate-db && npm run typecheck && eleventy && npm run validate-bundle-size');
+    // Model Y: the postbuild lifecycle hashes the runtime data artifacts into
+    // _site/data and writes the slim manifest (scripts/postbuild-data.mjs).
+    expect(pkg.scripts.postbuild).toBe('node scripts/postbuild-data.mjs');
   });
 });

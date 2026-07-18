@@ -1,25 +1,20 @@
-// Writes public/data/manifest.json with unhashed local filenames for `npm run dev`.
-// nightly.sh overwrites this file in public/data/ with content-hashed filenames for production.
+// Writes public/data/manifest.json with unhashed local filenames for `npm run
+// dev` — the dev-server counterpart of scripts/postbuild-data.mjs, which writes
+// the hashed production manifest into _site/data/ (Model Y: the slim manifest
+// carries only the runtime artifacts the client fetches; build-baked data is
+// inlined by 11ty and never published).
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { RUNTIME_ARTIFACTS } from '../lib/runtime-artifacts.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outPath = join(root, 'public', 'data', 'manifest.json');
 
+const manifest = {};
+for (const [key, { source }] of Object.entries(RUNTIME_ARTIFACTS)) manifest[key] = source;
+manifest.generated_at = 'local';
+
 mkdirSync(join(root, 'public', 'data'), { recursive: true });
-writeFileSync(outPath, JSON.stringify({
-  occurrences: 'occurrences.parquet',
-  occurrences_db: 'occurrences.db',
-  occurrences_db_tables: ['geo_blob', 'occurrences', 'occurrence_places'],
-  species: 'species.json',
-  seasonality: 'seasonality.json',
-  counties: 'counties.clean.geojson',
-  ecoregions: 'ecoregions.clean.geojson',
-  places: 'places.geojson',
-  places_meta: 'places.json',
-  checklist: 'checklist.parquet',
-  higher_taxa: 'higher_taxa.json',
-  generated_at: 'local',
-}, null, 2) + '\n');
+writeFileSync(outPath, JSON.stringify(manifest, null, 2) + '\n');
 console.log('wrote public/data/manifest.json (local dev)');

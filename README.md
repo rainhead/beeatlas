@@ -29,7 +29,7 @@ flowchart LR
     end
 
     subgraph browser["Browser"]
-        PQ["hyparquet\n(Parquet reader)"]
+        PQ["wa-sqlite\n(SQLite engine)"]
         UI["Map + sidebar"]
     end
 
