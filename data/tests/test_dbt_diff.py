@@ -1,7 +1,12 @@
 """Diff assertions comparing dbt sandbox outputs against public/data outputs (Phase 84).
 
-Scope: occurrences.parquet (row count, schema, ecdysis_id key set, spatial assignment)
-       and GeoJSON files (feature counts, property-name equality).
+Scope: occurrences.parquet (row count, schema, ecdysis_id key set, spatial assignment),
+       GeoJSON files (feature counts, property-name equality), and the published
+       JSON exports species.json / seasonality.json.
+
+The fresh side lives in two places: dbt marts in SANDBOX, exporter output in
+$EXPORT_DIR. Each test must read whichever produced its artifact — see the
+EXPORT constant below.
 
 These run as the nightly publish gate, comparing a *fresh* build against the
 *currently-live* data. The two data snapshots legitimately differ run-to-run —
@@ -22,11 +27,18 @@ Requirements covered:
            GeoJSON feature counts, and property-name parity.
 
 Workflow:
-  1. Run: bash data/dbt/run.sh build
-  2. Run: uv run --project data pytest data/tests/test_dbt_diff.py -x
+  1. Run: bash data/dbt/run.sh build                      (produces SANDBOX marts)
+  2. Run the exporters with EXPORT_DIR set somewhere OTHER than public/data,
+     e.g. EXPORT_DIR=/tmp/export uv run python -c 'import species_export;
+     species_export.main()'                               (produces EXPORT JSON)
+  3. Run: EXPORT_DIR=/tmp/export uv run --project data pytest \\
+         data/tests/test_dbt_diff.py -m integration -x
+  The nightly does all three; step 2's env var is why the JSON tests skip on a
+  bare `pytest` run rather than comparing public/data against itself.
 """
 
 import json
+import os
 from pathlib import Path
 
 import duckdb
@@ -36,6 +48,27 @@ pytestmark = pytest.mark.integration
 
 SANDBOX = Path(__file__).resolve().parent.parent / "dbt" / "target" / "sandbox"
 PUBLIC = Path(__file__).resolve().parent.parent.parent / "public" / "data"
+
+# The fresh build lands in TWO places, not one. dbt writes its marts to SANDBOX;
+# the *exporters* (species_export.py) write the published JSON to $EXPORT_DIR
+# (data/nightly.sh exports it before the gate; it is $VAR_DIR/export in the
+# nightly). Tests over exporter outputs must diff EXPORT vs PUBLIC, not
+# SANDBOX vs PUBLIC — under run.py a post-step happened to drop copies in
+# SANDBOX, and when that step retired the SANDBOX-guarded JSON tests skipped
+# silently every night rather than failing loudly.
+_EXPORT_DIR_ENV = os.environ.get("EXPORT_DIR")
+EXPORT = Path(_EXPORT_DIR_ENV).resolve() if _EXPORT_DIR_ENV else PUBLIC.resolve()
+
+# When EXPORT_DIR is unset it *defaults* to public/data (species_export.py), which
+# would make every diff below a file-vs-itself tautology. Skip rather than pass
+# vacuously: a green assertion that compared nothing is what st-kse was about.
+_EXPORT_DISTINCT_GUARD = pytest.mark.skipif(
+    EXPORT == PUBLIC.resolve(),
+    reason=(
+        "[integration] EXPORT_DIR is unset or equals public/data — a fresh-vs-live "
+        "diff needs them distinct; run via data/nightly.sh or set EXPORT_DIR"
+    ),
+)
 
 _SANDBOX_GUARD = pytest.mark.skipif(
     not (SANDBOX / "occurrences.parquet").exists(),
@@ -469,23 +502,136 @@ def test_species_canonical_name_drift_bounded():
     )
 
 
-@pytest.mark.skipif(
-    not (SANDBOX / "species.json").exists(),
-    reason="run species JSON post-step first",
+# ---------------------------------------------------------------------------
+# PORT-02: Published JSON export diffs (species.json, seasonality.json)
+#
+# These guard the *exporter's* output, which the parquet tests above do not
+# reach: species.json carries exporter-added fields (slug) and seasonality.json
+# has no parquet analogue at all — it is aggregated in-exporter from
+# occurrences (species_export.py) and is otherwise covered only by
+# synthetic-fixture unit tests. Volume checks use the same drift bands as the
+# rest of this module; the structural invariants stay strict.
+# ---------------------------------------------------------------------------
+
+_SPECIES_JSON_GUARD = pytest.mark.skipif(
+    not (EXPORT / "species.json").exists(),
+    reason="[integration] EXPORT_DIR/species.json absent — run the exporters first",
 )
-def test_species_json_matches():
-    """sandbox/species.json content == public/data/species.json (byte-comparable)."""
-    s = (SANDBOX / "species.json").read_bytes()
-    p = (PUBLIC / "species.json").read_bytes()
-    assert s == p, "species.json content differs between sandbox and public"
+_SEASONALITY_JSON_GUARD = pytest.mark.skipif(
+    not (EXPORT / "seasonality.json").exists(),
+    reason="[integration] EXPORT_DIR/seasonality.json absent — run the exporters first",
+)
+
+# seasonality.json bucket keys are '_total' or a '<dimension>:<region name>' pair.
+SEASONALITY_BUCKET_PREFIXES = ("county:", "ecoregion_l3:")
 
 
-@pytest.mark.skipif(
-    not (SANDBOX / "seasonality.json").exists(),
-    reason="run species JSON post-step first",
-)
-def test_seasonality_json_matches():
-    """sandbox/seasonality.json content == public/data/seasonality.json (byte-comparable)."""
-    s = (SANDBOX / "seasonality.json").read_bytes()
-    p = (PUBLIC / "seasonality.json").read_bytes()
-    assert s == p, "seasonality.json content differs between sandbox and public"
+@_EXPORT_DISTINCT_GUARD
+@_SPECIES_JSON_GUARD
+def test_species_json_entry_count_within_tolerance():
+    """Fresh species.json entry count is within [-2%, +5%] of the live baseline.
+
+    species.json is an array of one object per species, so its length tracks
+    species.parquet's row count — but through the exporter, which is the step
+    this gate actually guards.
+    """
+    s = json.loads((EXPORT / "species.json").read_text())
+    p = json.loads((PUBLIC / "species.json").read_text())
+    _assert_count_within_tolerance(len(s), len(p), "species.json entries")
+
+
+@_EXPORT_DISTINCT_GUARD
+@_SPECIES_JSON_GUARD
+def test_species_json_canonical_name_drift_bounded():
+    """species.json canonical_names: additions free, disappearances bounded to -2%.
+
+    Same rationale as the parquet anti-join — cardinality alone does not prove
+    the right species survived the export.
+    """
+    s_names = {e["canonical_name"] for e in json.loads((EXPORT / "species.json").read_text())}
+    p_names = {e["canonical_name"] for e in json.loads((PUBLIC / "species.json").read_text())}
+    _assert_set_drift_within_tolerance(
+        len(s_names - p_names), len(p_names - s_names), len(p_names),
+        "species.json canonical_name set",
+    )
+
+
+@_EXPORT_DISTINCT_GUARD
+@_SPECIES_JSON_GUARD
+def test_species_json_object_keys_match():
+    """The per-entry key set is identical between the fresh export and live data.
+
+    This is the species.json analogue of test_occurrences_schema_matches, and is
+    strict for the same reason: field drift is a contract change the site
+    consumes, never routine data movement. Like that test, an intentional
+    contract change deadlocks the first post-change nightly (live S3 still
+    carries the old key set); break it with
+    `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh`.
+    """
+    s = json.loads((EXPORT / "species.json").read_text())
+    p = json.loads((PUBLIC / "species.json").read_text())
+    assert s and p, "species.json is empty on one side; cannot compare key sets"
+    s_keys = set().union(*(e.keys() for e in s))
+    p_keys = set().union(*(e.keys() for e in p))
+    assert s_keys == p_keys, (
+        f"species.json entry key sets differ.\n"
+        f"Only in fresh export: {sorted(s_keys - p_keys)}\n"
+        f"Only in live data:    {sorted(p_keys - s_keys)}"
+    )
+
+
+@_EXPORT_DISTINCT_GUARD
+@_SEASONALITY_JSON_GUARD
+def test_seasonality_json_species_drift_bounded():
+    """seasonality.json top-level keys (canonical_name): count banded, losses bounded.
+
+    seasonality.json is an object keyed by canonical_name, so its key set should
+    move with species.json's. Both directions are checked: the count band bounds
+    mass insertion, the anti-join bounds disappearance.
+    """
+    s = json.loads((EXPORT / "seasonality.json").read_text())
+    p = json.loads((PUBLIC / "seasonality.json").read_text())
+    _assert_count_within_tolerance(len(s), len(p), "seasonality.json species")
+    _assert_set_drift_within_tolerance(
+        len(s.keys() - p.keys()), len(p.keys() - s.keys()), len(p),
+        "seasonality.json canonical_name set",
+    )
+
+
+@_EXPORT_DISTINCT_GUARD
+@_SEASONALITY_JSON_GUARD
+def test_seasonality_json_structure_is_well_formed():
+    """Every bucket is a recognised key mapping to a 12-slot non-negative histogram.
+
+    Structural, not comparative: seasonality.json has no parquet analogue, so a
+    malformed aggregation (wrong month arity, a stray bucket dimension, negative
+    counts) has nothing else in the nightly gate to catch it. The site indexes
+    these arrays by month position, so arity is load-bearing.
+    """
+    s = json.loads((EXPORT / "seasonality.json").read_text())
+    bad_buckets, bad_histograms = [], []
+    for name, buckets in s.items():
+        for bucket, hist in buckets.items():
+            if bucket != "_total" and not bucket.startswith(SEASONALITY_BUCKET_PREFIXES):
+                bad_buckets.append(f"{name} → {bucket}")
+            if (
+                not isinstance(hist, list)
+                or len(hist) != 12
+                or not all(isinstance(v, int) and v >= 0 for v in hist)
+            ):
+                bad_histograms.append(f"{name} → {bucket}: {hist!r}")
+    assert not bad_buckets, (
+        f"{len(bad_buckets)} bucket keys are neither '_total' nor prefixed "
+        f"{SEASONALITY_BUCKET_PREFIXES}; first 10:\n" + "\n".join(bad_buckets[:10])
+    )
+    assert not bad_histograms, (
+        f"{len(bad_histograms)} buckets are not 12-slot non-negative int histograms; "
+        f"first 10:\n" + "\n".join(bad_histograms[:10])
+    )
+
+
+# NOTE: seasonality '_total' and species.json 'month_histogram' deliberately do
+# NOT agree, so there is no cross-artifact coherence test here. month_histogram is
+# the element-wise sum of ecdysis occurrence months AND checklist months
+# (int_species_universe.sql), while seasonality counts occurrences.parquet rows
+# only. Asserting equality looks reasonable and fails on ~60% of species.
