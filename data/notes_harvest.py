@@ -103,9 +103,12 @@ def export_notes(
             untouched. None -> a full harvest of every species.
 
     D-10: only status='approved' notes are included, newest-first
-    (created_at desc). D-13: each Note is {id, html, byline: {display_name, login,
-    collector_url|null}, created, updated}. Species with zero approved notes have
-    no file. The monolithic notes.json _data/notes.js reads is assembled from this
+    (created_at desc). D-13: each Note is {id, html, body_md, byline:
+    {display_name, login, collector_url|null}, created, updated}. body_md is
+    the raw markdown SOURCE of the already-public html — the <bee-notes>
+    island prefills its edit textarea from it (st-vjd deleted the live
+    GET /api/notes read that used to serve per-viewer source). Species with
+    zero approved notes have no file. The monolithic notes.json _data/notes.js reads is assembled from this
     dir by assemble_notes.py; retraction of a species that lost its last approved
     note is the caller's (Stelis prunes notes/<name>.json).
     """
@@ -138,6 +141,7 @@ def export_notes(
             record = {
                 "id": note.id,
                 "html": note.body_html,
+                "body_md": note.body,
                 "byline": _byline(user.inat_login, collector_index),
                 "created": note.created_at.isoformat(),
                 "updated": note.updated_at.isoformat(),

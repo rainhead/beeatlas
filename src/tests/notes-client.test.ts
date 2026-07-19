@@ -1,43 +1,7 @@
 import { test, expect, describe, vi, afterEach } from 'vitest';
 
-describe('auth-client: fetchSpeciesNotes', () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-  });
-
-  test('GETs /api/notes?species=<encoded> with credentials:include and resolves the note array', async () => {
-    const notes = [{ id: 1, html: '<p>hi</p>', byline: { login: 'x', display_name: null, collector_url: null }, created: '2026-01-01T00:00:00Z', updated: '2026-01-01T00:00:00Z' }];
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(notes) });
-    vi.stubGlobal('fetch', fetchMock);
-
-    const { fetchSpeciesNotes } = await import('../auth-client.ts');
-    const result = await fetchSpeciesNotes('Agapostemon femoratus');
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, opts] = fetchMock.mock.calls.at(0) ?? [];
-    expect(String(url)).toContain('/api/notes?species=');
-    expect(String(url)).toContain(encodeURIComponent('Agapostemon femoratus'));
-    expect(opts).toMatchObject({ credentials: 'include' });
-    expect(result).toEqual(notes);
-  });
-
-  test('resolves [] (never throws) on a rejected fetch', async () => {
-    const fetchMock = vi.fn().mockRejectedValue(new Error('network down'));
-    vi.stubGlobal('fetch', fetchMock);
-
-    const { fetchSpeciesNotes } = await import('../auth-client.ts');
-    await expect(fetchSpeciesNotes('Bombus vosnesenskii')).resolves.toEqual([]);
-  });
-
-  test('resolves [] on a non-ok response', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500, json: () => Promise.resolve({}) });
-    vi.stubGlobal('fetch', fetchMock);
-
-    const { fetchSpeciesNotes } = await import('../auth-client.ts');
-    await expect(fetchSpeciesNotes('Bombus vosnesenskii')).resolves.toEqual([]);
-  });
-});
+// (fetchSpeciesNotes and its tests died with st-vjd — the GET /api/notes
+// live read is gone; the baked page is the only note read path.)
 
 describe('auth-client: createNote', () => {
   afterEach(() => {

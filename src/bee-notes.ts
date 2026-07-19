@@ -20,9 +20,14 @@
 // reader it stays fully inert — the baked #notes section (if any) is the
 // only display.
 //
-// Live re-fetch after write (D-02): after every confirmed create/edit/
-// delete, re-fetches this species' notes from the read endpoint and
-// re-renders from that live data — no optimistic update, ever.
+// Reload-sees-it after write (st-nee/st-vjd): every confirmed create/edit/
+// delete/takedown triggers the server's synchronous burned-in publish; when
+// the response says publish:"live" this island simply RELOADS the page — the
+// freshly-baked HTML is the source of truth. There is no live read endpoint
+// any more (the GET /api/notes kludge died with st-vjd), so publish:"pending"
+// (lock busy / timeout; the nightly repairs) shows an explanatory banner
+// instead — the baked list is knowingly stale until the next rebuild.
+// No optimistic update, ever.
 //
 // No client markdown / no client sanitizer (D-04): note bodies render via
 // Lit's unsafeHTML on the trusted server-produced `html` field only.
@@ -31,7 +36,6 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import {
   fetchWhoami,
-  fetchSpeciesNotes,
   createNote,
   updateNote,
   deleteNote,
@@ -45,6 +49,7 @@ const SAVE_ERROR_COPY = "Couldn't save your note. Check your connection and try 
 const OWNERSHIP_LOST_COPY = 'You no longer have permission to edit this note.';
 const TAKEDOWN_ERROR_COPY = "Couldn't take down this note. Check your connection and try again.";
 const CURATOR_LOST_COPY = 'You no longer have curator permission for this action.';
+const PENDING_COPY = 'Saved — your change will appear when the next site rebuild completes.';
 
 type EditorMode = 'add' | 'edit' | null;
 
@@ -56,9 +61,6 @@ export class BeeNotes extends LitElement {
 
   // null while fetchWhoami() is in flight (and forever for guests/non-authors).
   @state() private _authState: AuthState | null = null;
-  // null until the first successful write triggers a live re-fetch (D-02) —
-  // until then the author view is seeded from bakedNotes (no extra round-trip).
-  @state() private _liveNotes: NoteView[] | null = null;
 
   @state() private _editorMode: EditorMode = null;
   @state() private _editTargetId: number | null = null;
@@ -113,11 +115,39 @@ export class BeeNotes extends LitElement {
   }
 
   private get _notes(): NoteView[] {
-    return this._liveNotes ?? this.bakedNotes ?? [];
+    return this.bakedNotes ?? [];
   }
 
-  private async _refetch(): Promise<void> {
-    this._liveNotes = await fetchSpeciesNotes(this.canonicalName);
+  // The viewer owns a note iff its baked byline login matches their session
+  // login. A UX affordance only — every write is independently re-authorized
+  // server-side (a stale/forged match yields a 403).
+  private _canEdit(note: NoteView): boolean {
+    return this._isAuthor && note.byline.login === this._authState?.login;
+  }
+
+  // Reload-sees-it: publish "live" means the freshly-baked page already has
+  // this write — reload and let the baked HTML take over (the reload is also
+  // the visual confirmation; the pre-reload banner would not survive it
+  // anyway). "pending" (or an old server omitting the field) keeps the page
+  // and explains the stale list instead.
+  private _afterWrite(publish: 'live' | 'pending' | undefined): boolean {
+    if (publish === 'live') {
+      window.location.reload();
+      return true;
+    }
+    this._banner = PENDING_COPY;
+    this._bannerIsError = false;
+    return false;
+  }
+
+  // Server truth wins on a 403 (role revoked mid-session — the allowlist is
+  // re-read per request, D-05): re-fetch whoami so _isAuthor/_isCurator/
+  // _canEdit re-derive and the stale controls drop on the next render. If
+  // authorship itself was revoked this island goes inert, so restore the
+  // baked #notes section it hid on mount — the reader view must not vanish.
+  private async _refreshAuth(): Promise<void> {
+    this._authState = await fetchWhoami();
+    if (!this._isAuthor) document.getElementById('notes')?.removeAttribute('hidden');
   }
 
   private _focusAfter(selector: string): void {
@@ -186,13 +216,11 @@ export class BeeNotes extends LitElement {
     this._inFlight = false;
 
     if (result.ok) {
-      await this._refetch();
+      if (this._afterWrite(result.data.publish)) return; // reloading
       this._editorMode = null;
       this._editTargetId = null;
       this._draft = '';
       this._editorError = null;
-      this._banner = wasEdit ? 'Note updated.' : 'Note posted.';
-      this._bannerIsError = false;
       if (wasEdit && editTargetId != null) {
         this._focusAfter(`[data-note-id="${editTargetId}"] .note-btn--edit`);
       } else {
@@ -208,9 +236,7 @@ export class BeeNotes extends LitElement {
       this._editorError = null;
       this._banner = OWNERSHIP_LOST_COPY;
       this._bannerIsError = true;
-      // Server truth wins — re-fetch drops the now-stale edit/delete
-      // controls for this author on the next render.
-      await this._refetch();
+      await this._refreshAuth();
       return;
     }
 
@@ -236,10 +262,8 @@ export class BeeNotes extends LitElement {
     this._inFlight = false;
 
     if (result.ok) {
-      await this._refetch();
+      if (this._afterWrite(result.data.publish)) return; // reloading
       this._deleteConfirmId = null;
-      this._banner = 'Note deleted.';
-      this._bannerIsError = false;
       return;
     }
 
@@ -247,7 +271,7 @@ export class BeeNotes extends LitElement {
       this._deleteConfirmId = null;
       this._banner = OWNERSHIP_LOST_COPY;
       this._bannerIsError = true;
-      await this._refetch();
+      await this._refreshAuth();
       return;
     }
 
@@ -275,10 +299,8 @@ export class BeeNotes extends LitElement {
     this._inFlight = false;
 
     if (result.ok) {
-      await this._refetch();
+      if (this._afterWrite(result.data.publish)) return; // reloading
       this._takedownConfirmId = null;
-      this._banner = 'Note taken down.';
-      this._bannerIsError = false;
       return;
     }
 
@@ -286,9 +308,7 @@ export class BeeNotes extends LitElement {
       this._takedownConfirmId = null;
       this._banner = CURATOR_LOST_COPY;
       this._bannerIsError = true;
-      // Server truth wins -- re-fetch drops the now-stale "Take down"
-      // control for this curator on the next render.
-      await this._refetch();
+      await this._refreshAuth();
       return;
     }
 
@@ -385,7 +405,7 @@ export class BeeNotes extends LitElement {
           <time class="note-timestamp" datetime=${note.created}>${formatDate(note.created)}</time>
           ${note.updated !== note.created ? html`<span class="note-edited">(edited)</span>` : ''}
         </footer>
-        ${note.can_edit && !isEditingThis ? this._renderOwnerControls(note) : ''}
+        ${this._canEdit(note) && !isEditingThis ? this._renderOwnerControls(note) : ''}
         ${this._isCurator && !isEditingThis ? this._renderCuratorControls(note) : ''}
         ${this._deleteErrorNoteId === note.id && this._deleteError
           ? html`<p class="note-error" role="alert">${this._deleteError}</p>`

@@ -2,7 +2,6 @@ import { test, expect, describe, vi, beforeEach } from 'vitest';
 
 const authClientMocks = vi.hoisted(() => ({
   fetchWhoami: vi.fn(),
-  fetchSpeciesNotes: vi.fn(),
   createNote: vi.fn(),
   updateNote: vi.fn(),
   deleteNote: vi.fn(),
@@ -18,7 +17,6 @@ const OWN_NOTE = {
   created: '2026-07-01T00:00:00Z',
   updated: '2026-07-01T00:00:00Z',
   body_md: 'A **great** bee.',
-  can_edit: true,
 };
 
 const OTHER_NOTE = {
@@ -36,6 +34,18 @@ async function mountBeeNotes(canonicalName = 'Agapostemon femoratus', bakedNotes
   el.canonicalName = canonicalName;
   el.bakedNotes = bakedNotes;
   return el;
+}
+
+// Reload-sees-it (st-vjd): a publish:"live" write reloads the page instead of
+// re-fetching live data. Swap in a spy-able location so the reload is
+// observable (and inert) under happy-dom.
+function stubReload(): ReturnType<typeof vi.fn> {
+  const reloadSpy = vi.fn();
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    value: { ...window.location, pathname: window.location?.pathname ?? '/index.html', reload: reloadSpy },
+  });
+  return reloadSpy;
 }
 
 describe('bee-notes: hydration gating', () => {
@@ -116,13 +126,12 @@ describe('bee-notes: author view', () => {
     return el;
   }
 
-  test('zero-baked author empty state: heading + empty copy + Add note, no network round-trip', async () => {
+  test('zero-baked author empty state: heading + empty copy + Add note', async () => {
     const el = await mountAsAuthor([]);
 
     expect(el.querySelector('.notes-heading')?.textContent).toContain('Community notes');
     expect(el.querySelector('.note-empty')?.textContent).toContain('No notes yet');
     expect(el.querySelector('.note-add-btn')).not.toBeNull();
-    expect(authClientMocks.fetchSpeciesNotes).not.toHaveBeenCalled();
   });
 
   test('seeds the list from bakedNotes and shows Edit/Delete only on own notes', async () => {
@@ -150,7 +159,8 @@ describe('bee-notes: author view', () => {
     expect(otherByline?.getAttribute('href')).toBe('/collectors/other/');
   });
 
-  test('Add note: submits, re-fetches (D-02), closes editor, announces success — no optimistic update', async () => {
+  test('Add note with publish:"live": reloads the page (reload-sees-it) — no optimistic update', async () => {
+    const reloadSpy = stubReload();
     const el = await mountAsAuthor([]);
 
     el.querySelector('.note-add-btn').click();
@@ -162,26 +172,46 @@ describe('bee-notes: author view', () => {
     textarea.dispatchEvent(new Event('input'));
     await el.updateComplete;
 
-    authClientMocks.createNote.mockResolvedValue({ ok: true, data: { id: 99 } });
-    authClientMocks.fetchSpeciesNotes.mockResolvedValue([{ ...OWN_NOTE, id: 99, html: '<p>A new observation.</p>' }]);
+    authClientMocks.createNote.mockResolvedValue({ ok: true, data: { id: 99, publish: 'live' } });
 
     el.querySelector('.note-btn--primary').click();
     // In-flight: submit disabled, no optimistic insert yet.
     await el.updateComplete;
+    expect(el.querySelector('[data-note-id="99"]')).toBeNull();
 
     await new Promise((r) => setTimeout(r, 0));
     await el.updateComplete;
 
     expect(authClientMocks.createNote).toHaveBeenCalledWith('Agapostemon femoratus', 'A new observation.');
-    expect(authClientMocks.fetchSpeciesNotes).toHaveBeenCalledWith('Agapostemon femoratus');
-    // editor closed
-    expect(el.querySelector('.note-textarea')).toBeNull();
-    // re-rendered from the live re-fetch result, not an optimistic client-built entry
-    expect(el.querySelector('[data-note-id="99"]')).not.toBeNull();
-    expect(el.querySelector('.note-status')?.textContent).toContain('Note posted.');
+    // The freshly-baked page is the confirmation — the island just reloads.
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
   });
 
-  test('Delete: inline two-step confirm (no native confirm/modal), then re-fetch removes the note', async () => {
+  test('Add note with publish:"pending": no reload; editor closes and the pending banner explains', async () => {
+    const reloadSpy = stubReload();
+    const el = await mountAsAuthor([]);
+
+    el.querySelector('.note-add-btn').click();
+    await el.updateComplete;
+    const textarea = el.querySelector('.note-textarea') as HTMLTextAreaElement;
+    textarea.value = 'A new observation.';
+    textarea.dispatchEvent(new Event('input'));
+    await el.updateComplete;
+
+    authClientMocks.createNote.mockResolvedValue({ ok: true, data: { id: 99, publish: 'pending' } });
+
+    el.querySelector('.note-btn--primary').click();
+    await el.updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await el.updateComplete;
+
+    expect(reloadSpy).not.toHaveBeenCalled();
+    expect(el.querySelector('.note-textarea')).toBeNull();
+    expect(el.querySelector('.note-status')?.textContent).toContain('next site rebuild');
+  });
+
+  test('Delete: inline two-step confirm (no native confirm/modal), then publish:"live" reloads', async () => {
+    const reloadSpy = stubReload();
     const confirmSpy = vi.fn();
     window.confirm = confirmSpy;
     const el = await mountAsAuthor([OWN_NOTE]);
@@ -193,8 +223,7 @@ describe('bee-notes: author view', () => {
     expect(el.querySelector('.note-delete-confirm')).not.toBeNull();
     expect(el.querySelector('.note-delete-confirm')?.textContent).toContain('Delete this note?');
 
-    authClientMocks.deleteNote.mockResolvedValue({ ok: true, data: { id: 1 } });
-    authClientMocks.fetchSpeciesNotes.mockResolvedValue([]);
+    authClientMocks.deleteNote.mockResolvedValue({ ok: true, data: { id: 1, publish: 'live' } });
 
     el.querySelector('.note-delete-confirm .note-btn--danger').click();
     await el.updateComplete;
@@ -202,8 +231,8 @@ describe('bee-notes: author view', () => {
     await el.updateComplete;
 
     expect(authClientMocks.deleteNote).toHaveBeenCalledWith(1);
-    expect(el.querySelector('[data-note-id="1"]')).toBeNull();
-    expect(el.querySelector('.note-status')?.textContent).toContain('Note deleted.');
+    // The reloaded page no longer bakes the note — that IS the removal.
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
   });
 
   test('Delete confirm Cancel reverts to normal Edit/Delete controls without calling deleteNote', async () => {
@@ -221,8 +250,22 @@ describe('bee-notes: author view', () => {
     expect(authClientMocks.deleteNote).not.toHaveBeenCalled();
   });
 
-  test('Edit prefills from body_md and 403 (ownership lost) shows the ownership-lost copy and drops controls on re-fetch', async () => {
-    const el = await mountAsAuthor([OWN_NOTE]);
+  test('Edit prefills from baked body_md; 403 (authorship revoked) re-checks whoami, goes inert, and restores the baked section', async () => {
+    // The baked #notes section the island hides on mount must come back if
+    // authorship is revoked — the reader view must not vanish.
+    authClientMocks.fetchWhoami.mockReset();
+    authClientMocks.fetchWhoami
+      .mockResolvedValueOnce({ authenticated: true, login: 'author1', role: 'author', isAuthor: true })
+      .mockResolvedValueOnce({ authenticated: true, login: 'author1', role: null, isAuthor: false });
+    await import('../bee-notes.ts');
+    document.body.innerHTML = '<section id="notes"></section><bee-notes></bee-notes>';
+    const el = document.querySelector('bee-notes') as any;
+    el.canonicalName = 'Agapostemon femoratus';
+    el.bakedNotes = [OWN_NOTE];
+    await el.updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await el.updateComplete;
+    expect(document.getElementById('notes')?.hasAttribute('hidden')).toBe(true);
 
     el.querySelector('[data-note-id="1"] .note-btn--edit').click();
     await el.updateComplete;
@@ -231,18 +274,17 @@ describe('bee-notes: author view', () => {
     expect(textarea.value).toBe('A **great** bee.');
 
     authClientMocks.updateNote.mockResolvedValue({ ok: false, status: 403 });
-    // Simulate the role being revoked mid-session: the re-fetch after the 403
-    // no longer carries can_edit for this author.
-    authClientMocks.fetchSpeciesNotes.mockResolvedValue([{ ...OWN_NOTE, can_edit: undefined, body_md: undefined }]);
 
     el.querySelector('.note-btn--primary').click();
     await el.updateComplete;
     await new Promise((r) => setTimeout(r, 0));
     await el.updateComplete;
 
+    // Server truth wins: whoami re-checked, author view gone, baked view back.
+    expect(authClientMocks.fetchWhoami).toHaveBeenCalledTimes(2);
     expect(el.querySelector('.note-textarea')).toBeNull();
-    expect(el.querySelector('.note-error')?.textContent).toContain('no longer have permission');
     expect(el.querySelector('[data-note-id="1"] .note-owner-controls')).toBeNull();
+    expect(document.getElementById('notes')?.hasAttribute('hidden')).toBe(false);
   });
 
   test('Escape while textarea focused cancels the editor and discards the draft', async () => {
@@ -326,7 +368,8 @@ describe('bee-notes: curator controls (D-01/D-02/D-03)', () => {
     expect(el.querySelector('[aria-label="Take down this note (curator)"]')).toBeNull();
   });
 
-  test('clicking Take down opens inline confirm; confirming POSTs takedown then refetches (no optimistic removal)', async () => {
+  test('clicking Take down opens inline confirm; confirming POSTs takedown then publish:"live" reloads (no optimistic removal)', async () => {
+    const reloadSpy = stubReload();
     const el = await mountAsCurator([OTHER_NOTE]);
 
     el.querySelector('[data-note-id="2"] [aria-label="Take down this note (curator)"]').click();
@@ -335,18 +378,17 @@ describe('bee-notes: curator controls (D-01/D-02/D-03)', () => {
     expect(el.querySelector('.note-delete-confirm')).not.toBeNull();
     expect(el.querySelector('.note-delete-confirm')?.textContent).toContain('Take down this note?');
 
-    authClientMocks.takedownNote.mockResolvedValue({ ok: true, data: { id: 2 } });
-    authClientMocks.fetchSpeciesNotes.mockResolvedValue([]);
+    authClientMocks.takedownNote.mockResolvedValue({ ok: true, data: { id: 2, publish: 'live' } });
 
     el.querySelector('.note-delete-confirm .note-btn--danger').click();
     await el.updateComplete;
+    // no optimistic removal while in flight
+    expect(el.querySelector('[data-note-id="2"]')).not.toBeNull();
     await new Promise((r) => setTimeout(r, 0));
     await el.updateComplete;
 
     expect(authClientMocks.takedownNote).toHaveBeenCalledWith(2);
-    expect(authClientMocks.fetchSpeciesNotes).toHaveBeenCalledWith('Agapostemon femoratus');
-    expect(el.querySelector('[data-note-id="2"]')).toBeNull();
-    expect(el.querySelector('.note-status')?.textContent).toContain('Note taken down.');
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
   });
 
   test('Take down confirm Cancel reverts to the plain control without calling takedownNote', async () => {
@@ -364,14 +406,18 @@ describe('bee-notes: curator controls (D-01/D-02/D-03)', () => {
     expect(authClientMocks.takedownNote).not.toHaveBeenCalled();
   });
 
-  test('a mocked 403 (curator revoked mid-session) shows the revoked-permission banner and refetches', async () => {
+  test('a mocked 403 (curator revoked mid-session) shows the revoked-permission banner and drops the control after whoami re-check', async () => {
     const el = await mountAsCurator([OTHER_NOTE]);
+    // The post-403 whoami re-read reflects the revocation: still an author,
+    // no longer a curator.
+    authClientMocks.fetchWhoami.mockResolvedValue({
+      authenticated: true, login: 'curator1', role: 'author', isAuthor: true, isCurator: false,
+    });
 
     el.querySelector('[data-note-id="2"] [aria-label="Take down this note (curator)"]').click();
     await el.updateComplete;
 
     authClientMocks.takedownNote.mockResolvedValue({ ok: false, status: 403 });
-    authClientMocks.fetchSpeciesNotes.mockResolvedValue([{ ...OTHER_NOTE }]);
 
     el.querySelector('.note-delete-confirm .note-btn--danger').click();
     await el.updateComplete;
@@ -379,6 +425,7 @@ describe('bee-notes: curator controls (D-01/D-02/D-03)', () => {
     await el.updateComplete;
 
     expect(el.querySelector('.note-error')?.textContent).toContain('no longer have curator permission');
-    expect(authClientMocks.fetchSpeciesNotes).toHaveBeenCalled();
+    expect(authClientMocks.fetchWhoami).toHaveBeenCalledTimes(2);
+    expect(el.querySelector('[aria-label="Take down this note (curator)"]')).toBeNull();
   });
 });

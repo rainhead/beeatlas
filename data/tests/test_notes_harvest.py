@@ -140,7 +140,7 @@ def test_harvest_approved_only_newest_first_with_byline(tmp_path):
 
     # D-13 shape
     for note in apis_notes:
-        assert set(note.keys()) == {"id", "html", "byline", "created", "updated"}
+        assert set(note.keys()) == {"id", "html", "body_md", "byline", "created", "updated"}
         assert set(note["byline"].keys()) == {"display_name", "login", "collector_url"}
 
     # byline: alice is in collectors.json -> display_name + collector_url

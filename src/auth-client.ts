@@ -19,13 +19,13 @@ export interface AuthState {
   iconUrl?: string | null;
 }
 
-// Phase 179-05: note CRUD client. Shapes mirror the read endpoint's JSON
-// (GET /api/notes?species=, 179-02-PLAN.md) and the write endpoints'
-// {id} success bodies (POST/PATCH/DELETE /api/notes[...]).
+// Phase 179-05: note CRUD client. The shape mirrors the nightly harvest's
+// baked notes.json records (data/notes_harvest.py) — since st-vjd deleted
+// the live read endpoint, the baked handoff is the ONLY note source.
 //
-// `body_md`/`can_edit` are only present on items belonging to the viewer's
-// own session (server-enriched) -- used to prefill the editor for the
-// author's own notes (179-UI-SPEC.md Interaction Contract, Edit section).
+// `body_md` is the raw markdown source of `html` (public — html derives
+// from it), used to prefill the editor for the author's own notes. Optional
+// only for pages baked before the harvest started emitting it.
 export interface NoteView {
   id: number;
   html: string;
@@ -37,35 +37,20 @@ export interface NoteView {
   created: string;
   updated: string;
   body_md?: string;
-  can_edit?: boolean;
 }
 
 // Discriminated result for mutating calls so the island can distinguish
 // success / 403 (ownership lost mid-session) / other failure (network,
 // 400, 401, 503) without ever throwing (mirrors fetchWhoami's never-throw
 // stance).
+// `publish` (st-nee): "live" = the synchronous burned-in publish completed —
+// a reload shows the change; "pending" = saved but not yet baked (publish
+// lock busy / timeout — the nightly repairs). There is NO live read endpoint
+// any more (st-vjd deleted the GET /api/notes kludge): after a write the
+// island reloads the page on "live" and shows a pending banner otherwise.
 export type NoteMutationResult =
-  | { ok: true; data: { id: number } }
+  | { ok: true; data: { id: number; publish?: 'live' | 'pending' } }
   | { ok: false; status: number };
-
-/**
- * GET /api/notes?species=<canonicalName> -- public read; a network error or
- * non-ok response resolves to [] rather than throwing, so the island's
- * initial load / re-fetch-after-write never needs a try/catch of its own.
- */
-export async function fetchSpeciesNotes(canonicalName: string): Promise<NoteView[]> {
-  try {
-    const res = await fetch(
-      `${API_BASE}/api/notes?species=${encodeURIComponent(canonicalName)}`,
-      { credentials: 'include' },
-    );
-    if (!res.ok) return [];
-    const body = await res.json();
-    return Array.isArray(body) ? (body as NoteView[]) : [];
-  } catch {
-    return [];
-  }
-}
 
 /**
  * POST /api/notes -- create a note as the signed-in author. Never throws:
