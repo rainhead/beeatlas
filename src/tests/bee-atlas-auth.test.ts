@@ -122,11 +122,18 @@ describe('bee-atlas map-page <bee-header> auth wiring (178-07 gap fix)', () => {
     mockFetchWhoami.mockReset();
     mockStartSignIn.mockReset();
     mockSignOut.mockReset();
+    // auth-client is module-mocked above, but the mounted <bee-atlas> also
+    // background-fetches data (places_meta name map, …) with swallowed
+    // failures; unstubbed, those open real sockets and the connection errors
+    // (AggregateError ECONNREFUSED) spray the logs of green runs
+    // (beeatlas-556). A 404 keeps each caller on its unavailable path.
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 404 })));
   });
 
   afterEach(() => {
     if (el && el.isConnected) el.remove();
     el = null;
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 

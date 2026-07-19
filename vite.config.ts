@@ -39,6 +39,12 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     passWithNoTests: true,
+    // Lit's dev-mode banner fires once per file that imports lit — pure noise
+    // in test logs. Drop exactly that line; everything else must stay visible
+    // (silencing broadly is how real errors hide, beeatlas-556).
+    onConsoleLog(log) {
+      if (log.includes('Lit is in dev mode.')) return false;
+    },
     // Exclude stale agent worktrees and Eleventy build output from test discovery.
     // (.claude/worktrees/ and .claire/worktrees/ hold snapshots from prior agent runs; _site/ is build output.)
     // infra/ holds the CDK assertion test — a ts-node script that imports aws-cdk-lib

@@ -59,6 +59,22 @@ function stubResolveDataUrl() {
 
 const flushMicrotasks = () => new Promise<void>(r => setTimeout(r, 0));
 
+/**
+ * Stub CacheStorage with the given `match` behavior. Always includes a
+ * put-capable `open` — primeAsset writes each fetched response into Cache
+ * Storage directly (Phase 151), so a match-only stub makes that path throw
+ * and spray '[prime-orchestrator] direct cache put failed' over the logs of
+ * green runs (beeatlas-556).
+ */
+function stubCaches(match: (url: string) => Promise<Response | undefined>) {
+  const put = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal('caches', {
+    match: vi.fn().mockImplementation(match),
+    open: vi.fn().mockResolvedValue({ put }),
+  });
+  return { put };
+}
+
 // ---------------------------------------------------------------------------
 
 describe('prime-orchestrator', () => {
@@ -83,10 +99,8 @@ describe('prime-orchestrator', () => {
     stubResolveDataUrl();
 
     // All cache probes hit
-    vi.stubGlobal('caches', {
-      match: vi.fn().mockResolvedValue(new Response('cached')),
-    });
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeStreamingResponse([])));
+    stubCaches(async () => new Response('cached'));
+    vi.stubGlobal('fetch', vi.fn(async () => makeStreamingResponse([])));
 
     const { computeReadyState } = await import('../prime-orchestrator.ts');
     const result = await computeReadyState();
@@ -98,6 +112,12 @@ describe('prime-orchestrator', () => {
     for (const url of Object.values(URLS)) {
       expect(result.cached.has(url)).toBe(true);
     }
+
+    // Let the import-triggered fire-and-forget primeAll settle before the
+    // test ends — window is shared across tests, so a still-running loop
+    // would dispatch its progress events into the NEXT test's listener.
+    await flushMicrotasks();
+    await flushMicrotasks();
   });
 
   // -------------------------------------------------------------------------
@@ -107,12 +127,8 @@ describe('prime-orchestrator', () => {
     stubResolveDataUrl();
 
     const hitUrls = new Set<string>([URLS.occurrences_db, URLS.counties]);
-    vi.stubGlobal('caches', {
-      match: vi.fn().mockImplementation(async (url: unknown) => {
-        return hitUrls.has(url as string) ? new Response('cached') : undefined;
-      }),
-    });
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeStreamingResponse([])));
+    stubCaches(async (url) => hitUrls.has(url) ? new Response('cached') : undefined);
+    vi.stubGlobal('fetch', vi.fn(async () => makeStreamingResponse([])));
 
     const { computeReadyState } = await import('../prime-orchestrator.ts');
     const result = await computeReadyState();
@@ -123,6 +139,10 @@ describe('prime-orchestrator', () => {
     // missing should include ecoregions and places
     expect(result.missing).toContain('ecoregions');
     expect(result.missing).toContain('places');
+
+    // Settle the import-triggered primeAll (see the 4-hit test above).
+    await flushMicrotasks();
+    await flushMicrotasks();
   });
 
   // -------------------------------------------------------------------------
@@ -137,13 +157,8 @@ describe('prime-orchestrator', () => {
     // Other 3 assets: small, all in cache
     const cachedHit = new Response('cached', { headers: { 'content-length': '100' } });
 
-    const cachesMock = {
-      match: vi.fn().mockImplementation(async (url: string) => {
-        // Only occurrences_db is NOT cached
-        return url === URLS.occurrences_db ? undefined : cachedHit;
-      }),
-    };
-    vi.stubGlobal('caches', cachesMock);
+    // Only occurrences_db is NOT cached
+    const { put } = stubCaches(async (url) => url === URLS.occurrences_db ? undefined : cachedHit);
 
     const fetchMock = vi.fn().mockResolvedValue(dbResponse);
     vi.stubGlobal('fetch', fetchMock);
@@ -169,6 +184,9 @@ describe('prime-orchestrator', () => {
     // Final received should equal final total (at completion)
     const last = progressEvents[progressEvents.length - 1]!;
     expect(last.received).toBeGreaterThan(0);
+
+    // Phase 151 direct-put: the fetched asset landed in Cache Storage
+    expect(put).toHaveBeenCalledWith(URLS.occurrences_db, expect.any(Response));
   });
 
   // -------------------------------------------------------------------------
@@ -177,14 +195,11 @@ describe('prime-orchestrator', () => {
   test('content-length absent → falls back to per-asset constants summing to > 0', async () => {
     stubResolveDataUrl();
 
-    // No Content-Length on any response
+    // No Content-Length on any response; fresh Response per call — a shared
+    // one's stream is locked after the first asset drains it
     const chunk = new Uint8Array(1000).fill(1);
-    const responseWithoutLength = makeStreamingResponse([chunk]); // no contentLength arg
-
-    vi.stubGlobal('caches', {
-      match: vi.fn().mockResolvedValue(undefined), // all cache misses
-    });
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(responseWithoutLength));
+    stubCaches(async () => undefined); // all cache misses
+    vi.stubGlobal('fetch', vi.fn(async () => makeStreamingResponse([chunk]))); // no contentLength arg
 
     const progressEvents: Array<{ total: number }> = [];
     window.addEventListener('cache-prime-progress', (e: Event) => {
@@ -212,10 +227,8 @@ describe('prime-orchestrator', () => {
     stubResolveDataUrl();
 
     const chunk = new Uint8Array(1000).fill(1);
-    vi.stubGlobal('caches', {
-      match: vi.fn().mockResolvedValue(undefined),
-    });
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeStreamingResponse([chunk], 1000)));
+    stubCaches(async () => undefined);
+    vi.stubGlobal('fetch', vi.fn(async () => makeStreamingResponse([chunk], 1000)));
 
     await import('../prime-orchestrator.ts');
     // Wait for async operations to settle
@@ -237,16 +250,13 @@ describe('prime-orchestrator', () => {
     stubResolveDataUrl();
 
     // occurrences_db is in cache; others are not
-    vi.stubGlobal('caches', {
-      match: vi.fn().mockImplementation(async (url: string) => {
-        return url === URLS.occurrences_db
-          ? new Response('cached', { headers: { 'content-length': '1000' } })
-          : undefined;
-      }),
-    });
+    stubCaches(async (url) =>
+      url === URLS.occurrences_db
+        ? new Response('cached', { headers: { 'content-length': '1000' } })
+        : undefined);
 
     const chunk = new Uint8Array(100).fill(1);
-    const fetchMock = vi.fn().mockResolvedValue(makeStreamingResponse([chunk], 100));
+    const fetchMock = vi.fn(async () => makeStreamingResponse([chunk], 100));
     vi.stubGlobal('fetch', fetchMock);
 
     await import('../prime-orchestrator.ts');
@@ -269,10 +279,8 @@ describe('prime-orchestrator', () => {
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
     stubResolveDataUrl();
 
-    vi.stubGlobal('caches', {
-      match: vi.fn().mockResolvedValue(undefined),
-    });
-    const fetchMock = vi.fn().mockResolvedValue(makeStreamingResponse([]));
+    stubCaches(async () => undefined);
+    const fetchMock = vi.fn(async () => makeStreamingResponse([]));
     vi.stubGlobal('fetch', fetchMock);
 
     const progressEvents: unknown[] = [];
@@ -293,10 +301,8 @@ describe('prime-orchestrator', () => {
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
     stubResolveDataUrl();
 
-    vi.stubGlobal('caches', {
-      match: vi.fn().mockResolvedValue(undefined),
-    });
-    const fetchMock = vi.fn().mockResolvedValue(makeStreamingResponse([], 100));
+    stubCaches(async () => undefined);
+    const fetchMock = vi.fn(async () => makeStreamingResponse([], 100));
     vi.stubGlobal('fetch', fetchMock);
 
     // Import — cold start bails because offline
@@ -324,12 +330,8 @@ describe('prime-orchestrator', () => {
     stubResolveDataUrl();
 
     // All 4 assets in cache
-    vi.stubGlobal('caches', {
-      match: vi.fn().mockResolvedValue(
-        new Response('cached', { headers: { 'content-length': '1000' } })
-      ),
-    });
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeStreamingResponse([])));
+    stubCaches(async () => new Response('cached', { headers: { 'content-length': '1000' } }));
+    vi.stubGlobal('fetch', vi.fn(async () => makeStreamingResponse([])));
 
     const stateChangedEvents: Array<{ ready: boolean; cached: string[]; missing: string[] }> = [];
     window.addEventListener('cache-state-changed', (e: Event) => {

@@ -72,6 +72,18 @@ vi.mock('mapbox-gl', () => {
 
 vi.mock('mapbox-gl/dist/mapbox-gl.css?raw', () => ({ default: '' }));
 
+// A mounted <bee-atlas> fires background fetches (whoami, the places_meta name
+// map, …) whose failures every caller swallows; without a stub they open real
+// sockets against happy-dom's origin and the connection errors (AggregateError
+// ECONNREFUSED) spray the logs of green runs (beeatlas-556). A 404 keeps each
+// caller on its existing unavailable path, minus the socket.
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 404 })));
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe('ARCH-01: bee-atlas registration', () => {
   test('bee-atlas is a registered custom element', async () => {
     // Import triggers @customElement registration

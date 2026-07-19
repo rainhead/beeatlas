@@ -102,6 +102,18 @@ if (typeof window !== 'undefined' && window.location?.pathname == null) {
   }
 }
 
+// The mounted components background-fetch (whoami, the places_meta name map,
+// …) with swallowed failures; without a stub those open real sockets against
+// happy-dom's origin and the connection errors (AggregateError ECONNREFUSED)
+// spray the logs of green runs (beeatlas-556). A 404 keeps each caller on its
+// existing unavailable path, minus the socket.
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 404 })));
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 // ---------------------------------------------------------------------------
 // <bee-header> cache surfaces (Phase 150)
 // ---------------------------------------------------------------------------
