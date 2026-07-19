@@ -4,12 +4,10 @@ Covers:
 - Real contract: 17 artifacts load and validate (in manifest order)
 - Fail-loud invariants: every validate() rule has a test
 - SEAM-04 synthetic authoritative: authoritative artifact excluded from baseline pull set
-- SC-3 set-equality regression floor: baseline / build-time-fetch sets locked to
-  nightly.sh LOCAL_NAMES and deploy.yml fetch step, respectively
-- Byte-exact manifest golden: proves render_manifest() reproduces nightly.sh
-  heredoc layout (indent, key order, occurrences_db_tables inline, trailing comma
-  placement, trailing newline)
-- Manifest coverage failure: missing/extra keys in name_map raise ValueError
+- SC-3 set-equality regression floor: the baseline set locked to nightly.sh
+  LOCAL_NAMES
+  (The manifest-golden and build-time-fetch tests died with st-vjd along with
+  render_manifest and the deploy.yml fetch step.)
 
 Do NOT add @pytest.mark.integration — this entire file runs in the fast-default tier.
 """
@@ -22,9 +20,7 @@ from artifacts import (
     hashed_artifacts,
     metadata_artifacts,
     baseline_diff_artifacts,
-    build_time_fetch_artifacts,
     authoritative_names,
-    render_manifest,
 )
 
 # ---------------------------------------------------------------------------
@@ -334,78 +330,6 @@ def test_baseline_files_plan(capsys):
     assert [line.split("\t")[0] for line in lines] == list(baseline_diff_artifacts(spec))
 
 
-def test_build_time_fetch_artifacts_set_equality():
-    """SC-3: build_time_fetch artifact names == deploy.yml fetch-step keys (7 names),
-    with species_hosts and notes optional=true, all others optional=false."""
-    spec = load()
-    btf = build_time_fetch_artifacts(spec)
-    assert set(btf.keys()) == set(_EXPECTED_BUILD_TIME_FETCH.keys()), (
-        f"drift detected — update _EXPECTED_BUILD_TIME_FETCH or artifacts.toml"
-    )
-    for name, expected_optional in _EXPECTED_BUILD_TIME_FETCH.items():
-        actual_optional = btf[name].get("build_time_fetch_optional", False)
-        assert actual_optional == expected_optional, (
-            f"build_time_fetch_optional mismatch for {name!r}: "
-            f"expected {expected_optional}, got {actual_optional}"
-        )
 
 
-# ---------------------------------------------------------------------------
-# 5. Byte-exact manifest golden
-# ---------------------------------------------------------------------------
 
-def test_byte_exact_manifest_golden():
-    """render_manifest() reproduces nightly.sh heredoc byte-exactly.
-
-    Fails if any of these change: 2-space indent, key order, occurrences_db_tables
-    inline-array formatting, trailing-comma placement, or trailing newline.
-    """
-    spec = load()
-    hashed = hashed_artifacts(spec)
-    # Construct synthetic map: each value = <logical_name>-DEADBEEF0000.<ext>
-    name_map = {
-        name: f"{name}-DEADBEEF0000.{fields['source_file'].rsplit('.', 1)[-1]}"
-        for name, fields in hashed.items()
-    }
-    meta_map = {
-        "occurrences_db_tables": '["a","b"]',
-        "generated_at": "2026-01-01T00:00:00Z",
-    }
-    result = render_manifest(spec, name_map, meta_map)
-    assert result == _GOLDEN_MANIFEST, (
-        "manifest byte layout drifted from nightly.sh heredoc — "
-        "check indent, key order, trailing comma, and trailing newline"
-    )
-
-
-# ---------------------------------------------------------------------------
-# 6. Manifest coverage failures
-# ---------------------------------------------------------------------------
-
-def test_manifest_missing_hashed_key_raises():
-    """render_manifest() raises ValueError when name_map is missing a hashed key."""
-    spec = load()
-    hashed = hashed_artifacts(spec)
-    # Build a complete name_map then remove one key
-    name_map = {name: f"{name}-DEADBEEF0000.x" for name in hashed}
-    del name_map["species"]  # remove one
-    meta_map = {
-        "occurrences_db_tables": "[]",
-        "generated_at": "2026-01-01T00:00:00Z",
-    }
-    with pytest.raises(ValueError, match="missing hashed keys"):
-        render_manifest(spec, name_map, meta_map)
-
-
-def test_manifest_extra_hashed_key_raises():
-    """render_manifest() raises ValueError when name_map contains an unknown key."""
-    spec = load()
-    hashed = hashed_artifacts(spec)
-    name_map = {name: f"{name}-DEADBEEF0000.x" for name in hashed}
-    name_map["totally_unknown_artifact"] = "unknown-DEADBEEF0000.json"  # extra
-    meta_map = {
-        "occurrences_db_tables": "[]",
-        "generated_at": "2026-01-01T00:00:00Z",
-    }
-    with pytest.raises(ValueError, match="extra/unknown hashed keys"):
-        render_manifest(spec, name_map, meta_map)

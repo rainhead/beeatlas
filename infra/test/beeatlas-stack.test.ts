@@ -1,8 +1,10 @@
-// CDK template assertion test for Phase 147 (ROUTE-03).
+// CDK template assertion test.
 // Run: cd infra && npx ts-node test/beeatlas-stack.test.ts
-// Asserts: two no-cache CloudFront behaviors (/app/sw.js, /app/manifest.webmanifest)
-// with Cache-Control: no-cache, no-store, must-revalidate response header and a
-// zero-TTL CachePolicy.
+// Asserts the post-st-vjd stack shape: the serving infra (site bucket, site
+// distribution, GitHub OIDC deployer) is GONE and stays gone; the beeatlas.com
+// redirect distribution survives; and the two backup buckets keep their
+// Phase 177 STORE-04 boundary (versioned + RETAIN + 180-day lifecycle,
+// pipeline user limited to Put/Get/List — no delete).
 
 import * as assert from 'node:assert/strict';
 import * as cdk from 'aws-cdk-lib';
@@ -32,60 +34,41 @@ const stack = new BeeAtlasStack(app, 'S', {
 
 const template = Template.fromStack(stack);
 
-// Resolve the zero-TTL CachePolicy logical ID (DefaultTTL=0, MaxTTL=0).
-// D-09 mandates a single SHARED no-cache policy, so we assert exactly one
-// exists and then prove both /app behaviors reference it by Ref (WR-01).
-const zeroTtlCachePolicies = template.findResources('AWS::CloudFront::CachePolicy', {
-  Properties: { CachePolicyConfig: { DefaultTTL: 0, MaxTTL: 0 } },
-});
-const cachePolicyIds = Object.keys(zeroTtlCachePolicies);
-assert.equal(
-  cachePolicyIds.length,
-  1,
-  `expected exactly one zero-TTL CachePolicy (D-09 shared policy), found ${cachePolicyIds.length}`,
-);
-const zeroTtlCachePolicyId = cachePolicyIds[0];
-
-// Resolve the no-cache ResponseHeadersPolicy logical ID (Cache-Control override).
-const noCacheHeaderPolicies = template.findResources('AWS::CloudFront::ResponseHeadersPolicy', {
-  Properties: {
-    ResponseHeadersPolicyConfig: {
-      CustomHeadersConfig: {
-        Items: Match.arrayWith([
-          Match.objectLike({
-            Header: 'Cache-Control',
-            Value: Match.stringLikeRegexp('no-cache'),
-            Override: true,
-          }),
-        ]),
-      },
-    },
+// ── st-vjd teardown locks ─────────────────────────────────────────────────
+// The serving infra must not creep back in: maderas serves the site directly
+// (stelis ADR 0007). Exactly ONE distribution remains — the beeatlas.com →
+// beeatlas.net redirect — and it must not have an S3 origin (its HttpOrigin
+// is never contacted; the viewer-request function 301s first).
+template.resourceCountIs('AWS::CloudFront::Distribution', 1);
+template.hasResourceProperties('AWS::CloudFront::Distribution', {
+  DistributionConfig: {
+    Aliases: Match.arrayWith(['beeatlas.com', 'www.beeatlas.com']),
   },
 });
-const headerPolicyIds = Object.keys(noCacheHeaderPolicies);
-assert.equal(
-  headerPolicyIds.length,
-  1,
-  `expected exactly one no-cache ResponseHeadersPolicy (D-09 shared policy), found ${headerPolicyIds.length}`,
-);
-const noCacheHeaderPolicyId = headerPolicyIds[0];
-
-// Assert: each /app behavior exists AND actually references the no-cache
-// CachePolicy + ResponseHeadersPolicy by Ref. Decoupled existence checks would
-// pass even if a regression swapped these behaviors onto CACHING_OPTIMIZED.
-for (const pathPattern of ['/app/sw.js', '/app/manifest.webmanifest']) {
-  template.hasResourceProperties('AWS::CloudFront::Distribution', {
-    DistributionConfig: {
-      CacheBehaviors: Match.arrayWith([
-        Match.objectLike({
-          PathPattern: pathPattern,
-          CachePolicyId: { Ref: zeroTtlCachePolicyId },
-          ResponseHeadersPolicyId: { Ref: noCacheHeaderPolicyId },
-        }),
-      ]),
-    },
-  });
+const distributions = template.findResources('AWS::CloudFront::Distribution');
+for (const [distId, dist] of Object.entries(distributions) as [string, any][]) {
+  const originsStr = JSON.stringify(dist.Properties?.DistributionConfig?.Origins ?? []);
+  assert.ok(
+    !originsStr.includes('S3Origin') && !originsStr.includes('RegionalDomainName'),
+    `${distId} must not have an S3 origin — the site bucket is retired (st-vjd)`,
+  );
 }
+
+// No GitHub OIDC deployer infra of any kind. (A blanket role count won't do —
+// the cross-region redirectCert import owns a custom-resource role.)
+template.resourceCountIs('Custom::AWSCDKOpenIdConnectProvider', 0);
+const allRoles = template.findResources('AWS::IAM::Role');
+for (const [roleId, role] of Object.entries(allRoles) as [string, any][]) {
+  const roleStr = JSON.stringify(role);
+  assert.ok(
+    !roleStr.includes('token.actions.githubusercontent.com') &&
+    role.Properties?.RoleName !== 'beeatlas-github-deployer',
+    `${roleId} looks like GitHub OIDC deploy infra — retired by st-vjd`,
+  );
+}
+
+// Exactly the two backup buckets — the site bucket must not come back.
+template.resourceCountIs('AWS::S3::Bucket', 2);
 
 // ── Phase 177 STORE-04 assertions ─────────────────────────────────────────
 // Synth-time boundary lock: proves the CDK template enforces the IAM isolation
@@ -99,8 +82,7 @@ const cfResources = cfTemplate.Resources as Record<string, any>;
 //    AuthoritativeBackupBucket (notes store, Phase 177) and
 //    PipelineBackupBucket (duckdb + taxa, Model Y st-pry). Exactly these two
 //    buckets have VersioningConfiguration.Status=Enabled and
-//    DeletionPolicy=Retain (the siteBucket uses DeletionPolicy=Delete); both
-//    get the SAME boundary assertions below.
+//    DeletionPolicy=Retain; both get the SAME boundary assertions below.
 const backupBucketEntries = Object.entries(cfResources).filter(([, r]: [string, any]) =>
   r.Type === 'AWS::S3::Bucket' &&
   r.Properties?.VersioningConfiguration?.Status === 'Enabled' &&
@@ -139,29 +121,8 @@ for (const [backupBucketId, backupBucketCf] of backupBucketEntries) {
     'and NoncurrentVersionExpiration.NoncurrentDays=180',
   );
 
-  // 3. Deployer role (beeatlas-github-deployer) must have ZERO references to the
-  //    backup bucket in any attached IAM policy — structural STORE-04 boundary.
-  const deployerRoleEntries = Object.entries(cfResources).filter(([, r]: [string, any]) =>
-    r.Type === 'AWS::IAM::Role' &&
-    r.Properties?.RoleName === 'beeatlas-github-deployer',
-  ) as [string, any][];
-  assert.equal(deployerRoleEntries.length, 1, 'Expected exactly one beeatlas-github-deployer role');
-  const deployerRoleId = deployerRoleEntries[0][0];
-
-  const deployerPolicyEntries = Object.entries(cfResources).filter(([, r]: [string, any]) => {
-    if (r.Type !== 'AWS::IAM::Policy') return false;
-    const roles: any[] = r.Properties?.Roles ?? [];
-    return roles.some((ref: any) => ref?.Ref === deployerRoleId);
-  }) as [string, any][];
-
-  for (const [policyLogicalId, policy] of deployerPolicyEntries) {
-    const policyStr = JSON.stringify(policy);
-    assert.ok(
-      !policyStr.includes(backupBucketId),
-      `Deployer role policy ${policyLogicalId} must NOT reference backup bucket ` +
-      `${backupBucketId} — STORE-04 boundary violated`,
-    );
-  }
+  // 3. (Deployer role STORE-04 checks retired with the role itself — the
+  //    absence locks above are the stronger guarantee.)
 
   // 4. Pipeline user (beeatlas-pipeline) policy assertions on the backup bucket.
   const pipelineUserEntries = Object.entries(cfResources).filter(([, r]: [string, any]) =>

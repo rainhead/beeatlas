@@ -84,10 +84,12 @@ the HTTPS redirect — the same shape as `api.beeatlas.net`.
 - Service worker: hard-reload twice, check `/data/manifest.json` fetches live.
 
 (Model Y already deleted the nightly's S3 site legs, the GH-Actions dispatch,
-and `deploy.yml` itself — there is no `PUBLISH_S3` switch anymore. What remains
-on AWS: the offsite DuckDB/taxa backup trap, still pointed at the site bucket
-until **st-pry** relocates it to a dedicated bucket; full site-bucket teardown
-is **st-vjd**, after st-pry + soak.)
+and `deploy.yml` itself — there is no `PUBLISH_S3` switch anymore. The
+**st-vjd** teardown (2026-07-19) then retired the site bucket, the site
+CloudFront distribution, and the GitHub OIDC deployer. What remains on AWS:
+DNS, the beeatlas.com→.net redirect distribution, and the two backup buckets
+(AuthoritativeBackupBucket for the notes store, PipelineBackupBucket for the
+nightly's DuckDB/taxa trap).)
 
 ## 6. Model-Y migration (one-time, on maderas)
 

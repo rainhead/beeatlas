@@ -38,7 +38,7 @@ Config the engineering skills (`to-issues`, `to-prd`, `grill-with-docs`, `improv
 
 - Static hosting only — no server runtime at any layer, with ONE deliberate, isolated exception: the v8.0 authoritative write side. The store is SQLite on maderas (Phase 177 D-01) and the auth + write API is a small Flask/WSGI service on maderas served by Waitress (pure-Python WSGI server) behind Apache `mod_proxy_http` at `api.beeatlas.net` (Phase 178 D-17, code in `api/`). NOTE: `flup6`/`mod_fcgid` was the original 178 plan but was rejected 2026-07-03 — flup6 is unmaintained since 2015; do not reintroduce it. The read path (species pages) stays 100% static. See memories `project_store_tech_sqlite_on_maderas` and `project_write_layer_is_app_api`.
 - Python 3.14+ (data/pyproject.toml)
-- AWS via CDK in `infra/`; deploy via GitHub OIDC (no stored AWS credentials)
+- AWS via CDK in `infra/` — since the st-vjd teardown (2026-07-19) only DNS, the beeatlas.com→.net redirect, and the two backup buckets. Serving is maderas/Apache; code deploys are `git push maderas main` (+ `data/publish-code.sh` or the nightly). The GitHub OIDC deployer, site bucket, and site CloudFront distribution are gone.
 
 ## Running Locally
 

@@ -73,9 +73,17 @@ HEALTHCHECK_URL="${HEALTHCHECK_URL:-https://hc-ping.com/411cd80a-965b-408c-8f89-
 # Offsite backup (trap, step 8). Same-host is not a backup. The dedicated
 # PipelineBackupBucket (CDK, st-pry) is the destination — set
 # PIPELINE_BACKUP_BUCKET in the crontab from the stack's
-# PipelineBackupBucketName output once deployed. Until then the fallback is
-# the doomed site bucket, so backups never lapse during the transition.
-BACKUP_BUCKET="${PIPELINE_BACKUP_BUCKET:-beeatlasstack-sitebucket397a1860-h5dtjzkld3yv}"
+# PipelineBackupBucketName output. No fallback: the old default (the site
+# bucket) was DELETED by st-vjd, and a silent upload to a dead bucket would
+# look like a backup while `|| true` swallowed every failure. Fail loud
+# instead — the missed healthcheck ping is the alarm.
+if [[ -z "${PIPELINE_BACKUP_BUCKET:-}" ]]; then
+    echo "FATAL: PIPELINE_BACKUP_BUCKET is not set (crontab must pass the" >&2
+    echo "PipelineBackupBucketName stack output) — refusing to run without" >&2
+    echo "a real offsite backup destination (st-vjd)." >&2
+    exit 78  # EX_CONFIG
+fi
+BACKUP_BUCKET="$PIPELINE_BACKUP_BUCKET"
 AWS_PROFILE="${AWS_PROFILE:-beeatlas}"
 DB_S3_KEY="db/beeatlas.duckdb"
 TAXA_S3_KEY="raw/taxa.csv.gz"

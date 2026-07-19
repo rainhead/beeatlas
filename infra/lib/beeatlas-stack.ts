@@ -3,7 +3,6 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import { Construct } from 'constructs';
@@ -17,131 +16,16 @@ export class BeeAtlasStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: BeeAtlasStackProps) {
     super(scope, id, props);
 
-    const { netZone, comZone, siteCert, redirectCert } = props.global;
+    const { netZone, comZone, redirectCert } = props.global;
 
-    // ── S3 Bucket (private — no website hosting mode) ─────────────────────
-    const siteBucket = new s3.Bucket(this, 'SiteBucket', {
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,  // safe: bucket and distribution are in the same stack
-    });
-
-    // ── CloudFront Access Logs Bucket ──────────────────────────────────────
-    // Manually created 2026-04-25; imported here so CDK manages the reference.
-    const logBucket = s3.Bucket.fromBucketName(this, 'CfLogBucket', 'beeatlas-cf-logs');
-
-    // ── Main CloudFront Distribution (beeatlas.net) ───────────────────────
-    // Use S3BucketOrigin.withOriginAccessControl() (stable since CDK v2.156.0).
-    // Do NOT use deprecated S3Origin (OAI). Do NOT set websiteIndexDocument on bucket.
-    const distribution = new cloudfront.Distribution(this, 'SiteDistribution', {
-      defaultBehavior: {
-        origin: origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
-        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-        // Auto-gzip/brotli responses whose Content-Type is on AWS's allowlist
-        // (text/*, application/json, application/javascript, etc.) and which are
-        // > 1 KB. Default in CDK is false; we want it on for the bundled JS.
-        compress: true,
-      },
-      defaultRootObject: 'index.html',
-      domainNames: ['beeatlas.net', 'www.beeatlas.net'],
-      certificate: siteCert,
-      logBucket,
-      logFilePrefix: 'cf-logs/',
-    });
-
-    // ── /data/* cache behavior with CORS headers ──────────────────────────
-    // Cache policy: include Origin in cache key so CORS responses are cached per-origin.
-    // Do NOT use CACHING_OPTIMIZED (it does not include Origin in the cache key).
-    const dataCachePolicy = new cloudfront.CachePolicy(this, 'DataCachePolicy', {
-      headerBehavior: cloudfront.CacheHeaderBehavior.allowList('Origin'),
-      queryStringBehavior: cloudfront.CacheQueryStringBehavior.none(),
-      cookieBehavior: cloudfront.CacheCookieBehavior.none(),
-      defaultTtl: cdk.Duration.days(1),
-      maxTtl: cdk.Duration.days(365),
-      minTtl: cdk.Duration.seconds(0),
-      // Required for CloudFront's auto-compression to fire on this behavior —
-      // without these, `compress: true` on the behavior is silently a no-op.
-      // The cache key varies by Accept-Encoding so compressed and uncompressed
-      // versions get separate cache entries.
-      enableAcceptEncodingGzip: true,
-      enableAcceptEncodingBrotli: true,
-    });
-
-    // Response headers policy: expose CORS + Range/ETag headers to the browser.
-    // No S3 bucket CORS config needed with OAC + ResponseHeadersPolicy.
-    const dataCorsPolicy = new cloudfront.ResponseHeadersPolicy(this, 'DataCorsPolicy', {
-      corsBehavior: {
-        accessControlAllowCredentials: false,
-        accessControlAllowHeaders: ['*'],
-        accessControlAllowMethods: ['GET', 'HEAD'],
-        accessControlAllowOrigins: ['*'],
-        accessControlExposeHeaders: ['Content-Range', 'Content-Length', 'ETag'],
-        originOverride: true,
-      },
-    });
-
-    distribution.addBehavior('/data/*',
-      origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
-      {
-        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        cachePolicy: dataCachePolicy,
-        responseHeadersPolicy: dataCorsPolicy,
-        // species.json + region GeoJSONs are large and compressible. AWS's
-        // allowlist covers application/json — we upload .geojson with that
-        // content-type so CloudFront compresses them too (allowlist doesn't
-        // include application/geo+json; not configurable).
-        compress: true,
-      }
-    );
-
-    // ── /app/sw.js + /app/manifest.webmanifest: no-cache behaviors ────────
-    // Zero-TTL so CloudFront revalidates on every request. SW update detection
-    // requires the browser to always fetch the latest sw.js (the browser's 24h
-    // SW-check maximum is undermined by any CloudFront caching). Per-path only —
-    // NOT /app/* — so Phase 148's app-shell caching is unaffected (D-08, D-09).
-    const swNoCachePolicy = new cloudfront.CachePolicy(this, 'SwNoCachePolicy', {
-      defaultTtl: cdk.Duration.seconds(0),
-      maxTtl: cdk.Duration.seconds(0),
-      minTtl: cdk.Duration.seconds(0),
-      queryStringBehavior: cloudfront.CacheQueryStringBehavior.none(),
-      cookieBehavior: cloudfront.CacheCookieBehavior.none(),
-      enableAcceptEncodingGzip: false,
-      enableAcceptEncodingBrotli: false,
-    });
-
-    // Response headers policy: set Cache-Control: no-cache so the browser
-    // always revalidates the SW script and manifest (override: true ensures
-    // CloudFront overrides any S3 origin response header).
-    const swNoCacheHeadersPolicy = new cloudfront.ResponseHeadersPolicy(this, 'SwNoCacheHeadersPolicy', {
-      customHeadersBehavior: {
-        customHeaders: [{
-          header: 'Cache-Control',
-          value: 'no-cache, no-store, must-revalidate',
-          override: true,
-        }],
-      },
-    });
-
-    distribution.addBehavior('/app/sw.js',
-      origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
-      {
-        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        cachePolicy: swNoCachePolicy,
-        responseHeadersPolicy: swNoCacheHeadersPolicy,
-      }
-    );
-
-    // /app/manifest.webmanifest behavior added now (Phase 151 delivers the file;
-    // the path-pattern behavior is harmless before the file exists — D-08).
-    distribution.addBehavior('/app/manifest.webmanifest',
-      origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
-      {
-        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        cachePolicy: swNoCachePolicy,
-        responseHeadersPolicy: swNoCacheHeadersPolicy,
-      }
-    );
+    // ── Serving infra: RETIRED (st-vjd, post-Model-Y teardown) ────────────
+    // The SiteBucket, SiteDistribution (E3SAI2PQ8FN0E7), their cache/CORS/
+    // no-cache policies, the GitHub OIDC provider + deployer role, and the
+    // pipeline user's site-bucket grants were deleted 2026-07-19 after the
+    // Model Y soak (stelis ADR 0007): maderas serves the site directly via
+    // Apache (infra/maderas/beeatlas.net.conf,
+    // docs/runbooks/serve-from-maderas.md). What remains here is DNS, the
+    // beeatlas.com → beeatlas.net redirect, and the two backup buckets.
 
     // maderas (the Linode serving host): api.beeatlas.net has always resolved
     // here; as of stelis ADR 0007 (serve-from-maderas) the apex + www do too.
@@ -149,13 +33,8 @@ export class BeeAtlasStack extends cdk.Stack {
     const maderasIpv6 = '2600:3c01::f03c:92ff:feb3:476f';
 
     // ── Route 53 records for beeatlas.net (apex + www) → maderas (ADR 0007) ──
-    // Flipped from the CloudFront alias to a direct dual-stack A/AAAA at maderas,
-    // which now serves the rendered site via Apache
-    // (infra/maderas/beeatlas.net.conf, docs/runbooks/serve-from-maderas.md) —
-    // the same shape as the api record below. `distribution` + siteBucket stay
-    // DEFINED (never destroyed here): rollback is reverting these records to the
-    // CloudFront alias below and redeploying, while the distribution is still warm.
-    //   const siteTarget = route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution));
+    // Direct dual-stack A/AAAA at maderas, which serves the rendered site via
+    // Apache — the same shape as the api record below.
     for (const recordName of [undefined, 'www']) {
       new route53.ARecord(this, `NetA${recordName ?? 'Apex'}`, {
         zone: netZone, recordName,
@@ -168,12 +47,10 @@ export class BeeAtlasStack extends cdk.Stack {
     }
 
     // ── Route 53 record: api.beeatlas.net → maderas (Phase 178 write layer) ──
-    // Plain A record to a fixed IP, NOT a CloudFront alias — api.beeatlas.net
-    // serves directly from maderas via Apache mod_proxy_http -> Waitress
-    // (D-17), with its own certbot-issued TLS cert (independent of the
-    // CloudFront ACM certs used for beeatlas.net / beeatlas.com). Surgical,
-    // additive-only edit — never touch siteBucket/distribution/OIDC role/
-    // AuthoritativeBackupBucket here, and never `cdk destroy`
+    // Plain A record to a fixed IP — api.beeatlas.net serves directly from
+    // maderas via Apache mod_proxy_http -> Waitress (D-17), with its own
+    // certbot-issued TLS cert (independent of the CloudFront ACM cert still
+    // used by the beeatlas.com redirect). Never `cdk destroy`
     // (memory project_cdk_stack_composition).
     new route53.ARecord(this, 'ApiA', {
       zone: netZone,
@@ -199,7 +76,10 @@ function handler(event) {
 
     const redirectDistribution = new cloudfront.Distribution(this, 'RedirectDistribution', {
       defaultBehavior: {
-        origin: origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
+        // CloudFront requires an origin, but the viewer-request function 301s
+        // before any origin contact — this HttpOrigin is never actually hit.
+        // (Was the now-deleted siteBucket before the st-vjd teardown.)
+        origin: new origins.HttpOrigin('beeatlas.net'),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         functionAssociations: [{
@@ -222,82 +102,15 @@ function handler(event) {
       });
     }
 
-    // ── GitHub OIDC Provider ───────────────────────────────────────────────
-    // One per AWS account per URL. No thumbprints needed as of late 2024.
-    // If cdk deploy fails with "Provider already exists", replace this block with:
-    //   const githubProvider = iam.OpenIdConnectProvider.fromOpenIdConnectProviderArn(
-    //     this, 'GitHubOidcProvider',
-    //     `arn:aws:iam::${this.account}:oidc-provider/token.actions.githubusercontent.com`
-    //   );
-    const githubProvider = new iam.OpenIdConnectProvider(this, 'GitHubOidcProvider', {
-      url: 'https://token.actions.githubusercontent.com',
-      clientIds: ['sts.amazonaws.com'],
-    });
-
-    // ── Deployer Role ──────────────────────────────────────────────────────
-    // Scoped to rainhead/beeatlas repo (any branch/tag/environment).
-    // StringLike allows wildcards; StringEquals is exact match for audience.
-    const deployerRole = new iam.Role(this, 'GitHubDeployerRole', {
-      roleName: 'beeatlas-github-deployer',
-      assumedBy: new iam.WebIdentityPrincipal(
-        githubProvider.openIdConnectProviderArn,
-        {
-          StringLike: {
-            'token.actions.githubusercontent.com:sub': 'repo:rainhead/beeatlas:*',
-          },
-          StringEquals: {
-            'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
-          },
-        },
-      ),
-      maxSessionDuration: cdk.Duration.hours(1),
-    });
-
-    // Allow deployer to assume CDK bootstrap roles (needed for cdk deploy from CI)
-    deployerRole.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: ['sts:AssumeRole'],
-      resources: [`arn:aws:iam::${this.account}:role/cdk-*`],
-    }));
-
-    // Grant direct S3 read/write (workflow syncs frontend/dist/ directly)
-    siteBucket.grantReadWrite(deployerRole);
-
-    // Grant CloudFront invalidation (workflow runs create-invalidation after S3 sync)
-    deployerRole.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: ['cloudfront:CreateInvalidation', 'cloudfront:GetInvalidation'],
-      resources: [
-        `arn:aws:cloudfront::${this.account}:distribution/${distribution.distributionId}`,
-      ],
-    }));
-
     // ── Pipeline IAM User (beeatlas-pipeline) ────────────────────────────
-    // Used by the nightly cron on maderas. Access keys are managed outside
-    // CDK — create via console/CLI after first deploy and store in
-    // ~/.aws/credentials on maderas under profile [beeatlas].
-    //
-    // Migration: delete the manually-created user + inline policy before
-    // running `cdk deploy`, then create new access keys for maderas.
+    // Used by the nightly cron on maderas (backup uploads only since st-vjd —
+    // the site-bucket and CloudFront-invalidation grants left with the
+    // serving infra). Access keys are managed outside CDK — create via
+    // console/CLI after first deploy and store in ~/.aws/credentials on
+    // maderas under profile [beeatlas].
     const pipelineUser = new iam.User(this, 'PipelineUser', {
       userName: 'beeatlas-pipeline',
     });
-
-    pipelineUser.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: ['s3:GetObject', 's3:PutObject'],
-      resources: [
-        siteBucket.arnForObjects('data/*'),
-        siteBucket.arnForObjects('db/*'),
-        siteBucket.arnForObjects('raw/*'),
-      ],
-    }));
-
-    pipelineUser.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: ['cloudfront:CreateInvalidation'],
-      resources: [`arn:aws:cloudfront::${this.account}:distribution/${distribution.distributionId}`],
-    }));
 
     // ── Authoritative Store Backup Bucket ─────────────────────────────────
     // Separate from siteBucket: neither the GitHub OIDC deployer role nor the
@@ -376,22 +189,5 @@ function handler(event) {
       description: 'Pipeline backup bucket → PIPELINE_BACKUP_BUCKET in the maderas crontab (nightly.sh backup trap)',
     });
 
-    // ── Outputs (consumed as GitHub Actions secrets) ──────────────────────
-    new cdk.CfnOutput(this, 'BucketName', {
-      value: siteBucket.bucketName,
-      description: 'S3 bucket name → GitHub secret S3_BUCKET_NAME',
-    });
-    new cdk.CfnOutput(this, 'DistributionId', {
-      value: distribution.distributionId,
-      description: 'CloudFront distribution ID → GitHub secret CF_DISTRIBUTION_ID',
-    });
-    new cdk.CfnOutput(this, 'DistributionDomain', {
-      value: distribution.distributionDomainName,
-      description: 'CloudFront domain for verifying the live site',
-    });
-    new cdk.CfnOutput(this, 'DeployerRoleArn', {
-      value: deployerRole.roleArn,
-      description: 'OIDC deployer role ARN → GitHub secret AWS_DEPLOYER_ROLE_ARN',
-    });
   }
 }
