@@ -6,12 +6,12 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "dlt[duckdb]>=1.28.1",
-    "duckdb>=1.5.4,<2",
+    "duckdb>=1.5.5,<2",
     "pyarrow>=25.0.0",
     "pyogrio>=0.11",  # GDAL-bundling reader for the PAD-US wilderness GDB (attribute-filter pushdown; see geographies_pipeline)
     "requests",
     "beautifulsoup4",
-    "boto3>=1.43.50",
+    "boto3>=1.43.53",
     "dateparser",
     "pygbif",
     "rapidfuzz",
