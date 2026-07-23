@@ -7,9 +7,9 @@
 #
 # What you get: the runtime artifacts the live site serves (occurrences.db,
 # the region GeoJSONs, places_meta), downloaded to their local source_file
-# names. What you DON'T get: the build-time exports (species.json, notes.json,
-# …) and the stable-URL dirs (feeds/, species-maps/, place-maps/) — those are
-# not enumerable over HTTPS. For the full surface, BUILD it: `npm run
+# names. What you DON'T get: the build-time exports (species.json, the
+# notes/ dir, …) and the stable-URL dirs (feeds/, species-maps/, place-maps/) —
+# those are not enumerable over HTTPS. For the full surface, BUILD it: `npm run
 # fetch-data` runs the Stelis data engine against the local pipeline state
 # (needs the DuckDB + pipeline env). This script is the light-dev alternative
 # — grab what's live without running the pipeline.

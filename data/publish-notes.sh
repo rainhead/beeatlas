@@ -14,15 +14,17 @@
 #      exit 75 (EX_TEMPFAIL) — the run holding the lock reads the SAME
 #      committed store and bakes the note itself (or the next nightly does),
 #      so "pending" is the truthful outcome, not a failure.
-#   2. Scoped stelis build: `--from notes-harvest … notes.json`. The
-#      notes-store digest names the changed canonical_names, and the harvest
-#      rebuilds only those keys (STELIS_REBUILD_KEYS, st-pd1).
+#   2. Scoped stelis build: `--from notes-harvest … notes`. The notes-store
+#      digest names the changed canonical_names, and the harvest rebuilds only
+#      those keys of the per-species notes/ dir (STELIS_REBUILD_KEYS, st-pd1).
+#      The notes.json roll-up is retired (beeatlas-6x9): _data/notes.js reads
+#      the dir directly, so the keyed file IS the handoff.
 #   3. `npm run build` — the full ~18s 11ty render, accepted per the ADR
-#      Amendment (a note write always changes notes.json, so early cutoff
+#      Amendment (a note write always changes the notes/ dir, so early cutoff
 #      never helped here anyway).
 #   4. Merge-swap into SITE_ROOT (data/merge-swap.sh, the shared contract).
 #
-# NO baseline restore/snapshot and NO integration gate: notes.json is not a
+# NO baseline restore/snapshot and NO integration gate: notes/ is not a
 # baseline artifact (data/artifacts.py baseline-files) and the data tier is
 # untouched by a note write.
 #
@@ -76,7 +78,7 @@ fi
 echo "--- building notes (stelis, scoped) ---"
 _t0=$(date +%s)
 export DB_PATH EXPORT_DIR NOTES_DB_PATH STELIS_DIR
-bash "$REPO_ROOT/scripts/fetch-data.sh" --from notes-harvest notes.json
+bash "$REPO_ROOT/scripts/fetch-data.sh" --from notes-harvest notes
 echo "--- notes build done in $(_elapsed $_t0) ---"
 
 # 3. Full site render (postbuild derives _site/data + the slim manifest).

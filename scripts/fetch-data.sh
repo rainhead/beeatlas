@@ -34,7 +34,7 @@ mkdir -p "$EXPORT_DIR"
 
 # Optional args scope the build; no args = --all (every target). The st-nee
 # note-write path passes the scoped form:
-#   scripts/fetch-data.sh --from notes-harvest notes.json
+#   scripts/fetch-data.sh --from notes-harvest notes
 if [[ $# -eq 0 ]]; then set -- --all; fi
 
 cd "$STELIS_DIR"

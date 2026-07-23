@@ -66,7 +66,7 @@ BASELINE_DIR="${BASELINE_DIR:-$VAR_DIR/baseline}"
 # go-live runbook (docs/runbooks/notes-write-launch-gate.md §A4), NOT the code
 # default in notes_store/db.py (/opt/beeatlas-store/notes.db, which is unused on
 # maderas). Without this export the harvest reads a nonexistent store and emits
-# an empty notes.json — no author note ever reaches the static site.
+# an empty notes/ dir — no author note ever reaches the static site.
 NOTES_DB_PATH="${NOTES_DB_PATH:-$HOME/beeatlas-store/notes.db}"
 HEALTHCHECK_URL="${HEALTHCHECK_URL:-https://hc-ping.com/411cd80a-965b-408c-8f89-b2b3afda0286}"
 

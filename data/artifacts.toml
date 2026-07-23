@@ -156,14 +156,6 @@ source_file = "collector_event_pages.json"
 hash_basename = "collector_event_pages"
 build_time_fetch = true
 
-[artifacts.notes]
-provenance = "authoritative"
-kind = "hashed"
-source_file = "notes.json"
-hash_basename = "notes"
-build_time_fetch = true
-build_time_fetch_optional = true
-
 [artifacts.occurrences_db_tables]
 provenance = "derived"
 kind = "metadata"

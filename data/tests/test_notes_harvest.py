@@ -20,7 +20,6 @@ import json
 
 from sqlalchemy.orm import Session
 
-from assemble_notes import assemble_notes
 from notes_harvest import export_notes
 from notes_store.db import make_engine
 from notes_store.models import Base, Note, User
@@ -57,6 +56,19 @@ def _write_collectors_json(assets_dir, records):
     (assets_dir / "collectors.json").write_text(
         json.dumps(records), encoding="utf-8"
     )
+
+
+def _read_notes_dir(assets_dir):
+    """The per-species notes/ dir as a Record — the same filename-stem -> array
+    view _data/notes.js builds at Eleventy build time (beeatlas-6x9; the
+    notes.json roll-up this used to assert through is retired)."""
+    notes_dir = assets_dir / "notes"
+    if not notes_dir.exists():
+        return {}
+    return {
+        p.stem: json.loads(p.read_text(encoding="utf-8"))
+        for p in sorted(notes_dir.glob("*.json"))
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -125,9 +137,8 @@ def test_harvest_approved_only_newest_first_with_byline(tmp_path):
         session.commit()
 
     export_notes(engine=engine, assets_dir=assets_dir)
-    assemble_notes(assets_dir=assets_dir)
 
-    out = json.loads((assets_dir / "notes.json").read_text(encoding="utf-8"))
+    out = _read_notes_dir(assets_dir)
 
     # bombus vosnesenskii has zero approved notes -> not a key.
     assert set(out.keys()) == {"apis mellifera"}
@@ -206,9 +217,8 @@ def test_harvest_excludes_hidden(tmp_path):
         session.commit()
 
     export_notes(engine=engine, assets_dir=assets_dir)
-    assemble_notes(assets_dir=assets_dir)
 
-    out = json.loads((assets_dir / "notes.json").read_text(encoding="utf-8"))
+    out = _read_notes_dir(assets_dir)
 
     apis_notes = out["apis mellifera"]
     assert len(apis_notes) == 1, (
@@ -228,10 +238,8 @@ def test_harvest_empty_store_emits_empty_record(tmp_path):
     assets_dir = tmp_path / "assets"
 
     export_notes(engine=engine, assets_dir=assets_dir)
-    assemble_notes(assets_dir=assets_dir)
 
-    out = json.loads((assets_dir / "notes.json").read_text(encoding="utf-8"))
-    assert out == {}
+    assert _read_notes_dir(assets_dir) == {}
 
 
 # ---------------------------------------------------------------------------
@@ -261,9 +269,8 @@ def test_harvest_missing_collectors_json_falls_back(tmp_path):
         session.commit()
 
     export_notes(engine=engine, assets_dir=assets_dir)
-    assemble_notes(assets_dir=assets_dir)
 
-    out = json.loads((assets_dir / "notes.json").read_text(encoding="utf-8"))
+    out = _read_notes_dir(assets_dir)
     assert out["apis mellifera"][0]["byline"] == {
         "display_name": "@carol_inat",
         "login": "carol_inat",
@@ -295,7 +302,7 @@ def test_harvest_uses_make_engine_not_raw_sqlite3():
 
 def test_harvest_partial_rewrites_only_given_keys(tmp_path):
     """A partial harvest (rebuild_keys) rewrites only those species' files; every
-    other species' file is left byte-identical, and assemble still sees both."""
+    other species' file is left byte-identical, and the dir Record sees both."""
     engine = _make_db(tmp_path)
     assets_dir = tmp_path / "assets"
     t = datetime.datetime(2026, 7, 1, 12, 0, 0)
@@ -355,9 +362,8 @@ def test_harvest_partial_rewrites_only_given_keys(tmp_path):
     )
     assert osmia[0]["html"] == "<p>edited</p>"
 
-    # assemble rolls the whole dir up -> notes.json reflects both species
-    assemble_notes(assets_dir=assets_dir)
-    out = json.loads((assets_dir / "notes.json").read_text(encoding="utf-8"))
+    # the merged dir is the whole Record: both species, osmia's edit visible
+    out = _read_notes_dir(assets_dir)
     assert set(out.keys()) == {"apis mellifera", "osmia lignaria"}
     assert out["osmia lignaria"][0]["html"] == "<p>edited</p>"
 
@@ -369,8 +375,8 @@ def test_harvest_partial_rewrites_only_given_keys(tmp_path):
 
 def test_full_harvest_clears_retracted_species(tmp_path):
     """A FULL harvest is the complete keyset: a species that lost its last approved
-    note has its file removed, so assemble's notes.json drops it — matching the old
-    monolithic behaviour (no stale files linger via run.py's always-full path)."""
+    note has its file removed, so the dir Record drops it (no stale files linger
+    on the always-full path)."""
     engine = _make_db(tmp_path)
     assets_dir = tmp_path / "assets"
     t = datetime.datetime(2026, 7, 1, 12, 0, 0)
@@ -403,6 +409,6 @@ def test_full_harvest_clears_retracted_species(tmp_path):
     assert not (assets_dir / "notes" / "osmia lignaria.json").exists(), (
         "a full harvest must clear the retracted species' stale file"
     )
-    assemble_notes(assets_dir=assets_dir)
-    out = json.loads((assets_dir / "notes.json").read_text(encoding="utf-8"))
-    assert out == {}, "notes.json drops the retracted species"
+    assert _read_notes_dir(assets_dir) == {}, (
+        "the dir Record drops the retracted species"
+    )

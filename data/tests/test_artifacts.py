@@ -44,49 +44,9 @@ _EXPECTED_BASELINE = {
     "species_hosts": "species_hosts.json",
 }
 
-# From .github/workflows/deploy.yml lines 49–67 (7 fetches; species_hosts and
-# notes optional — Phase 179 D-09/A3: notes is authoritative and has no
-# pre-first-nightly manifest key either, same guard as species_hosts).
-# Value = build_time_fetch_optional
-_EXPECTED_BUILD_TIME_FETCH = {
-    "species": False,
-    "seasonality": False,
-    "higher_taxa": False,
-    "collectors": False,
-    "collector_event_pages": False,
-    "place_details": True,
-    "species_hosts": True,
-    "notes": True,
-}
-
-# Byte-exact manifest golden (reproduces nightly.sh heredoc layout).
-# 2-space indent, comma after every line except the last (generated_at),
-# occurrences_db_tables is inline compact JSON (no outer quotes),
-# generated_at is double-quoted, trailing newline after }.
-# Constructed from a synthetic map: each hashed value = <name>-DEADBEEF0000.<ext>.
-_GOLDEN_MANIFEST = """\
-{
-  "occurrences": "occurrences-DEADBEEF0000.parquet",
-  "occurrences_db": "occurrences_db-DEADBEEF0000.db",
-  "species": "species-DEADBEEF0000.json",
-  "seasonality": "seasonality-DEADBEEF0000.json",
-  "higher_taxa": "higher_taxa-DEADBEEF0000.json",
-  "counties": "counties-DEADBEEF0000.geojson",
-  "ecoregions": "ecoregions-DEADBEEF0000.geojson",
-  "wilderness": "wilderness-DEADBEEF0000.geojson",
-  "places": "places-DEADBEEF0000.geojson",
-  "places_meta": "places_meta-DEADBEEF0000.json",
-  "place_details": "place_details-DEADBEEF0000.json",
-  "checklist": "checklist-DEADBEEF0000.parquet",
-  "photos": "photos-DEADBEEF0000.json",
-  "species_hosts": "species_hosts-DEADBEEF0000.json",
-  "collectors": "collectors-DEADBEEF0000.json",
-  "collector_event_pages": "collector_event_pages-DEADBEEF0000.json",
-  "notes": "notes-DEADBEEF0000.json",
-  "occurrences_db_tables": ["a","b"],
-  "generated_at": "2026-01-01T00:00:00Z"
-}
-"""
+# (The _EXPECTED_BUILD_TIME_FETCH and _GOLDEN_MANIFEST fixtures that lived here
+# died with their tests: st-vjd retired render_manifest + the deploy.yml fetch
+# step, and beeatlas-6x9 retired the notes.json artifact they both listed.)
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -103,10 +63,12 @@ def _write_toml(tmp_path, content: str):
 # 1. Real contract: load + validate
 # ---------------------------------------------------------------------------
 
-def test_load_returns_19_artifacts():
-    """Loader returns 19 artifacts from the real contract."""
+def test_load_returns_18_artifacts():
+    """Loader returns 18 artifacts from the real contract (notes retired,
+    beeatlas-6x9: the per-species notes/ dir is a build-time export with no
+    manifest presence, so it has no artifacts.toml entry)."""
     spec = load()
-    assert len(spec) == 19
+    assert len(spec) == 18
 
 
 def test_validate_passes_real_contract():
@@ -116,13 +78,13 @@ def test_validate_passes_real_contract():
 
 
 def test_artifact_order():
-    """19 artifacts are declared in manifest order (matching nightly.sh heredoc)."""
+    """18 artifacts are declared in manifest order (matching nightly.sh heredoc)."""
     spec = load()
     expected = [
         "occurrences", "occurrences_db", "species", "seasonality", "higher_taxa",
         "counties", "ecoregions", "wilderness", "places", "places_meta", "place_details",
         "checklist", "photos", "species_hosts", "collectors", "collector_event_pages",
-        "notes", "occurrences_db_tables", "generated_at",
+        "occurrences_db_tables", "generated_at",
     ]
     assert list(spec.keys()) == expected
 
