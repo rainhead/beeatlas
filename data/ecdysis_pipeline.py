@@ -1,5 +1,6 @@
 import csv
 import io
+import json
 import os
 import time
 import zipfile
@@ -38,6 +39,120 @@ ECDYSIS_CACHE_TTL_SECONDS = int(os.environ.get("ECDYSIS_CACHE_TTL_SECONDS", "216
 ECDYSIS_LOGIN_URL = "https://ecdysis.org/profile/index.php"
 ECDYSIS_DOWNLOAD_URL = "https://ecdysis.org/collections/download/downloadhandler.php"
 _ZIP_MAGIC = b"PK\x03\x04"  # ZIP local-file-header magic bytes
+
+# --- Cheap source change-probe (skip the ~2-minute ZIP build when nothing moved) -
+# The server-side ZIP build is the pipeline's dominant cost, and past the mtime TTL
+# the loader used to pay it unconditionally (nightly always downloads). Ecdysis's v2
+# occurrence API lets us instead ask two cheap, UNAUTHENTICATED questions about the
+# SAME population the ZIP pulls — scoped by datasetID (dataset 44 is a subset of the
+# WSUC collection, so datasetID — not collid — is the correct scope):
+#
+#   * total count           -> catches deletions / net membership changes
+#   * modified-since count   -> catches adds + edits (omoccurrences.dateLastModified
+#                               is bumped on every edit and is populated on 100% of
+#                               dataset-44 records, so adds/edits of records OUTSIDE
+#                               the baseline window are always caught)
+#
+# If NEITHER moved since the cached ZIP was pulled, reuse the cache — letting even the
+# nightly skip an unchanged source. Two known blind spots remain, both rare and both
+# healed by the next full pull:
+#   - a re-edit of a record ALREADY inside the baseline `since` window: its
+#     dateLastModified stays >= since, so the modified-since COUNT is unchanged (and
+#     total is flat), so the probe skips. The window is only ~1 day wide, so this is
+#     limited to same-day-hot records edited again before any other change trips it.
+#   - a same-interval compensating replace (N deleted + N inserted, total flat) whose
+#     inserts carry back-dated dateLastModified.
+#
+# API quirk (verified live 2026-07-23): dateLastModifiedMin WITHOUT a Max returns
+# HTTP 500 (a loose whereRaw binding in OccurrenceController), so probe calls always
+# pass a far-future Max, turning the bound into a plain "modified since" filter.
+ECDYSIS_API_URL = "https://ecdysis.org/api/v2/occurrence"
+_API_FAR_FUTURE = "2999-01-01"
+# Set ECDYSIS_SKIP_PROBE=0 to disable the probe and keep the download-every-time-
+# past-TTL behaviour.
+ECDYSIS_SKIP_PROBE = os.environ.get("ECDYSIS_SKIP_PROBE", "1") != "0"
+
+
+def _api_occurrence_count(**filters) -> int:
+    """Return the v2 API's reported occurrence `count` for `filters` (e.g.
+    datasetID=44, dateLastModifiedMin=..., dateLastModifiedMax=...).
+
+    Cheap, unauthenticated GET — limit=1, we read only the total `count`. Raises on
+    any transport/JSON error so a failed probe is treated as "unknown → must
+    download", never as a silent green light to reuse a stale cache.
+    """
+    resp = requests.get(
+        ECDYSIS_API_URL,
+        params={"limit": 1, **filters},
+        headers={"User-Agent": "beeatlas-data/1.0"},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    return int(resp.json()["count"])
+
+
+def _api_changed_since_count(dataset_id: int, since: str) -> int:
+    """Count dataset-`dataset_id` occurrences modified since `since` (YYYY-MM-DD).
+
+    Always pairs the min bound with a far-future Max: the v2 API's dateLastModifiedMin
+    ALONE returns HTTP 500 (see the module note above), so the Max is mandatory, not
+    cosmetic. Single home for that quirk-knowledge.
+    """
+    return _api_occurrence_count(
+        datasetID=dataset_id,
+        dateLastModifiedMin=since,
+        dateLastModifiedMax=_API_FAR_FUTURE,
+    )
+
+
+def _probe_sidecar_path(dataset_id: int) -> Path:
+    """Path to the per-dataset probe-baseline sidecar (JSON) beside the cached ZIP."""
+    return ECDYSIS_CACHE_DIR / f"{dataset_id}.probe.json"
+
+
+def _record_probe_baseline(dataset_id: int) -> None:
+    """Snapshot the source's change-signals right after a successful full download,
+    so a later run can cheaply tell whether anything moved.
+
+    `since` is pulled back one day so day-boundary/timezone skew between us and the
+    server can never push a post-download edit below the min bound. We store the
+    modified-since count AT DOWNLOAD TIME as a baseline (not zero): every record in
+    that window is already captured in the fresh ZIP, so "changed" later means the
+    count GREW past this baseline. Best-effort — a probe hiccup here must not fail
+    the (already successful) download; it just means the next run can't skip.
+    """
+    try:
+        since = time.strftime("%Y-%m-%d", time.gmtime(time.time() - 86400))
+        meta = {
+            "dataset_id": dataset_id,
+            "since": since,
+            "total": _api_occurrence_count(datasetID=dataset_id),
+            "baseline_changed": _api_changed_since_count(dataset_id, since),
+        }
+        _probe_sidecar_path(dataset_id).write_text(json.dumps(meta))
+    except Exception as e:  # noqa: BLE001 — probe is advisory; never break the download
+        print(f"  WARNING: could not record Ecdysis probe baseline ({e})")  # noqa: T201
+
+
+def _probe_says_unchanged(dataset_id: int) -> bool:
+    """True iff both change-signals still match the baseline recorded at the last
+    download — i.e. the source looks unchanged and the cached ZIP is safe to reuse.
+
+    Conservative by construction: no baseline, a probe error, or EITHER signal
+    having moved all return False so the caller downloads.
+    """
+    sidecar = _probe_sidecar_path(dataset_id)
+    if not sidecar.exists():
+        return False
+    try:
+        meta = json.loads(sidecar.read_text())
+        if _api_occurrence_count(datasetID=dataset_id) != meta["total"]:
+            return False  # a deletion / membership change
+        changed = _api_changed_since_count(dataset_id, meta["since"])
+        return changed == meta["baseline_changed"]  # no new adds/edits
+    except Exception as e:  # noqa: BLE001 — uncertainty ⇒ download
+        print(f"  Ecdysis change-probe failed ({e}); will download")  # noqa: T201
+        return False
 
 
 def _get_credentials() -> tuple[str, str]:
@@ -114,6 +229,16 @@ def _download_zip(dataset_id: int) -> bytes:
             )
             return cache_path.read_bytes()
 
+    # Past the TTL window (e.g. the nightly): rather than unconditionally paying the
+    # ~2-minute server-side ZIP build, ask the source whether anything actually moved.
+    # Only trust the probe against a cache that still opens as a valid ZIP.
+    if (ECDYSIS_SKIP_PROBE and _is_valid_cached_zip(cache_path)
+            and _probe_says_unchanged(dataset_id)):
+        print(  # noqa: T201
+            "  Ecdysis source unchanged since last pull (change-probe); reusing cached ZIP"
+        )
+        return cache_path.read_bytes()
+
     params = {
         "schema": "symbiota",
         "identifications": "1",
@@ -169,6 +294,9 @@ def _download_zip(dataset_id: int) -> bytes:
     tmp_path = cache_path.with_suffix(".zip.tmp")
     tmp_path.write_bytes(response.content)
     tmp_path.replace(cache_path)
+    # Record the change-signals for this fresh pull so the next run can skip if the
+    # source stays put. Advisory: failure here never affects the returned bytes.
+    _record_probe_baseline(dataset_id)
     return response.content
 
 
