@@ -204,6 +204,10 @@ _t0=$(date +%s)
 export DB_PATH EXPORT_DIR NOTES_DB_PATH
 STELIS_DIR="${STELIS_DIR:-$HOME/dev/stelis}"
 export STELIS_DIR
+# Log the content-addressed plan (why each task runs/skips) before building, so the
+# nightly log records what Stelis decided and why. scripts/fetch-data.sh runs the
+# explain pass against the same export dir the build reads (non-fatal on error).
+export STELIS_EXPLAIN=1
 cd "$REPO_ROOT"
 npm run fetch-data
 echo "--- data build done in $(_elapsed $_t0) ---"

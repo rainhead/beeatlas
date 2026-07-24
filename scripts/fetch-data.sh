@@ -13,11 +13,15 @@
 # task blocks only its dependents, and the non-zero exit propagates here.
 #
 # Env (same contract as data/nightly.sh):
-#   STELIS_DIR     stelis checkout                (default: ~/dev/stelis)
-#   EXPORT_DIR     where artifacts land           (default: <repo>/public/data)
-#   DB_PATH        the pipeline DuckDB            (default: <repo>/data/beeatlas.duckdb)
-#   NOTES_DB_PATH  the authoritative notes store  (default: stelis's; unset = harvest
-#                  sees no store — fine for data-only work, wrong for notes work)
+#   STELIS_DIR      stelis checkout               (default: ~/dev/stelis)
+#   EXPORT_DIR      where artifacts land          (default: <repo>/public/data)
+#   DB_PATH         the pipeline DuckDB           (default: <repo>/data/beeatlas.duckdb)
+#   NOTES_DB_PATH   the authoritative notes store (default: stelis's; unset = harvest
+#                   sees no store — fine for data-only work, wrong for notes work)
+#   STELIS_EXPLAIN  when set, log stelis's --explain plan (why each task runs/skips)
+#                   before building — same scope + export-dir as the build, so it is
+#                   an accurate preview of what this invocation is about to do. Set by
+#                   the nightly; off by default so interactive builds stay quiet.
 
 set -euo pipefail
 
@@ -38,5 +42,17 @@ mkdir -p "$EXPORT_DIR"
 if [[ $# -eq 0 ]]; then set -- --all; fi
 
 cd "$STELIS_DIR"
+
+_stelis() { env BEEATLAS_DIR="$REPO_ROOT" racket src/main.rkt "$@"; }
+
+# Optional pre-build plan. Same scope ("$@") and export-dir as the build below, so
+# freshness is judged against the artifacts the build will actually read. Runs first
+# in the same shell, so nothing changes between the plan and the build — an accurate
+# preview. Non-fatal: a broken explain must never abort the build (set -e would).
+if [[ -n "${STELIS_EXPLAIN:-}" ]]; then
+    echo "--- stelis plan (why each task runs/skips) ---"
+    _stelis --explain --export-dir "$EXPORT_DIR" "$@" || echo "WARN: stelis --explain failed (non-fatal) — proceeding to build" >&2
+fi
+
 exec env BEEATLAS_DIR="$REPO_ROOT" \
     racket src/main.rkt --build --export-dir "$EXPORT_DIR" "$@"
