@@ -105,7 +105,17 @@ categories 1 or 2.
 
 ### Category 4 — `inat_expert` (was `inat_obs`): expert observation
 
-Research-grade iNaturalist observations of bees submitted by experts (not WABA collectors).
+iNaturalist observations of bees that a trusted identifier has looked at (not WABA collecting
+work). The roster of trusted iNat logins is the `EXPERTS` array in
+[`data/raw/inat_expert_obs.sh`](../data/raw/inat_expert_obs.sh), the recorded export command
+behind the committed CSV.
+
+Two things the name overstates. The roster feeds iNat's `ident_user_id`, a filter on **who
+identified** the observation — the observer can be anyone (4,766 distinct observers in the
+current snapshot), and an identification by a roster member does **not** mean they agreed with
+the community taxon, which is the name the export reports and the name we ingest. The export
+also passes `quality_grade=any`, so these are not all research-grade; the roster is the filter.
+
 Sourced from a separate `inat_obs_data` pipeline. `tier = other`, `record_type = inat_expert`
 (renamed from `inat_obs` in Phase 170, D-06 — role-named). `occ_id = inat_obs:N` (the occ_id
 prefix is unchanged, D-07). These carry `image_url`, `obs_url`, `user_login`, and `license`
