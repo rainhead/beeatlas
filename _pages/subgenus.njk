@@ -27,7 +27,7 @@ layout: default.njk
         {%- if sp.slug %}<a href="/species/{{ sp.slug }}/index.html"><em>{{ sp.scientificName }}</em></a>{%- else %}<em>{{ sp.scientificName }}</em>{%- endif %}
         {%- if sp.sociality -%}
         <span class="node-badge" tabindex="0"
-              title="Sociality: {% if sp.sociality === 'Parasitic' %}Cleptoparasitic{% else %}{{ sp.sociality }}{% endif %} · {% if sp.sociality_source === 'beegap-species' %}Bee-Gap 2017{% else %}Genus backbone{% endif %}">
+              title="Sociality: {% if sp.sociality === 'Parasitic' %}Cleptoparasitic{% else %}{{ sp.sociality }}{% endif %} · {% if sp.sociality_source === 'beegap-species' %}Bee-Gap 2017{% elif sp.sociality_source === 'correction' %}corrected{% else %}Genus backbone{% endif %}">
           {%- if sp.sociality === 'Parasitic' %}Clepto{%- else %}{{ sp.sociality }}{%- endif -%}
         </span>
         {%- endif -%}

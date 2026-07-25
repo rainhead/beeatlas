@@ -13,7 +13,8 @@ layout: default.njk
    measured for this species or inherited from its genus — is material to a
    scientific reader. Short labels here, expanded in the .traits-sources note. #}
 {%- macro traitSource(source) -%}
-  {%- if source === 'genus-backbone' %} <span class="trait-source trait-source--inferred">inferred from genus</span>
+  {%- if source === 'correction' %} <span class="trait-source trait-source--corrected">corrected</span>
+  {%- elif source === 'genus-backbone' %} <span class="trait-source trait-source--inferred">inferred from genus</span>
   {%- elif source === 'fowler' %} <span class="trait-source">Fowler &amp; Droege</span>
   {%- elif source === 'beegap-cuckoo' %} <span class="trait-source">Bee-Gap cuckoo host records</span>
   {%- elif source === 'beegap-species' %} <span class="trait-source">Bee-Gap</span>
@@ -159,8 +160,16 @@ layout: default.njk
       {%- set hasNesting    = sp.nesting -%}
       {%- set hasNative     = sp.native_status -%}
       {%- set hasHostBees   = sp.resolvedHostBees and sp.resolvedHostBees.length > 0 -%}
-      {%- if hasSociality or hasDiet or hasNesting or hasNative or hasHostBees -%}
+      {# Traits DERIVED by taxonomic inheritance (stelis st-ozp), each carrying the
+         ancestor it came from. Included in the section gate, not just rendered
+         inside it: the species this reasoning helps most are exactly those Bee-Gap
+         records nothing for, whose Traits section would otherwise not render at all. #}
+      {%- set reasoning     = species_reasoning.species[sp.canonical_name] -%}
+      {%- set reasonTerms   = species_reasoning.terms[sp.canonical_name] -%}
+      {%- set hasReasoning  = reasoning and reasoning.length > 0 -%}
+      {%- if hasSociality or hasDiet or hasNesting or hasNative or hasHostBees or hasReasoning -%}
       {%- set inferredFromGenus = (sp.sociality_source === 'genus-backbone') or (sp.nesting_source === 'genus-backbone') -%}
+      {%- set corrected = (sp.sociality_source === 'correction') or (sp.nesting_source === 'correction') -%}
       <section class="traits">
         <h2 class="traits-heading">Traits</h2>
         <dl class="traits-dl">
@@ -185,10 +194,36 @@ layout: default.njk
           <dd>{%- for hb in sp.resolvedHostBees %}{%- if not loop.first %}, {% endif %}{%- if hb.type === "species" %}<a href="/species/{{ hb.slug }}/index.html"><em>{{ hb.name }}</em></a>{%- elif hb.type === "genus" %}<a href="/species/{{ hb.genusName }}/index.html"><em>{{ hb.name }}</em></a>{%- else %}<em>{{ hb.name }}</em>{%- endif %}{%- endfor %}{{ traitSource('beegap-cuckoo') }}</dd>
           {%- endif -%}
         </dl>
+        {%- if hasReasoning -%}
+        {# The proof, as a sentence. Not folded into the <dl> above: these are
+           REASONED from the taxonomy, not measured for this species, and saying
+           which ancestor carries the trait is the substance — a reader can judge
+           the inference, which a bare value would not let them do. #}
+        <div class="traits-reasoning">
+          {%- for r in reasoning -%}
+          <p class="trait-why">{{ r.explanation }}</p>
+          {%- endfor -%}
+          {%- if reasonTerms and reasonTerms.length > 0 -%}
+          {# The term defined ONCE per page rather than restated per species. #}
+          <dl class="trait-glossary">
+            {%- for t in reasonTerms -%}
+            <dt>{{ t.value | capitalize }}</dt>
+            <dd>{{ t.definition }}</dd>
+            {%- endfor -%}
+          </dl>
+          {%- endif -%}
+        </div>
+        {%- endif -%}
+        {# Only when a MEASURED trait is actually shown: a species whose section
+           exists solely because of derived reasoning has no Bee-Gap value on the
+           page, and citing Bee-Gap there would credit a source that said nothing. #}
+        {%- if hasSociality or hasDiet or hasNesting or hasNative or hasHostBees -%}
         <p class="traits-sources">
           Bee-Gap = Bee-Gap 2017 trait database{% if sp.diet_breadth_source === 'fowler' %}; Fowler &amp; Droege = specialist bee list{% endif %}.
           {%- if inferredFromGenus %} Values marked <span class="trait-source trait-source--inferred">inferred from genus</span> are not measured for this species.{% endif -%}
+          {%- if corrected %} Values marked <span class="trait-source trait-source--corrected">corrected</span> override a record the upstream source gets wrong; see data/dbt/seeds/bee_traits_corrections.csv for the reason.{% endif -%}
         </p>
+        {%- endif -%}
       </section>
       {%- endif -%}
       {%- set hosts = species_hosts[sp.canonical_name] -%}

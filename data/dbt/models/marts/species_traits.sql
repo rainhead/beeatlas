@@ -56,6 +56,53 @@ beegap AS (
     ) = 1
 ),
 
+-- Local corrections to values an upstream source gets wrong (stelis st-t4t).
+-- Highest precedence: a correction beats the species-level source it corrects.
+-- Two actions, both needed by the very first correction:
+--   replace — publish corrected_value in place of the upstream one.
+--   retract — publish NOTHING from the species-level source, falling through to the
+--             genus backbone (which may itself be empty). This is "we know this is
+--             wrong" WITHOUT "and here is the right answer" — the alternative being
+--             to invent a replacement, which is how override tables start lying.
+-- `expected_upstream` is deliberately NOT read here: it records the value the
+-- correction was written against, and stelis gates the build when upstream no longer
+-- matches it, so a correction cannot silently outlive the error it fixes. A
+-- correction naming a species with no Bee-Gap row drops out — the same drift gate
+-- catches that, because the expected value will not be found either.
+corrections AS (
+    SELECT
+        COALESCE(syn.accepted_name, c.canonical_name) AS canonical_name,
+        MAX(CASE WHEN c.trait = 'sociality' THEN c.action END)          AS sociality_action,
+        MAX(CASE WHEN c.trait = 'sociality' THEN c.corrected_value END) AS sociality_value,
+        MAX(CASE WHEN c.trait = 'nesting'   THEN c.action END)          AS nesting_action,
+        MAX(CASE WHEN c.trait = 'nesting'   THEN c.corrected_value END) AS nesting_value
+    FROM {{ ref('bee_traits_corrections') }} c
+    LEFT JOIN syn ON syn.synonym = c.canonical_name
+    GROUP BY 1
+),
+
+-- Bee-Gap AFTER corrections. Applying them here rather than in the final SELECT keeps
+-- the precedence chain below reading as it always did — corrected value, then genus
+-- backbone — with only the *_source arms needing to know corrections exist.
+beegap_corrected AS (
+    SELECT
+        b.canonical_name,
+        b.native,
+        b.foraging,
+        CASE cx.sociality_action
+             WHEN 'replace' THEN cx.sociality_value
+             WHEN 'retract' THEN ''
+             ELSE b.sociality END AS sociality,
+        CASE cx.nesting_action
+             WHEN 'replace' THEN cx.nesting_value
+             WHEN 'retract' THEN ''
+             ELSE b.nesting END AS nesting,
+        cx.sociality_action,
+        cx.nesting_action
+    FROM beegap b
+    LEFT JOIN corrections cx ON cx.canonical_name = b.canonical_name
+),
+
 -- Fowler specialist hosts, normalized + deduped.
 specialist AS (
     SELECT canonical_name, host_plant_family, host_plant_detail
@@ -97,6 +144,7 @@ SELECT
     -- most taxa, so the genus backbone fills gaps the species table leaves.
     COALESCE(NULLIF(bg.sociality, ''), NULLIF(gb.sociality, '')) AS sociality,
     CASE
+        WHEN bg.sociality_action = 'replace' AND NULLIF(bg.sociality, '') IS NOT NULL THEN 'correction'
         WHEN NULLIF(bg.sociality, '') IS NOT NULL THEN 'beegap-species'
         WHEN NULLIF(gb.sociality, '') IS NOT NULL THEN 'genus-backbone'
     END AS sociality_source,
@@ -104,6 +152,7 @@ SELECT
     -- Nesting biology: Ground / Cavity / Wood / Host Nest (parasites) / Multiple / Open.
     COALESCE(NULLIF(bg.nesting, ''), NULLIF(gb.nesting, '')) AS nesting,
     CASE
+        WHEN bg.nesting_action = 'replace' AND NULLIF(bg.nesting, '') IS NOT NULL THEN 'correction'
         WHEN NULLIF(bg.nesting, '') IS NOT NULL THEN 'beegap-species'
         WHEN NULLIF(gb.nesting, '') IS NOT NULL THEN 'genus-backbone'
     END AS nesting_source,
@@ -131,7 +180,7 @@ SELECT
     ph.host_bee_count
 
 FROM {{ ref('species') }} s
-LEFT JOIN beegap          bg ON s.canonical_name = bg.canonical_name
+LEFT JOIN beegap_corrected bg ON s.canonical_name = bg.canonical_name
 LEFT JOIN {{ ref('bee_genus_traits') }} gb ON LOWER(s.genus) = gb.genus
 LEFT JOIN specialist      sp ON s.canonical_name = sp.canonical_name
 LEFT JOIN parasite        ph ON s.canonical_name = ph.parasite

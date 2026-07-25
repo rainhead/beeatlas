@@ -51,6 +51,42 @@ seeds:
           - not_null
       - name: note
         description: "Curator provenance: the iNat accepted name + reason for the override (gender variant / subspecies / synonym citation)."
+  - name: bee_traits_corrections
+    description: >
+      LOCAL CORRECTIONS to values an upstream source gets wrong (stelis st-t4t). Highest
+      precedence in marts/species_traits: a correction beats the species-level source it
+      corrects. Forward-only authored data whose store is git — never regenerated.
+      Two actions: `replace` publishes corrected_value instead; `retract` publishes
+      nothing from the species-level source, falling through to the genus backbone, for
+      "this is wrong" without "and here is the right answer". `expected_upstream` records
+      the value the correction was written against and is NOT read by the model — stelis
+      gates the build when upstream stops matching it, so a correction cannot silently
+      outlive the error it fixes. Every correction needs a `reason` a stranger can audit;
+      a correction is an editorial claim that outranks a cited source.
+    columns:
+      - name: canonical_name
+        description: "Lowercased Genus species binomial; routed through int_synonyms like the other species-keyed seeds."
+        data_tests:
+          - not_null
+      - name: trait
+        description: "The species_traits column being corrected: sociality | nesting."
+        data_tests:
+          - not_null
+          - accepted_values: { values: ['sociality', 'nesting'] }
+      - name: action
+        description: "replace (publish corrected_value) | retract (publish nothing from the species-level source)."
+        data_tests:
+          - not_null
+          - accepted_values: { values: ['replace', 'retract'] }
+      - name: expected_upstream
+        description: "The upstream value this correction was written against. Stelis's drift gate compares it to what the source says now."
+      - name: corrected_value
+        description: "The replacement value; empty for a retraction."
+      - name: reason
+        description: "Why the upstream value is wrong, and how that was established. Auditable by someone who was not here."
+        data_tests:
+          - not_null
+
   - name: bee_traits_beegap
     description: >
       USGS Bee-Gap 2017 species-level ecological traits (Public Domain — U.S. Geological

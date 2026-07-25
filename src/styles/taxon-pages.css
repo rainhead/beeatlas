@@ -610,6 +610,48 @@ seasonality-viz .viz-fallback { color: #555; font-style: italic; font-size: 0.85
   font-style: italic;
 }
 
+/* Derived-trait explanations (stelis st-ozp): a trait reasoned from the taxonomy,
+   shown with the ancestor it was inherited from. Set apart from the measured
+   .traits-dl values — a reader should be able to see at a glance that this is an
+   inference they can evaluate, not a record from a database. */
+.traits-reasoning {
+  margin: 0.6rem 0 0;
+  border-left: 2px solid var(--rule, #ddd);
+  padding-left: 0.7rem;
+}
+
+.trait-why {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-secondary, #444);
+  margin: 0 0 0.4rem;
+  max-width: 60ch;
+}
+
+.trait-why:last-child { margin-bottom: 0; }
+
+.trait-source--corrected {
+  font-style: normal;
+  color: var(--text-warn, #8a5a00);
+}
+
+.trait-glossary {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--text-hint, #767676);
+  max-width: 60ch;
+}
+
+.trait-glossary dt {
+  font-weight: 600;
+  display: inline;
+}
+
+.trait-glossary dt::after { content: ' — '; }
+
+.trait-glossary dd { display: inline; margin: 0; }
+
 .traits-sources {
   font-size: 0.7rem;
   color: var(--text-hint, #767676);

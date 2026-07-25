@@ -9,7 +9,7 @@ title: Species — BeeAtlas
   <a class="node-name" href="/species/{{ node.slug }}/index.html"><em>{{ node.scientificName }}</em></a>
   {%- if node.sociality -%}
   <span class="node-badge" tabindex="0"
-        title="Sociality: {% if node.sociality === 'Parasitic' %}Cleptoparasitic{% else %}{{ node.sociality }}{% endif %} · {% if node.sociality_source === 'beegap-species' %}Bee-Gap 2017{% else %}Genus backbone{% endif %}">
+        title="Sociality: {% if node.sociality === 'Parasitic' %}Cleptoparasitic{% else %}{{ node.sociality }}{% endif %} · {% if node.sociality_source === 'beegap-species' %}Bee-Gap 2017{% elif node.sociality_source === 'correction' %}corrected{% else %}Genus backbone{% endif %}">
     {%- if node.sociality === 'Parasitic' %}Clepto{%- else %}{{ node.sociality }}{%- endif -%}
   </span>
   {%- endif -%}
