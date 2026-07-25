@@ -75,7 +75,8 @@ corrections AS (
         MAX(CASE WHEN c.trait = 'sociality' THEN c.action END)          AS sociality_action,
         MAX(CASE WHEN c.trait = 'sociality' THEN c.corrected_value END) AS sociality_value,
         MAX(CASE WHEN c.trait = 'nesting'   THEN c.action END)          AS nesting_action,
-        MAX(CASE WHEN c.trait = 'nesting'   THEN c.corrected_value END) AS nesting_value
+        MAX(CASE WHEN c.trait = 'nesting'   THEN c.corrected_value END) AS nesting_value,
+        MAX(CASE WHEN c.trait = 'host_bees' THEN c.action END)          AS host_bees_action
     FROM {{ ref('bee_traits_corrections') }} c
     LEFT JOIN syn ON syn.synonym = c.canonical_name
     GROUP BY 1
@@ -125,6 +126,11 @@ specialist AS (
 
 -- Cuckoo host bees: normalize the parasite key, then re-aggregate (synonymy may merge
 -- two parasite spellings onto one accepted name).
+-- Cuckoo host bees are correctable too (st-t4t). A species wrongly recorded as a
+-- cleptoparasite also carries a host-bee assertion, and fixing only sociality and
+-- nesting would leave the page still naming a host for a bee that parasitizes
+-- nothing. `retract` on the host_bees trait drops the whole assertion — a
+-- non-cuckoo has no host, so there is no replacement to supply.
 parasite AS (
     SELECT
         COALESCE(syn.accepted_name, p.parasite) AS parasite,
@@ -132,6 +138,10 @@ parasite AS (
         COUNT(DISTINCT p.host_taxon) AS host_bee_count
     FROM {{ ref('bee_parasite_hosts') }} p
     LEFT JOIN syn ON syn.synonym = p.parasite
+    WHERE COALESCE(syn.accepted_name, p.parasite) NOT IN (
+        SELECT canonical_name FROM corrections
+        WHERE host_bees_action = 'retract'
+    )
     GROUP BY 1
 )
 
