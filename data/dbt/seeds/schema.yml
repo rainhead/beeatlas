@@ -69,12 +69,20 @@ seeds:
         data_tests:
           - not_null
       - name: trait
-        description: "The species_traits column being corrected: sociality | nesting."
+        description: >
+          The species_traits column being corrected: sociality | nesting | host_bees.
+          The first two come straight off bee_traits_beegap; host_bees is the aggregated
+          cuckoo→host assertion from bee_parasite_hosts, which a wrongly-parasitic species
+          also carries. Correcting a trait means teaching species_traits about it, so this
+          list grows one deliberate entry at a time — it is not an open vocabulary.
         data_tests:
           - not_null
-          - accepted_values: { values: ['sociality', 'nesting'] }
+          - accepted_values: { values: ['sociality', 'nesting', 'host_bees'] }
       - name: action
-        description: "replace (publish corrected_value) | retract (publish nothing from the species-level source)."
+        description: >
+          replace (publish corrected_value) | retract (publish nothing from the
+          species-level source). host_bees supports retract ONLY — a non-cuckoo has no
+          host to supply — which test_corrections_supported_action enforces.
         data_tests:
           - not_null
           - accepted_values: { values: ['replace', 'retract'] }
