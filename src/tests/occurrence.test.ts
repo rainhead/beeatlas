@@ -22,7 +22,7 @@ const BASE_ROW: OccurrenceRow = {
   inat_quality_grade: null,
   modified: null,
   specimen_observation_id: null,
-  elevation_m: null,
+  elevation_m: null, elevation_dem_m: null,
   year: 2024,
   month: 6,
   observation_id: null,

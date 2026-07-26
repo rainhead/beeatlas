@@ -12,6 +12,8 @@ interface ColumnDef {
   linkLabel?: (row: OccurrenceRow) => string;
   nullLabel?: string;
   valueFn?: (row: OccurrenceRow) => string | null;
+  /** Tooltip on the column header — for a notation the cells alone can't explain. */
+  headerTitle?: string;
 }
 
 const CAMERA_ICON = html`<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
@@ -38,6 +40,18 @@ function fieldNumberDisplay(row: OccurrenceRow): string | null {
 }
 
 
+// Elevation cell (beeatlas-4dx). RECORDED elevation renders bare; DEM-DERIVED
+// elevation renders with a `~` prefix and is explained by the column header's
+// tooltip. The mart keeps the two in separate columns on purpose (ADR 0015) — the
+// point is that a reader can tell which kind of number they are looking at, so
+// this must never render a derived value as though a collector had measured it.
+// The precedence matches filter.ts's ELEV_SQL: recorded wins where it exists.
+export function elevationDisplay(row: OccurrenceRow): string | null {
+  if (row.elevation_m != null) return String(row.elevation_m);
+  if (row.elevation_dem_m != null) return `~${row.elevation_dem_m}`;
+  return null;
+}
+
 const OCCURRENCE_COLUMN_DEFS: ColumnDef[] = [
   { key: 'date',        label: 'Date',       dataField: 'date',                    minWidth: '100px' },
   { key: 'species',     label: 'Species',    dataField: 'display_name',            minWidth: '180px', nullLabel: 'No Determination' },
@@ -47,7 +61,9 @@ const OCCURRENCE_COLUMN_DEFS: ColumnDef[] = [
     valueFn: collectorDisplay },
   { key: 'county',      label: 'County',     dataField: 'county',                  minWidth: '110px' },
   { key: 'ecoregion',   label: 'Ecoregion',  dataField: 'ecoregion_l3',            minWidth: '130px' },
-  { key: 'elevation',   label: 'Elev (m)',   dataField: 'elevation_m',             minWidth: '80px'  },
+  { key: 'elevation',   label: 'Elev (m)',   dataField: 'elevation_m',             minWidth: '90px',
+    valueFn: elevationDisplay,
+    headerTitle: 'Elevation in metres. A ~ prefix means the value was derived from the USGS 3DEP digital elevation model at the record\u2019s coordinates, not recorded by the collector.' },
   { key: 'fieldNumber', label: 'Field #',    dataField: 'fieldNumber',             minWidth: '90px',
     valueFn: fieldNumberDisplay },
   { key: 'modified',    label: 'Modified',   dataField: 'modified',                minWidth: '100px' },
@@ -340,7 +356,7 @@ export class BeeTable extends LitElement {
                             : nothing}
                         </th>`;
                     }
-                    return html`<th style="min-width: ${col.minWidth}">${col.label}</th>`;
+                    return html`<th style="min-width: ${col.minWidth}" title=${col.headerTitle ?? nothing}>${col.label}</th>`;
                   })}
                 </tr>
               </thead>

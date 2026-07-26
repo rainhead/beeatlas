@@ -16,7 +16,7 @@ function ecdysisRow(ecdysisId: number): OccurrenceRow {
     catalog_number: null, recordedBy: 'A. Collector', fieldNumber: null,
     floralHost: null, host_observation_id: null, inat_host: null,
     inat_quality_grade: null, modified: null, specimen_observation_id: null,
-    elevation_m: null, year: 2024, month: 6, observation_id: null,
+    elevation_m: null, elevation_dem_m: null, year: 2024, month: 6, observation_id: null,
     host_inat_login: null, is_provisional: false,
     specimen_inat_quality_grade: null, specimen_count: null, sample_id: null,
     sample_host: null, checklist_id: null, verbatim_name: null, locality: null,

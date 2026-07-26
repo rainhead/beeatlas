@@ -302,3 +302,44 @@ describe('TABLE-09: bee-table row-pan event on row click', () => {
     document.body.removeChild(el);
   });
 });
+
+describe('elevation column: recorded vs DEM-derived (beeatlas-4dx)', () => {
+  test('a recorded elevation renders bare', async () => {
+    const { elevationDisplay } = await import('../bee-table.ts');
+    expect(elevationDisplay({ elevation_m: 1234, elevation_dem_m: 1200 } as any)).toBe('1234');
+  });
+
+  test('a DEM-derived elevation is marked, never shown as if measured', async () => {
+    // The whole point of ADR 0015 is that a reader can tell the two apart. A bare
+    // number here would present a raster sample as a collector's measurement.
+    const { elevationDisplay } = await import('../bee-table.ts');
+    expect(elevationDisplay({ elevation_m: null, elevation_dem_m: 1200 } as any)).toBe('~1200');
+  });
+
+  test('recorded wins over derived', async () => {
+    // Precedence deliberately mirrors filter.ts's ELEV_SQL; the assertion that the
+    // two agree lives in filter.test.ts, which does not mock ../filter.ts.
+    const { elevationDisplay } = await import('../bee-table.ts');
+    expect(elevationDisplay({ elevation_m: 900, elevation_dem_m: 950 } as any)).toBe('900');
+  });
+
+  test('neither present renders empty (the checklist arm)', async () => {
+    const { elevationDisplay } = await import('../bee-table.ts');
+    expect(elevationDisplay({ elevation_m: null, elevation_dem_m: null } as any)).toBeNull();
+  });
+
+  test('zero metres is a real elevation, not a missing one', async () => {
+    // Sea-level records exist; a truthiness check here would blank them.
+    const { elevationDisplay } = await import('../bee-table.ts');
+    expect(elevationDisplay({ elevation_m: 0, elevation_dem_m: 500 } as any)).toBe('0');
+    expect(elevationDisplay({ elevation_m: null, elevation_dem_m: 0 } as any)).toBe('~0');
+  });
+
+  test('the ~ notation is explained on the column header', async () => {
+    const el = await createBeeTable({ rows: [], rowCount: 100 });
+    const header = Array.from(el.shadowRoot!.querySelectorAll('th'))
+      .find(th => th.textContent?.includes('Elev'))!;
+    expect(header.getAttribute('title')).toMatch(/3DEP|derived/i);
+    document.body.removeChild(el);
+  });
+});

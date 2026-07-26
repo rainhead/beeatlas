@@ -60,6 +60,10 @@ export interface OccurrenceRow {
   modified: string | null;
   specimen_observation_id: number | null;
   elevation_m: number | null;
+  // DEM-derived elevation (beeatlas-sn8). Deliberately SEPARATE from elevation_m —
+  // never coalesce the two into one field on the way to a display surface without
+  // marking which one won (ADR 0015); bee-table's elevationDisplay is the pattern.
+  elevation_dem_m: number | null;
   year: number | null;
   month: number | null;
   observation_id: number | null;
@@ -93,7 +97,7 @@ export const OCCURRENCE_COLUMNS = [
   'taxon_id', 'lat', 'lon', 'date', 'county', 'ecoregion_l3',
   'ecdysis_id', 'catalog_number', 'recordedBy', 'fieldNumber',
   'floralHost', 'host_observation_id', 'inat_host',
-  'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m',
+  'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m', 'elevation_dem_m',
   'year', 'month', 'observation_id', 'host_inat_login', 'specimen_count', 'sample_id', 'sample_host',
   'is_provisional', 'specimen_inat_quality_grade',
   'checklist_id',

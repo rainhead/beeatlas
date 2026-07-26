@@ -388,6 +388,10 @@ describe('OCCURRENCE_COLUMNS', () => {
     expect(OCCURRENCE_COLUMNS).toContain('host_inat_login');
     expect(OCCURRENCE_COLUMNS).toContain('specimen_count');
     expect(OCCURRENCE_COLUMNS).toContain('elevation_m');
+    // beeatlas-4dx: DEM elevation ships as its OWN column, in the query and in the
+    // CSV export. Merging the two would destroy the recorded-vs-derived distinction
+    // the mart maintains on purpose (ADR 0015).
+    expect(OCCURRENCE_COLUMNS).toContain('elevation_dem_m');
   });
 
   // Phase 160 (SC-1/D-02): place_slug is dropped from the occurrences mart;
