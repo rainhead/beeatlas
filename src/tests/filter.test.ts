@@ -1,5 +1,5 @@
 import { test, expect, describe, vi, beforeAll, afterAll } from 'vitest';
-import { buildFilterSQL, buildCsvFilename, queryTablePage, OCCURRENCE_COLUMNS, isFilterActive, getOccurrences, getOccurrencePlaceSlugs, occurrencePlacesAvailable, _resetOccurrencePlacesProbe } from '../filter.ts';
+import { buildFilterSQL, buildCsvFilename, queryTablePage, OCCURRENCE_COLUMNS, ELEV_SQL, ELEV_SQL_RECORDED_ONLY, elevSql, isFilterActive, getOccurrences, getOccurrencePlaceSlugs, occurrencePlacesAvailable, _resetOccurrencePlacesProbe } from '../filter.ts';
 import type { FilterState } from '../filter.ts';
 import { getDB } from '../sqlite.ts';
 
@@ -155,27 +155,90 @@ describe('combined filters', () => {
 });
 
 describe('elevation filter', () => {
-  test('elevMin only: clause uses IS NULL OR >= pattern', () => {
+  test('elevMin only: bounded below, nulls excluded', () => {
     const f = { ...emptyFilter(), elevMin: 500 };
     const { occurrenceWhere } = buildFilterSQL(f);
-    expect(occurrenceWhere).toBe('(elevation_m IS NULL OR elevation_m >= 500)');
+    expect(occurrenceWhere).toBe(`${ELEV_SQL} >= 500`);
   });
 
-  test('elevMax only: clause uses IS NULL OR <= pattern', () => {
+  test('elevMax only: bounded above, nulls excluded', () => {
     const f = { ...emptyFilter(), elevMax: 1500 };
     const { occurrenceWhere } = buildFilterSQL(f);
-    expect(occurrenceWhere).toBe('(elevation_m IS NULL OR elevation_m <= 1500)');
+    expect(occurrenceWhere).toBe(`${ELEV_SQL} <= 1500`);
   });
 
-  test('both set: clause uses BETWEEN (nulls excluded)', () => {
+  test('both set: BETWEEN, nulls excluded', () => {
     const f = { ...emptyFilter(), elevMin: 500, elevMax: 1500 };
     const { occurrenceWhere } = buildFilterSQL(f);
-    expect(occurrenceWhere).toBe('elevation_m IS NOT NULL AND elevation_m BETWEEN 500 AND 1500');
+    expect(occurrenceWhere).toBe(`${ELEV_SQL} BETWEEN 500 AND 1500`);
   });
 
   test('neither set: no elevation clause; returns 1 = 1', () => {
     const { occurrenceWhere } = buildFilterSQL(emptyFilter());
     expect(occurrenceWhere).toBe('1 = 1');
+  });
+
+  // --- beeatlas-yc9 regressions -------------------------------------------
+  // The defect was not "the SQL string is wrong"; it was that a one-sided bound
+  // admitted every record whose elevation was unknown, so setting a minimum
+  // returned exactly what setting no filter returned. These assert the PROPERTY,
+  // so they survive a rewrite of the clause that reintroduces the behavior.
+
+  test('a one-sided bound never admits unknown elevation (the yc9 defect)', () => {
+    for (const f of [
+      { ...emptyFilter(), elevMin: 1700 },
+      { ...emptyFilter(), elevMax: 1700 },
+      { ...emptyFilter(), elevMin: 500, elevMax: 1500 },
+    ]) {
+      const { occurrenceWhere } = buildFilterSQL(f);
+      expect(occurrenceWhere).not.toMatch(/IS NULL/);
+    }
+  });
+
+  test('a one-sided bound is not equivalent to no filter at all', () => {
+    const none = buildFilterSQL(emptyFilter()).occurrenceWhere;
+    expect(buildFilterSQL({ ...emptyFilter(), elevMin: 1700 }).occurrenceWhere).not.toBe(none);
+    expect(buildFilterSQL({ ...emptyFilter(), elevMax: 1700 }).occurrenceWhere).not.toBe(none);
+  });
+
+  test('one-sided and two-sided bounds agree on null handling', () => {
+    // The original bug was an INCONSISTENCY: two-sided excluded nulls, one-sided
+    // did not, so the same control meant different things by how many boxes were
+    // filled. All three shapes must now treat unknown elevation identically.
+    const shapes = [
+      buildFilterSQL({ ...emptyFilter(), elevMin: 500 }).occurrenceWhere,
+      buildFilterSQL({ ...emptyFilter(), elevMax: 1500 }).occurrenceWhere,
+      buildFilterSQL({ ...emptyFilter(), elevMin: 500, elevMax: 1500 }).occurrenceWhere,
+    ];
+    for (const clause of shapes) expect(clause.startsWith(ELEV_SQL)).toBe(true);
+  });
+
+  test('elevation reads recorded elevation in preference to the DEM value', () => {
+    // Order inside the COALESCE is load-bearing: a collector's recorded elevation
+    // outranks a raster sample. Reversing it would silently prefer derived data.
+    expect(ELEV_SQL).toBe('COALESCE(elevation_m, elevation_dem_m)');
+  });
+
+  test('a DB without elevation_dem_m narrows the column, never the rule', () => {
+    // The stale-DB fallback must degrade to a SMALLER answer, not a wrong one. In
+    // particular it must NOT revert to the pre-yc9 `IS NULL OR ...` shape, which
+    // would make an offline session silently answer the old, inflated way.
+    for (const f of [
+      { ...emptyFilter(), elevMin: 1700 },
+      { ...emptyFilter(), elevMax: 1700 },
+      { ...emptyFilter(), elevMin: 500, elevMax: 1500 },
+    ]) {
+      const { occurrenceWhere } = buildFilterSQL(f, true, /* hasDemElevation */ false);
+      expect(occurrenceWhere).not.toMatch(/IS NULL/);
+      expect(occurrenceWhere).not.toMatch(/elevation_dem_m/);
+      expect(occurrenceWhere.startsWith(ELEV_SQL_RECORDED_ONLY)).toBe(true);
+    }
+  });
+
+  test('elevSql picks the expression from the probe result', () => {
+    expect(elevSql(true)).toBe(ELEV_SQL);
+    expect(elevSql(false)).toBe(ELEV_SQL_RECORDED_ONLY);
+    expect(elevSql()).toBe(ELEV_SQL); // default: prod has the column
   });
 });
 
@@ -419,7 +482,13 @@ describe('queryTablePage', () => {
   test('SQL contains recordedBy, date, year, month, county, ecoregion_l3, fieldNumber', async () => {
     const { execFn } = mockSQLite([], 0);
     await queryTablePage(emptyFilter(), 1);
-    const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
+    // Skip the COUNT query AND the one-off schema probes (occurrence_places /
+    // elevation_dem_m), which also run through exec — the data query is the one
+    // that selects from occurrences.
+    const dataSql = execFn.mock.calls.find((c: unknown[]) => {
+      const sql = String(c[1]);
+      return !sql.includes('COUNT(*)') && !sql.includes('pragma_table_info') && !sql.includes('sqlite_master');
+    })?.[1] ?? '';
     expect(dataSql).toContain('recordedBy');
     expect(dataSql).toContain('date');
     expect(dataSql).toContain('year');

@@ -101,6 +101,25 @@ export const OCCURRENCE_COLUMNS = [
   'tier', 'record_type', 'image_url', 'obs_url', 'user_login', 'license',
 ] as const;
 
+// The project's ONE definition of "an occurrence's elevation" in SQL (beeatlas-yc9).
+// RECORDED elevation (a collector's observation) wins over DEM-DERIVED elevation (a
+// raster sample at a coordinate that may be obscured or imprecise); NULL when the
+// record has neither, which after the DEM backfill means exactly the checklist arm.
+//
+// Exported so every surface that reasons about elevation — the filter clause below,
+// the taxa pane's aggregate, any future export — spells it the same way. The two
+// columns are deliberately kept separate in the mart (ADR 0015); this constant is
+// the single sanctioned place the merge happens.
+export const ELEV_SQL = 'COALESCE(elevation_m, elevation_dem_m)';
+
+// The fallback for a stale DB that predates elevation_dem_m (see demElevationAvailable).
+export const ELEV_SQL_RECORDED_ONLY = 'elevation_m';
+
+/** The elevation expression to use given whether the loaded DB has the DEM column. */
+export function elevSql(hasDemElevation: boolean = true): string {
+  return hasDemElevation ? ELEV_SQL : ELEV_SQL_RECORDED_ONLY;
+}
+
 const PAGE_SIZE = 100;
 
 // Inline SQL CASE that reconstructs the synthetic occ_id from the occurrences
@@ -187,7 +206,7 @@ export async function queryAllFiltered(
   f: FilterState,
   sortBy: SpecimenSortBy = 'date'
 ): Promise<Record<string, unknown>[]> {
-  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false);
+  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false, await demElevationAvailable());
   const orderBy = sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER;
   const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
 
@@ -232,7 +251,7 @@ export async function queryTablePage(
   const orderBy = priorityExpr + baseOrder;
   const offset = (page - 1) * PAGE_SIZE;
 
-  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false);
+  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false, await demElevationAvailable());
   const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
 
   await tablesReady;
@@ -304,11 +323,48 @@ export async function occurrencePlacesAvailable(): Promise<boolean> {
 /** Test-only: reset the cached occurrence_places probe between cases. */
 export function _resetOccurrencePlacesProbe(): void { _occPlacesAvailable = null; }
 
+// elevation_dem_m is a newer COLUMN (beeatlas-sn8) with exactly the skew exposure
+// described above for occurrence_places: an offline `/app` session holding a
+// pre-backfill occurrences.db would throw "no such column" the moment an elevation
+// bound was set. Same probe shape, same graceful degradation — but note what it
+// degrades TO. The SEMANTIC rule never changes (a bound always means "elevation
+// known and in range"); only the set of records whose elevation is known narrows
+// back to the Ecdysis arm. A stale DB yields a smaller answer, never a wrong one,
+// and never the old NULL-permissive behaviour yc9 removed.
+let _demElevAvailable: boolean | null = null;
+export async function demElevationAvailable(): Promise<boolean> {
+  if (_demElevAvailable !== null) return _demElevAvailable;
+  try {
+    await tablesReady;
+    const { sqlite3, db } = await getDB();
+    let found = false;
+    await sqlite3.exec(db,
+      "SELECT 1 FROM pragma_table_info('occurrences') WHERE name='elevation_dem_m' LIMIT 1",
+      () => { found = true; }
+    );
+    _demElevAvailable = found;
+  } catch {
+    _demElevAvailable = false; // DB not ready / probe failed → recorded elevation only
+  }
+  return _demElevAvailable;
+}
+
+/** Test-only: reset the cached elevation_dem_m probe between cases. */
+export function _resetDemElevationProbe(): void { _demElevAvailable = null; }
+
 // `hasPlacesBridge` gates the place-membership clause. Callers pass the cached probe
 // result so a place filter on a stale (bridge-less) DB degrades to inert instead of
 // throwing. Defaults to true: prod always has the table, and pure-SQL unit tests that
 // don't exercise the bridge keep their existing behaviour.
-export function buildFilterSQL(f: FilterState, hasPlacesBridge: boolean = true): { occurrenceWhere: string } {
+// `hasDemElevation` does the same for the elevation_dem_m column (beeatlas-sn8):
+// false narrows the elevation expression to recorded elevation only. Same default,
+// same reasoning.
+export function buildFilterSQL(
+  f: FilterState,
+  hasPlacesBridge: boolean = true,
+  hasDemElevation: boolean = true,
+): { occurrenceWhere: string } {
+  const ELEV = elevSql(hasDemElevation);
   const occurrenceClauses: string[] = [];
 
   // Taxon filter — descendant subquery against taxa.lineage_path (MFILT-01)
@@ -378,13 +434,39 @@ export function buildFilterSQL(f: FilterState, hasPlacesBridge: boolean = true):
     if (parts.length > 0) occurrenceClauses.push(`(${parts.join(' OR ')})`);
   }
 
-  // Elevation filter — conditional null semantics
+  // Elevation filter (beeatlas-yc9). ONE rule for every bound shape and every pane:
+  // an elevation bound means "this record's elevation is known AND in range".
+  //
+  // ELEV_SQL coalesces RECORDED elevation over DEM-DERIVED elevation. The pipeline
+  // deliberately refuses to do this merge (ADR 0015) so the choice stays visible at
+  // the point of use — this is that point. Recorded wins where it exists: it is a
+  // collector's observation, not a raster sample at a coordinate that may be
+  // obscured or imprecise.
+  //
+  // Every comparison below drops NULL by SQL's own semantics, so "NULLs excluded"
+  // needs no extra predicate — but it is the WHOLE POINT of this clause, not an
+  // incidental consequence. Previously the one-sided branches read
+  // `(elevation_m IS NULL OR elevation_m >= min)`, which admitted every record
+  // lacking an elevation. Because elevation came only from the Ecdysis arm, that
+  // was 55% of the corpus, and a one-sided bound returned EXACTLY what no filter
+  // returned: "Bombus above 1700m" reported 26 species — the same 26 as no filter
+  // at all — on the strength of 19,156 records that passed only for being NULL.
+  // The two-sided branch already excluded NULLs, so the same control changed
+  // meaning depending on how many boxes were filled.
+  //
+  // What is excluded now is a single, explainable population: after the DEM
+  // backfill the only records without an elevation are the 19,929 checklist rows,
+  // whose coordinates are county-level placeholders (31% sit on 45 shared points)
+  // and must never be given a derived elevation. In taxon terms the loss is exact:
+  // the 124 taxa that disappear from any elevation-filtered view are precisely the
+  // 124 attested only by checklist records. Surfaces that filter by elevation
+  // should say so.
   if (f.elevMin !== null && f.elevMax !== null) {
-    occurrenceClauses.push(`elevation_m IS NOT NULL AND elevation_m BETWEEN ${f.elevMin} AND ${f.elevMax}`);
+    occurrenceClauses.push(`${ELEV} BETWEEN ${f.elevMin} AND ${f.elevMax}`);
   } else if (f.elevMin !== null) {
-    occurrenceClauses.push(`(elevation_m IS NULL OR elevation_m >= ${f.elevMin})`);
+    occurrenceClauses.push(`${ELEV} >= ${f.elevMin}`);
   } else if (f.elevMax !== null) {
-    occurrenceClauses.push(`(elevation_m IS NULL OR elevation_m <= ${f.elevMax})`);
+    occurrenceClauses.push(`${ELEV} <= ${f.elevMax}`);
   }
 
   // Spatial bounds filter — bounding box from shift-drag or near-me gesture (D-01, phase 999.8)
@@ -428,7 +510,7 @@ export async function queryVisibleGeoJSON(
   // Bounds is now part of FilterState.bounds (D-01, phase 999.8) — isFilterActive(f) returns
   // true when bounds is set, so a bounds-only filter correctly runs the map query.
   if (!isFilterActive(f)) return null;
-  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false);
+  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false, await demElevationAvailable());
   // occurrenceWhere already includes the bounds clause when f.bounds is set — map, list,
   // and table all see the identical spatial filter via buildFilterSQL.
   await tablesReady;
@@ -491,7 +573,7 @@ export async function queryListPage(
   selectedInatObsIds: number[] = [],
   selectedChecklistIds: number[] = []
 ): Promise<{ rows: OccurrenceRow[]; total: number }> {
-  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false);
+  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false, await demElevationAvailable());
   // occurrenceWhere already includes the bounds clause when f.bounds is set (D-01, phase 999.8).
 
   // Selection constraint: IDs (from cluster click) filter rows by identity
@@ -541,7 +623,7 @@ export async function queryOccurrencesByBounds(
   bounds: { west: number; south: number; east: number; north: number }
 ): Promise<OccurrenceRow[]> {
   const { west, south, east, north } = bounds;
-  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false);
+  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false, await demElevationAvailable());
   const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
   await tablesReady;
   const { sqlite3, db } = await getDB();
