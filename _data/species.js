@@ -735,4 +735,41 @@ for (const sf of subfamilyList) {
   }
 })(fullTree);
 
-export default { flat, byScientificName, counties, ecoregionL3, speciesList, genusList, subgenusList, tribeList, subfamilyList, fullTree };
+// taxon_id -> page href, for the MAP APP's taxa pane (beeatlas-dt7). The app has
+// no way of its own to know which taxa have pages: page existence is not derivable
+// from a name. /species/Apidae/ does not exist (no family pages); /species/Bombus/
+// californicus/ does not exist (it folds into fervidus); and 20 of 646 Anthophila
+// taxa with occurrences have no page at all, for curation reasons nobody can
+// resolve from the data. Deriving hrefs by string-munging taxa.name therefore ships
+// real 404s, which is worse than no link.
+//
+// Built from the SAME three lists Eleventy paginates over, for exactly the reason
+// generatedSubgenusKeys above is built that way: if a list's filter changes, the
+// links change with it and cannot drift. A taxon absent from this map renders as
+// plain text in the pane — the same "linked but ungenerated → render plain text"
+// rule the templates already follow.
+//
+// Serialized into _site/data by scripts/postbuild-data.mjs (hashed, manifest key
+// `taxon_pages`) and into public/data by scripts/make-local-manifest.js for dev.
+// FIRST WRITE WINS, deliberately. Five taxon_ids carry TWO speciesList rows —
+// unsynonymized gender variants (Lasioglossum zephyrum/zephyrus, Melissodes
+// metenua/metenuus, ...) and one genuine pair (Osmia nanula/phaceliae) that share
+// one iNat taxon_id. Both pages exist, so either href resolves; what matters is
+// that the choice is stable across builds rather than an accident of iteration
+// order. speciesList is sorted by scientificName, so "first" is the alphabetically
+// earlier name. (The real fix is a synonym entry per pair, as the Coelioxys and
+// Dioxys gender-variants already have in occurrence_synonyms.csv.)
+const taxonPages = {};
+for (const sp of speciesList) {
+  if (sp.taxon_id && sp.slug && !(sp.taxon_id in taxonPages)) {
+    taxonPages[sp.taxon_id] = `/species/${sp.slug}/index.html`;
+  }
+}
+for (const g of genusList) {
+  if (g.taxon_id) taxonPages[g.taxon_id] = `/species/${g.genus}/index.html`;
+}
+for (const sg of subgenusList) {
+  if (sg.taxon_id) taxonPages[sg.taxon_id] = `/species/${sg.genus}/${sg.subgenus}/index.html`;
+}
+
+export default { flat, byScientificName, counties, ecoregionL3, speciesList, genusList, subgenusList, tribeList, subfamilyList, fullTree, taxonPages };

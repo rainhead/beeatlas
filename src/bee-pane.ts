@@ -61,6 +61,7 @@ export class BeePane extends LitElement {
   @property({ attribute: false }) taxaLoading = false;
   @property({ attribute: false }) taxaSpeciesCount = 0;
   @property({ attribute: false }) taxaExcludedForNoElevation = 0;
+  @property({ attribute: false }) taxonPages: Record<string, string> = {};
 
   // Filter data (same as bee-filter-panel)
   @property({ attribute: false }) filterState!: FilterState;
@@ -1283,6 +1284,7 @@ export class BeePane extends LitElement {
         .loading=${this.taxaLoading}
         .speciesCount=${this.taxaSpeciesCount}
         .excludedForNoElevation=${this.taxaExcludedForNoElevation}
+        .taxonPages=${this.taxonPages}
         .filterActive=${this.filterActive}
       ></bee-taxa-tree>
     `;

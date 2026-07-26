@@ -4,14 +4,14 @@ import type { TaxonAgg } from '../taxa-tree.ts';
 
 // Real ids and paths from public/data/occurrences.db, trimmed to the display ranks:
 //   47221 Apidae (family) / 199939 Apinae (subfamily) / 538883 Bombini (tribe)
-//   52775 Bombus (genus) / 538902 Pyrobombus (subgenus) / 52774 B. fervidus (species)
+//   52775 Bombus (genus) / 538902 Thoracobombus (subgenus) / 52774 B. fervidus (species)
 const TAXA = new Map<number, { rank: string; name: string }>([
   [630955, { rank: 'order', name: 'Hymenoptera' }],
   [47221, { rank: 'family', name: 'Apidae' }],
   [199939, { rank: 'subfamily', name: 'Apinae' }],
   [538883, { rank: 'tribe', name: 'Bombini' }],
   [52775, { rank: 'genus', name: 'Bombus' }],
-  [538902, { rank: 'subgenus', name: 'Pyrobombus' }],
+  [538902, { rank: 'subgenus', name: 'Thoracobombus' }],
   [52774, { rank: 'species', name: 'Bombus fervidus' }],
   [57689, { rank: 'species', name: 'Bombus vosnesenskii' }],
   [4444, { rank: 'family', name: 'Megachilidae' }],

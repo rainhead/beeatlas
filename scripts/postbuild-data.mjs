@@ -73,6 +73,31 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
+// A DERIVED artifact, not a copied one (beeatlas-dt7): the taxon_id -> page-href
+// map the app's taxa pane uses to decide which rows can link out. It is computed
+// by _data/species.js from the very lists Eleventy paginates over, so it cannot
+// disagree with which pages this build actually emitted — importing that module
+// here is what makes the map authoritative rather than a second guess at the rules.
+//
+// Written AFTER the copy loop above because it belongs to _site/data (which this
+// script owns wholesale), and hashed like any other artifact so a stale cached copy
+// can never point at pages a later build stopped generating.
+//
+// Non-fatal by design, unlike the artifacts above: a data dir without species.json
+// cannot produce this map, and a dev build should degrade to "no links in the taxa
+// pane" rather than refuse to publish.
+try {
+  const { default: speciesData } = await import('../_data/species.js');
+  const body = Buffer.from(JSON.stringify(speciesData.taxonPages) + '\n');
+  const hash = createHash('sha256').update(body).digest('hex').slice(0, 12);
+  const hashedName = `taxon_pages-${hash}.json`;
+  writeFileSync(join(outDir, hashedName), body);
+  manifest.taxon_pages = hashedName;
+  console.log(`  taxon_pages: ${Object.keys(speciesData.taxonPages).length} taxa -> data/${hashedName} (${body.length.toLocaleString()} bytes)`);
+} catch (err) {
+  console.warn(`! taxon_pages: not derived (${err.message}) — the taxa pane will render names as plain text`);
+}
+
 const STABLE_DIRS = ['feeds', 'species-maps', 'place-maps'];
 for (const dir of STABLE_DIRS) {
   const src = join(dataDir, dir);

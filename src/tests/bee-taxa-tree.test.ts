@@ -34,6 +34,7 @@ function sampleTree(): TaxonNode[] {
 async function mount(props: Partial<{
   tree: TaxonNode[]; loading: boolean; speciesCount: number;
   excludedForNoElevation: number; filterActive: boolean;
+  taxonPages: Record<string, string>;
 }>) {
   const { BeeTaxaTree } = await import('../bee-taxa-tree.ts');
   const el = new BeeTaxaTree() as InstanceType<typeof BeeTaxaTree> & HTMLElement;
@@ -168,5 +169,59 @@ describe('bee-taxa-tree — interaction', () => {
   test('loading state is distinct from empty', async () => {
     const el = await mount({ tree: [], loading: true });
     expect(el.shadowRoot!.textContent).toMatch(/Loading/);
+  });
+});
+
+describe('bee-taxa-tree — /species/ page links (beeatlas-dt7)', () => {
+  const PAGES = {
+    '52774': '/species/Bombus/fervidus/index.html',
+    '52775': '/species/Bombus/index.html',
+  };
+
+  test('links a taxon that has a page', async () => {
+    const el = await mount({ tree: sampleTree(), speciesCount: 2, taxonPages: PAGES });
+    const link = el.shadowRoot!.querySelector<HTMLAnchorElement>('li[data-rank="species"] a.page-link');
+    expect(link).toBeTruthy();
+    expect(link!.getAttribute('href')).toBe('/species/Bombus/fervidus/index.html');
+  });
+
+  test('a taxon with NO page renders plain text, never a derived href', async () => {
+    // The core requirement. B. vosnesenskii (57689) is absent from PAGES, and no
+    // amount of name-munging may invent /species/Bombus/vosnesenskii/ for it —
+    // that guess is exactly what would 404 on the ~20 page-less taxa.
+    const el = await mount({ tree: sampleTree(), speciesCount: 2, taxonPages: PAGES });
+    const rows = [...el.shadowRoot!.querySelectorAll('li[data-rank="species"]')];
+    const vos = rows.find((li) => li.textContent!.includes('vosnesenskii'))!;
+    expect(vos.querySelector('a.page-link')).toBeNull();
+    expect(vos.textContent).toContain('Bombus vosnesenskii');
+  });
+
+  test('an empty map yields no links at all, and no crash', async () => {
+    // The degraded path: a build that published no map, or a failed fetch.
+    const el = await mount({ tree: sampleTree(), speciesCount: 2, taxonPages: {} });
+    expect(el.shadowRoot!.querySelectorAll('a.page-link')).toHaveLength(0);
+    expect(el.shadowRoot!.querySelectorAll('li[data-rank="species"]')).toHaveLength(2);
+  });
+
+  test('higher ranks link too when they have a page', async () => {
+    const el = await mount({ tree: sampleTree(), speciesCount: 2, taxonPages: PAGES });
+    const genusLink = el.shadowRoot!
+      .querySelector<HTMLAnchorElement>('details[data-rank="genus"] > summary a.page-link');
+    expect(genusLink!.getAttribute('href')).toBe('/species/Bombus/index.html');
+  });
+
+  test('the family row has no page link (no family pages exist)', async () => {
+    const el = await mount({ tree: sampleTree(), speciesCount: 2, taxonPages: PAGES });
+    const family = el.shadowRoot!.querySelector('details[data-rank="family"] > summary')!;
+    expect(family.querySelector('a.page-link')).toBeNull();
+  });
+
+  test('the page link is distinct from the name button (leave vs refine)', async () => {
+    // Clicking the NAME refines the filter; the link leaves for the page. If the
+    // name itself became an anchor, drilling in would navigate away instead.
+    const el = await mount({ tree: sampleTree(), speciesCount: 2, taxonPages: PAGES });
+    const row = el.shadowRoot!.querySelector('li[data-rank="species"]')!;
+    expect(row.querySelector('.node-name')!.tagName).toBe('BUTTON');
+    expect(row.querySelector('a.page-link')!.tagName).toBe('A');
   });
 });

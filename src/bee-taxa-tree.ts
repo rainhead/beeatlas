@@ -45,6 +45,12 @@ export class BeeTaxaTree extends LitElement {
   /** Taxa an active elevation bound removed for having no elevation data at all. */
   @property({ attribute: false }) excludedForNoElevation = 0;
   @property({ attribute: false }) filterActive = false;
+  /**
+   * taxon_id -> /species/ page href. Absent taxon = no page = plain text, the same
+   * "linked but ungenerated -> render plain text" rule _data/species.js applies to
+   * cross-links. Never derive an href here (see taxon-pages.ts).
+   */
+  @property({ attribute: false }) taxonPages: Record<string, string> = {};
 
   private _showAllRanks = loadToggleState();
 
@@ -111,7 +117,16 @@ export class BeeTaxaTree extends LitElement {
     .ev-checklist-only { color: #8a6d1f; }
 
     .hint { color: var(--text-muted, #666); font-size: 0.85rem; padding: 0.5rem 0; }
-    a.species-link { flex: 0 0 auto; font-size: 0.75rem; }
+    /* The page link is a separate affordance from the name: clicking the NAME
+       refines the current filter (stay in the app), clicking this leaves for the
+       species page. Mirrors _pages/species.njk, whose rows carry a "Map" link in
+       the opposite direction. */
+    a.page-link {
+      flex: 0 0 auto; font-size: 0.72rem; text-decoration: none;
+      color: var(--text-muted, #666); border: 1px solid currentColor;
+      border-radius: 0.7rem; padding: 0.05rem 0.4rem; opacity: 0.8;
+    }
+    a.page-link:hover { color: var(--accent, #2c7a2c); opacity: 1; }
   `;
 
   // The rank toggle mutates classes on already-rendered DOM (species-tree.ts owns
@@ -143,6 +158,13 @@ export class BeeTaxaTree extends LitElement {
     return parts.join(' · ');
   }
 
+  private _pageLink(node: TaxonNode) {
+    const href = this.taxonPages[String(node.taxonId)];
+    if (!href) return nothing;
+    return html`<a class="page-link" href=${href}
+       title="Open the ${node.name} species page">Page</a>`;
+  }
+
   private _badge(node: TaxonNode) {
     return html`<span
       class=${'node-badge ev-' + node.evidence}
@@ -160,6 +182,7 @@ export class BeeTaxaTree extends LitElement {
                   title="Filter the map to ${node.name}"><em>${node.name}</em></button>
           ${this._badge(node)}
           <span class="node-counts">${this._counts(node)}</span>
+          ${this._pageLink(node)}
         </li>
       `;
     }
@@ -178,6 +201,7 @@ export class BeeTaxaTree extends LitElement {
           </button>
           ${this._badge(node)}
           <span class="node-counts">${this._counts(node)}</span>
+          ${this._pageLink(node)}
         </summary>
         ${speciesKids
           ? html`<ul class="species-list">${kids.map((c) => this._renderNode(c))}</ul>`

@@ -13,6 +13,20 @@ const outPath = join(root, 'public', 'data', 'manifest.json');
 
 const manifest = {};
 for (const [key, { source }] of Object.entries(RUNTIME_ARTIFACTS)) manifest[key] = source;
+
+// Dev twin of postbuild-data.mjs's derived taxon_pages artifact (beeatlas-dt7):
+// unhashed, written beside the other dev data. Non-fatal for the same reason —
+// a dev without species.json still gets a working app, just without taxa links.
+try {
+  const { default: speciesData } = await import('../_data/species.js');
+  writeFileSync(join(root, 'public', 'data', 'taxon-pages.json'),
+                JSON.stringify(speciesData.taxonPages) + '\n');
+  manifest.taxon_pages = 'taxon-pages.json';
+  console.log(`wrote public/data/taxon-pages.json (${Object.keys(speciesData.taxonPages).length} taxa)`);
+} catch (err) {
+  console.warn(`! taxon_pages: not derived (${err.message}) — taxa pane links disabled in dev`);
+}
+
 manifest.generated_at = 'local';
 
 mkdirSync(join(root, 'public', 'data'), { recursive: true });

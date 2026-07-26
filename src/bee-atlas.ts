@@ -11,6 +11,7 @@ import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
 import { buildTaxonOptions, resolveTaxonDisplayName, type TaxonCacheEntry } from './taxa.ts';
 import type { FeatureCollection, Point } from 'geojson';
 import { makeStaleGuard } from './stale-guard.ts';
+import { loadTaxonPages } from './taxon-pages.ts';
 import type { CachePrimeProgressDetail, CacheStateChangedDetail } from './prime-orchestrator.ts';
 import { loadFreshnessLabel, resolveDataUrl } from './manifest.ts';
 import { fetchWhoami, signOut, startSignIn, type AuthState } from './auth-client.ts';
@@ -109,6 +110,7 @@ export class BeeAtlas extends LitElement {
   @state() private _taxaLoading = false;
   @state() private _taxaSpeciesCount = 0;
   @state() private _taxaExcludedForNoElevation = 0;
+  @state() private _taxonPages: Record<string, string> = {};
   // Guards against a slow taxa query overwriting a newer one — same hazard the
   // filter-race guard addresses for queryVisibleIds (CLAUDE.md invariant).
   private _taxaQueryGeneration = 0;
@@ -564,6 +566,7 @@ bee-map {
             .taxaLoading=${this._taxaLoading}
             .taxaSpeciesCount=${this._taxaSpeciesCount}
             .taxaExcludedForNoElevation=${this._taxaExcludedForNoElevation}
+            .taxonPages=${this._taxonPages}
             .filterState=${this._filterState}
             .taxaOptions=${this._taxaOptions}
             .taxonCache=${this._taxonCache}
@@ -1028,6 +1031,11 @@ bee-map {
 
   private async _runTaxaQuery(): Promise<void> {
     if (this._paneState !== 'taxa') return;
+    // Lazy, cached, and never on the startup path: the map is only needed once the
+    // taxa pane exists. loadTaxonPages never rejects — no links beats dead links.
+    if (Object.keys(this._taxonPages).length === 0) {
+      loadTaxonPages().then((m) => { this._taxonPages = m; });
+    }
     this._taxaLoading = true;
     const generation = ++this._taxaQueryGeneration;
     try {
