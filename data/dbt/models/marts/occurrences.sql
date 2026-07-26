@@ -77,6 +77,7 @@ SELECT
     j.recordedBy, j.fieldNumber,
     j.floralHost, j.host_observation_id, j.inat_host, j.inat_quality_grade,
     j.modified, j.specimen_observation_id, j.elevation_m,
+    dem.elevation_dem_m,
     j.observation_id, j.host_inat_login, j.specimen_count, j.sample_id,
     j.sample_host,
     j.specimen_inat_quality_grade,
@@ -94,6 +95,20 @@ SELECT
 FROM joined j
 JOIN final_county fc ON fc._row_id = j._row_id
 JOIN final_eco    fe ON fe._row_id = j._row_id
+-- DERIVED elevation (beeatlas-sn8), kept in its own column and never COALESCEd into
+-- the RECORDED j.elevation_m. dem_data.elevations is keyed on the coordinate rounded
+-- to 6 dp, so the join expression must round identically.
+--
+-- The record_type guard is the SECOND of two independent defences against
+-- fabricating elevations for checklist rows: data/dem_elevation.py never samples a
+-- checklist coordinate in the first place. It is repeated here because a checklist
+-- placeholder point can COINCIDE with a real non-checklist coordinate — 683 King
+-- County checklist rows are parked on one point in downtown Seattle, and if a
+-- specimen happens to share it, the lookup row exists and would otherwise join.
+LEFT JOIN {{ ref('stg_dem__elevations') }} dem
+       ON j.record_type <> 'checklist'
+      AND dem.lat = ROUND(j.lat, 6)
+      AND dem.lon = ROUND(j.lon, 6)
 -- Byte-stable determinism (RESEARCH Pitfall 4; sibling occurrence_places.sql ends the
 -- same way). Without a final ORDER BY the parquet row order follows DuckDB's parallel scan
 -- of int_combined and flips between builds (beeatlas-zo7). _row_id can't be the sort key —

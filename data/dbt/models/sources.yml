@@ -44,3 +44,10 @@ sources:
     schema: inat_obs_data
     tables:
       - name: observations
+
+  - name: dem_data
+    schema: dem_data
+    tables:
+      # coordinate -> DEM elevation lookup; written by dem_elevation.load_dem_elevations
+      # (beeatlas-sn8). Checklist coordinates are deliberately absent — see that module.
+      - name: elevations

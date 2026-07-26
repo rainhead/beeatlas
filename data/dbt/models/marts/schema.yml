@@ -38,6 +38,8 @@ models:
         data_type: bigint
       - name: elevation_m
         data_type: integer
+      - name: elevation_dem_m
+        data_type: integer
       - name: observation_id
         data_type: bigint
       - name: host_inat_login

@@ -18,3 +18,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0012](0012-wilderness-no-collect-overlay.md) | Wilderness no-collect overlay (PAD-US regions) | Accepted |
 | [0013](0013-event-driven-incremental-notes-publish.md) | Event-driven incremental notes publish (contributions live in seconds) | Accepted |
 | [0014](0014-species-page-information-hierarchy.md) | Species page information hierarchy (sample-size count supersedes stars) | Accepted |
+| [0015](0015-dem-derived-elevation.md) | DEM-derived elevation is a separate column; checklist rows never get one | Accepted |
