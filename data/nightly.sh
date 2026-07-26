@@ -11,8 +11,10 @@
 #   1. cd to repo root (derived from $0 — host-agnostic); take the publish
 #      lock (shared with the st-nee write path: nightly and a note write
 #      serialize here).
-#   2. Source NVM, `nvm use` the .nvmrc-pinned node, git pull, npm ci
-#      (lockfile-cached), uv sync.
+#   2. Source NVM, `nvm use` the .nvmrc-pinned node, git pull BOTH repos —
+#      this one and the stelis checkout that owns the task graph, since a
+#      change spanning the two ships only if both move (beeatlas-cwh) — npm
+#      ci (lockfile-cached), uv sync.
 #   3. Restore the integration-gate baseline (last PUBLISHED artifacts,
 #      snapshotted in step 7) into public/data/.
 #   4. `npm run fetch-data` — Stelis (github.com/rainhead/stelis) builds the
@@ -142,6 +144,51 @@ else
     echo "WARN: $HOME/.nvm/nvm.sh not found — node tooling may not resolve" >&2
 fi
 git pull --ff-only
+
+# Sync STELIS too (beeatlas-cwh). The task graph lives in a SEPARATE repo, so a
+# change spanning both — a loader + dbt model here, its graph node there — ships
+# only if BOTH move. Pulling one was a real failure on 2026-07-25: the new dbt
+# model ran against a graph that never produced its input, and the error named a
+# missing SCHEMA, which reads like a broken migration rather than "the other repo
+# is one commit behind".
+#
+# We auto-FOLLOW stelis main rather than pinning a SHA. The nightly already adopts
+# beeatlas main unreviewed a few lines up — the repo holding the loaders and dbt
+# models — so this is the same risk already accepted, not a new category. Stelis is
+# content-addressed, so a pull reads as 'code-changed and rebuilds exactly what the
+# edit reaches. And the integration gate below still stands between a bad build and
+# the publish. The alternatives (a pinned SHA in-repo, or vendoring stelis as a
+# submodule) are written up on beeatlas-cwh and stay the right shape if this ever
+# needs a review step per ship.
+#
+# A dirty or diverged stelis checkout — someone debugging on this host — fails
+# --ff-only. That has to name STELIS_DIR HERE rather than surface an hour later as
+# a dbt Catalog Error.
+STELIS_DIR="${STELIS_DIR:-$HOME/dev/stelis}"
+export STELIS_DIR
+if [[ ! -d "$STELIS_DIR/.git" ]]; then
+    echo "FATAL: no stelis git checkout at $STELIS_DIR — the task graph lives" >&2
+    echo "there and cannot be synced. Set STELIS_DIR, or clone" >&2
+    echo "github.com/rainhead/stelis." >&2
+    exit 78  # EX_CONFIG
+fi
+if ! git -C "$STELIS_DIR" pull --ff-only; then
+    echo "FATAL: 'git pull --ff-only' failed in the STELIS checkout $STELIS_DIR" >&2
+    echo "(dirty working tree? diverged branch?). That checkout owns the task" >&2
+    echo "graph; building with a stale one fails deep inside dbt instead of here." >&2
+    exit 1
+fi
+echo "  stelis: $(git -C "$STELIS_DIR" rev-parse --short HEAD) $(git -C "$STELIS_DIR" log -1 --format=%s)"
+# Racket compiles on demand, so this is an optimization, not a correctness step —
+# but a cold compile of the whole graph inside the build is a slow surprise, and
+# the 2026-07-25 recovery needed it. Non-fatal if raco is absent: `racket` is what
+# fetch-data.sh actually invokes, and it would fail with a better message.
+if command -v raco > /dev/null; then
+    (cd "$STELIS_DIR" && raco make src/main.rkt)
+else
+    echo "  WARN: raco not on PATH — skipping stelis bytecode build" >&2
+fi
+
 # Cache node_modules between runs keyed on package-lock.json hash. npm ci wipes
 # node_modules and reinstalls everything every call, which on this repo means
 # rebuilding the msgpackr-extract native addon (transitive via mapshaper) — a
@@ -196,14 +243,17 @@ fi
 
 # 3. Build the data — Stelis via the site repo's own interface (npm run
 # fetch-data → stelis --build --all --export-dir). Cache + history persist in
-# $STELIS_DIR/.stelis/ across nightlies, so an unchanged nightly is fast.
+# $STELIS_DIR/.stelis/ across nightlies, so an unchanged nightly is fast. That
+# state describes THIS project, not the engine, and stelis st-7wu adds
+# STELIS_STATE_DIR to relocate it here (under $VAR_DIR, beside the DuckDB and
+# export dir it observes); until the existing history is moved there deliberately,
+# it stays in the engine checkout, which the step-1 pull leaves untouched.
 # Replaced run.py at the 2026-07-17 cutover; Model Y (ADR 0007 Amendment)
 # narrowed Stelis to the data engine — the site render below is top-level.
 echo "--- building data (stelis fetch-data) ---"
 _t0=$(date +%s)
 export DB_PATH EXPORT_DIR NOTES_DB_PATH
-STELIS_DIR="${STELIS_DIR:-$HOME/dev/stelis}"
-export STELIS_DIR
+# STELIS_DIR is set and exported in step 1, which also syncs that checkout.
 # Log the content-addressed plan (why each task runs/skips) before building, so the
 # nightly log records what Stelis decided and why. scripts/fetch-data.sh runs the
 # explain pass against the same export dir the build reads (non-fatal on error).
