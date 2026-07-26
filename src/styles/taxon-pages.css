@@ -545,6 +545,39 @@ seasonality-viz .viz-fallback { color: #555; font-style: italic; font-size: 0.85
   display: none;
 }
 
+/* --- Geography pickers + presence badges (beeatlas-0of.2) ----------------- */
+.species-index .where-label {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-size: 0.9rem; color: var(--text-body, #213547);
+}
+.species-index #presence-note {
+  border-left: 3px solid var(--accent, #2c7a2c);
+  background: var(--surface-muted, rgba(44, 122, 44, 0.06));
+  padding: 0.45rem 0.7rem; margin: 0.5rem 0 0.75rem;
+  font-size: 0.85rem; line-height: 1.4;
+}
+
+/* Evidence badge. species-presence.ts puts data-presence on the NODE (for colour)
+   and data-presence-label on that node's own .node-name (for the text) — attr()
+   can only read from the element its pseudo-element belongs to, so the label has
+   to live on the element being decorated. Rendering via ::after means the presence
+   pass never adds or removes DOM the text filter is walking. */
+.species-index .node-name[data-presence-label]::after {
+  content: attr(data-presence-label);
+  margin-left: 0.4rem; font-size: 0.7rem;
+  padding: 0.05rem 0.35rem; border: 1px solid currentColor; border-radius: 0.7rem;
+  vertical-align: middle; opacity: 0.85;
+}
+.species-index [data-presence="specimen"]      { --presence-color: var(--accent, #2c7a2c); }
+.species-index [data-presence="community"]     { --presence-color: #6b4fa8; }
+.species-index [data-presence="checklist-only"]{ --presence-color: #8a6d1f; }
+.species-index [data-presence] .node-name[data-presence-label]::after { color: var(--presence-color); }
+
+/* While a geography is selected the per-node counts are hidden: they are
+   STATEWIDE totals and would read as counts for the selected area. See
+   species-tree.ts setCountsVisibility(). */
+.species-index.presence-active .node-counts { display: none; }
+
 /* Focus-visible rings on interactive tree elements */
 .species-index summary:focus-visible,
 .species-index .node-map:focus-visible,

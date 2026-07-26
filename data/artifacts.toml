@@ -116,6 +116,16 @@ hash_basename = "place_details"
 build_time_fetch = true
 build_time_fetch_optional = true
 
+[artifacts.taxon_presence]
+provenance = "derived"
+kind = "hashed"
+source_file = "taxon_presence.json"
+hash_basename = "taxon_presence"
+# baseline_diff intentionally omitted (=false) for the initial ship, following the
+# wilderness precedent above: a new artifact has no baseline yet, so enrolling it in
+# the nightly drift-diff gate would deadlock its first publish. Promote once a
+# baseline exists.
+
 [artifacts.checklist]
 provenance = "derived"
 kind = "hashed"

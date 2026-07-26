@@ -5,7 +5,7 @@ title: Species — BeeAtlas
 ---
 {%- macro renderNode(node) -%}
 {%- if node.rank === "species" -%}
-<li data-rank="species" data-name="{{ node.scientificName | lower }}">
+<li data-rank="species" data-name="{{ node.scientificName | lower }}" data-taxon-id="{{ node.taxon_id }}">
   <a class="node-name" href="/species/{{ node.slug }}/index.html"><em>{{ node.scientificName }}</em></a>
   {%- if node.sociality -%}
   <span class="node-badge" tabindex="0"
@@ -21,7 +21,7 @@ title: Species — BeeAtlas
   <a class="node-map" href="/?taxon={{ node.scientificName | urlencode }}&amp;taxonRank=species" aria-label="Map: {{ node.scientificName }} occurrences">Map</a>
 </li>
 {%- elif node.rank === "family" -%}
-<details class="tree-node tree-node--family" data-rank="family" data-name="{{ node.name | lower }}">
+<details class="tree-node tree-node--family" data-rank="family" data-name="{{ node.name | lower }}" data-taxon-id="{{ node.taxon_id }}">
   <summary>
     <span class="node-name">{{ node.name }}</span>
     <span class="node-counts">{{ node.specimen_count | quantify("specimen") }} · {{ node.inat_obs_count | quantify("community observation") }}</span>
@@ -32,7 +32,7 @@ title: Species — BeeAtlas
   {%- endfor -%}
 </details>
 {%- elif node.rank === "genus" -%}
-<details class="tree-node tree-node--genus" data-rank="genus" data-name="{{ node.name | lower }}">
+<details class="tree-node tree-node--genus" data-rank="genus" data-name="{{ node.name | lower }}" data-taxon-id="{{ node.taxon_id }}">
   <summary>
     <a class="node-name" href="/species/{{ node.name }}/index.html"><em>{{ node.name }}</em></a>
     <span class="node-counts">{{ node.specimen_count | quantify("specimen") }} · {{ node.inat_obs_count | quantify("community observation") }}</span>
@@ -51,7 +51,7 @@ title: Species — BeeAtlas
   {%- endif -%}
 </details>
 {%- elif node.rank === "subgenus" -%}
-<details class="tree-node tree-node--subgenus" data-rank="subgenus" data-name="{{ node.name | lower }}">
+<details class="tree-node tree-node--subgenus" data-rank="subgenus" data-name="{{ node.name | lower }}" data-taxon-id="{{ node.taxon_id }}">
   <summary>
     {%- if node.hasPage %}<a class="node-name" href="/species/{{ node.genusName }}/{{ node.name }}/index.html"><em>{{ node.name }}</em></a>{%- else %}<span class="node-name"><em>{{ node.name }}</em></span>{%- endif %}
     <span class="node-counts">{{ node.specimen_count | quantify("specimen") }} · {{ node.inat_obs_count | quantify("community observation") }}</span>
@@ -70,7 +70,7 @@ title: Species — BeeAtlas
   {%- endif -%}
 </details>
 {%- elif node.rank === "tribe" -%}
-<details class="tree-node tree-node--tribe" data-rank="tribe" data-name="{{ node.name | lower }}">
+<details class="tree-node tree-node--tribe" data-rank="tribe" data-name="{{ node.name | lower }}" data-taxon-id="{{ node.taxon_id }}">
   <summary>
     {%- if node.hasPage %}<a class="node-name" href="/species/tribe/{{ node.name }}/index.html"><em>{{ node.name }}</em></a>{%- else %}<span class="node-name"><em>{{ node.name }}</em></span>{%- endif %}
     <span class="node-counts">{{ node.specimen_count | quantify("specimen") }} · {{ node.inat_obs_count | quantify("community observation") }}</span>
@@ -81,7 +81,7 @@ title: Species — BeeAtlas
   {%- endfor -%}
 </details>
 {%- elif node.rank === "subfamily" -%}
-<details class="tree-node tree-node--subfamily" data-rank="subfamily" data-name="{{ node.name | lower }}">
+<details class="tree-node tree-node--subfamily" data-rank="subfamily" data-name="{{ node.name | lower }}" data-taxon-id="{{ node.taxon_id }}">
   <summary>
     <a class="node-name" href="/species/subfamily/{{ node.name }}/index.html"><em>{{ node.name }}</em></a>
     <span class="node-counts">{{ node.specimen_count | quantify("specimen") }} · {{ node.inat_obs_count | quantify("community observation") }}</span>
@@ -104,7 +104,30 @@ title: Species — BeeAtlas
       <input type="checkbox" id="show-all-ranks">
       Show all ranks
     </label>
+    <label class="where-label">
+      County
+      <select id="presence-county" aria-label="Show only taxa recorded in this county">
+        <option value="">Anywhere</option>
+        {%- for c in species.counties %}<option value="{{ c }}">{{ c }}</option>{% endfor -%}
+      </select>
+    </label>
+    <label class="where-label">
+      Ecoregion
+      <select id="presence-ecoregion" aria-label="Show only taxa recorded in this ecoregion">
+        <option value="">Anywhere</option>
+        {%- for e in species.ecoregionL3 %}<option value="{{ e }}">{{ e }}</option>{% endfor -%}
+      </select>
+    </label>
   </div>
+  {#- D-04: the two surfaces have deliberately different geography vocabularies,
+      and that asymmetry is stated here rather than left to be discovered. -#}
+  <p id="presence-note" hidden role="status">
+    <span id="presence-summary"></span>
+    Evidence shown is for the selected area; record counts are hidden because the
+    totals in this tree are statewide.
+    <a id="presence-atlas-link" href="/">Open in the atlas</a> to add elevation,
+    a drawn area, a named place, or year and collector filters.
+  </p>
   <p id="filter-empty" hidden role="status">No taxa match "<span id="filter-query"></span>".</p>
   {%- for family in species.fullTree -%}
   {{ renderNode(family) }}

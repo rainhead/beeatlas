@@ -137,7 +137,11 @@ describe('src/entries/species-index.ts (Phase 133 — thin Vite entry)', () => {
   test('delegates behavior to species-tree and initializes on load', () => {
     const src = readFileSync(resolve(ROOT, 'src/entries/species-index.ts'), 'utf-8');
     expect(src).toContain("from '../species-tree.ts'");
-    expect(src).toContain('initSpeciesTree()');
+    // Matches the call with or without arguments: beeatlas-0of.2 injects the
+    // presence API as a parameter, so pinning the empty-paren spelling would fail
+    // on a change that still satisfies what this asserts — that the entry
+    // initializes the tree on load.
+    expect(src).toMatch(/initSpeciesTree\(/);
   });
 });
 
@@ -170,14 +174,22 @@ describe('src/styles/taxon-pages.css (browse-tree affordances — structural gua
 
 describe('src/species-tree.ts (security invariants — source guards)', () => {
   const src = readFileSync(resolve(ROOT, 'src/species-tree.ts'), 'utf-8');
+  // The rank model (and with it the localStorage read) moved to rank-toggle.ts so
+  // the map app could share it without dragging this module into the SPA's chunk
+  // graph (IDX-02). The INVARIANT is unchanged and still guarded — it just lives
+  // where the code now does; both files are checked so neither can reintroduce a
+  // permissive read.
+  const rankSrc = readFileSync(resolve(ROOT, 'src/rank-toggle.ts'), 'utf-8');
 
   test('localStorage value compared with strict === "1" (no eval / JSON.parse of value) — T-133-08', () => {
-    expect(src).toContain("=== '1'");
-    expect(src).not.toMatch(/eval\s*\(/);
-    const jsonParseGetItem = src
-      .split('\n')
-      .filter((l) => l.includes('JSON.parse') && l.includes('getItem'));
-    expect(jsonParseGetItem).toHaveLength(0);
+    expect(rankSrc).toContain("=== '1'");
+    for (const s of [src, rankSrc]) {
+      expect(s).not.toMatch(/eval\s*\(/);
+      const jsonParseGetItem = s
+        .split('\n')
+        .filter((l) => l.includes('JSON.parse') && l.includes('getItem'));
+      expect(jsonParseGetItem).toHaveLength(0);
+    }
   });
 
   test('empty-state query echoed via textContent, never innerHTML — T-133-07', () => {
@@ -185,7 +197,7 @@ describe('src/species-tree.ts (security invariants — source guards)', () => {
     // Guard the actual sink (a `.innerHTML` property access), not the word in a
     // comment — matching the bare word is exactly the false positive that let the
     // original broken behavior pass review.
-    expect(src).not.toMatch(/\.innerHTML\b/);
+    for (const s of [src, rankSrc]) expect(s).not.toMatch(/\.innerHTML\b/);
   });
 });
 

@@ -98,6 +98,13 @@ describe('src/entries/species-index.ts allowlist (IDX-02, Phase 96)', () => {
     // Phase 133 gap closure: tree behavior extracted to a pure DOM module
     // (no SPA/heavy imports) so it is unit-testable under happy-dom.
     '../species-tree.ts', '../species-tree',
+    // beeatlas-0of.2: county/ecoregion presence filtering. Both additions are
+    // dependency-free by inspection — species-presence.ts imports NOTHING, and
+    // manifest.ts is a standalone fetch+cache with no imports of its own — so the
+    // guarantee this allowlist exists to protect (the static page pulls in no SPA
+    // machinery: no sqlite, no filter.ts, no Lit component tree, no mapbox) holds.
+    '../species-presence.ts', '../species-presence',
+    '../manifest.ts', '../manifest',
   ]);
   const FORBIDDEN_PATTERNS = [
     'bee-species-page', 'bee-species-filter', 'bee-atlas',

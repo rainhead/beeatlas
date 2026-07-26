@@ -20,6 +20,7 @@ interface Manifest {
   wilderness: string;    // points to hashed wilderness.geojson (no-collect overlay)
   places: string;        // points to hashed places.geojson
   places_meta: string;   // points to hashed places.json
+  taxon_presence: string; // county/ecoregion -> taxon presence (/species/ pickers)
   // taxon_id -> /species/ page href, derived by the SITE build from the lists it
   // paginates (beeatlas-dt7). Optional: a build that could not derive it omits the
   // key, and the taxa pane degrades to plain-text names rather than dead links.

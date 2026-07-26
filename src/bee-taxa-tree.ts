@@ -1,6 +1,9 @@
 import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { applyRankToggle, loadToggleState, saveToggleState } from './species-tree.ts';
+// Imported from the shared rank model, NOT from species-tree.ts: that module is
+// the static /species/ page's wiring, and importing it here dragged the whole
+// page into the SPA's chunk graph (IDX-02 code-splitting guard).
+import { applyRankToggle, loadToggleState, saveToggleState } from './rank-toggle.ts';
 import { quantify } from './lib/quantify.js';
 import type { TaxonNode, Evidence } from './taxa-tree.ts';
 

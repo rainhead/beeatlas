@@ -12,5 +12,12 @@ import '../index.css';
 import '../styles/taxon-pages.css';
 import '../bee-header.ts';
 import { initSpeciesTree } from '../species-tree.ts';
+import { applyPresence, loadPresence } from '../species-presence.ts';
+import { resolveDataUrl } from '../manifest.ts';
 
-initSpeciesTree();
+// The presence API is injected rather than imported inside species-tree.ts so that
+// module stays a pure DOM unit, testable under happy-dom with no fetch or manifest.
+initSpeciesTree(document, {
+  load: () => loadPresence((key) => resolveDataUrl(key as 'taxon_presence')),
+  apply: applyPresence,
+});
