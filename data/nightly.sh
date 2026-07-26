@@ -59,6 +59,15 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BASE_DIR="${BASE_DIR:-/var/www/beeatlas.net}"
 SITE_ROOT="${SITE_ROOT:-$BASE_DIR/htdocs}"
 VAR_DIR="${VAR_DIR:-$BASE_DIR/var}"
+# Stelis's build state — observation history + input-addressed cache (st-7wu).
+# Belongs beside the DuckDB and export dir it observes, not in whatever engine
+# checkout happens to be cwd; step 1 updates that checkout nightly, and a
+# project's record of itself should not ride along with it. Exported, so
+# scripts/fetch-data.sh's `cd "$STELIS_DIR"` cannot change where state resolves.
+# NOTE for interactive use on this host: a shell does NOT inherit this, so a bare
+# `racket src/main.rkt --history` reads the cwd-relative default and reports an
+# empty history. Pass the variable, or export it in your profile.
+export STELIS_STATE_DIR="${STELIS_STATE_DIR:-$VAR_DIR/stelis}"
 DB_PATH="${DB_PATH:-$VAR_DIR/beeatlas.duckdb}"
 EXPORT_DIR="${EXPORT_DIR:-$VAR_DIR/export}"
 BASELINE_DIR="${BASELINE_DIR:-$VAR_DIR/baseline}"
@@ -243,11 +252,9 @@ fi
 
 # 3. Build the data — Stelis via the site repo's own interface (npm run
 # fetch-data → stelis --build --all --export-dir). Cache + history persist in
-# $STELIS_DIR/.stelis/ across nightlies, so an unchanged nightly is fast. That
-# state describes THIS project, not the engine, and stelis st-7wu adds
-# STELIS_STATE_DIR to relocate it here (under $VAR_DIR, beside the DuckDB and
-# export dir it observes); until the existing history is moved there deliberately,
-# it stays in the engine checkout, which the step-1 pull leaves untouched.
+# $STELIS_STATE_DIR across nightlies (set near the top, under $VAR_DIR beside the
+# DuckDB and export dir they observe — stelis st-7wu), so an unchanged nightly is
+# fast and the state does not live in the engine checkout that step 1 updates.
 # Replaced run.py at the 2026-07-17 cutover; Model Y (ADR 0007 Amendment)
 # narrowed Stelis to the data engine — the site render below is top-level.
 echo "--- building data (stelis fetch-data) ---"
