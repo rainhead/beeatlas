@@ -8,6 +8,8 @@ import { resolveDataUrl } from './manifest.ts';
 import { quantify } from './lib/quantify.js';
 import './bee-occurrence-detail.ts';
 import './bee-table.ts';
+import './bee-taxa-tree.ts';
+import type { TaxonNode } from './taxa-tree.ts';
 import type { OccurrenceRow, SpecimenSortBy } from './filter.ts';
 
 // ---------- year-bucket helpers ----------
@@ -52,7 +54,13 @@ type AnyS = TaxonSug | CollectorSug | WhereSug;
 @customElement('bee-pane')
 export class BeePane extends LitElement {
   // Pane control
-  @property({ attribute: false }) paneState: 'collapsed' | 'list' | 'table' = 'collapsed';
+  @property({ attribute: false }) paneState: 'collapsed' | 'list' | 'table' | 'taxa' = 'collapsed';
+
+  // Taxa pane data (beeatlas-0of.1) — supplied by bee-atlas, which owns the query.
+  @property({ attribute: false }) taxaTree: TaxonNode[] = [];
+  @property({ attribute: false }) taxaLoading = false;
+  @property({ attribute: false }) taxaSpeciesCount = 0;
+  @property({ attribute: false }) taxaExcludedForNoElevation = 0;
 
   // Filter data (same as bee-filter-panel)
   @property({ attribute: false }) filterState!: FilterState;
@@ -651,6 +659,10 @@ export class BeePane extends LitElement {
     this.dispatchEvent(new CustomEvent('pane-shrink-list', { bubbles: true, composed: true }));
   }
 
+  private _onShowTaxa() {
+    this.dispatchEvent(new CustomEvent('pane-show-taxa', { bubbles: true, composed: true }));
+  }
+
   private _onClearSelection() {
     this.dispatchEvent(new CustomEvent('pane-clear-selection', { bubbles: true, composed: true }));
   }
@@ -1201,6 +1213,7 @@ export class BeePane extends LitElement {
     return html`
       <div class="sidebar-header">
         <span class="sidebar-title">Filters</span>
+        <button class="expand-btn" @click=${this._onShowTaxa} aria-label="Show taxonomy of these results" title="Taxonomy">🜎</button>
         <button class="expand-btn" @click=${this._onExpand} aria-label="Expand to table view">⊞</button>
         <button class="pane-close" @click=${this._onToggle} aria-label="Close pane">&#x2715;</button>
       </div>
@@ -1258,6 +1271,23 @@ export class BeePane extends LitElement {
     `;
   }
 
+  private _renderTaxaContent() {
+    return html`
+      <div class="sidebar-header">
+        <button class="shrink-btn" @click=${this._onShrink} aria-label="Return to list view">⊟</button>
+        <span class="sidebar-title">Taxonomy</span>
+        <button class="pane-close" @click=${this._onToggle} aria-label="Close pane">&#x2715;</button>
+      </div>
+      <bee-taxa-tree
+        .tree=${this.taxaTree}
+        .loading=${this.taxaLoading}
+        .speciesCount=${this.taxaSpeciesCount}
+        .excludedForNoElevation=${this.taxaExcludedForNoElevation}
+        .filterActive=${this.filterActive}
+      ></bee-taxa-tree>
+    `;
+  }
+
   render() {
     if (this.paneState === 'collapsed') {
       const active = this.filterActive || (this.selectionCount ?? 0) > 0;
@@ -1282,6 +1312,9 @@ export class BeePane extends LitElement {
     }
     if (this.paneState === 'table') {
       return this._renderTableContent();
+    }
+    if (this.paneState === 'taxa') {
+      return this._renderTaxaContent();
     }
     // list state
     return this._renderListContent();

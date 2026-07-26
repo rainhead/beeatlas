@@ -103,6 +103,26 @@ describe('buildParams -> parseParams round-trip', () => {
     expect(params.has('pane')).toBe(false);
   });
 
+  // beeatlas-0of.1 — the taxa pane must be shareable exactly as pane=list is.
+  test('paneState=taxa: round-trips as pane=taxa', () => {
+    const ui = { boundaryMode: 'off' as const, paneState: 'taxa' as const };
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
+    expect(params.get('pane')).toBe('taxa');
+    expect(parseParams(params.toString()).ui?.paneState).toBe('taxa');
+  });
+
+  test('pane=taxa survives alongside a geography filter (the shareable case)', () => {
+    // "/?counties=King&pane=taxa" is the URL the feature exists to make shareable.
+    const result = parseParams('counties=King&pane=taxa');
+    expect(result.ui?.paneState).toBe('taxa');
+    expect(result.filter?.selectedCounties).toEqual(new Set(['King']));
+  });
+
+  test('pane=taxa wins over the legacy view=table alias', () => {
+    // Legacy aliasing must not resurrect the table pane for a taxa deep link.
+    expect(parseParams('pane=taxa&view=table').ui?.paneState).toBe('taxa');
+  });
+
   test('selectedCounties: round-trips as counties param', () => {
     const filter = { ...emptyFilter(), selectedCounties: new Set(['King', 'Pierce']) };
     const params = buildParams(defaultView, filter, defaultSelection, defaultUi);

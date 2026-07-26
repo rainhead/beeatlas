@@ -54,7 +54,7 @@ const TIER_OF: Record<SourceKey, TierKey> = {
 
 export interface UiState {
   boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' | 'wilderness';
-  paneState: 'list' | 'table' | 'collapsed';
+  paneState: 'list' | 'table' | 'taxa' | 'collapsed';
   hiddenTiers?: Set<TierKey>;
 }
 
@@ -348,9 +348,12 @@ export function parseParams(search: string): ParsedParams {
   const paneRaw = p.get('pane') ?? '';
   const viewRaw = p.get('view') ?? '';
   // Option A precedence: pane= wins; view=table is legacy alias when pane= absent
-  const paneState: 'list' | 'table' | 'collapsed' =
+  const paneState: 'list' | 'table' | 'taxa' | 'collapsed' =
     paneRaw === 'list' ? 'list'
     : paneRaw === 'table' ? 'table'
+    // beeatlas-0of.1: the taxa pane is shareable exactly as pane=list is. No
+    // legacy view= alias — `taxa` is new, so there is no old spelling to honour.
+    : paneRaw === 'taxa' ? 'taxa'
     : viewRaw === 'table' ? 'table'
     : 'collapsed';
   // Include UI when non-default values present

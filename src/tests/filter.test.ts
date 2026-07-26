@@ -242,6 +242,49 @@ describe('elevation filter', () => {
   });
 });
 
+describe('D-03: checklist rows and sub-county geography', () => {
+  const BOX = { west: -122.4, south: 47.5, east: -122.2, north: 47.7 };
+
+  test('a bounds filter excludes checklist records', () => {
+    const { occurrenceWhere } = buildFilterSQL({ ...emptyFilter(), bounds: BOX });
+    expect(occurrenceWhere).toContain("o.record_type <> 'checklist'");
+  });
+
+  test('a place filter excludes checklist records', () => {
+    const { occurrenceWhere } = buildFilterSQL({ ...emptyFilter(), selectedPlace: 'discovery-park' });
+    expect(occurrenceWhere).toContain("o.record_type <> 'checklist'");
+  });
+
+  test('a county filter RETAINS checklist records', () => {
+    // The county is the authoritative thing a checklist asserts — dropping these
+    // would deny published county-range records.
+    const { occurrenceWhere } = buildFilterSQL({ ...emptyFilter(), selectedCounties: new Set(['King']) });
+    expect(occurrenceWhere).not.toContain('checklist');
+  });
+
+  test('an ecoregion filter RETAINS checklist records', () => {
+    const { occurrenceWhere } = buildFilterSQL({ ...emptyFilter(), selectedEcoregions: new Set(['Cascades']) });
+    expect(occurrenceWhere).not.toContain('checklist');
+  });
+
+  test('no geography filter at all leaves checklist records alone', () => {
+    expect(buildFilterSQL(emptyFilter()).occurrenceWhere).not.toContain('checklist');
+  });
+
+  test('county + bounds together still excludes (the stricter geometry wins)', () => {
+    const { occurrenceWhere } = buildFilterSQL({
+      ...emptyFilter(), selectedCounties: new Set(['King']), bounds: BOX,
+    });
+    expect(occurrenceWhere).toContain("o.record_type <> 'checklist'");
+    expect(occurrenceWhere).toContain("county IN ('King')");
+  });
+
+  test('the clause is o.-qualified (occurrences is always aliased o)', () => {
+    const { occurrenceWhere } = buildFilterSQL({ ...emptyFilter(), bounds: BOX });
+    expect(occurrenceWhere).not.toMatch(/[^.]record_type <> 'checklist'/);
+  });
+});
+
 describe('isFilterActive — elevation', () => {
   test('elevMin set: returns true', () => {
     expect(isFilterActive({ ...emptyFilter(), elevMin: 100 })).toBe(true);

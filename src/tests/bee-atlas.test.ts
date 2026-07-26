@@ -813,15 +813,28 @@ describe('PANE-V2-02: unified list state — selection banner and X close', () =
 
 describe('PANE-V2-03: split-screen table layout', () => {
   const atlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+  // `[^{]*` rather than `\s*`: beeatlas-0of.1 grouped `.content.pane-taxa bee-pane`
+  // into this same rule (the taxa pane reuses the table geometry). The invariant
+  // under test — height 60%, no inset:0 — is unchanged by the grouping.
+  const TABLE_RULE = /\.content\.pane-table\s+bee-pane[^{]*\{[^}]*\}/;
   test('bee-atlas.ts pane-table CSS does NOT have inset: 0', () => {
-    const tableRule = atlasSrc.match(/\.content\.pane-table\s+bee-pane\s*\{[^}]*\}/);
+    const tableRule = atlasSrc.match(TABLE_RULE);
     expect(tableRule).not.toBeNull();
     expect(tableRule![0]).not.toMatch(/inset\s*:\s*0/);
   });
   test('bee-atlas.ts pane-table CSS has height: 60%', () => {
-    const tableRule = atlasSrc.match(/\.content\.pane-table\s+bee-pane\s*\{[^}]*\}/);
+    const tableRule = atlasSrc.match(TABLE_RULE);
     expect(tableRule).not.toBeNull();
     expect(tableRule![0]).toMatch(/height\s*:\s*60%/);
+  });
+  // beeatlas-0of.1: the taxa pane must be POSITIONED. Without a .pane-taxa class on
+  // .content it inherits none of these rules and renders unplaced over the map —
+  // which is exactly what happened in local UAT before this was wired.
+  test('bee-atlas.ts positions the taxa pane (shares the table geometry)', () => {
+    expect(atlasSrc).toMatch(/pane-taxa/);
+    const rule = atlasSrc.match(/\.content\.pane-taxa\s+bee-pane[^{]*\{[^}]*\}|\.content\.pane-table\s+bee-pane,\s*\.content\.pane-taxa\s+bee-pane\s*\{[^}]*\}/);
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/height\s*:\s*60%/);
   });
 });
 

@@ -1,7 +1,8 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js';
 import type { BeeMap } from './bee-map.ts';
-import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, getOccurrencePlaceSlugs, type OccurrenceProperties } from './filter.ts';
+import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, getOccurrencePlaceSlugs, queryTaxaTree, type OccurrenceProperties } from './filter.ts';
+import type { TaxonNode } from './taxa-tree.ts';
 import { parseOccId, occIdFromRow } from './occurrence.ts';
 import { buildParams, parseParams, type TierKey } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
@@ -102,7 +103,15 @@ export class BeeAtlas extends LitElement {
   @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' | 'wilderness' = 'off';
   // Region control menu open/close (relocated from <bee-map> in Phase 157).
   @state() private _regionMenuOpen = false;
-  @state() private _paneState: 'collapsed' | 'list' | 'table' = 'collapsed';
+  @state() private _paneState: 'collapsed' | 'list' | 'table' | 'taxa' = 'collapsed';
+  // Taxa pane (beeatlas-0of.1) — bee-atlas owns this state; bee-taxa-tree presents it.
+  @state() private _taxaTree: TaxonNode[] = [];
+  @state() private _taxaLoading = false;
+  @state() private _taxaSpeciesCount = 0;
+  @state() private _taxaExcludedForNoElevation = 0;
+  // Guards against a slow taxa query overwriting a newer one — same hazard the
+  // filter-race guard addresses for queryVisibleIds (CLAUDE.md invariant).
+  private _taxaQueryGeneration = 0;
   @state() private _tablePage = 1;
   @state() private _tableSortBy: SpecimenSortBy = 'date';
   @state() private _tableRows: OccurrenceRow[] = [];
@@ -314,10 +323,12 @@ bee-map {
    dissolves the toolbar box; the region control re-establishes its own top-right
    placement and <bee-pane> resolves against .content again (no 8rem inset). */
 .content.pane-list .map-toolbar,
+.content.pane-taxa .map-toolbar,
 .content.pane-table .map-toolbar {
   display: contents;
 }
 .content.pane-list .region-control,
+.content.pane-taxa .region-control,
 .content.pane-table .region-control {
   position: absolute;
   top: 0.5em;
@@ -332,7 +343,8 @@ bee-map {
   width: 25rem;
   max-height: calc(100% - 1em);
 }
-.content.pane-table bee-pane {
+.content.pane-table bee-pane,
+.content.pane-taxa bee-pane {
   position: absolute;
   bottom: 0;
   left: 0;
@@ -496,6 +508,12 @@ bee-map {
           'content',
           this._paneState === 'list' ? 'pane-list' : '',
           this._paneState === 'table' ? 'pane-table' : '',
+          // beeatlas-0of.1: the taxa pane reuses the TABLE geometry (full-width
+          // bottom panel). Its rows are name + evidence badge + counts, which read
+          // as columns and do not fit the 25rem list panel; and it is a scrolling
+          // reading surface, which is what that shape is for. Without a class here
+          // bee-pane would inherit no positioning at all and render unplaced.
+          this._paneState === 'taxa' ? 'pane-taxa' : '',
         ].filter(Boolean).join(' ')}>
           <bee-map
             .boundaryMode=${this._boundaryMode}
@@ -542,6 +560,10 @@ bee-map {
           </div>
           <bee-pane
             .paneState=${this._paneState}
+            .taxaTree=${this._taxaTree}
+            .taxaLoading=${this._taxaLoading}
+            .taxaSpeciesCount=${this._taxaSpeciesCount}
+            .taxaExcludedForNoElevation=${this._taxaExcludedForNoElevation}
             .filterState=${this._filterState}
             .taxaOptions=${this._taxaOptions}
             .taxonCache=${this._taxonCache}
@@ -570,6 +592,8 @@ bee-map {
             @pane-collapse=${this._onPaneCollapse}
             @pane-expand-table=${this._onPaneExpandTable}
             @pane-shrink-list=${this._onPaneShrinkList}
+            @pane-show-taxa=${this._onPaneShowTaxa}
+            @taxon-selected=${this._onTaxonSelected}
             @page-changed=${this._onPageChanged}
             @download-csv=${this._onDownloadCsv}
             @sort-changed=${this._onSortChanged}
@@ -710,6 +734,11 @@ bee-map {
           // _loadSummaryFromSQLite is called from _onDataLoaded (unconditionally); only run
           // the table query here since it depends on SQLite being ready, not on tablesReady.
           this._runTableQuery();
+        }
+        // Deep link (?pane=taxa): same reasoning — the tree needs SQLite, not just
+        // tablesReady, so it cannot run from the constructor.
+        if (this._paneState === 'taxa') {
+          this._runTaxaQuery();
         }
       })
       .catch((err: unknown) => {
@@ -900,6 +929,18 @@ bee-map {
         this._filterResolving = false;
         if (isFilterActive(this._filterState)) {
           this._runFilterQuery();
+          // Every OTHER _filterState write re-runs the pane queries too; this one
+          // only refreshed the map, which made the panes depend on a RACE. A legacy
+          // ?taxon=<name> link resolves on taxaReady, while the pane queries fire on
+          // loadOccurrencesTable() — whichever lands first wins. When SQLite won, the
+          // pane kept the pre-resolution (unfiltered) result forever: ?taxon=Bombus&
+          // taxonRank=genus&pane=taxa rendered all 92 species above 1700 m instead of
+          // Bombus's 17. The table pane happened to win the race in local testing,
+          // which is exactly why this was invisible. Re-run them all here.
+          this._listPage = 1;
+          this._runListQuery();
+          this._runTableQuery();
+          this._runTaxaQuery();
           // Write canonical integer-form URL once legacy taxon resolves — replaces
           // the legacy taxon=<name>&taxonRank=<rank> with the integer form.
           // Safe: _filterResolving is now false so _replaceUrlState is unsuppressed.
@@ -982,6 +1023,29 @@ bee-map {
       this._ecoregionOptions = ecoregions;
     } catch (err) {
       console.error('Failed to load county/ecoregion options:', err);
+    }
+  }
+
+  private async _runTaxaQuery(): Promise<void> {
+    if (this._paneState !== 'taxa') return;
+    this._taxaLoading = true;
+    const generation = ++this._taxaQueryGeneration;
+    try {
+      const { tree, speciesCount, excludedForNoElevation } = await queryTaxaTree(this._filterState);
+      // Discard a stale result: the user changed the filter while this was in
+      // flight, and a late answer would silently replace the current one.
+      if (generation !== this._taxaQueryGeneration) return;
+      this._taxaTree = tree;
+      this._taxaSpeciesCount = speciesCount;
+      this._taxaExcludedForNoElevation = excludedForNoElevation;
+    } catch (err: unknown) {
+      if (generation !== this._taxaQueryGeneration) return;
+      console.error('Taxa query failed:', err);
+      this._taxaTree = [];
+      this._taxaSpeciesCount = 0;
+      this._taxaExcludedForNoElevation = 0;
+    } finally {
+      if (generation === this._taxaQueryGeneration) this._taxaLoading = false;
     }
   }
 
@@ -1284,6 +1348,7 @@ bee-map {
     this._runFilterQuery();
     this._runListQuery();
     this._runTableQuery();
+    this._runTaxaQuery();
     this._replaceUrlState();
   };
 
@@ -1373,6 +1438,7 @@ bee-map {
     this._paneState = finalPaneState;
     if (finalPaneState === 'table') {
       this._runTableQuery();
+      this._runTaxaQuery();
     }
     if (finalPaneState === 'list') {
       this._listPage = 1;
@@ -1477,6 +1543,7 @@ bee-map {
     });
     this._tablePage = 1;
     this._runTableQuery();
+    this._runTaxaQuery();
   }
 
   private _onPlaceSelected(e: CustomEvent<{ slug: string }>) {
@@ -1499,6 +1566,7 @@ bee-map {
       this._replaceUrlState();
     });
     this._runTableQuery();
+    this._runTaxaQuery();
   }
 
   private _openSidebarForFilter(_filterState: FilterState): void {
@@ -1519,7 +1587,8 @@ bee-map {
     this._listPage = 1;
     this._runFilterQuery();   // map: show only in-bounds occurrences
     this._runListQuery();     // list
-    this._runTableQuery();    // table
+    this._runTableQuery();
+    this._runTaxaQuery();    // table
     this._replaceUrlState();
   }
 
@@ -1543,6 +1612,7 @@ bee-map {
       });
       this._tablePage = 1;
       this._runTableQuery();
+      this._runTaxaQuery();
     } else {
       // Clear record selection only (D-06: bounds filter is preserved)
       this._selectedOccIds = null;
@@ -1594,6 +1664,7 @@ bee-map {
       this._replaceUrlState();
     });
     this._runTableQuery();
+    this._runTaxaQuery();
   }
 
   private _onRowPan(e: CustomEvent<{ lat: number; lon: number }>) {
@@ -1607,12 +1678,14 @@ bee-map {
   private _onPageChanged(e: CustomEvent<{ page: number }>) {
     this._tablePage = e.detail.page;
     this._runTableQuery();
+    this._runTaxaQuery();
   }
 
   private _onSortChanged(e: CustomEvent<{ sortBy: SpecimenSortBy }>) {
     this._tableSortBy = e.detail.sortBy;
     this._tablePage = 1;
     this._runTableQuery();
+    this._runTaxaQuery();
   }
 
   private _onListPageChanged(e: CustomEvent<{ page: number }>) {
@@ -1684,11 +1757,35 @@ bee-map {
     import('./bee-table.ts');
     this._tableLoading = true;
     this._runTableQuery();
+    this._runTaxaQuery();
     this._replaceUrlState();
   }
 
   private _onPaneShrinkList() {
     this._paneState = 'list';
+    this._replaceUrlState();
+  }
+
+  private _onPaneShowTaxa() {
+    this._paneState = 'taxa';
+    this._runTaxaQuery();
+    this._replaceUrlState();
+  }
+
+  // A taxon row in the tree refines the CURRENT filter rather than navigating away:
+  // the pane exists to explore this result set, so drilling in should keep every
+  // other facet (geography, year, collector, tier) exactly as it is.
+  private _onTaxonSelected(e: CustomEvent<{ taxonId: number; name: string; rank: string }>) {
+    this._filterState = {
+      ...this._filterState,
+      taxonId: e.detail.taxonId,
+      taxonDisplayName: e.detail.name,
+    };
+    this._listPage = 1;
+    this._runFilterQuery();
+    this._runListQuery();
+    this._runTableQuery();
+    this._runTaxaQuery();
     this._replaceUrlState();
   }
 
@@ -1718,6 +1815,7 @@ bee-map {
     // If table view is active, run table query now that data is loaded
     if (this._paneState === 'table') {
       this._runTableQuery();
+      this._runTaxaQuery();
     }
 
     // If list view is active, run list query now that data is loaded
@@ -1737,7 +1835,8 @@ bee-map {
     this._listPage = 1;
     this._runFilterQuery();  // map + filter-result count
     this._runListQuery();    // sidebar list
-    this._runTableQuery();   // table view
+    this._runTableQuery();
+    this._runTaxaQuery();   // table view
     this._replaceUrlState(); // URL sync (now also triggers isFilterActive → style-cache bypass)
   }
 
@@ -1775,6 +1874,7 @@ bee-map {
         this._replaceUrlState();
       });
       this._runTableQuery();
+      this._runTaxaQuery();
     } else {
       this._replaceUrlState();
     }

@@ -1,6 +1,8 @@
 import { getDB, tablesReady } from './sqlite.ts';
 import { occIdFromRow } from './occurrence.ts';
 import type { FeatureCollection, Point, Feature } from 'geojson';
+import { buildTaxaTree, countAtRank } from './taxa-tree.ts';
+import type { TaxonAgg, TaxonNode } from './taxa-tree.ts';
 import type { TierKey } from './url-state.ts';
 
 // A resolved collector entry links a human name to an iNat username (either may be null).
@@ -479,6 +481,25 @@ export function buildFilterSQL(
     );
   }
 
+  // D-03 (beeatlas-0of): a checklist record's COORDINATE is a placeholder, so it is
+  // only meaningful down to the county that published it. 6,090 of 19,929 checklist
+  // rows (31%) sit on just 45 shared points — 683 King County records are parked on
+  // one coordinate in downtown Seattle.
+  //
+  // County and ecoregion filters therefore KEEP checklist rows: their county is the
+  // authoritative thing the checklist actually asserts (Bartholomew et al. 2024
+  // county-range assertions), and dropping them would answer "no Megachile pugnata
+  // in King County" when the published checklist says otherwise.
+  //
+  // Bounds and named-place filters DROP them: both are sub-county geometries, and a
+  // placeholder point that happens to land inside a drawn box or a park polygon is
+  // an artifact of where the county's pin was dropped, not evidence that a bee was
+  // found there. Drawing a box around downtown Seattle would otherwise return 683
+  // "records" from all over King County.
+  if (f.bounds !== null || f.selectedPlace !== null) {
+    occurrenceClauses.push(`o.record_type <> 'checklist'`);
+  }
+
   // Tier filter (Phase 170, PROV-02) — restrict to user-visible tiers; empty visible set =
   // honest zero (D-05, phase 164 pattern carried to the tier facet).
   // Security (T-170B-01/T-164-SQL): values come from the hardcoded VALID_TIERS local array, NOT
@@ -498,6 +519,116 @@ export function buildFilterSQL(
 
   const occurrenceWhere = occurrenceClauses.length > 0 ? occurrenceClauses.join(' AND ') : '1 = 1';
   return { occurrenceWhere };
+}
+
+// --- Taxa pane (beeatlas-0of.1) --------------------------------------------
+
+// record_type → evidence bucket (D-01). The five spellings are fixed by the mart
+// contract (170-01) and asserted by an accepted_values dbt test, so this mapping is
+// total: every row lands in exactly one bucket.
+const SPECIMEN_TYPES = "'specimen','waba_specimen'";
+const COMMUNITY_TYPES = "'inat_expert','provisional_sample'";
+
+export interface TaxaTreeResult {
+  tree: TaxonNode[];
+  /** Distinct taxa in the tree at species rank — the headline count. */
+  speciesCount: number;
+  /**
+   * Taxa the ELEVATION BOUND removed because they have no elevation-bearing
+   * record at all (D-02's surviving disclosure). Zero when no bound is active.
+   *
+   * Deliberately NOT "taxa present without the bound minus taxa present with it":
+   * that conflates "this taxon has no elevation data" with "this taxon lives
+   * outside your range", and only the first is a data-provenance caveat the reader
+   * needs explained. After the DEM backfill these are exactly the taxa attested
+   * only by county-level checklist records.
+   */
+  excludedForNoElevation: number;
+}
+
+/**
+ * Aggregate the filtered occurrence set into a taxonomic tree.
+ *
+ * Uses the SAME buildFilterSQL output the map and table use, so the pane can never
+ * disagree with what the map is showing.
+ */
+export async function queryTaxaTree(f: FilterState): Promise<TaxaTreeResult> {
+  const hasDem = await demElevationAvailable();
+  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false, hasDem);
+
+  await tablesReady;
+  const { sqlite3, db } = await getDB();
+
+  const aggs: TaxonAgg[] = [];
+  await sqlite3.exec(db,
+    `SELECT o.taxon_id, t.rank, t.name, t.lineage_path,
+            SUM(CASE WHEN o.record_type IN (${SPECIMEN_TYPES}) THEN 1 ELSE 0 END) AS specimen_count,
+            SUM(CASE WHEN o.record_type IN (${COMMUNITY_TYPES}) THEN 1 ELSE 0 END) AS community_count,
+            SUM(CASE WHEN o.record_type = 'checklist' THEN 1 ELSE 0 END) AS checklist_count
+       FROM occurrences o
+       JOIN taxa t ON t.taxon_id = o.taxon_id
+      WHERE ${occurrenceWhere} AND o.taxon_id IS NOT NULL
+      GROUP BY o.taxon_id, t.rank, t.name, t.lineage_path`,
+    (rowValues: unknown[], columnNames: string[]) => {
+      const r: Record<string, unknown> = {};
+      columnNames.forEach((c, i) => { r[c] = rowValues[i]; });
+      aggs.push({
+        taxon_id: Number(r.taxon_id),
+        rank: String(r.rank ?? ''),
+        name: String(r.name ?? ''),
+        lineage_path: r.lineage_path == null ? null : String(r.lineage_path),
+        specimen_count: Number(r.specimen_count ?? 0),
+        community_count: Number(r.community_count ?? 0),
+        checklist_count: Number(r.checklist_count ?? 0),
+      });
+    }
+  );
+
+  // Ancestor metadata. Ancestors have no occurrences of their own, so they are
+  // absent from the aggregate above — but the tree needs their rank and name to
+  // place and label them. One extra round-trip over a small id set.
+  const wanted = new Set<number>();
+  for (const a of aggs) {
+    for (const part of (a.lineage_path ?? '').split('/')) {
+      const id = Number(part);
+      if (part.length > 0 && Number.isFinite(id)) wanted.add(id);
+    }
+    wanted.add(a.taxon_id);
+  }
+  const taxaById = new Map<number, { rank: string; name: string }>();
+  if (wanted.size > 0) {
+    // Ids are numbers parsed from the DB's own lineage_path — no user input,
+    // nothing to escape.
+    await sqlite3.exec(db,
+      `SELECT taxon_id, rank, name FROM taxa WHERE taxon_id IN (${[...wanted].join(',')})`,
+      (rowValues: unknown[]) => {
+        taxaById.set(Number(rowValues[0]), { rank: String(rowValues[1]), name: String(rowValues[2]) });
+      }
+    );
+  }
+
+  const tree = buildTaxaTree(aggs, taxaById);
+
+  let excludedForNoElevation = 0;
+  if (f.elevMin !== null || f.elevMax !== null) {
+    // Re-run the SAME filter with the elevation bound lifted, and count the taxa
+    // that carry no elevation-bearing record within it. Those are the taxa NO
+    // elevation bound could ever admit — the honest disclosure number.
+    const { occurrenceWhere: whereNoElev } = buildFilterSQL(
+      { ...f, elevMin: null, elevMax: null }, _occPlacesAvailable !== false, hasDem,
+    );
+    const elevExpr = elevSql(hasDem);
+    await sqlite3.exec(db,
+      `SELECT COUNT(*) FROM (
+         SELECT o.taxon_id FROM occurrences o
+          WHERE ${whereNoElev} AND o.taxon_id IS NOT NULL
+          GROUP BY o.taxon_id
+         HAVING SUM(CASE WHEN ${elevExpr} IS NOT NULL THEN 1 ELSE 0 END) = 0)`,
+      (rowValues: unknown[]) => { excludedForNoElevation = Number(rowValues[0] ?? 0); }
+    );
+  }
+
+  return { tree, speciesCount: countAtRank(tree, 'species'), excludedForNoElevation };
 }
 
 export async function queryVisibleGeoJSON(
