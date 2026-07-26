@@ -10,7 +10,7 @@ The pipeline previously validated the ingestion→transform boundary at runtime 
 
 ## Decision
 
-**dbt-duckdb is the sole producer of transformed data**, and the ingestion-vs-transform boundary is a **contract**. The dbt contract on `marts/occurrences` (37 columns as of beeatlas-sn8) is enforced at every `bash data/dbt/run.sh build`; there is no separate JS schema validator. The runtime `_apply_migrations()` / `validate-schema.mjs` machinery is retired.
+**dbt-duckdb is the sole producer of transformed data**, and the ingestion-vs-transform boundary is a **contract**. The dbt contract on `marts/occurrences` (40 columns as of beeatlas-sn8) is enforced at every `bash data/dbt/run.sh build`; there is no separate JS schema validator. The runtime `_apply_migrations()` / `validate-schema.mjs` machinery is retired.
 
 The full decision, with its five prerequisites, is the **GO-WITH-CONDITIONS verdict** in [docs/history/v3.3-MILESTONE-AUDIT.md](../history/v3.3-MILESTONE-AUDIT.md).
 

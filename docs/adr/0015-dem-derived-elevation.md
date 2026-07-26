@@ -33,7 +33,7 @@ every non-checklist coordinate, and never merge it into `elevation_m`.**
 
 ### 1. A separate column, not a `COALESCE`
 
-`elevation_dem_m` sits beside `elevation_m` in the occurrences contract (36 → 37
+`elevation_dem_m` sits beside `elevation_m` in the occurrences contract (39 → 40
 columns). A DEM sample at a coordinate whose positional accuracy is up to 100 m is
 uncertain in steep terrain in a way a collector's recorded elevation is not, and a
 consumer deserves to know which kind of number it holds. This also keeps the
@@ -108,7 +108,7 @@ step and strand the deferred coordinates until the sources happened to move.
 
 ## Consequences
 
-- The occurrences contract goes 36 → 37 columns. Per
+- The occurrences contract goes 39 → 40 columns. Per
   `project_occurrences_contract_release_sequence`, the first nightly after this
   ships fails `test_occurrences_schema_matches` against the still-old published
   parquet, and needs the documented one-time
