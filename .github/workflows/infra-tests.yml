@@ -1,0 +1,63 @@
+name: Infra tests
+
+# Why this exists (2026-07-28): infra/ had NO CI coverage at all after
+# deploy.yml was deleted in the st-vjd teardown. Dependabot PR #55 (typescript
+# ~6.0.3 -> ~7.0.2 in /infra) therefore showed three green checks while being
+# thoroughly broken: TS 7 is the native port and no longer exposes the JS API
+# surface ts-node reads, so `ts.sys` is undefined and ts-node aborts at startup.
+# That takes out `npm test` AND cdk.json's app command (`npx ts-node
+# bin/infra.ts`) — i.e. synth and deploy. The green checks came from the root
+# JS/Python suites, which never touch infra/. This job closes that hole.
+#
+# The synth step is the load-bearing one: it is the only check that exercises
+# cdk.json's app command, which is the same entry point `cdk deploy` uses. A
+# build+test-only job would NOT have caught #55's deploy breakage.
+#
+# Credential-free by design, and it must stay that way: neither stack uses
+# `fromLookup`, and bin/infra.ts reads CDK_DEFAULT_ACCOUNT/REGION which are
+# simply undefined here (env-agnostic synth). Verified 2026-07-28 with the AWS
+# environment stripped. Do not add an AWS auth step — synth needs no account,
+# and infra/ deploys by hand, not from CI.
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra-tests.yml'
+  pull_request:
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  infra:
+    name: tsc + assertions + synth
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          # Root .nvmrc is the single source of the Node major; infra/ has no
+          # .nvmrc of its own and deliberately tracks the same runtime.
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: infra/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npm test
+
+      # Runs cdk.json's app command end-to-end — the check that would have
+      # failed #55. Keep it after build/test so a plain type error reports as
+      # a type error rather than as a synth failure.
+      - run: npx cdk synth

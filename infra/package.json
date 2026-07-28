@@ -6,8 +6,8 @@
     "cdk": "cdk",
     "build": "tsc",
     "watch": "tsc -w",
-    "synth": "cdk synth --all",
-    "diff": "cdk diff --all",
+    "synth": "cdk synth",
+    "diff": "cdk diff",
     "deploy": "cdk deploy --all",
     "test": "ts-node test/beeatlas-stack.test.ts"
   },
