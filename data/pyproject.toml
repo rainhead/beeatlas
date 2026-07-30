@@ -12,7 +12,7 @@ dependencies = [
     "rasterio>=1.5",  # /vsicurl COG point-sampling of the USGS 3DEP DEM (see dem_elevation)
     "requests",
     "beautifulsoup4",
-    "boto3>=1.43.56",
+    "boto3>=1.43.59",
     "dateparser",
     "pygbif",
     "rapidfuzz",
