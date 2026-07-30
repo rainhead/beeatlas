@@ -1,5 +1,5 @@
 // CDK template assertion test.
-// Run: cd infra && npx ts-node test/beeatlas-stack.test.ts
+// Run: cd infra && npm test   (compiles to dist/, then runs node on the output)
 // Asserts the post-st-vjd stack shape: the serving infra (site bucket, site
 // distribution, GitHub OIDC deployer) is GONE and stays gone; the beeatlas.com
 // redirect distribution survives; and the two backup buckets keep their

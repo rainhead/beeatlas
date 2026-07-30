@@ -59,9 +59,6 @@ npx cdk diff BeeAtlasStack        # expect ONLY the four NetA*/NetAAAA* targets
 npm run deploy                    # = cdk deploy --all  (or: npx cdk deploy BeeAtlasStack)
 ```
 
-(This checkout currently needs `TS_NODE_TRANSPILE_ONLY=1` in front of `cdk` —
-a pre-existing `@types/node` / ts-node breakage, unrelated to the records.)
-
 The `NetA*` records use CDK's default TTL (30 min); plan rollback timing for
 that, not a 5-minute TTL.
 

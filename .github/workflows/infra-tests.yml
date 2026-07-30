@@ -13,6 +13,12 @@ name: Infra tests
 # cdk.json's app command, which is the same entry point `cdk deploy` uses. A
 # build+test-only job would NOT have caught #55's deploy breakage.
 #
+# UPDATE (beeatlas-fa7): infra/ has since dropped ts-node entirely. cdk.json's
+# app command is now `npm run build --silent && node dist/bin/infra.js`, so the
+# specific #55 failure mode is gone and TypeScript 7 is in use. The job's value
+# is unchanged — it is still the only thing standing between a dependabot bump
+# and a broken `cdk deploy`.
+#
 # Credential-free by design, and it must stay that way: neither stack uses
 # `fromLookup`, and bin/infra.ts reads CDK_DEFAULT_ACCOUNT/REGION which are
 # simply undefined here (env-agnostic synth). Verified 2026-07-28 with the AWS

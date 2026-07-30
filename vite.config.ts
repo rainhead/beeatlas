@@ -47,10 +47,10 @@ export default defineConfig({
     },
     // Exclude stale agent worktrees and Eleventy build output from test discovery.
     // (.claude/worktrees/ and .claire/worktrees/ hold snapshots from prior agent runs; _site/ is build output.)
-    // infra/ holds the CDK assertion test — a ts-node script that imports aws-cdk-lib
+    // infra/ holds the CDK assertion test — a plain script that imports aws-cdk-lib
     // from infra/node_modules. It is NOT a root Vitest test; collecting it breaks
     // `npm test` (and the deploy gate) in CI where aws-cdk-lib is not a root dep.
-    // Run it via `cd infra && npx ts-node test/beeatlas-stack.test.ts`.
+    // Run it via `cd infra && npm test` (compiles to dist/, then runs node).
     exclude: [
       '**/node_modules/**', '**/.claude/**', '**/.claire/**', '**/_site/**', '**/dist/**', '**/infra/**',
       // *.data.test.ts need the pipeline's artifacts (species.json, higher_taxa.json,

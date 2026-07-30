@@ -9,7 +9,7 @@
     "synth": "cdk synth",
     "diff": "cdk diff",
     "deploy": "cdk deploy --all",
-    "test": "ts-node test/beeatlas-stack.test.ts"
+    "test": "npm run build --silent && node dist/test/beeatlas-stack.test.js"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.262.1",
@@ -19,7 +19,6 @@
   "devDependencies": {
     "@types/node": "^24.13.3",
     "aws-cdk": "^2.1133.0",
-    "ts-node": "^10.9.2",
-    "typescript": "~6.0.3"
+    "typescript": "~7.0.2"
   }
 }

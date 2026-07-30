@@ -49,16 +49,17 @@ maderas nightly builds and merge-swaps the site into the Apache-served root
 sync it powered are retired-in-place pending the st-vjd teardown. CDK is for
 the infrastructure, not the content.
 
-### Known quirk
+### Toolchain
 
-This checkout currently trips `tsc` / `ts-node` on `@types/node` resolution
-(`Cannot find name 'process'` etc. — `tsconfig` omits `node` from `types`), so
-`cdk` commands fail their type-check. Until that's fixed, prefix with
-`TS_NODE_TRANSPILE_ONLY=1`:
+TypeScript compiles to `dist/` and CDK runs the compiled JavaScript —
+`cdk.json`'s app command is `npm run build --silent && node dist/bin/infra.js`,
+so every `cdk` invocation rebuilds first and can never synth stale output. There
+is no TypeScript-at-runtime loader; `ts-node` was dropped in beeatlas-fa7
+because TypeScript 7 (the native port) no longer exposes the JS API surface it
+read. `npm test` compiles the same way.
 
-```sh
-TS_NODE_TRANSPILE_ONLY=1 npx cdk diff BeeAtlasStack
-```
+The old `TS_NODE_TRANSPILE_ONLY=1` workaround documented here is gone with it —
+`tsconfig.json` carries `"types": ["node"]` and the type-check passes clean.
 
 ## Serving move (ADR 0007)
 

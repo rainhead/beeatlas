@@ -1,5 +1,5 @@
 {
-  "app": "npx ts-node bin/infra.ts",
+  "app": "npm run build --silent && node dist/bin/infra.js",
   "watch": {
     "include": ["**"],
     "exclude": ["README.md", "cdk*.json", "**/*.d.ts", "**/*.js", "tsconfig.json", "node_modules"]

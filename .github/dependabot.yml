@@ -58,16 +58,12 @@ updates:
       # of the runtime. Bump this major by hand when the Node version moves.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
-      # TypeScript 7 (the native port) removes the JS API surface ts-node reads
-      # — `ts.sys` is undefined, so `ts-node bin/infra.ts` dies at startup and
-      # takes BOTH `npm test` and `cdk synth`/`cdk deploy` with it (cdk.json's
-      # app command). Verified against 7.0.2 on 2026-07-28 when PR #55 was
-      # rejected. ts-node's latest stable is still 10.9.2 (2023), so the fix is
-      # to drop ts-node — not to bump it. NOTE: no CI job builds infra/, so this
-      # breakage is invisible to the PR checks; it must be caught by hand.
-      # Unpin once infra/ moves off ts-node (bd beeatlas-fa7).
-      - dependency-name: "typescript"
-        update-types: ["version-update:semver-major"]
+      # The typescript major ignore that lived here was removed with beeatlas-fa7:
+      # infra/ no longer runs ts-node (which TS 7, the native port, broke by
+      # dropping the `ts.sys` JS API surface), so TS 7.0.2 is now in use and
+      # majors are safe to offer again. infra/ is covered by CI as of 390aa075
+      # (build + test + `cdk synth`), so a repeat of PR #55 would now fail the
+      # PR checks instead of passing them all-green while broken.
 
   # npm — data/ pipeline Node tooling (mapshaper), weekly, minor+patch grouped.
   # This tree was split out of the root package.json in beeatlas-dqh; without an
