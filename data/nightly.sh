@@ -140,8 +140,9 @@ mkdir -p "$VAR_DIR" "$EXPORT_DIR"
 exec 200>"$VAR_DIR/publish.lock"
 flock 200
 
-# 1. Sync source + dependencies. NVM is required for node tooling
-# (mapshaper, called by data/topology_postprocess.py, and the site build).
+# 1. Sync source + dependencies. NVM is required for node tooling: the site build
+# (root package.json) and the pipeline's mapshaper (data/package.json, called by
+# data/topology_postprocess.py). Both trees are installed below.
 echo "--- syncing source + dependencies ---"
 _t0=$(date +%s)
 cd "$REPO_ROOT"
@@ -199,19 +200,29 @@ else
 fi
 
 # Cache node_modules between runs keyed on package-lock.json hash. npm ci wipes
-# node_modules and reinstalls everything every call, which on this repo means
-# rebuilding the msgpackr-extract native addon (transitive via mapshaper) — a
-# multi-minute hit even when nothing has changed. The cache file lives outside
-# node_modules so `npm ci` can't blow it away.
-_LOCK_HASH=$(sha256sum package-lock.json | awk '{print $1}')
-_LOCK_CACHE="$REPO_ROOT/.npm-lock-hash"
-if [[ -d node_modules && -f "$_LOCK_CACHE" && "$(cat "$_LOCK_CACHE")" == "$_LOCK_HASH" ]]; then
-    echo "  npm: package-lock.json unchanged (hash $(echo "$_LOCK_HASH" | cut -c1-12)…); skipping reinstall"
-else
-    echo "  npm: lockfile changed or node_modules missing; running npm ci"
-    npm ci
-    echo "$_LOCK_HASH" > "$_LOCK_CACHE"
-fi
+# node_modules and reinstalls everything every call, which for the DATA tooling
+# means rebuilding the msgpackr-extract and better-sqlite3 native addons
+# (transitive via mapshaper) — a multi-minute hit even when nothing has changed.
+# The cache file lives outside node_modules so `npm ci` can't blow it away.
+#
+# Two npm trees since beeatlas-dqh: the root one builds the SITE, data/ holds the
+# PIPELINE's Node tooling (mapshaper). Splitting them kept 217 packages and both
+# native addons out of the site build; the root tree now has no native addon at
+# all on Linux, so its cache is just an I/O saving while data/'s is the real one.
+_npm_sync() {
+    local dir="$1" label="$2" hash cache
+    hash=$(sha256sum "$dir/package-lock.json" | awk '{print $1}')
+    cache="$dir/.npm-lock-hash"
+    if [[ -d "$dir/node_modules" && -f "$cache" && "$(cat "$cache")" == "$hash" ]]; then
+        echo "  npm[$label]: package-lock.json unchanged (hash ${hash:0:12}…); skipping reinstall"
+    else
+        echo "  npm[$label]: lockfile changed or node_modules missing; running npm ci"
+        ( cd "$dir" && npm ci )
+        echo "$hash" > "$cache"
+    fi
+}
+_npm_sync "$REPO_ROOT" site
+_npm_sync "$SCRIPT_DIR" data
 cd "$SCRIPT_DIR"
 uv sync
 echo "sync done in $(_elapsed $_t0)"

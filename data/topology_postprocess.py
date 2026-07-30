@@ -33,11 +33,19 @@ import shutil
 import subprocess
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_DATA_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = _DATA_DIR.parent
 _EXPORT_DIR = Path(os.environ.get(
     "EXPORT_DIR",
     str(_REPO_ROOT / "public" / "data"),
 ))
+
+# mapshaper is the pipeline's Node tooling, declared in data/package.json rather
+# than the root one — it is 227 packages that the site build has no use for
+# (beeatlas-dqh). Resolve the binary by absolute path instead of going through
+# `npx`: npx silently DOWNLOADS a missing package from the registry at run time,
+# which would turn a broken install into an unpinned fetch mid-pipeline.
+_MAPSHAPER_BIN = _DATA_DIR / "node_modules" / ".bin" / "mapshaper"
 
 
 # Per-layer mapshaper recipe. None means "skip -simplify entirely; just -clean".
@@ -119,19 +127,19 @@ def _run_mapshaper(src: Path, dst: Path) -> None:
     ``src`` (the raw mart copy) is read-only here; the cleaned result lands in the
     distinctly-named ``dst`` so the raw input is never mutated in place.
     """
-    if shutil.which("npx") is None:
+    if not _MAPSHAPER_BIN.exists():
         raise RuntimeError(
-            "npx not on PATH — topology_postprocess requires Node.js + mapshaper. "
-            "Install Node and run `npm install` at the repo root."
+            f"mapshaper not installed at {_MAPSHAPER_BIN} — topology_postprocess "
+            "requires the pipeline's Node tooling. Run `npm ci` in data/."
         )
     if src.name not in _SIMPLIFY_PCT:
         raise ValueError(f"no mapshaper recipe configured for {src.name}")
     pct = _SIMPLIFY_PCT[src.name]
-    cmd = ["npx", "mapshaper", str(src), "-clean", "gap-fill-area=0.01km2"]
+    cmd = [str(_MAPSHAPER_BIN), str(src), "-clean", "gap-fill-area=0.01km2"]
     if pct is not None:
         cmd += ["-simplify", f"percentage={pct}", "planar", "keep-shapes"]
     cmd += ["-o", str(dst), "format=geojson"]
-    subprocess.run(cmd, check=True, cwd=str(_REPO_ROOT))
+    subprocess.run(cmd, check=True, cwd=str(_DATA_DIR))
 
 
 def main() -> None:

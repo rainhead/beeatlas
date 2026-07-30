@@ -1,0 +1,10 @@
+{
+  "name": "beeatlas-data-tooling",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Node tooling used only by the data pipeline. Deliberately separate from the root package.json so the site build's dependency tree does not carry it — see beeatlas-dqh.",
+  "type": "module",
+  "dependencies": {
+    "mapshaper": "^0.7.49"
+  }
+}
