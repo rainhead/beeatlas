@@ -134,7 +134,7 @@ requires-dist = [
     { name = "beautifulsoup4" },
     { name = "boto3", specifier = ">=1.43.56" },
     { name = "dateparser" },
-    { name = "dlt", extras = ["duckdb"], specifier = ">=1.29.0" },
+    { name = "dlt", extras = ["duckdb"], specifier = ">=1.29.1" },
     { name = "duckdb", specifier = ">=1.5.5,<2" },
     { name = "flask", specifier = ">=3.1.2" },
     { name = "flask-cors", specifier = ">=6.0.5" },
