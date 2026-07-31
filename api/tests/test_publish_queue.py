@@ -142,20 +142,82 @@ def test_timeout_reports_pending_without_waiting_for_the_build():
     """A build that never finishes must not hold the request forever."""
     build = FakeBuild()  # never released
     p = CoalescingPublisher(build, timeout=0.2)
-    assert p.publish() == "pending"
-    build.release()
+    started = time.monotonic()
+    try:
+        assert p.publish() == "pending"
+        # Without a bound this test passes even if publish() ignored the timeout and
+        # waited on the build's own 5s gate — "pending" alone does not prove promptness.
+        assert time.monotonic() - started < 1
+    finally:
+        # In a finally: a failed assertion above would otherwise leave the worker
+        # blocked on the gate, and a stuck build thread bleeds into later tests.
+        build.release()
+
+
+def _await_worker_exit(publisher, timeout=5):
+    deadline = time.monotonic() + timeout
+    while publisher.worker_running and time.monotonic() < deadline:
+        time.sleep(0.005)
+    assert not publisher.worker_running, "worker should have drained and exited"
 
 
 def test_worker_restarts_after_draining():
-    """The worker exits when idle; a later write must start a new one.
+    """The worker exits when idle; a later write must start a NEW one.
 
-    This is the handoff the running-flag protects. With Thread.is_alive() there is a
-    window where a request sees a thread that is already returning, starts no
-    replacement, and waits for a build nobody runs — a hang, not a wrong answer.
+    Waiting for the exit is what makes this test about the restart. publish() returns
+    as soon as its ticket settles, which is typically before the worker has looped,
+    found nothing and cleared the flag — so a plain sequence of publishes usually
+    finds the old worker still alive and never exercises a restart at all.
+
+    The path being covered is the handoff the lock-owned flag protects: deciding this
+    with Thread.is_alive() leaves a window where a request sees a thread that is
+    already returning, starts no replacement, and waits for a build nobody runs — a
+    hang, not a wrong answer.
     """
     build = FakeBuild()
     build.release()
     p = CoalescingPublisher(build, timeout=5)
     for _ in range(5):
         assert p.publish() == "live"
+        _await_worker_exit(p)  # so the NEXT publish must start a fresh worker
     assert build.calls == 5
+
+
+def test_a_raising_logger_cannot_wedge_the_queue():
+    """The failure that would be worst in production: a logger that raises.
+
+    If it escaped _drain, the thread would die with the running flag still set, no
+    future request would ever start a worker, and every write would sit out its full
+    timeout reporting "pending" while the site silently stopped republishing — until
+    someone restarted the service. Logging is diagnostics; it must not be able to do
+    that.
+    """
+
+    def angry_log(_msg: str) -> None:
+        raise RuntimeError("journald is on fire")
+
+    build = FakeBuild()
+    build.release()
+    p = CoalescingPublisher(build, timeout=5, log=angry_log)
+
+    # The coalescing log fires only with >1 pending, so drive a batch through: hold a
+    # build, queue two more writers behind it, then let it go.
+    held = FakeBuild()
+    p2 = CoalescingPublisher(held, timeout=5, log=angry_log)
+    results: dict[str, str] = {}
+    first = _spawn(p2, results, "a")
+    assert held.started.wait(5)
+    later = [_spawn(p2, results, "b"), _spawn(p2, results, "c")]
+    deadline = time.monotonic() + 5
+    while p2.requested < 3 and time.monotonic() < deadline:
+        time.sleep(0.005)
+    held.release()
+    first.join(5)
+    for t in later:
+        t.join(5)
+    assert results == {"a": "live", "b": "live", "c": "live"}
+
+    # And the queue still works afterwards.
+    assert p.publish() == "live"
+    _await_worker_exit(p)
+    assert p.publish() == "live"

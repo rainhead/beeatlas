@@ -7,7 +7,10 @@
 # management, source sync, pipeline orchestration, publish — is owned
 # in-repo and version-controlled here.
 #
-# What this script does, in order:
+# What this script does, in order. NOTE the numbers below count the cd+lock as
+# step 1, which the numbered comments in the body do not — so this list runs one
+# ahead of them from there on (this 6 is the body's 5). Match them by name, not by
+# number.
 #   1. cd to repo root (derived from $0 — host-agnostic); take the publish
 #      lock (shared with the st-nee write path: nightly and a note write
 #      serialize here).
@@ -315,7 +318,7 @@ else
     echo "integration gate passed in $(_elapsed $_t0)"
 fi
 
-# 4b. Render the site. 11ty inlines the baked artifacts straight from
+# 5. Render the site. 11ty inlines the baked artifacts straight from
 # $EXPORT_DIR (lib/build-data-dir.js honors the env), Vite hashes the
 # bundles, and the postbuild step derives _site/data (hashed runtime
 # binaries + stable dirs + slim manifest, generated_at from
@@ -334,7 +337,7 @@ cd "$REPO_ROOT"
 npm run build
 echo "--- site build done in $(_elapsed $_t0) ---"
 
-# 4c. JS suites that need the pipeline's artifacts (*.data.test.ts). These are
+# 5b. JS suites that need the pipeline's artifacts (*.data.test.ts). These are
 # excluded from `npm test` because a clean CI checkout has no data dir — see
 # vite.config.ts and beeatlas-6q2, which is the CI red this split fixes. Here
 # the data exists, so they run for real: EXPORT_DIR is already exported above

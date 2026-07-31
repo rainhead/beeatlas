@@ -71,6 +71,15 @@ class CoalescingPublisher:
         self._builds = 0             # completed build attempts, for tests/diagnostics
 
     @property
+    def worker_running(self) -> bool:
+        """Whether a worker is currently draining. Diagnostics, and it lets a test
+        wait for the worker to actually EXIT before issuing the next write — without
+        that, a test for the restart path usually just finds the previous worker still
+        alive and never exercises a restart at all."""
+        with self._cv:
+            return self._worker_running
+
+    @property
     def requested(self) -> int:
         """Tickets handed out so far. Diagnostics, and it lets a test wait until every
         writer it spawned is actually queued before releasing a build — otherwise
@@ -94,12 +103,12 @@ class CoalescingPublisher:
             while self._settled_through < ticket:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    self._log(f"publish ticket {ticket} timed out after {self._timeout}s")
+                    self._safe_log(f"publish ticket {ticket} timed out after {self._timeout}s")
                     return "pending"
                 self._cv.wait(remaining)
             live = self._published_through >= ticket
         if waiters > 1:
-            self._log(f"publish ticket {ticket} shared a build with {waiters - 1} other write(s)")
+            self._safe_log(f"publish ticket {ticket} shared a build with {waiters - 1} other write(s)")
         return "live" if live else "pending"
 
     def _start_worker_locked(self) -> None:
@@ -116,26 +125,50 @@ class CoalescingPublisher:
         self._worker_running = True
         threading.Thread(target=self._drain, name="publish-queue", daemon=True).start()
 
+    def _safe_log(self, msg: str) -> None:
+        """Logging must never be able to break the queue. See _drain."""
+        try:
+            self._log(msg)
+        except Exception:
+            pass
+
     def _drain(self) -> None:
-        while True:
+        # The outer guard is the important one. If ANYTHING escapes this loop, the
+        # thread dies with _worker_running still True — and then no future request
+        # ever starts a worker, because they all see one running. Every writer would
+        # wait out its full timeout and report "pending" while the site never
+        # republished, until someone restarted the service. So the flag is released on
+        # every exit path, not just the tidy one, and waiters are woken to re-check
+        # rather than left on a condition nobody will signal again.
+        try:
+            while True:
+                with self._cv:
+                    target = self._requested
+                    if target <= self._settled_through:
+                        # Nothing outstanding. Clearing the flag under the lock is what
+                        # makes the handoff to a future request safe.
+                        self._worker_running = False
+                        return
+                    pending = target - self._settled_through
+                if pending > 1:
+                    self._safe_log(f"publish: coalescing {pending} write(s) into one build")
+                ok = False
+                try:
+                    ok = bool(self._build())
+                except Exception as exc:  # a raising build published nothing; say so and continue
+                    self._safe_log(f"publish build raised: {exc!r}")
+                finally:
+                    # In a finally, so a build that raises something not caught above
+                    # (a BaseException — KeyboardInterrupt, SystemExit) still settles
+                    # its batch instead of stranding those waiters.
+                    with self._cv:
+                        self._builds += 1
+                        if ok:
+                            self._published_through = max(self._published_through, target)
+                        self._settled_through = max(self._settled_through, target)
+                        self._cv.notify_all()
+        except BaseException:
             with self._cv:
-                target = self._requested
-                if target <= self._settled_through:
-                    # Nothing outstanding. Clearing the flag under the lock is what
-                    # makes the handoff to a future request safe.
-                    self._worker_running = False
-                    return
-                pending = target - self._settled_through
-            if pending > 1:
-                self._log(f"publish: coalescing {pending} write(s) into one build")
-            ok = False
-            try:
-                ok = bool(self._build())
-            except Exception as exc:  # a raising build published nothing; say so and continue
-                self._log(f"publish build raised: {exc!r}")
-            with self._cv:
-                self._builds += 1
-                if ok:
-                    self._published_through = max(self._published_through, target)
-                self._settled_through = max(self._settled_through, target)
+                self._worker_running = False
                 self._cv.notify_all()
+            raise
