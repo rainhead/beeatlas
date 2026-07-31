@@ -19,9 +19,9 @@
 #      those keys of the per-species notes/ dir (STELIS_REBUILD_KEYS, st-pd1).
 #      The notes.json roll-up is retired (beeatlas-6x9): _data/notes.js reads
 #      the dir directly, so the keyed file IS the handoff.
-#   3. `npm run build` — the full ~18s 11ty render, accepted per the ADR
-#      Amendment (a note write always changes the notes/ dir, so early cutoff
-#      never helped here anyway).
+#   3. The site render, SCOPED to the species whose notes moved when it can be
+#      proven sound (beeatlas-4oa), and a full `npm run build` when it cannot.
+#      Notes reach exactly one template, so this is a few pages instead of 1668.
 #   4. Merge-swap into SITE_ROOT (data/merge-swap.sh, the shared contract).
 #
 # NO baseline restore/snapshot and NO integration gate: notes/ is not a
@@ -81,11 +81,45 @@ export DB_PATH EXPORT_DIR NOTES_DB_PATH STELIS_DIR
 bash "$REPO_ROOT/scripts/fetch-data.sh" --from notes-harvest notes
 echo "--- notes build done in $(_elapsed $_t0) ---"
 
-# 3. Full site render (postbuild derives _site/data + the slim manifest).
+# 3. Site render. SCOPED when we can prove it is sound (beeatlas-4oa), full
+# otherwise. Two independent facts have to line up, and either one missing means a
+# full build — never a partial publish:
+#
+#   WHICH species moved. Stelis's per-key observation of the notes/ dir, i.e. the
+#   same digest that decided which keys to re-harvest (st-2k9 / st-066). Taking it
+#   from there rather than from the API's canonical_name is what makes the render
+#   agree with the harvest by construction: a publish deferred earlier leaves two
+#   species pending, and the store digest knows that where one request does not.
+#   Non-zero exit = stelis has no basis to answer, so render everything.
+#
+#   WHETHER _site may be added to. A scoped render rewrites a few pages over the
+#   last full build's output and publishes the whole tree, so that tree must BE the
+#   last full build's output, for the current code, manifest and data
+#   (scripts/build-receipt.mjs — the same precondition Stelis's own partial
+#   rebuilds enforce with prior-complete-build?, st-243).
 echo "--- building site ---"
 _t0=$(date +%s)
 cd "$REPO_ROOT"
-npm run build
+
+_scoped=""
+if _moved=$(bash "$REPO_ROOT/scripts/fetch-data.sh" --moved-keys notes); then
+    # Stelis reports notes/ FILENAMES; the render is keyed by canonical_name. Same
+    # basename mapping _data/notes.js applies when it reads the dir (beeatlas-6x9).
+    _keys=$(printf '%s' "$_moved" | sed 's/\.json$//')
+    if node scripts/build-receipt.mjs --check; then
+        _scoped=yes
+    fi
+fi
+
+if [[ -n "$_scoped" ]]; then
+    # Deliberately EXPORTED even when empty: presence is the signal (the
+    # STELIS_REBUILD_KEYS convention). Empty means "no species moved" — a real
+    # answer, and a legitimately empty render — not "render everything".
+    echo "--- scoped render: $(printf '%s' "$_keys" | grep -c . || true) species ---"
+    BEEATLAS_RENDER_KEYS="$_keys" npm run build:content
+else
+    npm run build
+fi
 echo "--- site build done in $(_elapsed $_t0) ---"
 
 # 4. Merge-swap into the served root. Exit 3 (SITE_ROOT absent) propagates as

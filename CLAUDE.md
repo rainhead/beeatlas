@@ -60,6 +60,14 @@ npm test
 # to build.rollupOptions.input in vite.config.ts.
 npm run build
 
+# The note-publish render (beeatlas-4oa, ADR 0017): validate -> eleventy -> postbuild-data,
+# scoped by BEEATLAS_RENDER_KEYS (newline-separated canonical_names; PRESENCE selects a
+# scoped render, so set-but-empty means zero species, not all of them). Writes ADDITIVELY
+# over the last full build's _site, so it is only sound when scripts/build-receipt.mjs
+# --check passes — data/publish-notes.sh owns that gate and falls back to a full build.
+# Never add build:app here: its emptyOutDir deletes _site.
+BEEATLAS_RENDER_KEYS='agapostemon virescens' npm run build:content
+
 # Data pipeline (orchestrated by Stelis — github.com/rainhead/stelis)
 ( cd ~/dev/stelis && BEEATLAS_DIR=~/dev/beeatlas \
     racket src/main.rkt --build --all --export-dir /tmp/beeatlas-export )

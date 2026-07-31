@@ -1,6 +1,8 @@
 ---
 pagination:
-  data: species.speciesList
+  # detailList, not speciesList: identical in a full build, narrowed to the
+  # touched canonical_names in a scoped render (beeatlas-4oa).
+  data: species.detailList
   size: 1
   alias: sp
 permalink: "/species/{{ sp.slug }}/"

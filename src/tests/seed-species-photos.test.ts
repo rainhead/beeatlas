@@ -283,8 +283,13 @@ describe('build-chain isolation (PHOTO-07: seed NOT in CI)', () => {
     // beeatlas-d3y: Vite backend integration split the single `eleventy` step into
     // three ordered ones — build:app writes the manifest Eleventy reads, and build:sw
     // must follow Eleventy because its precache glob includes app/index.html.
+    // beeatlas-4oa: the three validations factored out as `validate`, shared with
+    // build:content so the note path cannot quietly drift out of them.
+    expect(pkg.scripts.validate).toBe(
+      'npm run validate-species && npm run validate-db && npm run typecheck',
+    );
     expect(pkg.scripts.build).toBe(
-      'npm run validate-species && npm run validate-db && npm run typecheck && npm run build:app && eleventy && npm run build:sw && npm run validate-bundle-size',
+      'npm run validate && npm run build:app && eleventy && npm run build:sw && npm run validate-bundle-size',
     );
   });
 

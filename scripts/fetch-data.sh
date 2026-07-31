@@ -34,6 +34,17 @@ if [[ ! -f "$STELIS_DIR/src/main.rkt" ]]; then
     exit 1
 fi
 
+# QUERY mode, not a build: `--moved-keys <artifact>` asks stelis which keys of a
+# keyed artifact moved in the LAST recorded build, one per line on stdout (exit 1 =
+# no basis, rebuild in full). It lives here rather than in the caller so the query
+# runs with the SAME cwd and env as the build above — which is what makes it read
+# the state dir that build wrote. Used by data/publish-notes.sh to scope the render
+# to the species whose notes actually moved (beeatlas-4oa).
+if [[ "${1:-}" == "--moved-keys" ]]; then
+    cd "$STELIS_DIR"
+    exec env BEEATLAS_DIR="$REPO_ROOT" racket src/main.rkt "$@"
+fi
+
 mkdir -p "$EXPORT_DIR"
 
 # Optional args scope the build; no args = --all (every target). The st-nee
