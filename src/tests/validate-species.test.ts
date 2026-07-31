@@ -168,11 +168,29 @@ ordering = 1
     // data-load time to emit hashed asset URLs) and build:sw must follow it
     // (vite-plugin-pwa's injectManifest globs the built site, and app/index.html
     // is Eleventy's output).
-    expect(pkg.scripts.build).toBe('npm run validate-species && npm run validate-db && npm run typecheck && npm run build:app && eleventy && npm run build:sw && npm run validate-bundle-size');
+    expect(pkg.scripts.validate).toBe('npm run validate-species && npm run validate-db && npm run typecheck');
+    expect(pkg.scripts.build).toBe('npm run validate && npm run build:app && eleventy && npm run build:sw && npm run validate-bundle-size');
     expect(pkg.scripts['build:app']).toBe('vite build');
     expect(pkg.scripts['build:sw']).toBe('vite build -c vite.sw.config.ts');
     // Model Y: the postbuild lifecycle hashes the runtime data artifacts into
-    // _site/data and writes the slim manifest (scripts/postbuild-data.mjs).
-    expect(pkg.scripts.postbuild).toBe('node scripts/postbuild-data.mjs');
+    // _site/data and writes the slim manifest (scripts/postbuild-data.mjs), then
+    // records the build receipt a scoped render checks (beeatlas-4oa).
+    expect(pkg.scripts.postbuild).toBe('node scripts/postbuild-data.mjs && node scripts/build-receipt.mjs --write');
+  });
+
+  // beeatlas-4oa: the note-publish render path. Its SHAPE is the safety property,
+  // so it is pinned here beside the full build's.
+  test('build:content renders without touching the app bundle', () => {
+    const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
+    expect(pkg.scripts['build:content']).toBe('npm run validate && eleventy && node scripts/postbuild-data.mjs');
+    // build:app must NEVER appear here. It runs Vite with emptyOutDir:true (ADR
+    // 0016), which deletes _site — and a scoped render only rewrites a handful of
+    // pages, so it would publish a site consisting of those pages and nothing else.
+    expect(pkg.scripts['build:content']).not.toMatch(/build:app/);
+    // Nor build:sw: the service worker precaches the bundle, which a note cannot change.
+    expect(pkg.scripts['build:content']).not.toMatch(/build:sw/);
+    // The receipt attests to a FULL build; a scoped render must not refresh it, or
+    // it would vouch for a tree it only partly produced.
+    expect(pkg.scripts['build:content']).not.toMatch(/build-receipt/);
   });
 });

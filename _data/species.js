@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { buildDataDir } from '../lib/build-data-dir.js';
+import { renderScope } from '../lib/render-scope.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
@@ -772,4 +773,15 @@ for (const sg of subgenusList) {
   if (sg.taxon_id) taxonPages[sg.taxon_id] = `/species/${sg.genus}/${sg.subgenus}/index.html`;
 }
 
-export default { flat, byScientificName, counties, ecoregionL3, speciesList, genusList, subgenusList, tribeList, subfamilyList, fullTree, taxonPages };
+// The species pages to RENDER this run — speciesList itself, unless a scoped
+// render narrowed it (beeatlas-4oa; see lib/render-scope.js). Deliberately a
+// separate export rather than a filter applied to speciesList: every other
+// derivation above — genus/subgenus grouping, the color indices, taxonPages —
+// must be computed over the WHOLE list or a scoped run would emit pages whose
+// colors and cross-links disagree with the pages already on disk.
+const detailList = (() => {
+  const scope = renderScope();
+  return scope ? speciesList.filter(sp => scope.has(sp.canonical_name)) : speciesList;
+})();
+
+export default { flat, byScientificName, counties, ecoregionL3, speciesList, detailList, genusList, subgenusList, tribeList, subfamilyList, fullTree, taxonPages };

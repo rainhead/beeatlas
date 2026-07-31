@@ -26,11 +26,34 @@
 import { quantify } from "./src/lib/quantify.js";
 import { formatDate } from "./src/lib/formatDate.js";
 import { assetTags, devAssetTags } from "./lib/vite-manifest.js";
+import { renderScope } from "./lib/render-scope.js";
 
 const ROOT = import.meta.dirname;
 const IS_SERVE = process.env.ELEVENTY_RUN_MODE === "serve";
 
 export default async function (eleventyConfig) {
+  // Scoped render (beeatlas-4oa): a note publish renders only the species pages
+  // whose notes moved, writing them ADDITIVELY over the last full build's _site.
+  // Everything but species-detail.njk is dropped from the build — the whole point,
+  // since paginating fewer species saves nothing while 1077 other pages still render.
+  //
+  // The exclusion is computed from the directory rather than listed, so a template
+  // added later is scoped out by default rather than silently rendering on every
+  // note write. This site defines no `collections`, so removing templates from a
+  // build cannot change what the remaining one emits (see lib/render-scope.js).
+  //
+  // The caller is responsible for the precondition this cannot check: _site must be
+  // the output of a full build of the CURRENT src/ and manifest. data/publish-notes.sh
+  // owns that gate.
+  if (renderScope()) {
+    const { readdirSync } = await import("node:fs");
+    const keep = "species-detail.njk";
+    for (const entry of readdirSync(`${ROOT}/_pages`, { withFileTypes: true })) {
+      if (entry.name === keep) continue;
+      eleventyConfig.ignores.add(`_pages/${entry.name}${entry.isDirectory() ? "/**" : ""}`);
+    }
+  }
+
   // Single pluralization utility for all count-noun copy (e.g. "1 genus" vs
   // "3 genera"). Pass an explicit plural for irregular nouns:
   //   {{ count | quantify("genus", "genera") }}
