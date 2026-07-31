@@ -49,7 +49,14 @@ npm run dev
 # Tests (Vitest)
 npm test
 
-# Production build (tsc --noEmit -> eleventy + Vite)
+# Production build. Order is load-bearing (beeatlas-d3y, Vite backend integration):
+#   validate -> tsc --noEmit -> vite build (app only; stashes the Vite manifest at
+#      node_modules/.cache/beeatlas-vite/, OUTSIDE _site so it survives between runs)
+#   -> eleventy (reads the manifest, emits the hashed <script>/<link> tags itself)
+#   -> vite build -c vite.sw.config.ts (service worker; its precache glob needs
+#      app/index.html, which Eleventy writes) -> validate-bundle-size -> postbuild
+# No HTML passes through Vite. Adding a module a template references means adding it
+# to build.rollupOptions.input in vite.config.ts.
 npm run build
 
 # Data pipeline (orchestrated by Stelis — github.com/rainhead/stelis)

@@ -24,7 +24,9 @@
     "test": "vitest run",
     "test:data": "BEEATLAS_DATA_TESTS=1 vitest run",
     "build:validate-links": "lychee --config lychee.toml --root-dir _site '_site/**/*.html'",
-    "build": "npm run validate-species && npm run validate-db && npm run typecheck && eleventy && npm run validate-bundle-size",
+    "build": "npm run validate-species && npm run validate-db && npm run typecheck && npm run build:app && eleventy && npm run build:sw && npm run validate-bundle-size",
+    "build:app": "vite build",
+    "build:sw": "vite build -c vite.sw.config.ts",
     "postbuild": "node scripts/postbuild-data.mjs",
     "preview": "vite preview --outDir _site",
     "smoke": "node scripts/smoke-boot.mjs",
@@ -34,7 +36,6 @@
   },
   "devDependencies": {
     "@11ty/eleventy": "^3.1.5",
-    "@11ty/eleventy-plugin-vite": "^8.0.0",
     "@types/geojson": "^7946.0.16",
     "@types/node": "^24.13.3",
     "acorn": "^8.18.0",

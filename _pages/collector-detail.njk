@@ -8,7 +8,7 @@ eleventyComputed:
   title: "{{ collector.display_name }} — BeeAtlas"
 layout: default.njk
 ---
-<link rel="stylesheet" href="/src/styles/places.css">
+{% viteAssets "src/styles/places.css" %}
 {%- if collector.atom_feed_url %}<link rel="alternate" type="application/atom+xml" title="{{ collector.display_name }} — recent determinations" href="{{ collector.atom_feed_url }}">{% endif %}
 {#- Phase 172 GC2: per-collector CSS highlight blocks.
     Scope by .coverage-county / .coverage-eco wrapper class so the two maps

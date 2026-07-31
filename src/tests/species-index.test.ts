@@ -34,7 +34,9 @@ describe('_pages/species.njk (Phase 133 — tree index, TREE-01/02/04)', () => {
 
   test('references species-index entry (not old species.ts)', () => {
     const src = readFileSync(resolve(ROOT, '_pages/species.njk'), 'utf-8');
-    expect(src).toMatch(/<script\s+type="module"\s+src="\/src\/entries\/species-index\.ts"/);
+    // beeatlas-d3y: the raw <script src="/src/…"> became a viteAssets shortcode —
+    // Eleventy now emits the hashed tag from the Vite manifest. Same claim, new spelling.
+    expect(src).toMatch(/\{%\s*viteAssets\s+"src\/entries\/species-index\.ts"\s*%\}/);
     expect(src).not.toContain('species.ts"');
   });
 

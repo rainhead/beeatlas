@@ -286,4 +286,4 @@ layout: default.njk
   el.yearRange = {{ (("" if not firstYear or not lastYear else (firstYear if firstYear === lastYear else firstYear + "–" + lastYear))) | dump | safe }};
 });</script>
 </article>
-<script type="module" src="/src/entries/taxon-page.ts"></script>
+{% viteAssets "src/entries/taxon-page.ts" %}
