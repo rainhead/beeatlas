@@ -12,9 +12,26 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const SKIP_BUILD = process.env.VITEST_SKIP_BUILD === '1';
+// beeatlas-b4p: the caller has already built _site and wants these assertions made
+// against THAT tree. The nightly sets this, so it builds once and gates the very
+// artifact it is about to publish, rather than building here, asserting on that, and
+// then publishing a second build nothing looked at.
+const PREBUILT = process.env.BEEATLAS_SITE_PREBUILT === '1';
 
 describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
   beforeAll(() => {
+    if (PREBUILT) {
+      // Verify the caller's claim before trusting it. Without this, an absent or
+      // half-built _site fails as dozens of unrelated-looking assertion errors
+      // instead of one sentence naming the actual problem.
+      if (!existsSync(resolve(ROOT, '_site/index.html'))) {
+        throw new Error(
+          'BEEATLAS_SITE_PREBUILT=1 but _site/index.html is absent — ' +
+          'the caller claimed a built site and there is nothing to assert against',
+        );
+      }
+      return;
+    }
     execSync('npm run build', { cwd: ROOT, stdio: 'pipe' });
   }, 180_000);
 

@@ -27,7 +27,11 @@
 #   6. `npm run build` — 11ty inlines the baked artifacts from $EXPORT_DIR,
 #      Vite hashes the bundles, and the postbuild step (scripts/
 #      postbuild-data.mjs) derives _site/data: hashed runtime binaries +
-#      stable-URL dirs + the slim manifest.
+#      stable-URL dirs + the slim manifest, plus the build receipt.
+#   6b. JS data-dependent gate (`*.data.test.ts`, which `npm test` excludes):
+#      assertions against the _site just built — BEEATLAS_SITE_PREBUILT=1, so it
+#      gates the tree about to be published rather than building its own
+#      (beeatlas-b4p). A hard gate; failure aborts the publish.
 #   7. Merge-swap _site into SITE_ROOT (rsync: assets + hashed data first
 #      without --delete, stable dirs with --delete, pages with --delete,
 #      manifest.json mv'd atomically LAST, age-prune old hashed files), then
@@ -311,11 +315,34 @@ else
     echo "integration gate passed in $(_elapsed $_t0)"
 fi
 
-# 4b. JS suites that need the pipeline's artifacts (*.data.test.ts). These are
+# 4b. Render the site. 11ty inlines the baked artifacts straight from
+# $EXPORT_DIR (lib/build-data-dir.js honors the env), Vite hashes the
+# bundles, and the postbuild step derives _site/data (hashed runtime
+# binaries + stable dirs + slim manifest, generated_at from
+# SOURCE_DATE_EPOCH above) and records the build receipt a scoped note
+# render checks (beeatlas-4oa).
+#
+# This runs BEFORE the JS gate below, which is the whole point (beeatlas-b4p):
+# build-output.data.test.ts used to build the site ITSELF, in a beforeAll, so the
+# nightly built twice and gated a tree it then threw away in favour of a second
+# build nothing had looked at. They were byte-identical in practice, which is
+# exactly why it went unnoticed. Now there is one build and the gate inspects the
+# artifact that gets published.
+echo "--- building site ---"
+_t0=$(date +%s)
+cd "$REPO_ROOT"
+npm run build
+echo "--- site build done in $(_elapsed $_t0) ---"
+
+# 4c. JS suites that need the pipeline's artifacts (*.data.test.ts). These are
 # excluded from `npm test` because a clean CI checkout has no data dir — see
 # vite.config.ts and beeatlas-6q2, which is the CI red this split fixes. Here
 # the data exists, so they run for real: EXPORT_DIR is already exported above
 # and lib/build-data-dir.js resolves it ahead of public/data.
+#
+# BEEATLAS_SITE_PREBUILT=1 tells build-output.data.test.ts to assert against the
+# _site just built above instead of building its own (beeatlas-b4p). The suite
+# fails loudly if that tree is missing, so the flag cannot silently gate nothing.
 #
 # This is a hard gate, like the integration gate: a failure here means the
 # rendered site would be wrong, so we abort rather than publish. Note that
@@ -324,22 +351,11 @@ fi
 echo "--- JS data-dependent test gate ---"
 _t0=$(date +%s)
 cd "$REPO_ROOT"
-if ! npm run test:data; then
+if ! BEEATLAS_SITE_PREBUILT=1 npm run test:data; then
     echo "JS DATA TEST GATE FAILED in $(_elapsed $_t0) — aborting publish" >&2
     exit 1
 fi
 echo "JS data test gate passed in $(_elapsed $_t0)"
-
-# 5. Render the site. 11ty inlines the baked artifacts straight from
-# $EXPORT_DIR (lib/build-data-dir.js honors the env), Vite hashes the
-# bundles, and the postbuild step derives _site/data (hashed runtime
-# binaries + stable dirs + slim manifest, generated_at from
-# SOURCE_DATE_EPOCH above).
-echo "--- building site ---"
-_t0=$(date +%s)
-cd "$REPO_ROOT"
-npm run build
-echo "--- site build done in $(_elapsed $_t0) ---"
 
 # 6. Merge-swap into SITE_ROOT (the Apache DocumentRoot). The rsync sequence
 # lives in data/merge-swap.sh — THE publish contract, shared with the st-nee
