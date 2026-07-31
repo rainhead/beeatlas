@@ -71,6 +71,24 @@ baked the same note. Exactly one file in the tree ever differs between two build
 `_scaffold-check/index.html`, which embeds wall-clock `builtAt` and so differs between
 any two builds, scoped or not.
 
+**Verified in production the same day**, by a real note *deletion* — which exercised the
+subtlest arm first. Stelis reported `notes — 1 of 4 keys: -bombus rufocinctus.json
+(build 35 vs 27)`; **exactly one of 1690 pages** re-rendered, and the published page lost
+its notes section. On maderas the publish went 23s (full fallback) → **8.5s** (scoped),
+with Eleventy 10.45s → 0.6s.
+
+The deletion working is not incidental. A removed key must re-render the page *so that it
+loses content*, so the render's key set unions added + changed + **removed** — whereas the
+harvest's own targeted rebuild treats a removal as prune-not-rebuild. The two consumers
+want different partitions of the same delta, which is why Stelis exposes the three arms
+separately instead of one "changed" list.
+
+One caveat that the first production comparison exposed: comparing a scoped page against
+a *freshly built* full site shows differences in asset URLs, because the bundle is not
+reproducible across builds — `vite.config.ts` bakes a wall-clock minute into
+`__APP_VERSION__` (`beeatlas-96m`). Holding the bundle fixed, the pages are identical. The
+equivalence claim here is about the render, and it needs that condition stated.
+
 ## Consequences
 
 **`_site` became load-bearing state.** It was disposable output; it is now the basis a
