@@ -16,8 +16,8 @@ nothing to reuse and no way to check that reuse was safe.
 ## Decision
 
 **`build:app` became a gate** (`scripts/build-app.mjs`). It fingerprints the bundle's
-inputs — `src/`, both Vite configs, `package.json`, `package-lock.json`, the `.env*`
-files, and the build id — and runs `npm run build:bundle` only when they moved, when the
+inputs — `src/`, both Vite configs, `package.json`, `package-lock.json` and the `.env*`
+files — and runs `npm run build:bundle` only when they moved, when the
 stashed manifest is gone, or when any asset the manifest names is missing from `_site`.
 
 The interesting part is not the skip. It is everything a skip has to *impersonate*,
@@ -79,16 +79,48 @@ gitignored, which is exactly why they are easy to forget: rotate the Mapbox toke
 gate that ignored them would skip every night while the live site served the revoked
 one. Green build, broken maps, cause and effect weeks apart.
 
-**The build id costs most of the saving, for now.** `__APP_VERSION__` is derived from
-`git rev-parse HEAD` and is `define`d, so it lands inside a hashed chunk: any commit at
-all changes the emitted `bee-header` chunk. The gate therefore fingerprints HEAD, or it
-would skip while Vite would have produced something different — and the "Build `<id>`"
-popover, whose entire job is telling you which code an installed PWA is running, would
-name a commit that is not deployed. So the bundle rebuilds on every commit and skips
-only when nothing landed at all. `beeatlas-4uj` is the fix and it is the same principle
-96m established one step short of: a build identifier does not belong inside a
-content-hashed artifact. Move it to the slim manifest, which is served no-cache, and the
-id gets *more* honest while the gate gets its skips back.
+**The build id used to cost most of the saving. Fixed in `beeatlas-4uj`, same day.**
+`__APP_VERSION__` was derived from `git rev-parse HEAD` and `define`d, so it landed
+inside a hashed chunk: *any* commit changed the emitted `bee-header` chunk. The gate
+therefore had to fingerprint HEAD — otherwise it would skip while Vite would have
+produced something different, and the "Build `<id>`" popover, whose entire job is
+telling you which code an installed PWA is running, would name a commit that is not
+deployed. The bundle rebuilt on every commit and skipped only when nothing had landed.
+
+The id now travels in the slim manifest instead (`scripts/postbuild-data.mjs` →
+`build_id`, read by `loadBuildId()` and passed to `bee-header` as a property). The
+manifest is not content-hashed and is served no-cache, so this costs nothing and is
+regenerated on every publish. That completes the rule 96m established and stopped one
+step short of: **nothing clock- or HEAD-derived belongs inside a content-hashed
+artifact** — and there is now no `define` in `vite.config.ts` at all, which
+`arch.test.ts` guards directly (it asserts both the absence of a `define` block and the
+absence of any clock reference, since the previous guard would have passed a
+sha-derived define).
+
+Demonstrated by building twice with different `GITHUB_SHA` values: `build_id` moved from
+`72ae32e` to `deadbee` while all 15 asset filenames stayed identical — the bundle reused,
+the id current. Before this change the second build would have rebuilt everything.
+
+**This is a trade, not a strict improvement, and the earlier draft of this ADR
+overclaimed it.** The two placements answer different questions. Baked into the bundle,
+the id travelled *with the code*, so it named what you were running — a reused bundle
+kept naming whichever commit last rebuilt it, but a stale installed PWA showed its own
+stale id, which was the row's original stated purpose ("so a stale installed PWA is
+diagnosable at a glance"; iOS keeps an old SW and caches across reinstalls). Read from
+the manifest over a NetworkFirst route, the id names *the latest publish the client can
+reach* — correct for "what is deployed", and wrong in exactly the stale-install case the
+row was created for: an old PWA, online, will now display today's sha while running last
+week's chunks.
+
+Accepted because the gate's skips and 96m's rule are concrete and daily, while the
+stale-install diagnostic was never load-bearing. But it is a capability lost, not
+converted, and the honest replacement is the running chunk's own content hash — which
+ships with the code by construction and needs no `define`. Tracked as `beeatlas-4zu`.
+
+One consequence to know: the static pages show no Build row. Their `bee-header` entry
+imports no manifest, deliberately — those pages fetch nothing on paint — so nobody hands
+them an id, and the row is omitted rather than inventing one. This matches the freshness
+row, which has always been app-only for exactly the same reason.
 
 **`build:sw` is deliberately not gated.** ~73ms of work behind ~1.2s of startup, and its
 input is the *built site* — so deciding whether it can be skipped requires knowing the

@@ -3,10 +3,11 @@
  * build-app.mjs — run the app bundle only when its inputs moved (beeatlas-bon).
  *
  * `vite build` takes ~1.5s of work plus ~0.7s of startup and produces byte-identical
- * output when `src/` has not changed (true only since beeatlas-96m removed the build
- * clock from `__APP_VERSION__` — before that every build minted new hashes, so there
- * was nothing to reuse). A note publish that falls back to a full build, and every
- * nightly, paid it regardless.
+ * output when `src/` has not changed. That became true in two steps: beeatlas-96m took
+ * the wall clock out of `__APP_VERSION__`, and beeatlas-4uj took the git sha out of the
+ * bundle altogether (the build id now travels in the slim manifest). Until the second,
+ * this gate had to fingerprint git HEAD and so could only skip on a build where no
+ * commit had landed — which is most of what it was supposed to save.
  *
  * THE TRAP, and the reason this is a script rather than an `if`: `build:app` runs Vite
  * with `emptyOutDir: true`, and that is not incidental — it is the site's CLEANING
@@ -69,40 +70,12 @@ function walk(path, base) {
     .sort();
 }
 
-/** The build id vite.config.ts bakes into __APP_VERSION__ — mirrored, not imported,
- * because that file is TypeScript. It is a bundle input like any other: it lands inside
- * a content-hashed chunk, so a commit that touches nothing else still changes the
- * emitted bee-header chunk. Leaving it out would make this gate skip while `vite build`
- * would have produced something different — and the "Build <id>" popover, whose whole
- * job is telling you which code is deployed, would then name a commit that is not.
- *
- * The cost is that every commit rebuilds the bundle (~1.5s), which is most of what this
- * gate could otherwise skip. beeatlas-4uj is the fix: move the id out of the bundle and
- * into the slim manifest, which is not content-hashed — then the bundle is a function of
- * src/ + config + deps alone and this input disappears. */
-function buildIdInputs() {
-  // The two git calls are caught INDEPENDENTLY, mirroring buildVersion(): it keeps
-  // GITHUB_SHA even when git is unavailable, so collapsing both failures into one
-  // constant here would let this gate skip across commits that DO change
-  // __APP_VERSION__.
-  let sha = process.env.GITHUB_SHA || '';
-  if (!sha) {
-    try { sha = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim(); } catch { sha = 'no-sha'; }
-  }
-  let dirty = 'clean';
-  try {
-    if (execSync('git status --porcelain --untracked-files=no', { encoding: 'utf8' }).trim()) dirty = 'dirty';
-  } catch { dirty = 'unknown'; }
-  return `${sha}\0${dirty}`;
-}
-
 function fingerprint() {
   const h = createHash('sha256');
   for (const p of BUNDLE_INPUTS.flatMap(p => walk(join(ROOT, p), ROOT)).sort()) {
     h.update(p);
     h.update(createHash('sha256').update(readFileSync(join(ROOT, p))).digest());
   }
-  h.update(buildIdInputs());
   return h.digest('hex').slice(0, 16);
 }
 

@@ -26,6 +26,10 @@ interface Manifest {
   // key, and the taxa pane degrades to plain-text names rather than dead links.
   taxon_pages?: string;
   generated_at: string;
+  // Which code produced this publish, e.g. "4535cd0" (beeatlas-4uj). Optional: a
+  // manifest written before this field existed, or by a tool that does not set it,
+  // simply has no build to report and the row is hidden rather than showing a lie.
+  build_id?: string;
 }
 
 let _promise: Promise<Manifest> | null = null;
@@ -138,7 +142,24 @@ export async function loadFreshnessLabel(): Promise<string | null> {
   }
 }
 
-type DataKey = keyof Omit<Manifest, 'generated_at'>;
+/**
+ * Which code the running site was built from — bee-header's "Build <id>" row.
+ *
+ * Read from the manifest rather than `define`d into the bundle (beeatlas-4uj): baked
+ * in, it was a build input that changed every chunk hash on every commit, and it went
+ * stale the moment a bundle was reused. null when unavailable, so the row is omitted
+ * rather than asserting something false.
+ */
+export async function loadBuildId(): Promise<string | null> {
+  try {
+    const m = await loadManifest();
+    return m.build_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+type DataKey = keyof Omit<Manifest, 'generated_at' | 'build_id'>;
 
 export async function resolveDataUrl(key: DataKey): Promise<string | null> {
   const m = await loadManifest();

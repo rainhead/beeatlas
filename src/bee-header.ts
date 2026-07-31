@@ -2,16 +2,18 @@ import { LitElement, css, html, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { AuthState } from './auth-client.ts';
 
-// Build identifier injected by Vite `define` (eleventy.config.js). The `typeof`
-// guard keeps this safe under Vitest, where the define is absent.
-const BUILD_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
-
 @customElement('bee-header')
 export class BeeHeader extends LitElement {
   @property({ attribute: false }) offline = false;
   @property({ attribute: false }) cacheState: { ready: boolean; cached: string[]; missing: string[] } | null = null;
   @property({ attribute: false }) primeProgress: { received: number; total: number; assetInFlight: string | null } | null = null;
   @property({ attribute: false }) freshnessLabel: string | null = null;
+  // Which code the site was built from, from the slim manifest (beeatlas-4uj) — it
+  // used to be `define`d into this chunk, which made it a build input and let it go
+  // stale whenever the bundle was reused. Owned by whoever mounts this presenter, like
+  // freshnessLabel: <bee-atlas> in the app. null on the static pages, which fetch
+  // nothing at all — the same reason the freshness row is absent there.
+  @property({ attribute: false }) buildId: string | null = null;
   @property({ attribute: false }) storageEstimate: { usageMB: string; quotaMB: string | null } | null = null;
   @property({ attribute: false }) updateAvailable: boolean = false;
   // D-09/D-10: true when Android beforeinstallprompt available and not yet installed.
@@ -536,7 +538,7 @@ export class BeeHeader extends LitElement {
             ` : ''}
           </div>
         ` : ''}
-        <div class="menu-meta">Build ${BUILD_VERSION}</div>
+        ${this.buildId ? html`<div class="menu-meta">Build ${this.buildId}</div>` : ''}
       </div>
     `;
   }

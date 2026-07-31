@@ -13,7 +13,7 @@ import type { FeatureCollection, Point } from 'geojson';
 import { makeStaleGuard } from './stale-guard.ts';
 import { loadTaxonPages } from './taxon-pages.ts';
 import type { CachePrimeProgressDetail, CacheStateChangedDetail } from './prime-orchestrator.ts';
-import { loadFreshnessLabel, resolveDataUrl } from './manifest.ts';
+import { loadBuildId, loadFreshnessLabel, resolveDataUrl } from './manifest.ts';
 import { fetchWhoami, signOut, startSignIn, type AuthState } from './auth-client.ts';
 import './bee-header.ts';
 import './bee-pane.ts';
@@ -158,6 +158,10 @@ export class BeeAtlas extends LitElement {
   @state() private _primeProgress: { received: number; total: number; assetInFlight: string | null } | null = null;
   @state() private _updateAvailable: boolean = false;
   @state() private _freshnessLabel: string | null = null;
+  // From the same manifest fetch as the freshness label (beeatlas-4uj). Loaded once:
+  // unlike freshness, which is refreshed on a cadence because the DATA can move under
+  // a long-lived tab, the build id cannot change without a reload.
+  @state() private _buildId: string | null = null;
   @state() private _storageEstimate: { usageMB: string; quotaMB: string | null } | null = null;
   // D-09/D-10: true when beforeinstallprompt was captured and app is not yet standalone.
   @state() private _installable: boolean = false;
@@ -502,6 +506,7 @@ bee-map {
         .cacheState=${this._cacheState}
         .primeProgress=${this._primeProgress}
         .freshnessLabel=${this._freshnessLabel}
+        .buildId=${this._buildId}
         .storageEstimate=${this._storageEstimate}
         .updateAvailable=${this._updateAvailable}
         .installable=${this._installable}
@@ -1370,6 +1375,7 @@ bee-map {
 
   private _refreshFreshness = async () => {
     this._freshnessLabel = await loadFreshnessLabel();
+    if (this._buildId === null) this._buildId = await loadBuildId();
   };
 
   private async _readStorageEstimate(): Promise<{ usageMB: string; quotaMB: string | null } | null> {

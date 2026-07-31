@@ -28,6 +28,9 @@ try {
 }
 
 manifest.generated_at = 'local';
+// Matches the published manifest's shape (beeatlas-4uj); 'dev' is what bee-header
+// shows when the build id came from a working copy rather than a publish.
+manifest.build_id = 'dev';
 
 mkdirSync(join(root, 'public', 'data'), { recursive: true });
 writeFileSync(outPath, JSON.stringify(manifest, null, 2) + '\n');

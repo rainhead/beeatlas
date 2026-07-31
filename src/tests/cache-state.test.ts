@@ -203,14 +203,32 @@ describe('bee-header cache surfaces (Phase 150)', () => {
 
   test('menu is reachable when signed out (authState null) — carries source + build', async () => {
     (el as any).authState = null;
+    // beeatlas-4uj: the build id is a property now, from the slim manifest, not a
+    // compile-time define. Whoever mounts the header supplies it.
+    (el as any).buildId = '4535cd0';
     await (el as any).updateComplete;
     await openMenu();
 
     const popover = el.shadowRoot!.querySelector('.account-popover')!;
     expect(popover.textContent).toMatch(/Source code/);
-    expect(popover.textContent).toMatch(/Build /);
+    expect(popover.textContent).toMatch(/Build 4535cd0/);
     expect(popover.querySelector('a.menu-row')!.getAttribute('href'))
       .toBe('https://github.com/rainhead/beeatlas');
+  });
+
+  test('with no build id, the row is omitted rather than showing a placeholder', async () => {
+    // The static pages mount <bee-header> without fetching anything (its entry does
+    // not import manifest.ts), so they have no build id to give — the same reason the
+    // freshness row is absent there. Omitting beats inventing: "Build dev" or
+    // "Build unknown" on a production page would be a claim, and a wrong one.
+    (el as any).authState = null;
+    (el as any).buildId = null;
+    await (el as any).updateComplete;
+    await openMenu();
+
+    const popover = el.shadowRoot!.querySelector('.account-popover')!;
+    expect(popover.textContent).toMatch(/Source code/);
+    expect(popover.textContent).not.toMatch(/Build/);
   });
 
   // beeatlas-j96 folded freshness into the menu; the header itself never shows

@@ -36,6 +36,7 @@
  */
 
 import { createHash } from 'node:crypto';
+import { execSync } from 'node:child_process';
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join, dirname, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -43,6 +44,35 @@ import { buildDataDir } from '../lib/build-data-dir.js';
 import { RUNTIME_ARTIFACTS } from '../lib/runtime-artifacts.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+/**
+ * Which code produced this publish — the "Build <id>" row in bee-header's menu.
+ *
+ * It lives HERE, in the slim manifest, rather than being `define`d into the bundle
+ * (beeatlas-4uj). Baked into a chunk it was a build INPUT: every commit changed the
+ * emitted bee-header chunk, so the bundle-reuse gate had to fingerprint git HEAD and
+ * could only skip Vite on a nightly where nothing landed at all. It also made the id
+ * dishonest in the one case it exists for — a reused bundle would keep naming the
+ * commit that last happened to rebuild it.
+ *
+ * manifest.json is not content-hashed and is served no-cache, so writing it here costs
+ * nothing and is regenerated on every publish. This completes the rule beeatlas-96m
+ * established and stopped one step short of: nothing clock- or HEAD-derived belongs
+ * inside a content-hashed artifact.
+ */
+function buildId() {
+  let sha = process.env.GITHUB_SHA || '';
+  if (!sha) {
+    try { sha = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { /* no git */ }
+  }
+  let dirty = '';
+  try {
+    // Tracked files only: an untracked screenshot in a working copy must not stamp
+    // -dirty on a build whose inputs match HEAD exactly.
+    if (execSync('git status --porcelain --untracked-files=no', { cwd: ROOT, encoding: 'utf8' }).trim()) dirty = '-dirty';
+  } catch { /* no git */ }
+  return sha ? `${sha.slice(0, 7)}${dirty}` : 'dev';
+}
 const dataDir = buildDataDir(ROOT);
 const outDir = join(ROOT, '_site', 'data');
 
@@ -111,8 +141,9 @@ for (const dir of STABLE_DIRS) {
 
 const epoch = process.env.SOURCE_DATE_EPOCH;
 manifest.generated_at = epoch ? new Date(Number(epoch) * 1000).toISOString() : 'local';
+manifest.build_id = buildId();
 
 const manifestPath = join(outDir, 'manifest.json');
 writeFileSync(`${manifestPath}.tmp`, JSON.stringify(manifest, null, 2) + '\n');
 renameSync(`${manifestPath}.tmp`, manifestPath);
-console.log(`ok _site/data: ${Object.keys(RUNTIME_ARTIFACTS).length} artifacts + manifest.json (generated_at: ${manifest.generated_at})`);
+console.log(`ok _site/data: ${Object.keys(RUNTIME_ARTIFACTS).length} artifacts + manifest.json (generated_at: ${manifest.generated_at}, build ${manifest.build_id})`);

@@ -1,58 +1,8 @@
 import { defineConfig } from 'vite';
-import { execSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 // @ts-expect-error -- .js source has no .d.ts; the named export is the contract
 import { MANIFEST_PATH } from './lib/vite-manifest.js';
-
-// Build identifier shown in the offline cache popover so a stale installed PWA is
-// diagnosable at a glance (iOS keeps an old SW + caches across reinstalls). Prefer
-// the CI commit SHA; fall back to local git; then to "dev". Moved here from
-// eleventy.config.js with the rest of the Vite configuration (beeatlas-d3y).
-// The build identifier baked into the bundle as __APP_VERSION__ (rendered as
-// "Build <id>" in bee-header's menu).
-//
-// It must be a pure function of the SOURCE, never of the clock (beeatlas-96m). This
-// value is `define`d, so it lands inside a content-hashed chunk: a wall-clock stamp
-// here — which is what this used to append, at minute resolution — changed the bundle's
-// content on every build, which changed every chunk's hash, which changed every asset
-// URL in every page. The nightly then republished the whole bundle even when not a byte
-// of src/ had moved, so returning visitors re-downloaded ~2 MB and the service worker
-// re-precached the lot, nightly, for nothing. Hashed filenames exist precisely so
-// unchanged code keeps its URL; a build clock defeats them.
-//
-// Dropping the timestamp loses nothing on screen: bee-header renders the freshness
-// label (from the slim manifest's generated_at, served no-cache) three rows above this
-// one, and on this site the data and the code are published by the same nightly. That
-// is also the right home for a time — manifest.json is not content-hashed.
-//
-// `-dirty` keeps the one thing the timestamp was actually good for: telling you the
-// build included uncommitted work. It is derived from the tree, not the clock, so two
-// builds of the same tree still agree.
-//
-// Its precision is limited in BOTH directions, and it is better to say so than to
-// imply a guarantee. Untracked files are ignored (-uno), because otherwise a stray
-// screenshot in a working copy stamps `-dirty` on a build whose inputs match HEAD
-// exactly — and a marker that is always on says nothing. The cost is that a genuinely
-// new, not-yet-added source file reads as clean. Nor can it see changes to gitignored
-// inputs (public/data/*, the stashed Vite manifest). So: `-dirty` means "tracked files
-// differ from HEAD", not "this build is reproducible".
-function buildVersion() {
-  let sha = process.env.GITHUB_SHA || '';
-  if (!sha) {
-    try { sha = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim(); } catch { /* no git */ }
-  }
-  // Asked of the tree unconditionally, NOT only when the sha came from git: a
-  // GITHUB_SHA build whose checkout has modified TRACKED files (a workflow step that
-  // rewrites one before building) would otherwise advertise a clean commit while
-  // shipping something else, which is the misreport this marker exists to prevent.
-  let dirty = '';
-  try {
-    const changed = execSync('git status --porcelain --untracked-files=no', { encoding: 'utf8' });
-    if (changed.trim()) dirty = '-dirty';
-  } catch { /* no git */ }
-  return sha ? `${sha.slice(0, 7)}${dirty}` : 'dev';
-}
 
 // NOTE: vite-plugin-preload.ts is deliberately NOT registered. It never ran in the
 // shipped build (it lived here, and the old eleventy-plugin-vite path never loaded
@@ -148,10 +98,11 @@ export default defineConfig({
       'peters-macbook-air.tail5d2e45.ts.net',
     ],
   },
-  // Compile-time build identifier surfaced in the offline cache popover.
-  define: {
-    __APP_VERSION__: JSON.stringify(buildVersion()),
-  },
+  // NO `define` here, deliberately. A defined value lands inside a content-hashed
+  // chunk, so anything that varies per build — a clock (beeatlas-96m) or the git sha
+  // (beeatlas-4uj) — changes every asset URL on every build and defeats hashed
+  // filenames. The build identifier now travels in the slim manifest, which is not
+  // content-hashed and is served no-cache (scripts/postbuild-data.mjs).
   // publicDir is OFF (beeatlas-d3y). Under eleventy-plugin-vite, Vite's publicDir
   // copy was how `public/` reached the site root, so disabling it silently dropped
   // /data and /feeds. That is no longer true: Eleventy passthrough now places

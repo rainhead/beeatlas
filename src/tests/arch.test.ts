@@ -137,16 +137,47 @@ describe('src/entries/species-index.ts allowlist (IDX-02, Phase 96)', () => {
 // This is a source-level guard, not a proof. The real property is "two builds of the
 // same tree produce the same filenames", which costs two full builds to assert; this
 // catches the specific way it was broken, for free.
+/**
+ * Strip `//` comments only — NOT `/* *\/` blocks.
+ *
+ * The obvious block-comment regex is actively dangerous here. vite.config.ts contains
+ * glob strings like '**\/_site/**', and `**\/` supplies a `*\/` while `/**` supplies a
+ * `/*` — so a non-greedy /\\/\\*[\\s\\S]*?\\*\\//g swallows everything between two unrelated
+ * globs. Measured: it cut the file from 11,274 characters to 1,115, taking `publicDir`
+ * and `rollupOptions` with it, which made the guards below inspect a tenth of the file.
+ * That is how a guard passes while proving nothing — and why the negative test for
+ * these appends its tamper in several positions, not just at the end.
+ *
+ * Only line comments are stripped, and the anchor (`^\\s*`) means a `//` inside a string
+ * mid-line — a URL, say — is left alone. There are no block comments in that file.
+ */
+function stripLineComments(src: string): string {
+  return src.replace(/^\s*\/\/.*$/gm, '');
+}
+
 describe('bundle determinism (beeatlas-96m)', () => {
   const CONFIG = resolve(ROOT, 'vite.config.ts');
 
-  test('the define block draws on the source tree, not the clock', () => {
-    const src = readFileSync(CONFIG, 'utf8');
+  test('vite.config.ts has no define block at all', () => {
+    // Stronger than the clock check below, and it is what ADR 0019 actually claims.
+    // The old guard would have passed a sha-derived define — which is exactly what
+    // beeatlas-4uj removed, and exactly what would silently put the gate back to
+    // rebuilding on every commit. A CONSTANT define would be harmless in principle,
+    // but the rule is kept absolute because the failure is invisible: nothing breaks,
+    // the bundle just quietly stops being reusable and every client re-downloads it.
+    const code = stripLineComments(readFileSync(CONFIG, 'utf8'));
+    expect(
+      /^\s*define\s*:/m.test(code),
+      'vite.config.ts declares a `define`. Anything defined lands inside a ' +
+      'content-hashed chunk, so if it varies per build it changes every asset URL ' +
+      '(beeatlas-96m, beeatlas-4uj). Put build metadata in the slim manifest instead.',
+    ).toBe(false);
+  });
+
+  test('the config draws on the source tree, not the clock', () => {
     // Comments legitimately discuss the clock; strip them before matching so the
     // rationale above a fix cannot fail the test that guards it.
-    const code = src
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/^\s*\/\/.*$/gm, '');
+    const code = stripLineComments(readFileSync(CONFIG, 'utf8'));
     // Word-boundary regexes, not substrings: `Date(` as a substring also matches
     // `formatDate(`, and a guard that fails on an innocent helper name teaches people
     // to delete the guard. \b before Date rules that out, while `Date(` still covers
