@@ -124,3 +124,41 @@ describe('src/entries/species-index.ts allowlist (IDX-02, Phase 96)', () => {
     }
   });
 });
+
+// (c) beeatlas-96m — nothing `define`d into the bundle may come from the clock.
+//
+// A `define`d value lands inside a content-hashed chunk, so if it varies with wall
+// time then every build mints new chunk hashes, every page's asset URLs change, and
+// the nightly republishes the whole bundle for unchanged source — defeating the point
+// of hashed filenames and re-costing every returning visitor ~2 MB. __APP_VERSION__
+// did exactly this (a minute-resolution `new Date()`), which is how it was found: two
+// full builds of one commit produced pages differing only in asset URLs.
+//
+// This is a source-level guard, not a proof. The real property is "two builds of the
+// same tree produce the same filenames", which costs two full builds to assert; this
+// catches the specific way it was broken, for free.
+describe('bundle determinism (beeatlas-96m)', () => {
+  const CONFIG = resolve(ROOT, 'vite.config.ts');
+
+  test('the define block draws on the source tree, not the clock', () => {
+    const src = readFileSync(CONFIG, 'utf8');
+    // Comments legitimately discuss the clock; strip them before matching so the
+    // rationale above a fix cannot fail the test that guards it.
+    const code = src
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+    // Word-boundary regexes, not substrings: `Date(` as a substring also matches
+    // `formatDate(`, and a guard that fails on an innocent helper name teaches people
+    // to delete the guard. \b before Date rules that out, while `Date(` still covers
+    // BOTH `new Date(...)` and the bare `Date(...)` call form.
+    const CLOCKS = [/\bDate\s*\(/, /\bDate\.now\s*\(/, /SOURCE_DATE_EPOCH/];
+    for (const clock of CLOCKS) {
+      expect(
+        clock.test(code),
+        `vite.config.ts matches ${clock} — a build clock in a define makes every ` +
+        `build change every chunk hash (beeatlas-96m). Put times in the slim manifest, ` +
+        `which is not content-hashed.`,
+      ).toBe(false);
+    }
+  });
+});
