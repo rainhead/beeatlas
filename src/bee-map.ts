@@ -4,7 +4,7 @@ import mapboxgl from 'mapbox-gl';
 import mapboxCssText from 'mapbox-gl/dist/mapbox-gl.css?raw';
 import { loadOccurrenceGeoJSON } from './features.ts';
 import { markMapReady } from './ready.ts';
-import { type FilterState, getOccurrences, type OccurrenceProperties } from './filter.ts';
+import { type FilterState, emptyFilterState, getOccurrences, type OccurrenceProperties } from './filter.ts';
 import type { FeatureCollection, Point } from 'geojson';
 import {
   RECENCY_COLORS,
@@ -44,21 +44,7 @@ export class BeeMap extends LitElement {
   @property({ attribute: false }) ecoregionOptions: string[] = [];
   @property({ attribute: false }) viewState: { lon: number; lat: number; zoom: number } | null = null;
   @property({ attribute: false }) panTo: { coordinate: number[]; zoom: number } | null = null;
-  @property({ attribute: false }) filterState: FilterState = {
-    taxonId: null,
-    taxonDisplayName: null,
-    yearFrom: null,
-    yearTo: null,
-    months: new Set(),
-    selectedCounties: new Set(),
-    selectedEcoregions: new Set(),
-    selectedCollectors: [],
-    elevMin: null,
-    elevMax: null,
-    selectedPlace: null,
-    bounds: null,
-    hiddenTiers: new Set(),
-  };
+  @property({ attribute: false }) filterState: FilterState = emptyFilterState();
 
   @property({ attribute: false }) hiddenTiers: Set<string> = new Set();
   @property({ attribute: false }) intendedFilterActive = false;

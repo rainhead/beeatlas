@@ -23,3 +23,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0017](0017-scoped-note-render.md) | A note publish renders the species it touched, over a receipted full build | Accepted |
 | [0018](0018-coalescing-publish-queue.md) | Concurrent note writes share a build instead of queueing one each | Accepted |
 | [0019](0019-bundle-reuse-gate.md) | A build reuses the app bundle when its inputs are unchanged — and must then fake being a build | Accepted |
+| [0020](0020-catalog-lookup-selects-and-filters-yield.md) | A label-number lookup is a selection, and an active filter yields to it | Accepted |

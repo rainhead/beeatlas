@@ -29,6 +29,33 @@ export interface FilterState {
   hiddenTiers: Set<TierKey>; // empty Set = no tier filter (show all) — Phase 170 (PROV-02)
 }
 
+/**
+ * A FilterState with every dimension off — "show everything".
+ *
+ * The one sanctioned place to spell the empty filter. Adding a filter dimension
+ * means adding a REQUIRED FilterState field, and every literal in the codebase
+ * has to grow it in the same commit; routing the literals through here shrinks
+ * that surface to one site. Returns a fresh object each call — the Sets and the
+ * collector array are mutable, so a shared const would leak state between owners.
+ */
+export function emptyFilterState(): FilterState {
+  return {
+    taxonId: null,
+    taxonDisplayName: null,
+    yearFrom: null,
+    yearTo: null,
+    months: new Set(),
+    selectedCounties: new Set(),
+    selectedEcoregions: new Set(),
+    selectedCollectors: [],
+    elevMin: null,
+    elevMax: null,
+    selectedPlace: null,
+    bounds: null,
+    hiddenTiers: new Set(),
+  };
+}
+
 export interface OccurrenceProperties {
   occId: string;
   recencyTier: 'thisYear' | 'lastYear' | 'earlier';
@@ -800,6 +827,107 @@ export async function getOccurrencePlaceSlugs(occId: string): Promise<string[]> 
   }
   // ORDER BY already sorts; dedupe defensively in case of duplicate bridge rows.
   return [...new Set(slugs)];
+}
+
+// --- Catalog-number lookup (beeatlas-8zs) ----------------------------------
+
+/**
+ * Normalize what a user types from a physical label into a catalog SUFFIX —
+ * the trailing digit run of `catalog_number`, and the identity the pipeline
+ * already joins on (int_ecdysis_catalog_suffixes.sql; int_ecdysis_base.sql:42).
+ *
+ * Every catalogued row in the corpus is `WSDA_<7-or-8 digits>`, one prefix
+ * throughout, and the suffixes are 1:1 with catalog_number — so the bare
+ * integer is unambiguous. Users type it without the prefix; a pasted `WSDA_`
+ * (or `WSDA-`, or embedded whitespace from an OCR'd label) is tolerated.
+ *
+ * Returns the canonical digit string, or null when the input cannot be a
+ * catalog suffix. Leading zeros are stripped because no suffix carries one.
+ */
+export function parseCatalogSuffix(raw: string): string | null {
+  const compact = raw.replace(/\s+/g, '');
+  const digits = compact.replace(/^wsda[-_]?/i, '');
+  if (!/^\d+$/.test(digits)) return null;
+  const normalized = digits.replace(/^0+/, '');
+  return normalized === '' ? null : normalized;
+}
+
+export interface CatalogLookupResult {
+  /** Corpus-wide matches, de-duplicated by occ_id. Empty on a miss. */
+  rows: OccurrenceRow[];
+  /**
+   * True when the number resolved but the ACTIVE filter excludes every match.
+   * The caller has to know: queryListPage intersects selection with the filter,
+   * so selecting a filtered-out record would show an empty detail card and no
+   * point on the map. bee-atlas answers this by clearing the filter.
+   */
+  hiddenByFilter: boolean;
+}
+
+/**
+ * Resolve a catalog suffix to the specimen it identifies, corpus-wide —
+ * deliberately ignoring the active filter, because a label number names one
+ * record whether or not the current view happens to include it.
+ *
+ * Matches the trailing digit RUN rather than a bare `LIKE '%…'`: the suffix
+ * must sit at the end of catalog_number AND not be preceded by another digit,
+ * so `2303966` cannot match `WSDA_12303966`. (wa-sqlite ships no REGEXP, so
+ * this is the pure-SQLite spelling of `regexp_extract(catalog_number,
+ * '[0-9]+$', 0)` — keep the two in agreement.)
+ *
+ * `suffix` must already be normalized by parseCatalogSuffix; the digits-only
+ * assertion below is the interpolation guard, not merely a sanity check.
+ */
+export async function lookupByCatalogSuffix(
+  suffix: string,
+  f: FilterState,
+): Promise<CatalogLookupResult> {
+  if (!/^[1-9][0-9]*$/.test(suffix)) return { rows: [], hiddenByFilter: false };
+  const len = suffix.length;
+  // Reads: the last `len` characters are exactly these digits, and either that
+  // IS the whole value or the character before them is not a digit.
+  const catalogClause =
+    `o.catalog_number IS NOT NULL ` +
+    `AND substr(o.catalog_number, -${len}) = '${suffix}' ` +
+    `AND (length(o.catalog_number) = ${len} ` +
+    `OR substr(o.catalog_number, -${len + 1}, 1) NOT BETWEEN '0' AND '9')`;
+  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
+
+  await tablesReady;
+  const { sqlite3, db } = await getDB();
+  const rows: OccurrenceRow[] = [];
+  await sqlite3.exec(db,
+    `SELECT ${selectCols} FROM occurrences o LEFT JOIN taxa t ON t.taxon_id = o.taxon_id ` +
+    `WHERE ${catalogClause} ORDER BY o.ecdysis_id`,
+    (rowValues: unknown[], columnNames: string[]) => {
+      rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])) as unknown as OccurrenceRow);
+    }
+  );
+
+  // The mart carries a handful of exact duplicate rows (same ecdysis_id twice);
+  // they are one record, so collapse on occ_id rather than showing it twice.
+  const seen = new Set<string>();
+  const deduped: OccurrenceRow[] = [];
+  for (const row of rows) {
+    const occId = occIdFromRow(row);
+    if (occId === null || seen.has(occId)) continue;
+    seen.add(occId);
+    deduped.push(row);
+  }
+
+  if (deduped.length === 0 || !isFilterActive(f)) {
+    return { rows: deduped, hiddenByFilter: false };
+  }
+
+  // Re-ask with the active filter ANDed on. Cheaper and less brittle than
+  // re-deriving each filter dimension in JS against the fetched row.
+  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false, await demElevationAvailable());
+  let visible = 0;
+  await sqlite3.exec(db,
+    `SELECT COUNT(*) FROM occurrences o WHERE (${occurrenceWhere}) AND (${catalogClause})`,
+    (rowValues: unknown[]) => { visible = Number(rowValues[0] ?? 0); }
+  );
+  return { rows: deduped, hiddenByFilter: visible === 0 };
 }
 
 export async function getOccurrences(occIds: string[]): Promise<OccurrenceRow[]> {

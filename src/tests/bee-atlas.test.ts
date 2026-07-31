@@ -411,12 +411,16 @@ describe('SEL-06 + SEL-07 wiring (Phase 91, updated in Phase 999.8)', () => {
 
   // --- D-01: bounds lives in _filterState ---
 
-  test('D-01: _filterState initial literal includes bounds: null', () => {
-    const literalStart = src.indexOf('@state() private _filterState: FilterState = {');
-    expect(literalStart).toBeGreaterThan(-1);
-    const literalEnd = src.indexOf('\n  };', literalStart);
-    const literal = src.slice(literalStart, literalEnd);
-    expect(literal).toContain('bounds: null');
+  // beeatlas-8zs collapsed bee-atlas's and bee-map's identical initial literals into
+  // the single emptyFilterState() factory in filter.ts, so the guard follows it there:
+  // bee-atlas must initialize FROM the factory, and the factory must start bounds off.
+  test('D-01: _filterState is initialized from emptyFilterState(), which sets bounds: null', () => {
+    expect(src).toContain('@state() private _filterState: FilterState = emptyFilterState();');
+    const filterSrc = readFileSync(resolve(__dirname, '../filter.ts'), 'utf8');
+    const factoryStart = filterSrc.indexOf('export function emptyFilterState(): FilterState {');
+    expect(factoryStart).toBeGreaterThan(-1);
+    const factoryEnd = filterSrc.indexOf('\n}', factoryStart);
+    expect(filterSrc.slice(factoryStart, factoryEnd)).toContain('bounds: null');
   });
 
   test('D-01: _applyBoundsFilter writes _filterState.bounds via spread (not _selectionBounds)', () => {

@@ -1,7 +1,7 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js';
 import type { BeeMap } from './bee-map.ts';
-import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, getOccurrencePlaceSlugs, queryTaxaTree, type OccurrenceProperties } from './filter.ts';
+import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, getOccurrencePlaceSlugs, queryTaxaTree, type OccurrenceProperties, emptyFilterState, parseCatalogSuffix, lookupByCatalogSuffix } from './filter.ts';
 import type { TaxonNode } from './taxa-tree.ts';
 import { parseOccId, occIdFromRow } from './occurrence.ts';
 import { buildParams, parseParams, type TierKey } from './url-state.ts';
@@ -22,6 +22,10 @@ import './bee-map.ts';
 const DEFAULT_LON = -120.5;
 const DEFAULT_LAT = 47.5;
 const DEFAULT_ZOOM = 7;
+// beeatlas-8zs: how close to zoom when a catalog-number lookup centres the map on a
+// specimen. Tight enough that the selected point is unambiguous among its neighbours,
+// wide enough to keep the surrounding locality legible.
+const CATALOG_LOOKUP_ZOOM = 12;
 
 // --- D-12: iOS Safari detection helpers ---
 // These are module-level functions (not methods) so install-affordance.test.ts can
@@ -82,21 +86,7 @@ export function boundsFromLocation(loc: { lat: number; lon: number }): { west: n
 @customElement('bee-atlas')
 export class BeeAtlas extends LitElement {
   // App-level state — all formerly on BeeMap, now owned here
-  @state() private _filterState: FilterState = {
-    taxonId: null,
-    taxonDisplayName: null,
-    yearFrom: null,
-    yearTo: null,
-    months: new Set(),
-    selectedCounties: new Set(),
-    selectedEcoregions: new Set(),
-    selectedCollectors: [],
-    elevMin: null,
-    elevMax: null,
-    selectedPlace: null,
-    bounds: null,
-    hiddenTiers: new Set(),
-  };
+  @state() private _filterState: FilterState = emptyFilterState();
 
   @state() private _visibleIds: Set<string> | null = null;
   @state() private _filteredGeoJSON: FeatureCollection<Point, OccurrenceProperties> | null = null;
@@ -133,6 +123,10 @@ export class BeeAtlas extends LitElement {
   @state() private _selectionCount: number | null = null;
   @state() private _selectedOccIds: string[] | null = null;
   @state() private _selectedCluster: { lon: number; lat: number; radiusM: number } | null = null;
+  // beeatlas-8zs: the label number whose last lookup found nothing. bee-pane shows
+  // the miss message only while its input still reads this exact string, so editing
+  // the field clears the message without a second round-trip through the parent.
+  @state() private _catalogLookupMiss: string | null = null;
   @state() private _summary: DataSummary | null = null;
   @state() private _taxaOptions: TaxonOption[] = [];
   @state() private _countyOptions: string[] = [];
@@ -581,6 +575,7 @@ bee-map {
             .listPage=${this._listPage}
             .listLoading=${this._listLoading}
             .selectionCount=${this._selectionCount}
+            .catalogLookupMiss=${this._catalogLookupMiss}
             .rows=${this._tableRows}
             .rowCount=${this._tableRowCount}
             .page=${this._tablePage}
@@ -603,6 +598,7 @@ bee-map {
             @row-pan=${this._onRowPan}
             @list-page-changed=${this._onListPageChanged}
             @pane-clear-selection=${this._onClearSelection}
+            @catalog-lookup=${this._onCatalogLookup}
             @near-me-requested=${this._onNearMeRequested}
             @near-me-cleared=${this._onNearMeCleared}
             .boundsFilterActive=${this._filterState.bounds !== null}
@@ -1492,6 +1488,62 @@ bee-map {
     this._runListQuery();
     this._replaceUrlState();
   }
+
+  // beeatlas-8zs: jump straight to the specimen named by a physical label number.
+  // This is a SELECTION, not a filter (the 999.8 separation): it resolves the typed
+  // number to an occ_id and opens the same detail card a map click would, leaving
+  // FilterState's SHAPE untouched.
+  //
+  // The one thing it does touch is the filter's VALUE, and only when it has to: an
+  // active filter that excludes the resolved specimen would intersect it away in
+  // queryListPage and hide its point on the map, leaving "1 selected" over an empty
+  // card. Reaching the specimen is what the user asked for, so the filter yields —
+  // the previous filter is still one Back press away in history.
+  private _onCatalogLookup = async (e: CustomEvent<{ query: string }>) => {
+    const typed = e.detail.query.trim();
+    if (typed === '') { this._catalogLookupMiss = null; return; }
+
+    const suffix = parseCatalogSuffix(typed);
+    if (suffix === null) { this._catalogLookupMiss = typed; return; }
+
+    let result;
+    try {
+      result = await lookupByCatalogSuffix(suffix, this._filterState);
+    } catch (err) {
+      console.error('Catalog lookup failed:', err);
+      this._catalogLookupMiss = typed;
+      return;
+    }
+    if (result.rows.length === 0) { this._catalogLookupMiss = typed; return; }
+
+    const occIds = result.rows
+      .map(row => occIdFromRow(row))
+      .filter((id): id is string => id !== null);
+    if (occIds.length === 0) { this._catalogLookupMiss = typed; return; }
+
+    this._catalogLookupMiss = null;
+    const filterCleared = result.hiddenByFilter;
+    if (filterCleared) this._filterState = emptyFilterState();
+    this._selectedOccIds = occIds;
+    this._selectedCluster = null;
+    this._paneState = 'list';
+    this._listPage = 1;
+
+    // Centre the map on the specimen — a label number carries no hint of where the
+    // record is, so leaving the viewport put would land the selection off-screen.
+    // Zoom in only if the current view is wider than CATALOG_LOOKUP_ZOOM; never
+    // zoom a user back OUT of a closer view they had chosen.
+    const { lat, lon } = result.rows[0]!;
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      this._viewState = { lat, lon, zoom: Math.max(this._currentView.zoom, CATALOG_LOOKUP_ZOOM) };
+    }
+
+    if (filterCleared) this._runFilterQuery();
+    this._runListQuery();
+    this._runTableQuery();
+    this._runTaxaQuery();
+    this._replaceUrlState();
+  };
 
   private _onRegionClick(e: CustomEvent<{ name: string; shiftKey: boolean }>) {
     const { name, shiftKey } = e.detail;
