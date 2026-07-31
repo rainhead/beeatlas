@@ -1,4 +1,5 @@
-// beeatlas-8zs — <bee-atlas> answers a catalog-number lookup with a SELECTION.
+// beeatlas-8zs / beeatlas-v66 — <bee-atlas> answers a search submitted from the
+// header with a SELECTION.
 //
 // A dedicated file (not an addition to bee-atlas.test.ts) because full-DOM mounting
 // of <bee-atlas> needs an inert <bee-map> stub, which would conflict with that file's
@@ -107,10 +108,16 @@ async function mountAtlas(): Promise<AtlasEl> {
 
 function pane(atlas: AtlasEl) {
   return atlas.shadowRoot.querySelector('bee-pane') as HTMLElement & {
-    catalogLookupMiss: string | null;
-    catalogLookupFailed: string | null;
     filterState: ReturnType<typeof emptyFilterState>;
     paneState: string;
+  };
+}
+
+/** The search surface: <bee-header> submits the query and shows what came of it. */
+function header(atlas: AtlasEl) {
+  return atlas.shadowRoot.querySelector('bee-header') as HTMLElement & {
+    searchEnabled: boolean;
+    searchStatus: { query: string; kind: 'miss' | 'error' } | null;
   };
 }
 
@@ -122,9 +129,9 @@ function map(atlas: AtlasEl) {
   };
 }
 
-/** Fire the lookup the way <bee-pane> does, then let the async handler settle. */
+/** Fire the lookup the way <bee-header> does, then let the async handler settle. */
 async function lookup(atlas: AtlasEl, query: string) {
-  pane(atlas).dispatchEvent(new CustomEvent('catalog-lookup', {
+  header(atlas).dispatchEvent(new CustomEvent('search-submit', {
     bubbles: true, composed: true, detail: { query },
   }));
   for (let i = 0; i < 8; i++) await Promise.resolve();
@@ -180,9 +187,9 @@ describe('a resolved label number selects the specimen', () => {
     expect(map(el!).viewState!.zoom).toBe(15);
   });
 
-  test('no miss is reported', async () => {
+  test('the hit is reported back, so the header can close its popover over the answer', async () => {
     await lookup(el!, '2303966');
-    expect(pane(el!).catalogLookupMiss).toBeNull();
+    expect(header(el!).searchStatus).toEqual({ query: '2303966', kind: 'hit' });
   });
 });
 
@@ -221,14 +228,14 @@ describe('a lookup that resolves nothing changes nothing', () => {
   test('an unknown number is reported back to the field as a miss', async () => {
     mockLookup.mockResolvedValue({ rows: [], hiddenByFilter: false });
     await lookup(el!, '9999999');
-    expect(pane(el!).catalogLookupMiss).toBe('9999999');
+    expect(header(el!).searchStatus).toEqual({ query: '9999999', kind: 'miss' });
     expect(map(el!).selectedOccIds).toBeNull();
   });
 
   test('unparseable input never reaches the DB', async () => {
     await lookup(el!, 'Bombus');
     expect(mockLookup).not.toHaveBeenCalled();
-    expect(pane(el!).catalogLookupMiss).toBe('Bombus');
+    expect(header(el!).searchStatus).toEqual({ query: 'Bombus', kind: 'miss' });
   });
 
   test('a miss does not clear an active filter', async () => {
@@ -251,8 +258,7 @@ describe('a lookup that resolves nothing changes nothing', () => {
     mockLookup.mockRejectedValue(new Error('no such column: catalog_number'));
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await lookup(el!, '2303966');
-    expect(pane(el!).catalogLookupFailed).toBe('2303966');
-    expect(pane(el!).catalogLookupMiss).toBeNull();
+    expect(header(el!).searchStatus).toEqual({ query: '2303966', kind: 'error' });
     expect(map(el!).selectedOccIds).toBeNull();
   });
 
@@ -260,11 +266,10 @@ describe('a lookup that resolves nothing changes nothing', () => {
     mockLookup.mockRejectedValue(new Error('db not ready'));
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await lookup(el!, '2303966');
-    expect(pane(el!).catalogLookupFailed).toBe('2303966');
+    expect(header(el!).searchStatus).toEqual({ query: '2303966', kind: 'error' });
     mockLookup.mockResolvedValue({ rows: [], hiddenByFilter: false });
     await lookup(el!, '2303966');
-    expect(pane(el!).catalogLookupFailed).toBeNull();
-    expect(pane(el!).catalogLookupMiss).toBe('2303966');
+    expect(header(el!).searchStatus).toEqual({ query: '2303966', kind: 'miss' });
   });
 
   test('a superseded lookup cannot clobber a newer one (WR-02 stale guard)', async () => {
@@ -278,7 +283,7 @@ describe('a lookup that resolves nothing changes nothing', () => {
       .mockImplementationOnce(() => new Promise<CatalogLookupResult>(res => { releaseSlow = res; }))
       .mockResolvedValueOnce(fast);
 
-    pane(el!).dispatchEvent(new CustomEvent('catalog-lookup', {
+    header(el!).dispatchEvent(new CustomEvent('search-submit', {
       bubbles: true, composed: true, detail: { query: '111' },
     }));
     await lookup(el!, '222');
@@ -293,6 +298,6 @@ describe('a lookup that resolves nothing changes nothing', () => {
   test('an empty submission is a no-op, not a miss', async () => {
     await lookup(el!, '   ');
     expect(mockLookup).not.toHaveBeenCalled();
-    expect(pane(el!).catalogLookupMiss).toBeNull();
+    expect(header(el!).searchStatus).toBeNull();
   });
 });

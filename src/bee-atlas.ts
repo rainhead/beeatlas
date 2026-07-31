@@ -16,6 +16,7 @@ import type { CachePrimeProgressDetail, CacheStateChangedDetail } from './prime-
 import { loadBuildId, loadFreshnessLabel, resolveDataUrl } from './manifest.ts';
 import { fetchWhoami, signOut, startSignIn, type AuthState } from './auth-client.ts';
 import './bee-header.ts';
+import type { SearchStatus } from './bee-header.ts';
 import './bee-pane.ts';
 import './bee-map.ts';
 
@@ -123,17 +124,17 @@ export class BeeAtlas extends LitElement {
   @state() private _selectionCount: number | null = null;
   @state() private _selectedOccIds: string[] | null = null;
   @state() private _selectedCluster: { lon: number; lat: number; radiusM: number } | null = null;
-  // beeatlas-8zs: the label number whose last lookup found nothing. bee-pane shows
-  // the miss message only while its input still reads this exact string, so editing
-  // the field clears the message without a second round-trip through the parent.
-  @state() private _catalogLookupMiss: string | null = null;
-  // Distinct from a miss, and the distinction is the point: a miss means "we searched
-  // and nothing has that number", while this means "we could not search". Reporting a
-  // failure as a miss tells the user a specimen does not exist when it may well —
+  // beeatlas-8zs / beeatlas-v66: what came of the last search submitted from
+  // <bee-header>. It carries the query, so the header shows the message only while
+  // its field still reads that exact string — editing clears it without a second
+  // round-trip through this component.
+  //
+  // `miss` and `error` are deliberately distinct: a miss means "we searched and
+  // nothing has that number", an error means "we could not search". Reporting the
+  // second as the first tells the user a specimen does not exist when it may well —
   // reachable on an offline cold-start, where tablesReady/getDB reject because the
-  // wa-sqlite wasm is not cached. Holds the query, like _catalogLookupMiss, so editing
-  // the field clears a stale message.
-  @state() private _catalogLookupFailed: string | null = null;
+  // wa-sqlite wasm is not cached.
+  @state() private _searchStatus: SearchStatus | null = null;
   // WR-02 / CLAUDE.md "Filter race guard": the lookup awaits, so two fast Enters can
   // resolve out of order and let the slower one clobber the newer selection. Mirrors
   // the _placeNamesGeneration / makeStaleGuard pattern.
@@ -512,6 +513,9 @@ bee-map {
         .installable=${this._installable}
         .iosInstructable=${this._iosInstructable}
         .authState=${this._authState}
+        .searchEnabled=${true}
+        .searchStatus=${this._searchStatus}
+        @search-submit=${this._onSearchSubmit}
       ></bee-header>
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
       ${this._loading ? html`<div class="loading-overlay">Loading…</div>` : ''}
@@ -591,8 +595,6 @@ bee-map {
             .listPage=${this._listPage}
             .listLoading=${this._listLoading}
             .selectionCount=${this._selectionCount}
-            .catalogLookupMiss=${this._catalogLookupMiss}
-            .catalogLookupFailed=${this._catalogLookupFailed}
             .rows=${this._tableRows}
             .rowCount=${this._tableRowCount}
             .page=${this._tablePage}
@@ -615,7 +617,6 @@ bee-map {
             @row-pan=${this._onRowPan}
             @list-page-changed=${this._onListPageChanged}
             @pane-clear-selection=${this._onClearSelection}
-            @catalog-lookup=${this._onCatalogLookup}
             @near-me-requested=${this._onNearMeRequested}
             @near-me-cleared=${this._onNearMeCleared}
             .boundsFilterActive=${this._filterState.bounds !== null}
@@ -1507,10 +1508,17 @@ bee-map {
     this._replaceUrlState();
   }
 
-  // beeatlas-8zs: jump straight to the specimen named by a physical label number.
-  // This is a SELECTION, not a filter (the 999.8 separation): it resolves the typed
-  // number to an occ_id and opens the same detail card a map click would, leaving
-  // FilterState's SHAPE untouched.
+  // beeatlas-8zs / beeatlas-v66: answer a search submitted from <bee-header>.
+  //
+  // This is the router for the header's one search field. Today every query is a
+  // label number and the only resolver is the catalog lookup; taxa, places and
+  // people are meant to join it here, which is why the event the header emits is
+  // `search-submit` and not `catalog-lookup`.
+  //
+  // Jumping to the specimen named by a physical label number is a SELECTION, not a
+  // filter (the 999.8 separation): it resolves the typed number to an occ_id and
+  // opens the same detail card a map click would, leaving FilterState's SHAPE
+  // untouched.
   //
   // The one thing it does touch is the filter's VALUE, and only when it has to: an
   // active filter that excludes the resolved specimen would intersect it away in
@@ -1523,12 +1531,12 @@ bee-map {
   // (_writeViewportHistory) and may predate the filter entirely. Making the yield
   // undoable would mean pushing an entry before the clear — a deliberate change to
   // history behaviour, not a comment fix, so it is left alone here.
-  private _onCatalogLookup = async (e: CustomEvent<{ query: string }>) => {
+  private _onSearchSubmit = async (e: CustomEvent<{ query: string }>) => {
     const typed = e.detail.query.trim();
-    if (typed === '') { this._catalogLookupMiss = null; this._catalogLookupFailed = null; return; }
+    if (typed === '') { this._searchStatus = null; return; }
 
     const suffix = parseCatalogSuffix(typed);
-    if (suffix === null) { this._catalogLookupMiss = typed; this._catalogLookupFailed = null; return; }
+    if (suffix === null) { this._searchStatus = { query: typed, kind: 'miss' }; return; }
 
     const myGen = ++this._catalogLookupGeneration;
     let result;
@@ -1538,20 +1546,20 @@ bee-map {
       console.error('Catalog lookup failed:', err);
       if (myGen !== this._catalogLookupGeneration) return; // superseded
       // NOT a miss: we never got an answer, so we must not claim there is none.
-      this._catalogLookupFailed = typed;
-      this._catalogLookupMiss = null;
+      this._searchStatus = { query: typed, kind: 'error' };
       return;
     }
     if (myGen !== this._catalogLookupGeneration) return; // superseded
-    this._catalogLookupFailed = null;
-    if (result.rows.length === 0) { this._catalogLookupMiss = typed; return; }
+    if (result.rows.length === 0) { this._searchStatus = { query: typed, kind: 'miss' }; return; }
 
     const occIds = result.rows
       .map(row => occIdFromRow(row))
       .filter((id): id is string => id !== null);
-    if (occIds.length === 0) { this._catalogLookupMiss = typed; return; }
+    if (occIds.length === 0) { this._searchStatus = { query: typed, kind: 'miss' }; return; }
 
-    this._catalogLookupMiss = null;
+    // Reported, not left blank: the header closes its popover on a hit, and it
+    // cannot tell "resolved" from "nothing has been searched for yet".
+    this._searchStatus = { query: typed, kind: 'hit' };
     const filterCleared = result.hiddenByFilter;
     if (filterCleared) this._filterState = emptyFilterState();
     this._selectedOccIds = occIds;

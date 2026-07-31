@@ -1,6 +1,6 @@
 # ADR 0020: A label-number lookup is a selection, and an active filter yields to it
 
-**Status:** Accepted (implemented 2026-07-31; issue beeatlas-8zs)
+**Status:** Accepted (implemented 2026-07-31; issue beeatlas-8zs). **Placement superseded by [ADR 0021](0021-search-is-a-header-affordance.md)** the same day: the control is now the search button in `<bee-header>`, which emits `search-submit`, not a field in `<bee-pane>`'s filter panel emitting `catalog-lookup`. Everything below about what a label number *means* is unchanged.
 
 ---
 
@@ -30,9 +30,9 @@ resolved record, the filter is cleared.**
 
 Phase 999.8 drew the line the codebase still holds: a bounding box is a *filter*
 (`FilterState.bounds`), an individual record is a *selection* (`selectedOccIds`). A
-label number names one record, so it selects. Concretely: `<bee-pane>` emits
-`catalog-lookup`, `<bee-atlas>` resolves the number to an `occ_id` and opens the
-same detail card a map click would.
+label number names one record, so it selects. Concretely: the search field emits its
+query (as of ADR 0021, `<bee-header>` emitting `search-submit`), `<bee-atlas>`
+resolves the number to an `occ_id` and opens the same detail card a map click would.
 
 The alternative — a `catalogNumber` field on `FilterState` — was rejected on both
 meaning and cost. Meaning: "show only this record" is not a view of the data, it is

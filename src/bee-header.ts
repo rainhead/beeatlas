@@ -1,6 +1,26 @@
-import { LitElement, css, html, type TemplateResult } from 'lit';
+import { LitElement, css, html, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { AuthState } from './auth-client.ts';
+
+/**
+ * What came of the last submitted search, reported back by whoever resolves it.
+ *
+ * `query` is the exact string that was submitted: the header shows the message
+ * only while its field still holds that string, so editing retires the message
+ * without an event round-trip.
+ *
+ *   · `hit`   — resolved; the answer is now on screen behind the popover, so the
+ *               popover gets out of its own way and closes.
+ *   · `miss`  — we looked and nothing matched.
+ *   · `error` — we never found out (beeatlas-8zs review). It must not collapse
+ *               into `miss`, or an offline cold-start tells a curator their
+ *               specimen does not exist.
+ *
+ * A hit is reported rather than inferred from the absence of a failure: "no
+ * status" is also the state before anything has been searched for, and a
+ * presenter cannot tell those apart.
+ */
+export type SearchStatus = { query: string; kind: 'hit' | 'miss' | 'error' };
 
 @customElement('bee-header')
 export class BeeHeader extends LitElement {
@@ -24,12 +44,24 @@ export class BeeHeader extends LitElement {
   // (entry or app root) — bee-header stays a pure presenter, no fetch here.
   @property({ attribute: false }) authState: AuthState | null = null;
 
+  // Search (beeatlas-v66). Off unless the mounting controller can answer a query:
+  // today that is <bee-atlas> alone, which owns the client-side store the lookup
+  // runs against. The static pages mount this header through
+  // src/entries/bee-header.ts and have nothing to search, so they get no button
+  // rather than a dead one.
+  @property({ attribute: false }) searchEnabled = false;
+  @property({ attribute: false }) searchStatus: SearchStatus | null = null;
+
   // Single account/status menu (beeatlas-j96): one popover behind the account
   // button carrying auth, offline-cache status, freshness, source link and build.
   // Replaces the separate cache and account popovers.
   @state() private _menuOpen = false;
   // Transient iOS A2HS popover open/close — local to presenter, not app state.
   @state() private _iosPopoverOpen = false;
+  // Search popover open/close and its field. Both are presenter-local: the query
+  // becomes app state only on submit, and only as the `search-submit` event.
+  @state() private _searchOpen = false;
+  @state() private _searchInput = '';
   // Set if the iNat avatar image fails to load — falls back to the person glyph.
   @state() private _avatarError = false;
 
@@ -306,6 +338,47 @@ export class BeeHeader extends LitElement {
       }
     }
 
+    /* ── Search popover (beeatlas-v66) ──────────────────────────────────────
+       Reuses the .cache-popover surface so there is one popover shell in this
+       header, not three. Wider than the account menu because it holds a field
+       (and, later, a result list) rather than rows of text. */
+    .search-popover {
+      min-width: 280px;
+      gap: 6px;
+    }
+
+    .search-input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      font-family: inherit;
+      font-size: 0.9375rem;
+      line-height: 1.4;
+      color: var(--text-body, #213547);
+      background: #ffffff;
+      border: 1px solid var(--border, #ddd);
+      border-radius: 4px;
+    }
+
+    .search-input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -1px;
+    }
+
+    .search-hint {
+      margin: 0;
+      font-size: 0.75rem;
+      line-height: 1.4;
+      color: var(--text-hint, #767676);
+    }
+
+    .search-error {
+      margin: 0;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      color: var(--error, #b00);
+    }
+
     /* Account/menu button: full opacity (identity should read clearly, unlike the
        dimmed nav icons). Shown at all sizes and in both auth states — it is the
        only entry point to the account/status menu (beeatlas-j96). */
@@ -364,11 +437,64 @@ export class BeeHeader extends LitElement {
 
   private _toggleMenu = (e: Event) => {
     e.stopPropagation();
+    // Both popovers anchor to .right-group, so they must never be open at once.
+    // The button handlers stop propagation, which means the document-click
+    // dismisser below never sees these clicks — each toggle closes the other.
+    this._searchOpen = false;
     this._setMenuOpen(!this._menuOpen);
   };
 
+  // --- Search (beeatlas-v66) ---
+
+  private _toggleSearch = (e: Event) => {
+    e.stopPropagation();
+    if (this._menuOpen) this._setMenuOpen(false);
+    this._searchOpen = !this._searchOpen;
+    if (this._searchOpen) {
+      // A search button that does not put the caret in the field costs a second
+      // click for the only thing the popover is for.
+      void this.updateComplete.then(() => {
+        this.shadowRoot?.querySelector<HTMLInputElement>('.search-input')?.focus();
+      });
+    }
+  };
+
+  private _submitSearch() {
+    this.dispatchEvent(new CustomEvent('search-submit', {
+      bubbles: true, composed: true,
+      detail: { query: this._searchInput },
+    }));
+  }
+
+  private _clearSearch = () => {
+    this._searchInput = '';
+    // Retires the status message too: it shows only while the field holds the
+    // query it belongs to.
+    this.shadowRoot?.querySelector<HTMLInputElement>('.search-input')?.focus();
+  };
+
+  // A resolved query has put its answer on screen — behind this popover, which
+  // covers the sidebar it lands in. Close, and empty the field so the next search
+  // starts clean. Misses and errors keep the popover, since the message is the
+  // only thing that came back.
+  // willUpdate, not updated: state written here lands in the SAME render pass, so
+  // the popover never paints once more with the resolved query still in it.
+  willUpdate(changed: Map<string, unknown>) {
+    if (changed.has('searchStatus') && this.searchStatus?.kind === 'hit') {
+      this._searchOpen = false;
+      this._searchInput = '';
+    }
+  }
+
   private _onDocumentClick = (e: Event) => {
     const path = e.composedPath();
+    if (this._searchOpen) {
+      const popover = this.shadowRoot?.querySelector('.search-popover');
+      const btn = this.shadowRoot?.querySelector('.search-btn');
+      if (popover && !path.includes(popover) && !path.includes(btn as Element)) {
+        this._searchOpen = false;
+      }
+    }
     if (this._menuOpen) {
       const menu = this.shadowRoot?.querySelector('.account-popover');
       const menuBtn = this.shadowRoot?.querySelector('.account-btn');
@@ -386,6 +512,9 @@ export class BeeHeader extends LitElement {
   };
 
   private _onDocumentKeydown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && this._searchOpen) {
+      this._searchOpen = false;
+    }
     if (e.key === 'Escape' && this._menuOpen) {
       this._setMenuOpen(false);
     }
@@ -543,6 +672,67 @@ export class BeeHeader extends LitElement {
     `;
   }
 
+  /**
+   * Search — one entry point in the chrome, for anything the atlas can name
+   * (beeatlas-v66).
+   *
+   * Today a query is a label number and <bee-atlas> answers it with a SELECTION
+   * (ADR 0020); taxa, places and people are meant to follow, which is why this
+   * presenter knows only "a query was submitted" and "here is what came of it".
+   * Enter submits: resolving is a discrete action, not something to fire at a
+   * half-typed number.
+   */
+  private _renderSearchPopover(): TemplateResult {
+    const typed = this._searchInput.trim();
+    const reported = this.searchStatus;
+    const status = reported && reported.query === typed && reported.kind !== 'hit' ? reported : null;
+    return html`
+      <div class="cache-popover search-popover" role="dialog" aria-modal="false" aria-label="Search">
+        <input
+          type="text"
+          class="search-input"
+          placeholder="Label number"
+          inputmode="numeric"
+          enterkeyhint="go"
+          aria-label="Find a specimen by its catalog or label number"
+          .value=${this._searchInput}
+          @input=${(e: Event) => { this._searchInput = (e.target as HTMLInputElement).value; }}
+          @keydown=${(e: KeyboardEvent) => {
+            if (e.key === 'Enter') { e.preventDefault(); this._submitSearch(); }
+            // Escape inside the field: clear first, close only when already empty.
+            if (e.key === 'Escape' && this._searchInput !== '') { e.stopPropagation(); this._clearSearch(); }
+          }}
+          autocomplete="off"
+          spellcheck="false"
+        />
+        ${status === null
+          ? html`<p class="search-hint">Type the number on a specimen label, then press Enter.</p>`
+          : status.kind === 'miss'
+            ? html`<p class="search-error" role="status">No specimen with number ${typed}</p>`
+            : html`<p class="search-error" role="status">Couldn't look that up just now — try again</p>`}
+      </div>
+    `;
+  }
+
+  private _renderSearch(): TemplateResult | typeof nothing {
+    if (!this.searchEnabled) return nothing;
+    return html`
+      <button
+        class="icon-btn search-btn ${this._searchOpen ? 'active' : ''}"
+        @click=${this._toggleSearch}
+        aria-haspopup="dialog"
+        aria-expanded=${String(this._searchOpen)}
+        aria-label="Search"
+        title="Search"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m1.85-4.65a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"/>
+        </svg>
+      </button>
+      ${this._searchOpen ? this._renderSearchPopover() : nothing}
+    `;
+  }
+
   // D-11: iOS A2HS popover — cloned from .cache-popover shell (PATTERNS.md §bee-header.ts).
   // Uses role="dialog" aria-modal="false", 44px ✕ dismiss, Share glyph, 3-step copy.
   private _renderIosPopover(): TemplateResult {
@@ -663,6 +853,7 @@ export class BeeHeader extends LitElement {
           </button>
           ${this._iosPopoverOpen ? this._renderIosPopover() : ''}
         ` : ''}
+        ${this._renderSearch()}
         ${this._renderAuth()}
       </div>
     `;

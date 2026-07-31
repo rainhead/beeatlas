@@ -35,7 +35,7 @@ Priority order, prefix literals, the positional-coupling rule, and the same-occu
 - **`is_provisional`** — TRUE only for a WABA plant-images observation lacking a specimen-count OFV. Do **not** equate `!is_provisional` with "has an Ecdysis record."
 - **`waba_specimen`** — an iNat-photo bee specimen catalogued in WABA but not yet in Ecdysis; transient (a standing ~2-year lag), transitions to `ecdysis` once catalogued.
 - **`catalog_number`** — the full catalogued identifier as stored, e.g. `WSDA_2303966`. One prefix corpus-wide, and 1:1 with the specimen (46,090 distinct across 46,090 catalogued rows).
-- **catalog suffix** — the trailing digit run of a `catalog_number` (`2303966`), which is what the pipeline joins on (`regexp_extract(catalog_number, '[0-9]+$', 0)`) and what the sidebar lookup resolves. **Not** an `ecdysis_id`: they are different numbers for the same specimen, and conflating them silently mis-resolves.
+- **catalog suffix** — the trailing digit run of a `catalog_number` (`2303966`), which is what the pipeline joins on (`regexp_extract(catalog_number, '[0-9]+$', 0)`) and what the header's search resolves. **Not** an `ecdysis_id`: they are different numbers for the same specimen, and conflating them silently mis-resolves.
 - **label number** — the user-facing name for the catalog suffix: what is printed on a physical specimen label and what a curator types to jump to that record ([ADR 0020](docs/adr/0020-catalog-lookup-selects-and-filters-yield.md)). Say "label number" to people, "catalog suffix" in code.
 
 ## Places

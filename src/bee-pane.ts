@@ -79,16 +79,6 @@ export class BeePane extends LitElement {
   @property({ attribute: false }) listLoading = false;
   @property({ attribute: false }) selectionCount: number | null = null;
 
-  // beeatlas-8zs: the label number whose last lookup found nothing, as the user typed
-  // it. Resolved by <bee-atlas> (the state owner); this presenter only reports it back,
-  // and only while the field still holds that exact string — so editing the number
-  // retires the message without any event round-trip.
-  @property({ attribute: false }) catalogLookupMiss: string | null = null;
-  // The lookup could not run (offline cold-start, a rejected query) as opposed to
-  // running and finding nothing — a different message, because telling someone their
-  // specimen does not exist when we simply failed to look is a false claim.
-  @property({ attribute: false }) catalogLookupFailed: string | null = null;
-
   // Taxon cache (threaded from bee-atlas for name resolution in bee-occurrence-detail)
   @property({ attribute: false }) taxonCache: Map<number, TaxonCacheEntry> | null = null;
 
@@ -114,9 +104,6 @@ export class BeePane extends LitElement {
   @property({ attribute: false }) boundsFilterLabel: string = '';
 
   @state() private _open = false;
-
-  // Catalog lookup (beeatlas-8zs) — a jump-to-record affordance, not a filter dimension
-  @state() private _catalogInput = '';
 
   // Taxon (single-select)
   @state() private _taxonInput = '';
@@ -343,12 +330,6 @@ export class BeePane extends LitElement {
     }
     .near-me-btn:hover { color: var(--text-body); }
     .filter-input.has-near-me { padding-right: 1.8rem; }
-    /* Inline "no such label number" note under the catalog-lookup input */
-    .field-error {
-      margin: 0.25rem 0 0;
-      font-size: 0.78rem;
-      color: var(--error);
-    }
     .chips {
       display: flex;
       flex-wrap: wrap;
@@ -952,72 +933,7 @@ export class BeePane extends LitElement {
     }
   }
 
-  // --- Catalog lookup (beeatlas-8zs) ---
-
-  private _submitCatalogLookup() {
-    this.dispatchEvent(new CustomEvent('catalog-lookup', {
-      bubbles: true, composed: true,
-      detail: { query: this._catalogInput },
-    }));
-  }
-
-  private _clearCatalog() {
-    this._catalogInput = '';
-    // Also retires the miss message: it only shows while the input matches it.
-  }
-
   // --- Section renderers ---
-
-  /**
-   * Jump to a specimen by the number printed on its physical label.
-   *
-   * Sits in the filter panel and wears the filter-row costume, but is NOT a
-   * filter: submitting emits `catalog-lookup` and <bee-atlas> answers it with a
-   * SELECTION. Enter submits — the lookup is a discrete action, so it must not
-   * fire per keystroke while the number is still half-typed.
-   */
-  private _renderCatalog() {
-    const typed = this._catalogInput.trim();
-    const missed = this.catalogLookupMiss !== null && this.catalogLookupMiss === typed;
-    const failed = this.catalogLookupFailed !== null && this.catalogLookupFailed === typed;
-    return html`
-      <div class="filter-row">
-        <!-- specimen label / tag icon -->
-        <svg class="row-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-          <path d="M8.5 1.5H14v5.5l-7 7-5.5-5.5 7-7z"/>
-          <circle cx="11.5" cy="4.5" r="1"/>
-        </svg>
-        <div class="input-group">
-          <div class="input-wrap">
-            <input
-              type="text"
-              class=${'filter-input' + (this._catalogInput !== '' ? ' has-clear' : '')}
-              placeholder="Label number — press Enter"
-              inputmode="numeric"
-              enterkeyhint="go"
-              aria-label="Find a specimen by its catalog or label number"
-              .value=${this._catalogInput}
-              @input=${(e: Event) => { this._catalogInput = (e.target as HTMLInputElement).value; }}
-              @keydown=${(e: KeyboardEvent) => {
-                if (e.key === 'Enter') { e.preventDefault(); this._submitCatalogLookup(); }
-              }}
-              autocomplete="off"
-              spellcheck="false"
-            />
-            ${this._catalogInput !== '' ? html`
-              <button class="input-clear" @click=${this._clearCatalog} aria-label="Clear label number">&#x2715;</button>
-            ` : nothing}
-          </div>
-          ${missed ? html`
-            <p class="field-error" role="status">No specimen with number ${typed}</p>
-          ` : nothing}
-          ${failed ? html`
-            <p class="field-error" role="status">Couldn't look that up just now — try again</p>
-          ` : nothing}
-        </div>
-      </div>
-    `;
-  }
 
   private _renderWhat() {
     const hasTaxon = this._selectedTaxon !== null;
@@ -1304,7 +1220,6 @@ export class BeePane extends LitElement {
       </div>
       <div class="list-scroll">
         <div class="filter-panel">
-          ${this._renderCatalog()}
           ${this._renderWhat()}
           ${this._renderWho()}
           ${this._renderWhere()}
