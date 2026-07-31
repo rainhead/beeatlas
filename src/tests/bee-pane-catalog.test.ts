@@ -23,6 +23,7 @@ interface PaneEl extends HTMLElement {
   paneState: string;
   filterState: ReturnType<typeof emptyFilterState>;
   catalogLookupMiss: string | null;
+  catalogLookupFailed: string | null;
   updateComplete: Promise<unknown>;
 }
 
@@ -151,5 +152,29 @@ describe('the miss message tracks the field, not the clock', () => {
 
     expect(catalogInput(pane).value).toBe('');
     expect(pane.shadowRoot!.textContent).not.toContain('No specimen with number');
+  });
+});
+
+
+describe('a failure is not a miss', () => {
+  test('a failed lookup says so, and does not claim the number is absent', async () => {
+    // The distinction the user acts on: "no specimen has this number" would send a
+    // curator off to check their label, when in fact the lookup never ran — most
+    // plausibly an offline cold-start with the wa-sqlite wasm uncached.
+    await type(pane, '2303966');
+    pane.catalogLookupFailed = '2303966';
+    await pane.updateComplete;
+    const text = pane.shadowRoot!.textContent!;
+    expect(text).toContain("Couldn't look that up just now");
+    expect(text).not.toContain('No specimen with number');
+  });
+
+  test('editing the number retires the failure message too', async () => {
+    await type(pane, '2303966');
+    pane.catalogLookupFailed = '2303966';
+    await pane.updateComplete;
+    expect(pane.shadowRoot!.textContent).toContain("Couldn't look that up");
+    await type(pane, '230396');
+    expect(pane.shadowRoot!.textContent).not.toContain("Couldn't look that up");
   });
 });

@@ -61,8 +61,18 @@ fails the one-step criterion the issue exists to satisfy, and it puts the burden
 a state conflict on the user. Also rejected: *resolve only within the filter*, which
 answers "no specimen with that number" about a number that is demonstrably in the
 corpus. The filter is a browsing aid; the label number is an assertion about a
-physical object in the user's hand. The assertion wins, and the previous filter is
-one Back press away in history.
+physical object in the user's hand. The assertion wins.
+
+**Correction (review, same day): the yield is not undoable via Back, and this ADR
+originally claimed it was.** Filter changes are written with `replaceState`
+(`_replaceUrlState`), so clearing the filter overwrites the entry that held it; Back
+lands on the last *pushed* entry, which is a viewport session
+(`_writeViewportHistory`) and may predate the filter entirely. The decision above
+stands on its own merits — one-step reachability beats preserving a browsing aid —
+but it stands *without* that safety net, which makes it a slightly bigger imposition
+on the user than the original text implied. Making it undoable means pushing a
+history entry before the clear: a deliberate change to history behaviour, not a
+wording fix, and so deliberately not made here.
 
 ### 3. The match is the trailing digit run
 

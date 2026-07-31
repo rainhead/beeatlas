@@ -84,6 +84,10 @@ export class BeePane extends LitElement {
   // and only while the field still holds that exact string — so editing the number
   // retires the message without any event round-trip.
   @property({ attribute: false }) catalogLookupMiss: string | null = null;
+  // The lookup could not run (offline cold-start, a rejected query) as opposed to
+  // running and finding nothing — a different message, because telling someone their
+  // specimen does not exist when we simply failed to look is a false claim.
+  @property({ attribute: false }) catalogLookupFailed: string | null = null;
 
   // Taxon cache (threaded from bee-atlas for name resolution in bee-occurrence-detail)
   @property({ attribute: false }) taxonCache: Map<number, TaxonCacheEntry> | null = null;
@@ -975,6 +979,7 @@ export class BeePane extends LitElement {
   private _renderCatalog() {
     const typed = this._catalogInput.trim();
     const missed = this.catalogLookupMiss !== null && this.catalogLookupMiss === typed;
+    const failed = this.catalogLookupFailed !== null && this.catalogLookupFailed === typed;
     return html`
       <div class="filter-row">
         <!-- specimen label / tag icon -->
@@ -1005,6 +1010,9 @@ export class BeePane extends LitElement {
           </div>
           ${missed ? html`
             <p class="field-error" role="status">No specimen with number ${typed}</p>
+          ` : nothing}
+          ${failed ? html`
+            <p class="field-error" role="status">Couldn't look that up just now — try again</p>
           ` : nothing}
         </div>
       </div>

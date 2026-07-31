@@ -414,13 +414,14 @@ describe('SEL-06 + SEL-07 wiring (Phase 91, updated in Phase 999.8)', () => {
   // beeatlas-8zs collapsed bee-atlas's and bee-map's identical initial literals into
   // the single emptyFilterState() factory in filter.ts, so the guard follows it there:
   // bee-atlas must initialize FROM the factory, and the factory must start bounds off.
-  test('D-01: _filterState is initialized from emptyFilterState(), which sets bounds: null', () => {
-    expect(src).toContain('@state() private _filterState: FilterState = emptyFilterState();');
-    const filterSrc = readFileSync(resolve(__dirname, '../filter.ts'), 'utf8');
-    const factoryStart = filterSrc.indexOf('export function emptyFilterState(): FilterState {');
-    expect(factoryStart).toBeGreaterThan(-1);
-    const factoryEnd = filterSrc.indexOf('\n}', factoryStart);
-    expect(filterSrc.slice(factoryStart, factoryEnd)).toContain('bounds: null');
+  test('D-01: a fresh filter state starts with no bounds', async () => {
+    // Asserts the FACTORY's behaviour rather than the two source substrings this used
+    // to grep for (docs/lessons-learned.md: "Green ≠ covered. A passing suite that
+    // asserts a source substring proves nothing about the sink" — a rename or a
+    // reformat would have broken that test while the behaviour held, and a changed
+    // default would have passed it while the behaviour broke).
+    const { emptyFilterState } = await import('../filter.ts');
+    expect(emptyFilterState().bounds).toBeNull();
   });
 
   test('D-01: _applyBoundsFilter writes _filterState.bounds via spread (not _selectionBounds)', () => {

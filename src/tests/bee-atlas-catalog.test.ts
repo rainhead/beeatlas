@@ -108,6 +108,7 @@ async function mountAtlas(): Promise<AtlasEl> {
 function pane(atlas: AtlasEl) {
   return atlas.shadowRoot.querySelector('bee-pane') as HTMLElement & {
     catalogLookupMiss: string | null;
+    catalogLookupFailed: string | null;
     filterState: ReturnType<typeof emptyFilterState>;
     paneState: string;
   };
@@ -242,12 +243,51 @@ describe('a lookup that resolves nothing changes nothing', () => {
     expect(map(el!).filterState.taxonId).toBe(100);
   });
 
-  test('a failed query degrades to a miss rather than an unhandled rejection', async () => {
+  test('a failed query reports a FAILURE, never a miss', async () => {
+    // A miss asserts "no specimen has that number". A failure means we never found
+    // out. Reporting the second as the first tells the user their specimen does not
+    // exist when it may well — and the likeliest cause is an offline cold-start, where
+    // tablesReady/getDB reject because the wa-sqlite wasm is not cached.
     mockLookup.mockRejectedValue(new Error('no such column: catalog_number'));
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await lookup(el!, '2303966');
-    expect(pane(el!).catalogLookupMiss).toBe('2303966');
+    expect(pane(el!).catalogLookupFailed).toBe('2303966');
+    expect(pane(el!).catalogLookupMiss).toBeNull();
     expect(map(el!).selectedOccIds).toBeNull();
+  });
+
+  test('a recovered query clears a previous failure', async () => {
+    mockLookup.mockRejectedValue(new Error('db not ready'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await lookup(el!, '2303966');
+    expect(pane(el!).catalogLookupFailed).toBe('2303966');
+    mockLookup.mockResolvedValue({ rows: [], hiddenByFilter: false });
+    await lookup(el!, '2303966');
+    expect(pane(el!).catalogLookupFailed).toBeNull();
+    expect(pane(el!).catalogLookupMiss).toBe('2303966');
+  });
+
+  test('a superseded lookup cannot clobber a newer one (WR-02 stale guard)', async () => {
+    // Two fast Enters: the first resolves LAST. Without a generation guard its result
+    // lands after the second's and selects the wrong specimen — the failure mode
+    // CLAUDE.md's "Filter race guard" invariant exists to prevent.
+    const slow: CatalogLookupResult = { rows: [specimenRow({ ecdysis_id: 111 })], hiddenByFilter: false };
+    const fast: CatalogLookupResult = { rows: [specimenRow({ ecdysis_id: 222 })], hiddenByFilter: false };
+    let releaseSlow!: (v: CatalogLookupResult) => void;
+    mockLookup
+      .mockImplementationOnce(() => new Promise<CatalogLookupResult>(res => { releaseSlow = res; }))
+      .mockResolvedValueOnce(fast);
+
+    pane(el!).dispatchEvent(new CustomEvent('catalog-lookup', {
+      bubbles: true, composed: true, detail: { query: '111' },
+    }));
+    await lookup(el!, '222');
+    expect(map(el!).selectedOccIds).toEqual(new Set(['ecdysis:222']));
+
+    releaseSlow(slow);
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+    await el!.updateComplete;
+    expect(map(el!).selectedOccIds).toEqual(new Set(['ecdysis:222']));
   });
 
   test('an empty submission is a no-op, not a miss', async () => {

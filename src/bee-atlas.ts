@@ -127,6 +127,17 @@ export class BeeAtlas extends LitElement {
   // the miss message only while its input still reads this exact string, so editing
   // the field clears the message without a second round-trip through the parent.
   @state() private _catalogLookupMiss: string | null = null;
+  // Distinct from a miss, and the distinction is the point: a miss means "we searched
+  // and nothing has that number", while this means "we could not search". Reporting a
+  // failure as a miss tells the user a specimen does not exist when it may well —
+  // reachable on an offline cold-start, where tablesReady/getDB reject because the
+  // wa-sqlite wasm is not cached. Holds the query, like _catalogLookupMiss, so editing
+  // the field clears a stale message.
+  @state() private _catalogLookupFailed: string | null = null;
+  // WR-02 / CLAUDE.md "Filter race guard": the lookup awaits, so two fast Enters can
+  // resolve out of order and let the slower one clobber the newer selection. Mirrors
+  // the _placeNamesGeneration / makeStaleGuard pattern.
+  private _catalogLookupGeneration = 0;
   @state() private _summary: DataSummary | null = null;
   @state() private _taxaOptions: TaxonOption[] = [];
   @state() private _countyOptions: string[] = [];
@@ -576,6 +587,7 @@ bee-map {
             .listLoading=${this._listLoading}
             .selectionCount=${this._selectionCount}
             .catalogLookupMiss=${this._catalogLookupMiss}
+            .catalogLookupFailed=${this._catalogLookupFailed}
             .rows=${this._tableRows}
             .rowCount=${this._tableRowCount}
             .page=${this._tablePage}
@@ -1497,23 +1509,35 @@ bee-map {
   // The one thing it does touch is the filter's VALUE, and only when it has to: an
   // active filter that excludes the resolved specimen would intersect it away in
   // queryListPage and hide its point on the map, leaving "1 selected" over an empty
-  // card. Reaching the specimen is what the user asked for, so the filter yields —
-  // the previous filter is still one Back press away in history.
+  // card. Reaching the specimen is what the user asked for, so the filter yields.
+  //
+  // NOTE the yield is NOT recoverable via Back. Filter changes are written with
+  // replaceState (_replaceUrlState), so clearing the filter overwrites the very entry
+  // that held it; Back lands on the last PUSHED entry, which is a viewport session
+  // (_writeViewportHistory) and may predate the filter entirely. Making the yield
+  // undoable would mean pushing an entry before the clear — a deliberate change to
+  // history behaviour, not a comment fix, so it is left alone here.
   private _onCatalogLookup = async (e: CustomEvent<{ query: string }>) => {
     const typed = e.detail.query.trim();
-    if (typed === '') { this._catalogLookupMiss = null; return; }
+    if (typed === '') { this._catalogLookupMiss = null; this._catalogLookupFailed = null; return; }
 
     const suffix = parseCatalogSuffix(typed);
-    if (suffix === null) { this._catalogLookupMiss = typed; return; }
+    if (suffix === null) { this._catalogLookupMiss = typed; this._catalogLookupFailed = null; return; }
 
+    const myGen = ++this._catalogLookupGeneration;
     let result;
     try {
       result = await lookupByCatalogSuffix(suffix, this._filterState);
     } catch (err) {
       console.error('Catalog lookup failed:', err);
-      this._catalogLookupMiss = typed;
+      if (myGen !== this._catalogLookupGeneration) return; // superseded
+      // NOT a miss: we never got an answer, so we must not claim there is none.
+      this._catalogLookupFailed = typed;
+      this._catalogLookupMiss = null;
       return;
     }
+    if (myGen !== this._catalogLookupGeneration) return; // superseded
+    this._catalogLookupFailed = null;
     if (result.rows.length === 0) { this._catalogLookupMiss = typed; return; }
 
     const occIds = result.rows
