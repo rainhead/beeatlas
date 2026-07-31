@@ -19,9 +19,17 @@ question about key sets into a question about ordering, which a counter answers:
     a build captures `target = requested` at its start
     ...so on success it has published everything with ticket <= target.
 
-A waiter therefore blocks until `published_through >= its ticket`. Writes arriving
-while a build is in flight get tickets above that build's target, so they are covered
-by the NEXT build — one extra build for the whole group, not one each.
+A waiter therefore blocks until a build has CONCLUDED on its ticket
+(`settled_through >= ticket`) and then reads `published_through` to learn which way it
+went. Note the two counters are not interchangeable and the distinction is not
+cosmetic: waiting on `published_through` instead would hang every waiter of a FAILED
+build forever, since a failure never advances it. Writes arriving while a build is in
+flight get tickets above that build's target, so they are covered by the NEXT build —
+one extra build for the whole group, not one each.
+
+The waiter's own deadline is therefore about TWO builds, not one (see the `timeout`
+argument): its legitimate worst case is the remainder of the in-flight build plus a
+full one of its own.
 
 The POST still blocks, deliberately. ADR 0007 chose the synchronous publish with eyes
 open, and coalescing removes the reason to revisit it: concurrent writers now all get
@@ -50,6 +58,11 @@ class CoalescingPublisher:
     with no lock held, one call at a time. Exceptions are treated as failure — a
     publish that raised has published nothing, and the caller's commit must survive it
     regardless (commit-first, ADR 0007).
+
+    `timeout` is how long a WAITER will wait, which must cover about TWO builds: the
+    remainder of one already in flight plus a full one of its own. Sizing it to a single
+    build makes a writer report "pending" for a note that goes live moments later —
+    precisely the baffling response this queue exists to remove.
     """
 
     def __init__(
@@ -98,7 +111,11 @@ class CoalescingPublisher:
             self._requested += 1
             ticket = self._requested
             waiters = ticket - self._settled_through
-            self._start_worker_locked()
+            if not self._start_worker_locked():
+                # Nothing is going to publish this ticket right now. "pending" is the
+                # honest answer and it UNDER-promises: the ticket stays outstanding, so
+                # whichever later request does start a worker covers this note too.
+                return "pending"
             deadline = time.monotonic() + self._timeout
             while self._settled_through < ticket:
                 remaining = deadline - time.monotonic()
@@ -111,8 +128,8 @@ class CoalescingPublisher:
             self._safe_log(f"publish ticket {ticket} shared a build with {waiters - 1} other write(s)")
         return "live" if live else "pending"
 
-    def _start_worker_locked(self) -> None:
-        """Ensure a worker is draining. MUST hold _cv.
+    def _start_worker_locked(self) -> bool:
+        """Ensure a worker is draining; False if none could be started. MUST hold _cv.
 
         The running flag is owned by the lock rather than inferred from
         Thread.is_alive(), and that is load-bearing: a worker decides to exit while
@@ -121,9 +138,22 @@ class CoalescingPublisher:
         start no worker and wait for a build nobody was going to run.
         """
         if self._worker_running:
-            return
+            return True
         self._worker_running = True
-        threading.Thread(target=self._drain, name="publish-queue", daemon=True).start()
+        try:
+            threading.Thread(target=self._drain, name="publish-queue", daemon=True).start()
+        except BaseException:
+            # Thread.start() can fail — "can't start new thread" under fd/thread/memory
+            # pressure, which a small host running concurrent 8.5s builds can reach. The
+            # flag is set by this point, so leaving it set would wedge the queue for
+            # good: no later request would start a worker and every write would sit out
+            # its full timeout. Clear it, wake anyone waiting, and report the failure
+            # rather than raising into a route whose note is already committed.
+            self._worker_running = False
+            self._cv.notify_all()
+            self._safe_log("publish: could not start the publisher thread")
+            return False
+        return True
 
     def _safe_log(self, msg: str) -> None:
         """Logging must never be able to break the queue. See _drain."""

@@ -84,10 +84,32 @@ want different partitions of the same delta, which is why Stelis exposes the thr
 separately instead of one "changed" list.
 
 One caveat that the first production comparison exposed: comparing a scoped page against
-a *freshly built* full site shows differences in asset URLs, because the bundle is not
-reproducible across builds — `vite.config.ts` bakes a wall-clock minute into
-`__APP_VERSION__` (`beeatlas-96m`). Holding the bundle fixed, the pages are identical. The
-equivalence claim here is about the render, and it needs that condition stated.
+a *freshly built* full site showed differences in asset URLs, because the bundle was not
+reproducible across builds — `vite.config.ts` baked a wall-clock minute into
+`__APP_VERSION__`. **Fixed since, in `beeatlas-96m`**; at the time, holding the bundle
+fixed made the pages identical. The equivalence claim here is about the render, and it
+needed that condition stated.
+
+## A hole this design opened, and how it is closed
+
+A publish harvests `notes/` **first** and renders **second**, and Stelis records the
+harvest's per-key observation as it goes. If the run then dies between the two, that
+observation is *spent*: the next publish's harvest cache-skips, `--moved-keys` truthfully
+reports "no keys moved", a zero-key render writes nothing, merge-swap succeeds, and the
+author is told `live` for a note that was never rendered. None of the receipt's four
+components notice, because `notes/` is deliberately excluded from the data fingerprint —
+it is the one thing a note publish is *allowed* to change.
+
+Found by review, not by the failure. Pre-coalescing it was masked: the writer's own build
+would have rendered both keys. It opens when the build that consumed the delta fails.
+
+So **a failed publish invalidates the receipt** (`scripts/build-receipt.mjs
+--invalidate`), which forces the next publish to render in full — and a full render reads
+the `notes/` dir directly, so it always heals. Both the script (an `EXIT` trap) and the
+API do it, because the failure that matters most is the API's `subprocess` timeout: that
+is a SIGKILL, and no bash trap survives it. Exit 75 (lock busy) is excluded — nothing was
+harvested, so nothing was spent. The price is one extra full build after a failure; the
+alternative is silently dropping a note.
 
 ## Consequences
 

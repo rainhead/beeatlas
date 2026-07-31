@@ -364,6 +364,37 @@ _PUBLISH_TIMEOUT = int(os.environ.get("NOTE_PUBLISH_TIMEOUT", "300"))
 _PUBLISH_LOCK_BUSY = 75  # EX_TEMPFAIL from publish-notes.sh: the nightly holds the flock
 
 
+# Owned by scripts/build-receipt.mjs (its RECEIPT constant) — kept in step by
+# test_publish_receipt_path_agrees_with_the_script.
+_BUILD_RECEIPT = Path(__file__).resolve().parent.parent / ".cache" / "beeatlas-build" / "receipt.json"
+
+
+def _invalidate_build_receipt() -> None:
+    """Force the next publish to render in full. Never raises.
+
+    A publish that dies after the harvest has SPENT stelis's per-key delta: the next
+    harvest cache-skips, --moved-keys truthfully reports "no keys moved", and a
+    zero-key scoped render publishes a site missing the note while its author was told
+    "live". A full render reads notes/ directly and heals it, and an absent receipt is
+    what forces one.
+
+    publish-notes.sh traps this itself, but the failure that matters most is a
+    subprocess TIMEOUT — SIGKILL, which no bash trap survives — so it is done here too,
+    from the process that outlives the child. Unlinked directly rather than by shelling
+    the script: `node` is not on this service's PATH (publish-notes.sh sources nvm to
+    get it), and the healing step must not depend on the thing that just failed.
+    """
+    try:
+        _BUILD_RECEIPT.unlink(missing_ok=True)
+        app.logger.warning(
+            "build receipt invalidated after a failed publish — next publish renders in full"
+        )
+    except OSError:
+        app.logger.exception(
+            "could not invalidate the build receipt; the nightly's full render still heals it"
+        )
+
+
 def _run_publish_script() -> bool:
     """Run one publish. True = the site was published. Never raises.
 
@@ -385,14 +416,22 @@ def _run_publish_script() -> bool:
             "note publish TIMED OUT after %ss — publish pending, nightly repairs",
             _PUBLISH_TIMEOUT,
         )
+        # THE case the receipt guard exists for: a timeout is SIGKILL, so the script's
+        # own trap never ran, and it may well have died between the harvest and the
+        # render — exactly when the delta has been spent.
+        _invalidate_build_receipt()
         return False
     except OSError:
+        # Failed to launch: nothing ran, so nothing was harvested and there is nothing
+        # to heal. Deliberately not invalidating.
         app.logger.exception("note publish failed to launch")
         return False
     if proc.returncode == 0:
         app.logger.info("note publish live")
         return True
     if proc.returncode == _PUBLISH_LOCK_BUSY:
+        # The lock was busy, so the script exited before harvesting anything. The
+        # holder publishes the committed note. Nothing spent, nothing to heal.
         app.logger.warning(
             "note publish deferred: publish lock busy — the holder bakes the committed note"
         )
@@ -404,15 +443,27 @@ def _run_publish_script() -> bool:
             proc.stdout[-2000:],
             proc.stderr[-2000:],
         )
+        # Belt to the script trap's braces: it invalidates on its own non-zero exits,
+        # but if it died before installing the trap (or the trap itself failed) this
+        # still forces the next publish to render in full.
+        _invalidate_build_receipt()
     return False
 
 
 # beeatlas-3nz. One publisher for the process: concurrent writers share a build
 # instead of each running their own behind the flock. See api/publish_queue.py for
 # why sharing is sound (a build covers every commit that preceded its start).
+# The waiter's budget is TWO builds plus slack, not one. A writer that arrives just
+# after a build starts legitimately waits out the rest of it and then a full build of
+# its own; giving it a single build's timeout makes it report "pending" for a note that
+# goes live moments later — the exact response this queue exists to remove.
+_PUBLISH_WAIT_TIMEOUT = int(
+    os.environ.get("NOTE_PUBLISH_WAIT_TIMEOUT", str(2 * _PUBLISH_TIMEOUT + 60))
+)
+
 _publisher = publish_queue.CoalescingPublisher(
     build=_run_publish_script,
-    timeout=_PUBLISH_TIMEOUT,
+    timeout=_PUBLISH_WAIT_TIMEOUT,
     log=lambda msg: app.logger.info("%s", msg),
 )
 

@@ -7,9 +7,9 @@
 # management, source sync, pipeline orchestration, publish — is owned
 # in-repo and version-controlled here.
 #
-# What this script does, in order. NOTE the numbers below count the cd+lock as
-# step 1, which the numbered comments in the body do not — so this list runs one
-# ahead of them from there on (this 6 is the body's 5). Match them by name, not by
+# What this script does, in order. NOTE this list counts the cd+lock as step 1, which
+# the numbered comments in the body do not, so from there on the two disagree: this 6
+# is the body's 5, and this 7 covers the body's 6 AND 7. Match them by NAME, not by
 # number.
 #   1. cd to repo root (derived from $0 — host-agnostic); take the publish
 #      lock (shared with the st-nee write path: nightly and a note write
@@ -257,7 +257,7 @@ fi
 
 # 2. Restore the integration-gate baseline into public/data/ so test_dbt_diff
 # can compare tonight's fresh sandbox against the last PUBLISHED data (the
-# snapshot in step 5 below — NOT last night's possibly-unpublished export).
+# snapshot in step 7 below — NOT last night's possibly-unpublished export).
 # First run: no snapshot yet → the diff tests skip (not fail) on the missing
 # files, same first-run semantics as the retired S3 manifest pull.
 echo "--- restoring integration baseline ---"

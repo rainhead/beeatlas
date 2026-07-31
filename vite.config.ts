@@ -29,18 +29,27 @@ import { MANIFEST_PATH } from './lib/vite-manifest.js';
 // `-dirty` keeps the one thing the timestamp was actually good for: telling you the
 // build included uncommitted work. It is derived from the tree, not the clock, so two
 // builds of the same tree still agree.
+//
+// Its precision is limited in BOTH directions, and it is better to say so than to
+// imply a guarantee. Untracked files are ignored (-uno), because otherwise a stray
+// screenshot in a working copy stamps `-dirty` on a build whose inputs match HEAD
+// exactly — and a marker that is always on says nothing. The cost is that a genuinely
+// new, not-yet-added source file reads as clean. Nor can it see changes to gitignored
+// inputs (public/data/*, the stashed Vite manifest). So: `-dirty` means "tracked files
+// differ from HEAD", not "this build is reproducible".
 function buildVersion() {
   let sha = process.env.GITHUB_SHA || '';
   if (!sha) {
     try { sha = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim(); } catch { /* no git */ }
   }
   // Asked of the tree unconditionally, NOT only when the sha came from git: a
-  // GITHUB_SHA build whose checkout has been modified (a workflow step that writes
-  // files before building) would otherwise advertise a clean commit while shipping
-  // something else, which is the exact misreport this marker exists to prevent.
+  // GITHUB_SHA build whose checkout has modified TRACKED files (a workflow step that
+  // rewrites one before building) would otherwise advertise a clean commit while
+  // shipping something else, which is the misreport this marker exists to prevent.
   let dirty = '';
   try {
-    if (execSync('git status --porcelain', { encoding: 'utf8' }).trim()) dirty = '-dirty';
+    const changed = execSync('git status --porcelain --untracked-files=no', { encoding: 'utf8' });
+    if (changed.trim()) dirty = '-dirty';
   } catch { /* no git */ }
   return sha ? `${sha.slice(0, 7)}${dirty}` : 'dev';
 }

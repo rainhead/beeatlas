@@ -821,3 +821,70 @@ def test_rejected_write_never_publishes(client, monkeypatch, tmp_path, tmp_engin
     )
     assert resp.status_code == 404
     assert calls == []
+
+
+# --- beeatlas-3nz / 4oa: the receipt guard on a failed publish -----------------
+# A publish that dies AFTER the harvest has spent stelis's per-key delta, so the next
+# scoped render would legitimately find "no keys moved" and publish a site missing the
+# note while its author was told "live". An absent receipt forces a full render, which
+# reads notes/ directly and heals it.
+
+
+def test_publish_receipt_path_agrees_with_the_script(monkeypatch):
+    """main.py unlinks the receipt directly (node is not on the service's PATH), so the
+    path is duplicated. Catch the two drifting apart."""
+    script = (main._BUILD_RECEIPT.parent.parent.parent / "scripts" / "build-receipt.mjs").read_text()
+    assert "'.cache', 'beeatlas-build', 'receipt.json'" in script, (
+        "build-receipt.mjs no longer names .cache/beeatlas-build/receipt.json; "
+        f"api/main.py._BUILD_RECEIPT ({main._BUILD_RECEIPT}) must move with it"
+    )
+
+
+def test_timed_out_publish_invalidates_the_receipt(client, monkeypatch, tmp_path, tmp_engine):
+    """A timeout is SIGKILL, so publish-notes.sh's own trap never runs — this is the
+    case the API-side guard exists for."""
+    uid = _make_user(tmp_engine)
+    _sign_in(client, monkeypatch, tmp_path, uid=uid)
+    monkeypatch.setattr(config, "NOTE_PUBLISH_ENABLED", True)
+
+    receipt = tmp_path / "receipt.json"
+    receipt.write_text("{}")
+    monkeypatch.setattr(main, "_BUILD_RECEIPT", receipt)
+
+    def _timeout(*a, **k):
+        raise main.subprocess.TimeoutExpired(cmd="bash", timeout=1)
+
+    monkeypatch.setattr(main.subprocess, "run", _timeout)
+
+    resp = client.post(
+        "/api/notes",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"canonical_name": "apis mellifera", "body_md": "hello"},
+    )
+    assert resp.status_code == 201
+    assert resp.get_json()["publish"] == "pending"
+    assert not receipt.exists(), "a timed-out publish must force the next one to render in full"
+
+
+def test_lock_busy_publish_leaves_the_receipt_alone(client, monkeypatch, tmp_path, tmp_engine):
+    """Exit 75 means the script exited before harvesting anything, so nothing was spent
+    and forcing a full render would be pure waste."""
+    uid = _make_user(tmp_engine)
+    _sign_in(client, monkeypatch, tmp_path, uid=uid)
+    monkeypatch.setattr(config, "NOTE_PUBLISH_ENABLED", True)
+
+    receipt = tmp_path / "receipt.json"
+    receipt.write_text("{}")
+    monkeypatch.setattr(main, "_BUILD_RECEIPT", receipt)
+    monkeypatch.setattr(
+        main.subprocess, "run", lambda *a, **k: _fake_proc(returncode=main._PUBLISH_LOCK_BUSY)
+    )
+
+    resp = client.post(
+        "/api/notes",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"canonical_name": "apis mellifera", "body_md": "hello"},
+    )
+    assert resp.status_code == 201
+    assert resp.get_json()["publish"] == "pending"
+    assert receipt.exists(), "lock-busy harvested nothing; the receipt is still valid"

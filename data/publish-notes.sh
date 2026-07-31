@@ -88,6 +88,28 @@ else
     echo "WARN: $HOME/.nvm/nvm.sh not found — node tooling may not resolve" >&2
 fi
 
+# A publish that dies AFTER the harvest has spent stelis's per-key delta: the harvest
+# recorded its observation, so the next publish's harvest cache-skips, --moved-keys
+# truthfully reports "no keys moved", and a zero-key scoped render publishes a site
+# missing the note — while the author was told "live". notes/ is excluded from the
+# receipt's data fingerprint by design, so nothing else notices.
+#
+# So any failure from here on invalidates the receipt, which forces the next publish to
+# render in FULL — and a full render reads the notes/ dir directly, healing it. Costs
+# one extra full build; the alternative is silently dropping a note.
+#
+# Installed after the nvm block so `node` resolves. Exit 75 is excluded: the lock was
+# busy, nothing ran, there is nothing to heal. api/main.py does this too, because a
+# subprocess timeout SIGKILLs this script and no trap survives that.
+_invalidate_receipt_on_failure() {
+    local rc=$?
+    if [[ $rc -ne 0 && $rc -ne 75 ]]; then
+        echo "publish failed (rc=$rc) — invalidating the build receipt so the next publish renders in full" >&2
+        node "$REPO_ROOT/scripts/build-receipt.mjs" --invalidate || true
+    fi
+}
+trap _invalidate_receipt_on_failure EXIT
+
 # 2. Scoped stelis build: only the notes suffix, targeted to the changed keys.
 echo "--- building notes (stelis, scoped) ---"
 _t0=$(date +%s)

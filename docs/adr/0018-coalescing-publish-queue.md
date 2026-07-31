@@ -36,13 +36,19 @@ a build captures target = requested at its start
   ⇒ on success it has published everything with ticket ≤ target
 ```
 
-A writer blocks until `published_through ≥ its ticket`. Writes arriving mid-build take
-tickets above that build's target, so one further build covers all of them.
+A writer blocks until a build has **concluded** on its ticket (`settled_through ≥
+ticket`) and then reads `published_through` to learn which way it went. The two counters
+are not interchangeable: blocking on `published_through` would hang every waiter of a
+*failed* build forever, because a failure never advances it. Writes arriving mid-build
+take tickets above that build's target, so one further build covers all of them.
 
-**The worst-case wait is now O(1) builds, not O(N).** A writer waits for the remainder
-of the in-flight build plus at most one more — about 17s at today's 8.5s build,
-*regardless* of how many others arrive alongside it. Four concurrent writers cost two
-builds, not four; forty cost two as well.
+**The number of builds is O(1), not O(N).** Four concurrent writers cost two builds, not
+four; forty cost two as well. The *wait* is correspondingly about two build-times — the
+remainder of the one in flight plus a full one of its own — so the waiter's deadline is
+sized for two builds plus slack (`NOTE_PUBLISH_WAIT_TIMEOUT`, default `2 ×
+NOTE_PUBLISH_TIMEOUT + 60`). Sizing it to a single build would make a writer report
+`pending` for a note that goes live moments later, which is the baffling response this
+was built to remove, reappearing at the boundary.
 
 **The POST still blocks.** beeatlas-3nz asked whether it must. Coalescing removes the
 reason to revisit: concurrent writers now all get `"live"` within a bounded wait instead
@@ -68,6 +74,21 @@ keeps going) or finds the flag clear (and starts one).
 nobody is live. A later write gets a fresh attempt rather than inheriting the verdict.
 Commit-first is unchanged: a build that raises degrades to `pending`, never propagating
 into a response for a note that is already durable.
+
+**Nothing in here may raise, and "nothing" includes the boring parts.** Two paths had to
+be hardened for that to be true rather than intended. Logging goes through `_safe_log`
+everywhere: a raising logger inside the worker would kill it with the running flag still
+set — wedging the queue until a service restart — and a raising logger inside `publish()`
+runs on the *request* thread, producing a 500 for a note that was committed and possibly
+published. And `Thread.start()` can fail under thread/fd pressure, after the flag is set;
+it now clears the flag and degrades to `pending`, which under-promises safely because the
+ticket stays outstanding and a later request's build covers it.
+
+**A failed publish also invalidates the build receipt** ([ADR
+0017](0017-scoped-note-render.md)). That is not about coalescing, but it is on this path:
+a run that dies between the harvest and the render has spent Stelis's per-key delta, and
+without invalidation the next publish would legitimately find "no keys moved" and report
+`live` for an unrendered note.
 
 **`_run_publish_script()` no longer takes a `canonical_name`.** It used to log one. With
 sharing, attributing a build to a single name would be a lie in exactly the case that

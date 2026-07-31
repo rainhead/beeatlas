@@ -40,7 +40,13 @@ class FakeBuild:
             self._active += 1
             self.max_concurrent = max(self.max_concurrent, self._active)
         self.started.set()
-        self._gate.wait(5)
+        # Fail loudly rather than completing as if released: silently returning after a
+        # timeout would let a test that means to simulate a HUNG build get a successful
+        # one instead, and pass for the wrong reason.
+        if not self._gate.wait(10):
+            with self._lock:
+                self._active -= 1
+            raise AssertionError("FakeBuild was never released — the test left a build hanging")
         with self._lock:
             self._active -= 1
         return self.ok
@@ -221,3 +227,37 @@ def test_a_raising_logger_cannot_wedge_the_queue():
     assert p.publish() == "live"
     _await_worker_exit(p)
     assert p.publish() == "live"
+
+
+def test_a_worker_that_cannot_start_degrades_instead_of_raising():
+    """Thread.start() can fail under fd/thread/memory pressure.
+
+    Two things must not happen: the exception must not reach the route (the note is
+    already committed, so a 500 would report failure for a durable write), and the
+    running flag must not be left set — that would wedge the queue permanently, since
+    every later request would see a worker that does not exist and wait out its whole
+    timeout.
+    """
+    build = FakeBuild()
+    build.release()
+    p = CoalescingPublisher(build, timeout=1)
+
+    real_thread = threading.Thread
+
+    class ExplodingThread(real_thread):  # type: ignore[misc]
+        def start(self):
+            raise RuntimeError("can't start new thread")
+
+    threading.Thread = ExplodingThread  # type: ignore[misc]
+    try:
+        assert p.publish() == "pending"  # degraded, not raised
+    finally:
+        threading.Thread = real_thread  # type: ignore[misc]
+
+    assert not p.worker_running, "the flag must not be left set, or the queue is wedged"
+    assert build.calls == 0
+
+    # And the queue is still usable once threads can be created again — the ticket that
+    # went unserved is covered by this build, so nothing is lost, only under-reported.
+    assert p.publish() == "live"
+    assert build.calls == 1

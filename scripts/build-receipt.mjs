@@ -4,6 +4,7 @@
  *
  *   node scripts/build-receipt.mjs --write   # after a successful full `npm run build`
  *   node scripts/build-receipt.mjs --check   # before a scoped render; exit 0 = allowed
+ *   node scripts/build-receipt.mjs --invalidate  # after a FAILED publish; forces a full render next
  *
  * A scoped render writes a handful of species pages ADDITIVELY over whatever is
  * already in `_site` and publishes the lot. That is only sound if `_site` is the
@@ -45,7 +46,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDataDir } from '../lib/build-data-dir.js';
@@ -136,6 +137,27 @@ if (mode === '--write') {
   // generated_at for a human reading the file; never compared.
   writeFileSync(RECEIPT, JSON.stringify({ ...fp, at: new Date().toISOString() }, null, 2) + '\n');
   console.log(`build receipt written (${fp.siteFiles} files in _site) → ${relative(ROOT, RECEIPT)}`);
+} else if (mode === '--invalidate') {
+  // Force the NEXT publish down the full-render path.
+  //
+  // This closes a hole the receipt alone cannot see. A publish harvests notes/ FIRST
+  // and renders second, and stelis records the harvest's per-key observation as it
+  // goes. If the run then dies before the render lands, that observation is spent:
+  // the next publish's harvest cache-skips, `--moved-keys` truthfully reports "no
+  // keys moved", and a zero-key scoped render publishes a site missing the note —
+  // while the author is told "live". notes/ is excluded from the data fingerprint by
+  // design (it is the one thing a note publish may change), so no component here
+  // notices.
+  //
+  // A full render reads the notes/ dir directly and therefore always heals it. So a
+  // failed publish invalidates the receipt and the next one rebuilds in full: one
+  // extra full build as the price of never silently dropping a note.
+  if (existsSync(RECEIPT)) {
+    rmSync(RECEIPT);
+    console.log(`build receipt invalidated → next publish renders in full (${relative(ROOT, RECEIPT)})`);
+  } else {
+    console.log('no build receipt to invalidate — the next publish already renders in full');
+  }
 } else if (mode === '--check') {
   if (!existsSync(RECEIPT)) {
     console.error('no build receipt — no full build has been recorded here');
@@ -151,6 +173,6 @@ if (mode === '--write') {
   }
   console.log(`build receipt current (${got.siteFiles} files in _site)`);
 } else {
-  console.error('usage: build-receipt.mjs --write | --check');
+  console.error('usage: build-receipt.mjs --write | --check | --invalidate');
   process.exit(2);
 }
