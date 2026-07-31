@@ -36,6 +36,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, uti
 import { join, relative, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MANIFEST_PATH } from '../lib/vite-manifest.js';
+import { manifestAssetPaths, unnamedAssetPaths } from '../lib/bundle-assets.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BUNDLE_RECEIPT = join(ROOT, '.cache', 'beeatlas-build', 'bundle.json');
@@ -80,13 +81,19 @@ function walk(path, base) {
  * into the slim manifest, which is not content-hashed — then the bundle is a function of
  * src/ + config + deps alone and this input disappears. */
 function buildIdInputs() {
-  try {
-    const sha = process.env.GITHUB_SHA || execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
-    const dirty = execSync('git status --porcelain --untracked-files=no', { encoding: 'utf8' }).trim();
-    return `${sha}\0${dirty ? 'dirty' : 'clean'}`;
-  } catch {
-    return 'no-git';
+  // The two git calls are caught INDEPENDENTLY, mirroring buildVersion(): it keeps
+  // GITHUB_SHA even when git is unavailable, so collapsing both failures into one
+  // constant here would let this gate skip across commits that DO change
+  // __APP_VERSION__.
+  let sha = process.env.GITHUB_SHA || '';
+  if (!sha) {
+    try { sha = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim(); } catch { sha = 'no-sha'; }
   }
+  let dirty = 'clean';
+  try {
+    if (execSync('git status --porcelain --untracked-files=no', { encoding: 'utf8' }).trim()) dirty = 'dirty';
+  } catch { dirty = 'unknown'; }
+  return `${sha}\0${dirty}`;
 }
 
 function fingerprint() {
@@ -105,14 +112,7 @@ function fingerprint() {
  * caches per process: this runs both BEFORE and AFTER `vite build`, and a cached read
  * would describe the pre-build manifest in the receipt we then write. */
 function manifestAssets() {
-  const manifest = JSON.parse(readFileSync(join(ROOT, MANIFEST_PATH), 'utf8'));
-  const files = new Set();
-  for (const entry of Object.values(manifest)) {
-    if (entry.file) files.add(entry.file);
-    for (const css of entry.css ?? []) files.add(css);
-    for (const asset of entry.assets ?? []) files.add(asset);
-  }
-  return [...files].sort();
+  return manifestAssetPaths(JSON.parse(readFileSync(join(ROOT, MANIFEST_PATH), 'utf8')));
 }
 
 /** Why we must rebuild, or null to reuse what is on disk. */
@@ -158,14 +158,29 @@ function cleanExceptAssets() {
  * survive every skipped build, get precached by the service worker's assets/** glob,
  * and be published — the unbounded dead-chunk accumulation ADR 0016 fixed once. */
 function pruneUnnamedAssets(named) {
-  const keep = new Set(named.map(a => a.replace(/^assets\//, '')));
-  let pruned = 0;
-  for (const entry of readdirSync(ASSETS)) {
-    if (keep.has(entry)) continue;
-    rmSync(join(ASSETS, entry), { recursive: true, force: true });
-    pruned += 1;
+  if (!existsSync(ASSETS)) return 0;
+  // walk gives FULL assets/-relative paths, so a nested chunk is compared as
+  // 'species/index-x.js' rather than as the directory 'species' — see
+  // lib/bundle-assets.js for why that distinction is load-bearing.
+  const unnamed = unnamedAssetPaths(named, walk(ASSETS, ASSETS));
+  for (const rel of unnamed) rmSync(join(ASSETS, rel), { force: true });
+  // ...and remove any directory left empty, because an empty one is NOT inert.
+  // scripts/validate-bundle-size.mjs tests `existsSync(_site/assets/species/)` FIRST
+  // and only falls back to the flat `species-*.js` shape when that directory is absent
+  // — so an emptied `species/` sends it down the nested branch, where it finds no
+  // chunks and fails the build. Vite would have left no such directory behind.
+  pruneEmptyDirs(ASSETS);
+  return unnamed.length;
+}
+
+/** Depth-first removal of empty directories under `dir` (never `dir` itself). */
+function pruneEmptyDirs(dir) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const child = join(dir, entry.name);
+    pruneEmptyDirs(child);
+    if (readdirSync(child).length === 0) rmSync(child, { recursive: true, force: true });
   }
-  return pruned;
 }
 
 /** Mark the reused assets as part of THIS publish.

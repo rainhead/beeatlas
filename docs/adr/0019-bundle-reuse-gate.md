@@ -46,12 +46,30 @@ healthcheck ping, and invisible to every local check because `_site` is intact. 
 gate touches the files it reuses. They *are* part of this publish; they should look it.
 Found by review, not by the outage.
 
+Both legs of that are tested, because the fix would be theatre if either failed: ageing
+the assets 40 days and then skipping leaves none over 30 days locally, and `rsync -a` —
+whose quick-check is size+mtime — *does* propagate a mtime-only change, itemising
+`>f..t....` and stamping the destination fresh. Had rsync skipped the transfer instead,
+the local touch would have achieved nothing and the live bundle would still have aged
+out.
+
 **3. It emptied `assets/` itself.** The presence check is one-directional (manifest ⊆
 disk), so a stray file in `assets/` would survive every skipped build, be precached by
 the service worker's `assets/**` glob, and be published — the unbounded dead-chunk
 accumulation ADR 0016 fixed once already. So a skip also deletes anything in `assets/`
 the manifest does not name, which makes "indistinguishable from having run Vite"
 enforced rather than circumstantial.
+
+Two details there are easy to get wrong, and I got both wrong first. The comparison must
+be over **full relative paths**: match manifest basenames against top-level directory
+entries and a manifest naming `assets/species/index-abc.js` yields the keep-entry
+`species/index-abc.js` against the directory `species`, so the whole directory is deleted
+immediately after the presence check vouched for its contents — and
+`scripts/validate-bundle-size.mjs` carries an explicit branch for that shape because Vite
+has emitted it here. And emptied directories must go too: that same validator tests
+`existsSync(_site/assets/species/)` *before* falling back to the flat `species-*.js`
+form, so an empty `species/` routes it down a branch containing no chunks and fails the
+build. Vite would have left neither.
 
 ## Consequences
 

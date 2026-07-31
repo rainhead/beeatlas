@@ -199,22 +199,29 @@ ordering = 1
     expect(pkg.scripts['build:content']).not.toMatch(/build-receipt/);
   });
 
-  // beeatlas-bon: the bundle gate's own contract. Its correctness rests on a property
-  // no assertion here can see — that a skip cleans _site exactly as Vite's emptyOutDir
-  // would — which is verified by byte-comparing a gated-skip build against a
-  // vite-ran build (they differ only in _scaffold-check's wall-clock builtAt). What is
-  // pinned here is the wiring that property depends on.
+  // beeatlas-bon: the gate's WIRING only. Its delete decision — which files a skip
+  // removes — is asserted behaviourally in src/tests/bundle-assets.test.ts, and the
+  // whole-tree equivalence is verified out-of-band by byte-comparing a gated-skip build
+  // against a vite-ran build. What is pinned here is what those properties depend on
+  // structurally, and nothing more: matching an identifier proves it is present, not
+  // that it is reached.
   test('the bundle gate wraps vite rather than replacing it', () => {
     const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
     // The gate shells build:bundle on a rebuild, so removing that script breaks it.
     expect(pkg.scripts['build:bundle']).toBe('vite build');
     const gate = readFileSync(resolve(REPO_ROOT, 'scripts/build-app.mjs'), 'utf-8');
     expect(gate).toContain('build:bundle');
-    // A skip must still clean. If this ever stops being true, a full build no longer
-    // deletes anything from _site and a page dropped from the data lives forever —
-    // merge-swap rsyncs pages with --delete, so _site is the authority.
-    expect(gate).toMatch(/cleanExceptAssets/);
-    // ...and it must keep assets/, which is the whole point of skipping.
-    expect(gate).toMatch(/if \(entry === 'assets'\) continue;/);
+    // The two side effects of `vite build` that a skip has to impersonate: cleaning
+    // _site (without it a full build stops deleting anything, and a page dropped from
+    // the data lives forever, since merge-swap rsyncs pages with --delete), and
+    // refreshing the reused assets' mtimes (without that merge-swap's `-mtime +30`
+    // prune eventually deletes the live bundle). Both per ADR 0019.
+    expect(gate).toMatch(/cleanExceptAssets\(\)/);
+    expect(gate).toMatch(/refreshAssetMtimes\(\)/);
+    // And it must not leave an emptied directory behind: validate-bundle-size checks
+    // existsSync(_site/assets/species/) BEFORE falling back to the flat species-*.js
+    // shape, so an empty species/ sends it down a branch with no chunks in it and fails
+    // the build. Vite would have left no such directory.
+    expect(gate).toMatch(/pruneEmptyDirs\(ASSETS\)/);
   });
 });
