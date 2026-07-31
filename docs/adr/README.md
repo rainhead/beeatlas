@@ -19,3 +19,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0013](0013-event-driven-incremental-notes-publish.md) | Event-driven incremental notes publish (contributions live in seconds) | Accepted |
 | [0014](0014-species-page-information-hierarchy.md) | Species page information hierarchy (sample-size count supersedes stars) | Accepted |
 | [0015](0015-dem-derived-elevation.md) | DEM-derived elevation is a separate column; checklist rows never get one | Accepted |
+| [0016](0016-vite-backend-integration.md) | Vite builds the app, Eleventy the HTML, meeting at a manifest | Accepted |

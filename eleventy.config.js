@@ -1,33 +1,36 @@
-// Eleventy 3.x outer build config. The Vite SPA is passed through
-// to _site/ unchanged; @11ty/eleventy-plugin-vite then bundles
-// client JS/CSS via Vite (rename-and-build mechanism — see
-// 074-RESEARCH.md §Pattern 1).
+// Eleventy 3.x outer build config.
 //
-// dir.input = "_pages" intentionally — disjoint from src/ (SPA
-// TypeScript) so Eleventy doesn't try to template .ts files.
-// Phase 75 populates _pages/ with an authoring scaffold; this
-// phase leaves it empty (only .gitkeep).
-import EleventyVitePlugin from "@11ty/eleventy-plugin-vite";
+// Eleventy owns HTML; Vite owns the app bundle. They meet at the stashed manifest
+// (`.cache/beeatlas-vite/manifest.json`, lib/vite-manifest.js MANIFEST_PATH — Vite
+// writes it to `_site/.vite/` and the stash plugin moves it there, outside _site so
+// it is never published and outside node_modules so `npm ci` cannot destroy it).
+// (Vite BACKEND INTEGRATION, beeatlas-d3y): `vite build` runs FIRST and writes the
+// manifest, then Eleventy renders pages and emits the hashed <script>/<link> tags
+// itself via the `viteAssets` shortcode below (lib/vite-manifest.js).
+//
+// This replaced @11ty/eleventy-plugin-vite, which ran Vite in appType:"mpa" over the
+// whole output — every one of the 1668 built pages was a Vite entry point, and its
+// rename-and-build destroyed anything in _site that Vite had not produced. Measured
+// 2026-07-30: that pass cost 5.58s against 1.00s for the app-only build, i.e. ~4.6s
+// of HTML reprocessing on every publish, including note-only publishes that cannot
+// change a byte of the bundle.
+//
+// Removing the plugin also let the Vite configuration collapse back into
+// vite.config.ts. The plugin ran Vite rooted at `.11ty-vite/` and never loaded that
+// file, which is why `envDir`, `optimizeDeps`, `server.allowedHosts`, `define` and
+// the whole `oxc`/decorator block had to be repeated here — including the duplicated
+// decorator config behind the 2026-07-10 site-wide outage. There is now one place.
+//
+// dir.input = "_pages" intentionally — disjoint from src/ (SPA TypeScript) so
+// Eleventy doesn't try to template .ts files.
 import { quantify } from "./src/lib/quantify.js";
 import { formatDate } from "./src/lib/formatDate.js";
-import { VitePWA } from "vite-plugin-pwa";
-import { resolve } from "path";
-import { execSync } from "node:child_process";
+import { assetTags, devAssetTags } from "./lib/vite-manifest.js";
 
-// Build identifier shown in the offline cache popover so a stale installed PWA
-// is diagnosable at a glance (iOS keeps an old SW + caches across reinstalls).
-// Prefer the CI commit SHA; fall back to local git; then to "dev".
-function buildVersion() {
-  let sha = process.env.GITHUB_SHA || "";
-  if (!sha) {
-    try { sha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim(); } catch { /* no git */ }
-  }
-  const short = sha ? sha.slice(0, 7) : "dev";
-  const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
-  return `${short} · ${stamp}Z`;
-}
+const ROOT = import.meta.dirname;
+const IS_SERVE = process.env.ELEVENTY_RUN_MODE === "serve";
 
-export default function (eleventyConfig) {
+export default async function (eleventyConfig) {
   // Single pluralization utility for all count-noun copy (e.g. "1 genus" vs
   // "3 genera"). Pass an explicit plural for irregular nouns:
   //   {{ count | quantify("genus", "genera") }}
@@ -38,158 +41,40 @@ export default function (eleventyConfig) {
   // timestamps never diverge (Phase 179).
   eleventyConfig.addFilter("formatDate", formatDate);
 
-  // The SPA entry lives in _pages/index.html and is rendered as an
-  // Eleventy template (plain HTML, no front-matter). DEVIATION from
-  // the original plan: `addPassthroughCopy({ "index.html": "index.html" })`
-  // is intentionally NOT used here. The `@11ty/eleventy-plugin-vite`
-  // plugin skips its Vite build pass when Eleventy writes 0 templated
-  // outputs (see `node_modules/@11ty/eleventy-plugin-vite/.eleventy.js`
-  // line 81: `results.length === 0`). Passthroughs do not count toward
-  // `results`. Therefore the SPA entry must be a template, not a
-  // passthrough, for Vite to run and rewrite the `<script type="module">`
-  // tag with the hashed `/assets/index-*.js` path.
+  // {% viteAssets "src/entries/taxon-page.ts" %} — the tags for one Vite entry.
+  // The argument is the manifest key, i.e. the module's path from the project root,
+  // and must appear in build.rollupOptions.input (vite.config.ts).
   //
-  // Pass src/ through so Vite (running in the renamed temp folder)
-  // can resolve "./src/bee-atlas.ts" and "./src/index.css" from
-  // index.html. Vite then bundles + hashes the result into
-  // _site/assets/.
-  eleventyConfig.addPassthroughCopy({ "src": "src" });
-  // NOTE: do NOT add `addPassthroughCopy({ "public": "/" })` explicitly.
-  // The eleventy-plugin-vite wrapper auto-registers
-  // `addPassthroughCopy(viteOptions.publicDir || "public")`, which
-  // copies `public/` → `_site/public/`. Then Vite's build picks up
-  // `<.11ty-vite>/public/*` via its default `publicDir` handling and
-  // copies the contents into the final outDir (`_site/`) at site root.
-  // The two-step (Eleventy passthrough → Vite publicDir copy) is
-  // load-bearing because Vite's rename-and-build mechanism destroys
-  // anything in `_site/` that Vite did not produce. (Source:
-  // node_modules/@11ty/eleventy-plugin-vite/EleventyVite.js:163 — the
-  // plugin rms `.11ty-vite/` after Vite finishes; only files Vite
-  // emitted into `outDir` survive.)
+  // In `--serve` the Vite dev server serves modules from source, so the raw path is
+  // emitted instead, alongside Vite's HMR client.
+  eleventyConfig.addShortcode("viteAssets", (key) =>
+    IS_SERVE ? devAssetTags(key) : assetTags(ROOT, key));
 
-  eleventyConfig.addPlugin(EleventyVitePlugin, {
-    viteOptions: {
-      // appType: "mpa" is the plugin default; explicit for clarity.
-      // Do NOT set viteOptions.root or viteOptions.build.outDir —
-      // the plugin overrides them at build time (research §Anti-Patterns).
-      appType: "mpa",
-      // The plugin runs Vite rooted at `.11ty-vite/` (the renamed temp
-      // folder) for the dev server, so Vite's auto-discovery of
-      // repo-root `.env` files and `vite.config.ts` settings does NOT
-      // carry through to the dev pipeline. Repeat the dev-critical bits
-      // here so they reach Vite via the plugin's invocation:
-      //   - envDir: process.cwd() — let Vite read /.env at repo root so
-      //     `import.meta.env.VITE_MAPBOX_TOKEN` (and VITE_DATA_BASE_URL)
-      //     populate during `npm run dev`.
-      //   - optimizeDeps.exclude: ['wa-sqlite'] — without this, Vite's
-      //     dev pre-bundler tries to esbuild wa-sqlite.wasm into
-      //     `node_modules/.vite/deps/`, which 404s (esbuild can't
-      //     produce .wasm). Excluding from optimization makes Vite
-      //     resolve wa-sqlite to its source path and serve the .wasm
-      //     directly via /@fs.
-      // Production `vite build` discovers vite.config.ts via cwd and
-      // works without this — it's a dev-server-only concern.
-      envDir: process.cwd(),
-      // Compile-time build identifier surfaced in the offline cache popover.
-      define: {
-        __APP_VERSION__: JSON.stringify(buildVersion()),
-      },
-      // Lit uses legacy (experimental) decorators and REQUIRES class fields to
-      // NOT be defined (tsconfig: `experimentalDecorators: true`,
-      // `useDefineForClassFields: false`). As of vite 8.1 / rolldown 1.1 the oxc
-      // transform stopped auto-deriving BOTH of these from tsconfig, so they
-      // must be set explicitly:
-      //   - decorator.legacy: without it, `@customElement`/`@property` emit RAW
-      //     into the bundle → illegal `@` (U+0040) → SyntaxError, site-wide
-      //     outage (the 2026-07-10 incident).
-      //   - useDefineForClassFields:false equivalent (assumptions
-      //     .setPublicClassFields + typescript.removeClassFieldsWithoutInitializer,
-      //     per the rolldown binding docs): without it, a declare-only field like
-      //     `@query('#map') mapElement!` is emitted as a real class field that
-      //     SHADOWS the decorator's prototype getter → this.mapElement is
-      //     undefined → `new mapboxgl.Map({container:undefined})` throws and the
-      //     map never renders. Silent in unit tests (bee-map is mocked); only a
-      //     real browser catches it.
-      // Must live HERE (not vite.config.ts): the plugin runs Vite rooted at
-      // `.11ty-vite/` for both dev and build and never loads vite.config.ts,
-      // same as optimizeDeps/server above.
-      oxc: {
-        decorator: {
-          legacy: true,
-        },
-        assumptions: {
-          setPublicClassFields: true,
-        },
-        typescript: {
-          removeClassFieldsWithoutInitializer: true,
-        },
-      },
-      optimizeDeps: {
-        exclude: ["wa-sqlite"],
-      },
-      // server.* must live HERE, not in vite.config.ts — same reason as
-      // above: the dev server runs Vite in middleware mode rooted at
-      // `.11ty-vite/` and never loads vite.config.ts, so `allowedHosts`
-      // set there has no effect. Vite's host-check middleware still runs
-      // in middleware mode, so reaching `eleventy --serve` via an external
-      // hostname (e.g. proxied through maderas) requires whitelisting it
-      // here. The plugin deep-merges this with its default
-      // `server: { middlewareMode: true }`.
-      server: {
-        allowedHosts: [
-          "maderas.amandrai.net",
-          // Tailscale MagicDNS name — lets `tailscale serve` proxy the dev
-          // server over HTTPS for on-device (iOS) testing, which needs a
-          // secure context for geolocation + PWA install. (Phase 152 UAT.)
-          "peters-macbook-air.tail5d2e45.ts.net",
-        ],
-      },
-      // vite-plugin-pwa must live HERE, not in vite.config.ts — same reason
-      // as server.* above: the dev server and build run Vite rooted at
-      // `.11ty-vite/` and never load `vite.config.ts`, so a plugin wired
-      // there would be silently ignored. Absolute paths for outDir,
-      // globDirectory, and swDest are required because relative paths resolve
-      // relative to `.11ty-vite/` (not the project root), and `.11ty-vite/`
-      // is deleted after the build. process.cwd() is the established idiom
-      // for project-root paths in this file (see envDir above).
-      plugins: [
-        VitePWA({
-          strategies: 'injectManifest',
-          srcDir: 'src',         // .11ty-vite/src/sw.ts (src/ is Eleventy passthrough)
-          filename: 'sw.ts',     // .ts extension triggers TypeScript SW sub-build
-          outDir: resolve(process.cwd(), '_site/app'),  // compiled SW lands at _site/app/sw.js
-          base: '/',             // ensures precache URLs have a leading / (RESEARCH Open Q1)
-          injectRegister: null,  // D-06: keep Phase 147 registration; no competing <script>
-          manifest: false,       // D-07: no webmanifest until Phase 151
-          injectManifest: {
-            globDirectory: resolve(process.cwd(), '_site'),  // scan full output tree
-            swDest: resolve(process.cwd(), '_site/app/sw.js'),  // injection writes here
-            // `.wasm` is load-bearing for offline cold-start: the wa-sqlite engine
-            // binary (assets/wa-sqlite-<hash>.wasm) must be precached or the SQL
-            // worker can't initialize offline → tablesReady never resolves → the
-            // "Loading…" curtain hangs forever (Phase 151 real-device UAT, PWA-03).
-            globPatterns: ['app/index.html', 'assets/**/*.{js,css,wasm}'],
-            globIgnores: [
-              'data/**', 'feeds/**', '**/*.db', '**/*.geojson',
-              '**/*.parquet', '**/*.png', '**/sw.js',
-            ],
-            maximumFileSizeToCacheInBytes: 30_000_000,  // D-03: 30 MB cap (Phase 149 readiness)
-            // Glob paths are relative to globDirectory (_site/) without a leading /.
-            // modifyURLPrefix prepends / so precache URLs are absolute site paths
-            // (e.g. /app/index.html, /assets/app/index-<hash>.js) as required by
-            // the criterion-4 assertion and the SW precache cache-key contract.
-            modifyURLPrefix: { '': '/' },
-          },
-        }),
-      ],
-      // publicDir defaults to "public" (Vite default). The plugin
-      // auto-registers `addPassthroughCopy("public")` (.eleventy.js
-      // line 40) so `public/` → `_site/public/` (then renamed to
-      // `.11ty-vite/public/`). Vite's default publicDir handling then
-      // copies the contents back to `_site/` at site root, satisfying
-      // the runtime URL contract `/data/...`, `/feeds/...`, etc.
-    },
-  });
+  // `public/app` holds the PWA shell's static files (webmanifest + icons) at their
+  // runtime URLs under /app. It is copied directly now; under the old plugin it
+  // reached the site root by a two-step dance (Eleventy passthrough into the renamed
+  // temp folder, then Vite's publicDir copy back out).
+  //
+  // `public/data` is deliberately NOT passed through. scripts/postbuild-data.mjs owns
+  // _site/data wholesale — it rm -rf's the directory and rebuilds it from the build
+  // data dir — so the old passthrough staged 1275 files for that script to delete,
+  // and under EXPORT_DIR it staged them from the wrong place (the repo's public/data
+  // rather than the export).
+  eleventyConfig.addPassthroughCopy({ "public/app": "app" });
+
+  // In serve mode Vite runs as middleware inside the Eleventy dev server, so
+  // /@vite/client, /src/*.ts and pre-bundled deps resolve while Eleventy serves the
+  // HTML around them. This is the one piece of the old plugin worth keeping, minus
+  // the rename-and-build: dev needs a module server, the production build does not.
+  if (IS_SERVE) {
+    const { createServer } = await import("vite");
+    const vite = await createServer({
+      configFile: `${ROOT}/vite.config.ts`,
+      appType: "custom",
+      server: { middlewareMode: true },
+    });
+    eleventyConfig.setServerOptions({ middleware: [vite.middlewares] });
+  }
 
   return {
     dir: {

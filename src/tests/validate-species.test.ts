@@ -160,9 +160,17 @@ ordering = 1
   test('package.json build script invokes validate-species in the correct order', () => {
     const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
     expect(pkg.scripts['validate-species']).toBe('node scripts/validate-species.mjs');
-    // Order: validate-species -> validate-db -> typecheck -> eleventy -> validate-bundle-size
+    // Order: validate-species -> validate-db -> typecheck -> build:app -> eleventy
+    //        -> build:sw -> validate-bundle-size
     // v3.4 CUTOVER-03: validate-schema retired (dbt contract enforces the schema)
-    expect(pkg.scripts.build).toBe('npm run validate-species && npm run validate-db && npm run typecheck && eleventy && npm run validate-bundle-size');
+    // beeatlas-d3y: the ordering around eleventy is load-bearing, not cosmetic.
+    // build:app must precede it (Eleventy reads the stashed Vite manifest at
+    // data-load time to emit hashed asset URLs) and build:sw must follow it
+    // (vite-plugin-pwa's injectManifest globs the built site, and app/index.html
+    // is Eleventy's output).
+    expect(pkg.scripts.build).toBe('npm run validate-species && npm run validate-db && npm run typecheck && npm run build:app && eleventy && npm run build:sw && npm run validate-bundle-size');
+    expect(pkg.scripts['build:app']).toBe('vite build');
+    expect(pkg.scripts['build:sw']).toBe('vite build -c vite.sw.config.ts');
     // Model Y: the postbuild lifecycle hashes the runtime data artifacts into
     // _site/data and writes the slim manifest (scripts/postbuild-data.mjs).
     expect(pkg.scripts.postbuild).toBe('node scripts/postbuild-data.mjs');

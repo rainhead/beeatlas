@@ -17,8 +17,8 @@ eleventyExcludeFromCollections: true
     <link rel="apple-touch-icon" href="/app/icons/apple-touch-icon-180.png" />
     <!-- theme color for browser chrome (belt-and-suspenders; Android Chrome reads manifest) -->
     <meta name="theme-color" content="#080d26" />
-    <link rel="stylesheet" href="/src/index.css" />
-    <script type="module" src="/src/app-entry.ts"></script>
+    {% viteAssets "src/index.css" %}
+    {% viteAssets "src/app-entry.ts" %}
   </head>
   <body>
     <bee-atlas></bee-atlas>

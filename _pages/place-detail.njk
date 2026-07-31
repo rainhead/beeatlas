@@ -8,7 +8,7 @@ eleventyComputed:
   title: "{{ place.name }} — BeeAtlas"
 layout: default.njk
 ---
-<link rel="stylesheet" href="/src/styles/places.css">
+{% viteAssets "src/styles/places.css" %}
 <article class="places-page place-detail">
   <h1>{{ place.name }}</h1>
   <div class="media-grid">

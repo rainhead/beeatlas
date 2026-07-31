@@ -2,7 +2,7 @@
 layout: base.njk
 ---
 <bee-header></bee-header>
-<script type="module" src="/src/entries/bee-header.ts"></script>
+{% viteAssets "src/entries/bee-header.ts" %}
 <main>
 {{ content | safe }}
 </main>

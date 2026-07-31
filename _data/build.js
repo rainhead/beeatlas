@@ -28,7 +28,9 @@ function gitSha() {
 
 export default {
   eleventyVersion: pkgVersion('@11ty/eleventy'),
-  pluginVersion: pkgVersion('@11ty/eleventy-plugin-vite'),
+  // No pluginVersion: @11ty/eleventy-plugin-vite is gone (beeatlas-d3y, ADR 0016).
+  // Eleventy and Vite now run as separate build steps that meet at the manifest, so
+  // there is no bridging plugin whose version means anything.
   viteVersion: pkgVersion('vite'),
   litVersion: pkgVersion('lit'),
   nodeVersion: process.version,
