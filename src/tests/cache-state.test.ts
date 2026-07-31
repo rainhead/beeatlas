@@ -213,21 +213,24 @@ describe('bee-header cache surfaces (Phase 150)', () => {
       .toBe('https://github.com/rainhead/beeatlas');
   });
 
-  test('freshness-caption renders when freshnessLabel non-null', async () => {
+  // beeatlas-j96 folded freshness into the menu; the header itself never shows
+  // it (the inline caption under the title outlived that fold by oversight).
+  test('freshness renders as a menu row, never beside the title', async () => {
     (el as any).freshnessLabel = 'Today';
     await (el as any).updateComplete;
 
-    const caption = el.shadowRoot!.querySelector('.freshness-caption');
-    expect(caption).not.toBeNull();
-    expect(caption!.textContent).toBe('Today');
+    expect(el.shadowRoot!.querySelector('.left-group')!.textContent).not.toMatch(/Today/);
+
+    await openMenu();
+    expect(el.shadowRoot!.querySelector('.account-popover')!.textContent).toMatch(/Today/);
   });
 
-  test('freshness-caption hidden when freshnessLabel is null (D-11/D-12)', async () => {
+  test('no freshness row when freshnessLabel is null (D-11/D-12)', async () => {
     (el as any).freshnessLabel = null;
     await (el as any).updateComplete;
+    await openMenu();
 
-    const caption = el.shadowRoot!.querySelector('.freshness-caption');
-    expect(caption).toBeNull();
+    expect(el.shadowRoot!.querySelector('.account-popover')!.textContent).not.toMatch(/Today|Data as of/);
   });
 
   test('popover opens on ready-pill click + dispatches "cache-popover-toggle" upward', async () => {

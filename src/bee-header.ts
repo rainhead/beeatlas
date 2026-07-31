@@ -47,26 +47,10 @@ export class BeeHeader extends LitElement {
       gap: 4px;
     }
 
-    .title-group {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-    }
-
     h1 {
       font-size: 1.2rem;
       margin: 0 0 0 1rem;
       font-weight: 400;
-    }
-
-    .freshness-caption {
-      font-size: 0.75rem;
-      line-height: 1.4;
-      color: rgba(255, 255, 255, 0.65);
-      margin-left: 1rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .right-group {
@@ -337,8 +321,7 @@ export class BeeHeader extends LitElement {
 
     /* Mobile: keep primary nav + the single account/menu button. Since
        beeatlas-j96 the account/status chrome is one button at every width, so
-       the only mobile-specific work left is reclaiming horizontal space and
-       dropping the freshness caption (it is a row in the menu). */
+       the only mobile-specific work left is reclaiming horizontal space. */
     @media (max-width: 640px) {
       /* Safety net: on the very narrowest screens (install + account together)
          let the trailing group wrap to a second line instead of overflowing.
@@ -349,7 +332,6 @@ export class BeeHeader extends LitElement {
       .left-group { gap: 0; }
       .right-group { margin-left: auto; padding-right: 0; }
       h1 { font-size: 1rem; margin-left: 0.5rem; }
-      .freshness-caption { display: none; }
     }
   `;
 
@@ -619,10 +601,7 @@ export class BeeHeader extends LitElement {
   render() {
     return html`
       <div class="left-group">
-        <div class="title-group">
-          <h1>BeeAtlas</h1>
-          ${this.freshnessLabel ? html`<span class="freshness-caption">${this.freshnessLabel}</span>` : ''}
-        </div>
+        <h1>BeeAtlas</h1>
         <a href="/" class="icon-btn ${(window.location?.pathname ?? '') === '/' || (window.location?.pathname ?? '') === '/index.html' ? 'active' : ''}" aria-label="Map" title="Map">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z"/>
