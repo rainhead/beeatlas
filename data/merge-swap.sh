@@ -5,6 +5,12 @@
 #   a. hashed assets + data first, NO --delete — a cached index.html may still
 #      reference last night's hashed names; age-pruned instead (new URLs each
 #      publish, so nothing stale is ever re-served under a current name).
+#      THE AGE-PRUNE BELOW DEPENDS ON THE ASSETS LOOKING FRESH. That used to be
+#      automatic — every build reran Vite, which rewrote them. Since beeatlas-bon
+#      a build may REUSE the bundle instead, so scripts/build-app.mjs touches the
+#      files it reuses; without that, `rsync -a` would carry their old mtimes here
+#      and `-mtime +30` would eventually delete the live bundle out from under the
+#      pages referencing it. If you change either side, change both.
 #   b. stable-URL dirs with --delete so removed species/places prune.
 #   c. the page tree with --delete (excluding /assets and /data).
 #   d. manifest.json LAST and atomically: every name it resolves already

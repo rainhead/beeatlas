@@ -170,7 +170,12 @@ ordering = 1
     // is Eleventy's output).
     expect(pkg.scripts.validate).toBe('npm run validate-species && npm run validate-db && npm run typecheck');
     expect(pkg.scripts.build).toBe('npm run validate && npm run build:app && eleventy && npm run build:sw && npm run validate-bundle-size');
-    expect(pkg.scripts['build:app']).toBe('vite build');
+    // beeatlas-bon: build:app is now a gate that runs build:bundle only when the
+    // bundle's inputs moved. The gate MUST stay in the `build` chain rather than being
+    // hoisted out, because on a skip it also performs the cleaning that Vite's
+    // emptyOutDir would have done — without it a full build stops deleting from _site.
+    expect(pkg.scripts['build:app']).toBe('node scripts/build-app.mjs');
+    expect(pkg.scripts['build:bundle']).toBe('vite build');
     expect(pkg.scripts['build:sw']).toBe('vite build -c vite.sw.config.ts');
     // Model Y: the postbuild lifecycle hashes the runtime data artifacts into
     // _site/data and writes the slim manifest (scripts/postbuild-data.mjs), then
@@ -192,5 +197,24 @@ ordering = 1
     // The receipt attests to a FULL build; a scoped render must not refresh it, or
     // it would vouch for a tree it only partly produced.
     expect(pkg.scripts['build:content']).not.toMatch(/build-receipt/);
+  });
+
+  // beeatlas-bon: the bundle gate's own contract. Its correctness rests on a property
+  // no assertion here can see — that a skip cleans _site exactly as Vite's emptyOutDir
+  // would — which is verified by byte-comparing a gated-skip build against a
+  // vite-ran build (they differ only in _scaffold-check's wall-clock builtAt). What is
+  // pinned here is the wiring that property depends on.
+  test('the bundle gate wraps vite rather than replacing it', () => {
+    const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
+    // The gate shells build:bundle on a rebuild, so removing that script breaks it.
+    expect(pkg.scripts['build:bundle']).toBe('vite build');
+    const gate = readFileSync(resolve(REPO_ROOT, 'scripts/build-app.mjs'), 'utf-8');
+    expect(gate).toContain('build:bundle');
+    // A skip must still clean. If this ever stops being true, a full build no longer
+    // deletes anything from _site and a page dropped from the data lives forever —
+    // merge-swap rsyncs pages with --delete, so _site is the authority.
+    expect(gate).toMatch(/cleanExceptAssets/);
+    // ...and it must keep assets/, which is the whole point of skipping.
+    expect(gate).toMatch(/if \(entry === 'assets'\) continue;/);
   });
 });
