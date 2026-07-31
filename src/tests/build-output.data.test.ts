@@ -336,11 +336,22 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
 
   test('_site/app/index.html references a hashed app entry chunk (ROUTE-01)', () => {
     const html = readFileSync(resolve(ROOT, '_site/app/index.html'), 'utf-8');
-    // Vite rewrites /src/app-entry.ts -> /assets/app/index-<hash>.js
-    // (MPA mode: chunk named from HTML page path, not entry module name).
-    // Pin the index- prefix so async/vendor chunks under /assets/app/ can't
-    // satisfy this — it must be the rewritten module entry (WR-02).
-    expect(html).toMatch(/src="\/assets\/app\/index-[^"]+\.js"/);
+    // beeatlas-d3y: Eleventy now emits this tag itself from the Vite manifest (the
+    // viteAssets shortcode), so the chunk is named after the ENTRY MODULE
+    // (src/app-entry.ts -> assets/app-entry-<hash>.js). Under the old plugin's MPA
+    // mode it was named after the HTML page path (assets/app/index-<hash>.js).
+    // Pin the app-entry- prefix, as the index- pin did, so an async or vendor chunk
+    // cannot satisfy this — it must be the entry (WR-02).
+    const m = html.match(/<script type="module"[^>]*src="(\/assets\/app-entry-[^"]+\.js)"/);
+    expect(m, `no hashed app-entry module script in _site/app/index.html:\n${html}`).toBeTruthy();
+    // And the chunk must actually exist. This is the half the old regex could not
+    // check: the tag is now rendered from a STASHED manifest that outlives a build,
+    // so a stale manifest would emit a perfectly well-formed reference to a chunk
+    // this build never wrote.
+    expect(
+      existsSync(resolve(ROOT, '_site' + m![1]!)),
+      `app/index.html references ${m![1]!}, which is not in _site/ — stale Vite manifest?`,
+    ).toBe(true);
   });
 
   test('_site/app/sw.js exists at unhashed stable URL (D-04)', () => {
@@ -373,18 +384,21 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     // Phase 151 real-device UAT: the SQL worker cannot initialize offline unless
     // the wa-sqlite WebAssembly binary is precached. Without it, tablesReady never
     // resolves and the "Loading…" curtain hangs forever on offline cold-start.
-    // The precache glob in eleventy.config.js must keep `wasm` in its extension list.
+    // The precache glob in vite.sw.config.ts must keep `wasm` in its extension list.
     const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
     const urlMatches = [...sw.matchAll(/"url":"([^"]+)"/g)].map(m => m[1]!);
     const wasmEntries = urlMatches.filter(u => u.endsWith('.wasm'));
-    expect(wasmEntries.length, 'no .wasm precached — offline SQL engine init will hang (see eleventy.config.js globPatterns)').toBeGreaterThan(0);
+    expect(wasmEntries.length, 'no .wasm precached — offline SQL engine init will hang (see vite.sw.config.ts globPatterns)').toBeGreaterThan(0);
     expect(wasmEntries.some(u => /wa-sqlite/.test(u)), `wa-sqlite wasm not precached; entries: ${wasmEntries.join(', ')}`).toBe(true);
   });
 
-  test('eleventy.config.js sets maximumFileSizeToCacheInBytes >= 30000000 (OFF-01, criterion 3)', () => {
-    const config = readFileSync(resolve(ROOT, 'eleventy.config.js'), 'utf-8');
+  test('vite.sw.config.ts sets maximumFileSizeToCacheInBytes >= 30000000 (OFF-01, criterion 3)', () => {
+    // beeatlas-d3y: the whole vite-plugin-pwa block moved out of eleventy.config.js
+    // into the second Vite pass. This is a BUILD-TIME option, so it leaves no trace
+    // in the emitted sw.js — the config file is the only witness there is.
+    const config = readFileSync(resolve(ROOT, 'vite.sw.config.ts'), 'utf-8');
     const match = config.match(/maximumFileSizeToCacheInBytes\s*:\s*([\d_]+)/);
-    expect(match, 'maximumFileSizeToCacheInBytes not found in eleventy.config.js').toBeTruthy();
+    expect(match, 'maximumFileSizeToCacheInBytes not found in vite.sw.config.ts').toBeTruthy();
     const value = parseInt(match![1]!.replace(/_/g, ''), 10);
     expect(value).toBeGreaterThanOrEqual(30_000_000);
   });
