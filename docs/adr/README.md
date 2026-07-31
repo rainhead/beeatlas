@@ -21,3 +21,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0015](0015-dem-derived-elevation.md) | DEM-derived elevation is a separate column; checklist rows never get one | Accepted |
 | [0016](0016-vite-backend-integration.md) | Vite builds the app, Eleventy the HTML, meeting at a manifest | Accepted |
 | [0017](0017-scoped-note-render.md) | A note publish renders the species it touched, over a receipted full build | Accepted |
+| [0018](0018-coalescing-publish-queue.md) | Concurrent note writes share a build instead of queueing one each | Accepted |

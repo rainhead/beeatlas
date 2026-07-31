@@ -48,6 +48,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import api.auth as auth
 import api.config as config
 import api.oauth as oauth
+import api.publish_queue as publish_queue
 import api.session as session
 import api.users as users
 from notes_store import roles as roles_module
@@ -363,17 +364,15 @@ _PUBLISH_TIMEOUT = int(os.environ.get("NOTE_PUBLISH_TIMEOUT", "300"))
 _PUBLISH_LOCK_BUSY = 75  # EX_TEMPFAIL from publish-notes.sh: the nightly holds the flock
 
 
-def _publish_notes(canonical_name: str) -> str:
-    """Republish the site after a committed note write; never raises.
+def _run_publish_script() -> bool:
+    """Run one publish. True = the site was published. Never raises.
 
-    Returns "live" or "pending". Commit-first (ADR 0007): the caller has
-    already committed, and nothing here may unwind that — every failure
-    path degrades to "pending" with a loud log, never an exception. The
-    changed canonical_name is for the log only; stelis derives the keys to
-    re-harvest from the notes-store digest itself (st-2k9/st-pd1).
+    Called by the coalescing publisher below, one at a time, with no note name in
+    scope — deliberately: since beeatlas-4oa a build serves every write committed
+    before it started, so attributing it to one canonical_name would be a lie in
+    exactly the case that matters (several authors sharing a build). The names are
+    logged by the routes on their way in.
     """
-    if not config.NOTE_PUBLISH_ENABLED:
-        return "pending"
     try:
         proc = subprocess.run(
             ["bash", str(_PUBLISH_SCRIPT)],
@@ -383,32 +382,60 @@ def _publish_notes(canonical_name: str) -> str:
         )
     except subprocess.TimeoutExpired:
         app.logger.error(
-            "note publish TIMED OUT after %ss (%s) — publish pending, nightly repairs",
+            "note publish TIMED OUT after %ss — publish pending, nightly repairs",
             _PUBLISH_TIMEOUT,
-            canonical_name,
         )
-        return "pending"
+        return False
     except OSError:
-        app.logger.exception("note publish failed to launch (%s)", canonical_name)
-        return "pending"
+        app.logger.exception("note publish failed to launch")
+        return False
     if proc.returncode == 0:
-        app.logger.info("note publish live (%s)", canonical_name)
-        return "live"
+        app.logger.info("note publish live")
+        return True
     if proc.returncode == _PUBLISH_LOCK_BUSY:
         app.logger.warning(
-            "note publish deferred (%s): publish lock busy — the holder bakes the committed note",
-            canonical_name,
+            "note publish deferred: publish lock busy — the holder bakes the committed note"
         )
     else:
         app.logger.error(
-            "note publish FAILED rc=%s (%s) — publish pending, nightly repairs\n"
+            "note publish FAILED rc=%s — publish pending, nightly repairs\n"
             "stdout tail: %s\nstderr tail: %s",
             proc.returncode,
-            canonical_name,
             proc.stdout[-2000:],
             proc.stderr[-2000:],
         )
-    return "pending"
+    return False
+
+
+# beeatlas-3nz. One publisher for the process: concurrent writers share a build
+# instead of each running their own behind the flock. See api/publish_queue.py for
+# why sharing is sound (a build covers every commit that preceded its start).
+_publisher = publish_queue.CoalescingPublisher(
+    build=_run_publish_script,
+    timeout=_PUBLISH_TIMEOUT,
+    log=lambda msg: app.logger.info("%s", msg),
+)
+
+
+def _publish_notes(canonical_name: str) -> str:
+    """Republish the site after a committed note write; never raises.
+
+    Returns "live" or "pending". Commit-first (ADR 0007): the caller has
+    already committed, and nothing here may unwind that — every failure
+    path degrades to "pending" with a loud log, never an exception. The
+    changed canonical_name is for the log only; stelis derives the keys to
+    re-harvest from the notes-store digest itself (st-2k9/st-pd1).
+
+    Blocks until a build that includes this commit finishes, which may be a build
+    another writer's request started (beeatlas-3nz) — the caller cannot tell, and
+    should not care, because either way its note is baked when this returns "live".
+    """
+    if not config.NOTE_PUBLISH_ENABLED:
+        return "pending"
+    outcome = _publisher.publish()
+    if outcome != "live":
+        app.logger.warning("note publish pending (%s)", canonical_name)
+    return outcome
 
 
 @app.post("/api/notes")
