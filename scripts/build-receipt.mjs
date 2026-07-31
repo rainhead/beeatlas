@@ -54,11 +54,26 @@ import { MANIFEST_PATH } from '../lib/vite-manifest.js';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const RECEIPT = join(ROOT, '.cache', 'beeatlas-build', 'receipt.json');
 
-// Everything Eleventy reads to produce HTML. Paths relative to the repo root; a
-// missing one is simply absent from the digest (a deleted template is a change).
+// Everything that PRODUCES _site — not merely everything Eleventy reads. Paths are
+// relative to the repo root; a missing one is simply absent from the digest (a
+// deleted template is a change).
+//
+// postbuild-data.mjs is here because it writes _site/data (hashed runtime artifacts
+// + the slim manifest), so a change to it means the last full build's _site/data
+// came from different logic. package.json is here because its `build` script defines
+// what a full build DOES — add a step to it and the tree the receipt vouches for was
+// made without that step.
+//
+// package-lock.json is deliberately NOT here, and the reason is the same one that
+// makes a src/ change acceptable to a scoped render: bumping a dependency does not
+// touch _site until a build runs, and until then the manifest and the assets on disk
+// are the old ones and mutually CONSISTENT. Pages render against assets that exist.
+// That is stale-but-correct — a note publish is not a code deploy — and the nightly's
+// full build is what deploys it.
 const RENDER_INPUTS = [
   '_pages', '_layouts', '_includes', '_data', 'lib', 'src',
   'eleventy.config.js', 'vite.config.ts', 'vite.sw.config.ts',
+  'scripts/postbuild-data.mjs', 'package.json',
 ];
 
 /** Every file under `path` (or the file itself), as repo-relative paths, sorted. */
