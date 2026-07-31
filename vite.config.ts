@@ -46,6 +46,14 @@ function buildVersion() {
 function stashManifest() {
   return {
     name: 'beeatlas:stash-manifest',
+    // Build-only. Dev runs Vite as middleware inside the Eleventy server
+    // (eleventy.config.js), which loads this same config file, so without this the
+    // plugin is registered for `npm run dev` too — where there is no
+    // _site/.vite/manifest.json for closeBundle to copy. Vite 8 does not in fact
+    // call closeBundle when a middleware-mode server closes (verified), so this
+    // fixes no live crash; it declares the intent, and stops a future Vite
+    // restoring that hook from turning every dev shutdown into an ENOENT.
+    apply: 'build' as const,
     closeBundle() {
       const from = resolve(process.cwd(), '_site/.vite/manifest.json');
       const to = resolve(process.cwd(), MANIFEST_PATH);

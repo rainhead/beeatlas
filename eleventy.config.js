@@ -1,6 +1,9 @@
 // Eleventy 3.x outer build config.
 //
-// Eleventy owns HTML; Vite owns the app bundle. They meet at `.vite/manifest.json`
+// Eleventy owns HTML; Vite owns the app bundle. They meet at the stashed manifest
+// (`.cache/beeatlas-vite/manifest.json`, lib/vite-manifest.js MANIFEST_PATH — Vite
+// writes it to `_site/.vite/` and the stash plugin moves it there, outside _site so
+// it is never published and outside node_modules so `npm ci` cannot destroy it).
 // (Vite BACKEND INTEGRATION, beeatlas-d3y): `vite build` runs FIRST and writes the
 // manifest, then Eleventy renders pages and emits the hashed <script>/<link> tags
 // itself via the `viteAssets` shortcode below (lib/vite-manifest.js).
