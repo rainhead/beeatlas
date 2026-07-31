@@ -10,7 +10,7 @@ one-offs: a manual change drifts and is reverted on the next `cdk deploy`.
 
 **Anything CDK owns, you change through CDK** — edit the stack, `cdk diff`,
 `cdk deploy`. This most often bites on **Route 53**: the apex / `www` / `api`
-records are `NetA*` / `NetAAAA*` / `ApiA` in [`lib/beeatlas-stack.ts`](lib/beeatlas-stack.ts).
+records are `NetA*` / `ApiA` in [`lib/beeatlas-stack.ts`](lib/beeatlas-stack.ts).
 A hand-run `aws route53 change-resource-record-sets` is the wrong tool.
 
 Never `cdk destroy` and never touch, in a way that could replace them, the
@@ -63,9 +63,10 @@ The old `TS_NODE_TRANSPILE_ONLY=1` workaround documented here is gone with it �
 
 ## Serving move (ADR 0007)
 
-`beeatlas.net` + `www` now resolve to **maderas** (dual-stack `NetA*`/`NetAAAA*`
-→ `45.79.96.48` / the Linode IPv6), which serves the rendered site via Apache —
-see [stelis ADR 0007](https://github.com/rainhead/stelis) and the
+`beeatlas.net` + `www` now resolve to **maderas** (`NetA*` → `45.79.96.48`,
+IPv4-only since the AAAA removal — see the comment on those records), which
+serves the rendered site via Apache — see
+[stelis ADR 0007](https://github.com/rainhead/stelis) and the
 [serve-from-maderas runbook](../docs/runbooks/serve-from-maderas.md). The
 CloudFront distribution + `SiteBucket` stay defined here, warm, as the rollback
 path: revert the record targets to the CloudFront alias and redeploy.

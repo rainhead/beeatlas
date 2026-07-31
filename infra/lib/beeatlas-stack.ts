@@ -30,19 +30,20 @@ export class BeeAtlasStack extends cdk.Stack {
     // maderas (the Linode serving host): api.beeatlas.net has always resolved
     // here; as of stelis ADR 0007 (serve-from-maderas) the apex + www do too.
     const maderasIpv4 = '45.79.96.48';
-    const maderasIpv6 = '2600:3c01::f03c:92ff:feb3:476f';
 
     // ── Route 53 records for beeatlas.net (apex + www) → maderas (ADR 0007) ──
-    // Direct dual-stack A/AAAA at maderas, which serves the rendered site via
-    // Apache — the same shape as the api record below.
+    // IPv4-only, on purpose. maderas does serve over IPv6
+    // (2600:3c01::f03c:92ff:feb3:476f, and a v6 request to it returns 200),
+    // but the AAAA records were removed 2026-07-31 because visitors on broken
+    // or half-configured IPv6 paths were failing to reach the site: Happy
+    // Eyeballs prefers AAAA, so those clients hang or time out instead of
+    // falling back cleanly to the working A record. Without a AAAA there is
+    // nothing to prefer. Don't re-add without evidence the v6 path is sound
+    // end-to-end (`api` below is likewise IPv4-only).
     for (const recordName of [undefined, 'www']) {
       new route53.ARecord(this, `NetA${recordName ?? 'Apex'}`, {
         zone: netZone, recordName,
         target: route53.RecordTarget.fromIpAddresses(maderasIpv4),
-      });
-      new route53.AaaaRecord(this, `NetAAAA${recordName ?? 'Apex'}`, {
-        zone: netZone, recordName,
-        target: route53.RecordTarget.fromIpAddresses(maderasIpv6),
       });
     }
 
