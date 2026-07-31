@@ -41,6 +41,20 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BASE_DIR="${BASE_DIR:-/var/www/beeatlas.net}"
 SITE_ROOT="${SITE_ROOT:-$BASE_DIR/htdocs}"
 VAR_DIR="${VAR_DIR:-$BASE_DIR/var}"
+# Stelis's build state — the SAME one the nightly uses (nightly.sh sets this
+# identically). The two are publishers of ONE project and must share one
+# observation history and cache: a note publish that keeps its own has no record
+# of what the nightly built, so it cannot skip an unchanged task, cannot do a
+# TARGETED harvest (st-pd1 needs the previous per-key observation), and cannot
+# answer --moved-keys — it falls back to a full harvest and a full render every
+# time, silently.
+#
+# This was missed when the state moved out of the engine checkout (stelis st-7wu:
+# "state belongs to the project, not the checkout"). nightly.sh was updated, this
+# script was not, so from that relocation until now every note publish ran against
+# a state dir that did not exist. Exported, because scripts/fetch-data.sh does
+# `cd "$STELIS_DIR"` and the default is cwd-relative.
+export STELIS_STATE_DIR="${STELIS_STATE_DIR:-$VAR_DIR/stelis}"
 DB_PATH="${DB_PATH:-$VAR_DIR/beeatlas.duckdb}"
 EXPORT_DIR="${EXPORT_DIR:-$VAR_DIR/export}"
 NOTES_DB_PATH="${NOTES_DB_PATH:-$HOME/beeatlas-store/notes.db}"
