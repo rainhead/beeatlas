@@ -106,7 +106,7 @@ def _isolate_cache(tmp_path, monkeypatch):
     # test would silently hit ecdysis.org. The probe itself is exercised in
     # test_ecdysis_probe.py; here it is a no-op seam.
     monkeypatch.setattr(ecdysis_pipeline, "_read_probe_baseline", lambda dataset_id: None)
-    monkeypatch.setattr(ecdysis_pipeline, "_probe_says_unchanged", lambda dataset_id: False)
+    monkeypatch.setattr(ecdysis_pipeline, "_probe_source", lambda dataset_id: None)
     return tmp_path
 
 

@@ -36,6 +36,13 @@ html_cache_dir = "raw/ecdysis_cache"
 
 Writes to `ecdysis_data`.
 
+The bulk download needs an authenticated Symbiota session and costs a ~2-minute
+server-side ZIP build, so the loader caches the ZIP and asks the source whether
+anything moved before paying for a rebuild — see
+[ADR 0023](../docs/adr/0023-ecdysis-change-probe.md) for the mechanism, its accepted
+blind spots, and the two escape hatches (`ECDYSIS_CACHE_TTL_SECONDS`,
+`ECDYSIS_SKIP_PROBE`).
+
 ### Geographic boundaries (`geographies_pipeline.py`)
 
 Loads polygon boundaries for spatial annotation from the following upstream sources:
@@ -100,7 +107,7 @@ Measured 2026-05-17 on maderas (two consecutive runs):
 |---|---|
 | sync + deps (npm cache hit) | ~1s |
 | DuckDB pull from S3 | ~3s |
-| ecdysis (dlt load) | 90–115s |
+| ecdysis (dlt load) | 90–115s, or ~58s when the change-probe skips the ZIP build |
 | resolve-taxon-ids | ~50s |
 | taxon-lineage-extended | 135–155s |
 | waba | ~9s |
@@ -113,7 +120,7 @@ Measured 2026-05-17 on maderas (two consecutive runs):
 | S3 upload + CloudFront invalidation | ~30s |
 | **Total** | **~6 min** |
 
-Dominant costs: `taxon-lineage-extended` (~2.5 min) and `ecdysis` (~1.5–2 min) together account for ~75% of runtime. `dbt-build` is fast (10–13s) despite rebuilding the full mart. The ecdysis load varies with daily record volume.
+Dominant costs: `taxon-lineage-extended` (~2.5 min) and `ecdysis` (~1.5–2 min) together account for ~75% of runtime. `dbt-build` is fast (10–13s) despite rebuilding the full mart. The ecdysis load varies with daily record volume — and on a day the source hasn't moved, the change-probe drops it to ~58s by reusing the cached ZIP ([ADR 0023](../docs/adr/0023-ecdysis-change-probe.md)).
 
 ### Species page LCP (PERF-02)
 

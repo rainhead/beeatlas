@@ -18,6 +18,9 @@ What is pinned here, grouped by the property it protects:
   API quirk      — dateLastModifiedMin is always paired with a far-future Max,
                    because Min alone returns HTTP 500 (loose whereRaw binding in
                    Ecdysis's OccurrenceController; verified live 2026-07-23).
+  the receipt    — what the probe concluded reaches Stelis in the shape its
+                   cross-repo contract fixes (beeatlas-u15 / stelis st-8bj), and
+                   failing to report never costs us the load.
 
 HTTP is mocked at the requests boundary, as in test_ecdysis_auth.py: the probe uses
 ``ecdysis_pipeline.requests.get`` (patched here via the ``api`` fixture) while the
@@ -119,12 +122,20 @@ def cache_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(ecdysis_pipeline, "ECDYSIS_CACHE_TTL_SECONDS", 0)
     monkeypatch.setattr(ecdysis_pipeline, "ECDYSIS_SKIP_PROBE", True)
     monkeypatch.setattr(ecdysis_pipeline, "_get_credentials", lambda: ("u", "p"))
+    # Default to "not running under Stelis". Without this the suite would write real
+    # boundary receipts when the gate itself runs inside a Stelis task, where the env
+    # var IS set — tests must not report build facts about themselves.
+    monkeypatch.delenv("STELIS_BOUNDARY_RECEIPT", raising=False)
     return tmp_path
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def api(monkeypatch):
-    """Patch the probe's HTTP seam (``requests.get``) with a FakeApi."""
+    """Patch the probe's HTTP seam (``requests.get``) with a FakeApi.
+
+    autouse, deliberately: an opt-in stub is exactly the trap this suite's sibling
+    fell into — a test that forgets it silently reaches ecdysis.org instead of failing.
+    Tests still take `api` as a parameter when they need to move the source."""
     fake = FakeApi()
     monkeypatch.setattr(ecdysis_pipeline.requests, "get", fake.get)
     return fake
@@ -172,7 +183,7 @@ def test_probe_scopes_every_query_by_dataset(api, cache_dir):
     collection, so a collid-scoped query would probe a different population than the
     ZIP pulls."""
     _write_sidecar(cache_dir)
-    ecdysis_pipeline._probe_says_unchanged(44)
+    ecdysis_pipeline._probe_source(44)
 
     assert api.calls, "probe made no API call"
     assert all(call.get("datasetID") == 44 for call in api.calls)
@@ -185,33 +196,58 @@ def test_probe_scopes_every_query_by_dataset(api, cache_dir):
 def test_no_sidecar_means_download(api, cache_dir):
     """With no baseline there is nothing to compare against, so the probe cannot
     license a skip — and it should not waste an API call finding that out."""
-    assert ecdysis_pipeline._probe_says_unchanged(44) is False
+    assert ecdysis_pipeline._probe_source(44) is None
     assert api.calls == []
 
 
 def test_total_moved_means_download(api, cache_dir):
     """A changed total catches deletions and net membership changes, which the
-    modified-since signal alone cannot see."""
+    modified-since signal alone cannot see. It is reported unquantified: counting HOW
+    many would cost a second query to answer a question we've already answered."""
     _write_sidecar(cache_dir, total=46090)
     api.total = 46089  # a record was deleted
 
-    assert ecdysis_pipeline._probe_says_unchanged(44) is False
+    report = ecdysis_pipeline._probe_source(44)
+
+    assert report.unchanged is False
+    assert report.records is None
+    assert len(api.calls) == 1, "a moved total should short-circuit the second query"
 
 
 def test_modified_since_grew_means_download(api, cache_dir):
     """Adds and edits bump dateLastModified, pushing the modified-since count past the
     baseline even when the total happens to be flat (one deleted, one added)."""
     _write_sidecar(cache_dir, baseline_changed=7)
-    api.changed = 8
+    api.changed = 10
 
-    assert ecdysis_pipeline._probe_says_unchanged(44) is False
+    report = ecdysis_pipeline._probe_source(44)
+
+    assert report.unchanged is False
+    assert report.records == 3, "records new since the baseline, not the raw count"
+
+
+def test_shrinking_modified_count_is_not_reported_as_negative(api, cache_dir):
+    """Records deleted from inside the `since` window shrink the count below the
+    baseline. That is still a change, but 'minus two records new' is nonsense to hand
+    Stelis, so the quantity is clamped."""
+    _write_sidecar(cache_dir, baseline_changed=7)
+    api.changed = 5
+
+    report = ecdysis_pipeline._probe_source(44)
+
+    assert report.unchanged is False
+    assert report.records == 0
 
 
 def test_both_signals_matching_means_unchanged(api, cache_dir):
     """The only case that licenses a skip: neither signal moved."""
-    _write_sidecar(cache_dir, total=46090, baseline_changed=7)
+    _write_sidecar(cache_dir, total=46090, baseline_changed=7, since="2026-07-22")
 
-    assert ecdysis_pipeline._probe_says_unchanged(44) is True
+    report = ecdysis_pipeline._probe_source(44)
+
+    assert report.unchanged is True
+    assert report.records == 0
+    assert report.since == "2026-07-22"
 
 
 def test_probe_error_means_download(api, cache_dir, capsys):
@@ -221,7 +257,7 @@ def test_probe_error_means_download(api, cache_dir, capsys):
     _write_sidecar(cache_dir)
     api.error = RuntimeError("API down")
 
-    assert ecdysis_pipeline._probe_says_unchanged(44) is False
+    assert ecdysis_pipeline._probe_source(44) is None
     assert "probe failed" in capsys.readouterr().out.lower()
 
 
@@ -230,7 +266,7 @@ def test_corrupt_sidecar_means_download(api, cache_dir):
     'no baseline' like any other probe uncertainty."""
     (cache_dir / "44.probe.json").write_text("{not json")
 
-    assert ecdysis_pipeline._probe_says_unchanged(44) is False
+    assert ecdysis_pipeline._probe_source(44) is None
 
 
 # ---------------------------------------------------------------------------
@@ -374,7 +410,8 @@ def test_corrupt_cache_is_never_reused_on_the_probe(api, cache_dir):
 def test_skip_probe_disabled_downloads_unconditionally(api, cache_dir, monkeypatch):
     """ECDYSIS_SKIP_PROBE=0 is the revert switch: it must restore the old
     download-every-time-past-TTL behavior even when the source is demonstrably
-    unchanged."""
+    unchanged — and make NO v2-API calls at all, since the reason to reach for the
+    switch is usually that the API itself is what's misbehaving."""
     monkeypatch.setattr(ecdysis_pipeline, "ECDYSIS_SKIP_PROBE", False)
     _write_cache(cache_dir)
     _write_sidecar(cache_dir, total=api.total, baseline_changed=api.changed)
@@ -386,3 +423,150 @@ def test_skip_probe_disabled_downloads_unconditionally(api, cache_dir, monkeypat
 
     assert result == _fake_zip_bytes("fresh")
     assert session.post.call_count == 2
+    assert api.calls == [], "the revert switch must silence the probe entirely"
+
+
+# ---------------------------------------------------------------------------
+# The Stelis boundary receipt (beeatlas-u15) — a cross-repo contract
+# ---------------------------------------------------------------------------
+# A 'boundary loader that short-circuits never touches its outputs, so Stelis's output
+# comparison can only ever say "identical" — it cannot say WHY. The receipt is how the
+# loader speaks for itself. Shape is fixed by stelis/src/boundary-report-test.rkt:
+# {"unchanged": bool, "records": int|null, "since": string|null}.
+
+@pytest.fixture
+def receipt(tmp_path, monkeypatch):
+    """Point STELIS_BOUNDARY_RECEIPT at a path and return it, as Stelis does on every
+    'boundary run."""
+    path = tmp_path / "receipt.json"
+    monkeypatch.setenv("STELIS_BOUNDARY_RECEIPT", str(path))
+    return path
+
+
+def _skipping_session() -> MagicMock:
+    """A Session that fails the test if the loader pays for a ZIP build."""
+    session = MagicMock()
+    session.post = MagicMock(side_effect=AssertionError("paid for a ZIP build"))
+    return session
+
+
+def test_receipt_reports_an_unchanged_source(api, cache_dir, receipt):
+    """The case the contract exists for: Stelis can now say 'source unchanged, 0
+    records since <date>' instead of only 'outputs identical'."""
+    _write_cache(cache_dir)
+    _write_sidecar(cache_dir, total=api.total, baseline_changed=api.changed,
+                   since="2026-07-22")
+
+    with patch.object(
+        ecdysis_pipeline.requests, "Session", return_value=_skipping_session()
+    ):
+        ecdysis_pipeline._download_zip(44)
+
+    assert json.loads(receipt.read_text()) == {
+        "unchanged": True,
+        "records": 0,
+        "since": "2026-07-22",
+    }
+
+
+def test_receipt_reports_a_changed_source(api, cache_dir, receipt):
+    """A real re-ingest reports too, so `--why` can distinguish 'the probe looked and
+    the source moved' from 'this loader never probed at all' — which a missing receipt
+    would otherwise be indistinguishable from."""
+    _write_cache(cache_dir)
+    _write_sidecar(cache_dir, total=api.total, baseline_changed=api.changed,
+                   since="2026-07-22")
+    api.changed += 4
+    session = MagicMock()
+    session.post = MagicMock(side_effect=[_login_response(), _zip_response()])
+
+    with patch.object(ecdysis_pipeline.requests, "Session", return_value=session):
+        ecdysis_pipeline._download_zip(44)
+
+    assert json.loads(receipt.read_text()) == {
+        "unchanged": False,
+        "records": 4,
+        "since": "2026-07-22",
+    }
+
+
+def test_no_receipt_when_the_probe_reached_no_conclusion(api, cache_dir, receipt):
+    """Silence is the honest answer when we didn't probe (no baseline here). Stelis
+    reads a missing receipt as 'the loader said nothing' — never an error."""
+    session = MagicMock()
+    session.post = MagicMock(side_effect=[_login_response(), _zip_response()])
+
+    with patch.object(ecdysis_pipeline.requests, "Session", return_value=session):
+        ecdysis_pipeline._download_zip(44)
+
+    assert not receipt.exists()
+
+
+def test_no_receipt_outside_stelis(api, cache_dir, monkeypatch):
+    """Run by hand (no STELIS_BOUNDARY_RECEIPT in the env), the loader must not guess
+    at a path or fail — it just doesn't report."""
+    monkeypatch.delenv("STELIS_BOUNDARY_RECEIPT", raising=False)
+    _write_cache(cache_dir)
+    _write_sidecar(cache_dir, total=api.total, baseline_changed=api.changed)
+
+    with patch.object(
+        ecdysis_pipeline.requests, "Session", return_value=_skipping_session()
+    ):
+        result = ecdysis_pipeline._download_zip(44)  # must not raise
+
+    assert result == _fake_zip_bytes("cached")
+
+
+def test_no_env_var_means_no_write_anywhere(monkeypatch):
+    """Pinned directly rather than through _download_zip: absent the env var the
+    receipt must not be written to SOME default path, which a run-level test (seeing
+    only its own tmp dir) would happily miss."""
+    monkeypatch.delenv("STELIS_BOUNDARY_RECEIPT", raising=False)
+    written: list = []
+    monkeypatch.setattr(
+        ecdysis_pipeline.Path, "write_text", lambda self, text: written.append(self)
+    )
+
+    ecdysis_pipeline._write_boundary_receipt(
+        ecdysis_pipeline.SourceReport(unchanged=True, records=0, since="2026-07-22")
+    )
+
+    assert written == []
+
+
+def test_receipt_write_failure_never_breaks_the_load(api, cache_dir, monkeypatch, capsys):
+    """The receipt is telemetry. An unwritable path (bad mount, permissions) must cost
+    us the annotation, not the nightly."""
+    monkeypatch.setenv(
+        "STELIS_BOUNDARY_RECEIPT", str(cache_dir / "nope" / "receipt.json")
+    )
+    cached = _write_cache(cache_dir)
+    _write_sidecar(cache_dir, total=api.total, baseline_changed=api.changed)
+
+    with patch.object(
+        ecdysis_pipeline.requests, "Session", return_value=_skipping_session()
+    ):
+        result = ecdysis_pipeline._download_zip(44)
+
+    assert result == cached
+    assert "receipt" in capsys.readouterr().out.lower()
+
+
+def test_baseline_write_failure_never_breaks_a_done_download(
+    api, cache_dir, monkeypatch, capsys
+):
+    """`_write_probe_baseline` runs AFTER the fresh ZIP is committed to cache, so
+    anything it raises would turn a successful download into a hard failure. It must
+    swallow more than OSError — a malformed baseline is still not worth the load."""
+    monkeypatch.setattr(
+        ecdysis_pipeline, "_read_probe_baseline",
+        lambda dataset_id: {"since": "2026-07-22"},  # no dataset_id => KeyError on write
+    )
+    session = MagicMock()
+    session.post = MagicMock(side_effect=[_login_response(), _zip_response()])
+
+    with patch.object(ecdysis_pipeline.requests, "Session", return_value=session):
+        result = ecdysis_pipeline._download_zip(44)  # must not raise
+
+    assert result == _fake_zip_bytes("fresh")
+    assert "baseline" in capsys.readouterr().out.lower()

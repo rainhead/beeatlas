@@ -4,6 +4,7 @@ import json
 import os
 import time
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 from urllib import parse
 
@@ -145,34 +146,93 @@ def _write_probe_baseline(baseline: dict | None) -> None:
     """Persist a baseline read by `_read_probe_baseline`, iff the download it was read
     for actually succeeded. A None baseline (probe hiccup) writes nothing, leaving any
     older sidecar in place — a stale sidecar can only be MORE conservative, since its
-    counts predate this download's."""
+    counts predate this download's.
+
+    Catches broadly on purpose: this runs AFTER the fresh ZIP is already committed to
+    cache, so anything raising here would turn a successful download into a hard
+    failure. The baseline is advisory; the bytes are not.
+    """
     if baseline is None:
         return
     try:
         _probe_sidecar_path(baseline["dataset_id"]).write_text(json.dumps(baseline))
-    except OSError as e:
+    except Exception as e:  # noqa: BLE001 — advisory; never break a done download
         print(f"  WARNING: could not record Ecdysis probe baseline ({e})")  # noqa: T201
 
 
-def _probe_says_unchanged(dataset_id: int) -> bool:
-    """True iff both change-signals still match the baseline recorded at the last
-    download — i.e. the source looks unchanged and the cached ZIP is safe to reuse.
+@dataclass(frozen=True)
+class SourceReport:
+    """What the probe concluded about the source this run.
 
-    Conservative by construction: no baseline, a probe error, or EITHER signal
-    having moved all return False so the caller downloads.
+    This is the payload of Stelis's boundary-receipt contract (stelis st-8bj): a
+    'boundary loader that short-circuits an unchanged source never touches its outputs,
+    so Stelis's output comparison can only ever say "identical" — it cannot say WHY.
+    The receipt is the loader speaking for itself, so `--why`/`--explain` can report
+    "source unchanged, 0 records since <date>" as a first-class build fact instead of
+    the probe reusing a cache behind Stelis's back.
+
+    Field names and JSON shape are the cross-repo contract — see
+    stelis/src/cache.rkt (`source-report`) and stelis/src/boundary-report-test.rkt.
+      unchanged: the source did not move; the loader skipped ingestion.
+      records:   records new since `since`, or None when we didn't quantify it.
+      since:     the watermark compared against (display only).
+    """
+
+    unchanged: bool
+    records: int | None
+    since: str | None
+
+    def to_json(self) -> str:
+        return json.dumps(
+            {"unchanged": self.unchanged, "records": self.records, "since": self.since}
+        )
+
+
+def _probe_source(dataset_id: int) -> SourceReport | None:
+    """Ask the source whether anything moved since the baseline recorded at the last
+    download, so an unchanged source can reuse the cached ZIP.
+
+    Returns None when the probe reaches no conclusion — no baseline, or the API didn't
+    answer. Conservative by construction: None and a `unchanged=False` report both mean
+    the caller downloads; only an explicit `unchanged=True` licenses a skip.
     """
     sidecar = _probe_sidecar_path(dataset_id)
     if not sidecar.exists():
-        return False
+        return None
     try:
         meta = json.loads(sidecar.read_text())
+        since = meta["since"]
         if _api_occurrence_count(datasetID=dataset_id) != meta["total"]:
-            return False  # a deletion / membership change
-        changed = _api_changed_since_count(dataset_id, meta["since"])
-        return changed == meta["baseline_changed"]  # no new adds/edits
+            # A deletion / net membership change. Don't pay the second query just to
+            # quantify it — the receipt contract lets `records` be null when we didn't.
+            return SourceReport(unchanged=False, records=None, since=since)
+        changed = _api_changed_since_count(dataset_id, since)
+        delta = changed - meta["baseline_changed"]
+        # The DECISION turns on equality, not on growth: records deleted from inside
+        # the window shrink the count, and a shrunken count is still a change. Only the
+        # reported QUANTITY is clamped — "minus two records new" is nonsense to report.
+        return SourceReport(unchanged=delta == 0, records=max(0, delta), since=since)
     except Exception as e:  # noqa: BLE001 — uncertainty ⇒ download
         print(f"  Ecdysis change-probe failed ({e}); will download")  # noqa: T201
-        return False
+        return None
+
+
+def _write_boundary_receipt(report: SourceReport | None) -> None:
+    """Hand `report` to Stelis via the STELIS_BOUNDARY_RECEIPT contract.
+
+    Stelis sets that env var on every 'boundary run, clears any stale receipt first,
+    and reads it back after a clean exit. Silence is a valid answer: no env var (not
+    running under Stelis) or no report (the probe reached no conclusion) writes
+    nothing, which Stelis reads as "the loader said nothing" rather than an error.
+    Advisory — a write failure must never break the load.
+    """
+    path = os.environ.get("STELIS_BOUNDARY_RECEIPT")
+    if not path or report is None:
+        return
+    try:
+        Path(path).write_text(report.to_json())
+    except Exception as e:  # noqa: BLE001 — telemetry; never break the load
+        print(f"  WARNING: could not write Stelis boundary receipt ({e})")  # noqa: T201
 
 
 def _get_credentials() -> tuple[str, str]:
@@ -251,12 +311,18 @@ def _download_zip(dataset_id: int) -> bytes:
 
     # Past the TTL window (e.g. the nightly): rather than unconditionally paying the
     # ~2-minute server-side ZIP build, ask the source whether anything actually moved.
-    # Only trust the probe against a cache that still opens as a valid ZIP.
-    if (ECDYSIS_SKIP_PROBE and _is_valid_cached_zip(cache_path)
-            and _probe_says_unchanged(dataset_id)):
+    # Probe only when there is a cache worth reusing — with no valid cached ZIP we
+    # download regardless, so the API calls would be pure waste.
+    report = (
+        _probe_source(dataset_id)
+        if ECDYSIS_SKIP_PROBE and _is_valid_cached_zip(cache_path)
+        else None
+    )
+    if report is not None and report.unchanged:
         print(  # noqa: T201
             "  Ecdysis source unchanged since last pull (change-probe); reusing cached ZIP"
         )
+        _write_boundary_receipt(report)
         return cache_path.read_bytes()
 
     params = {
@@ -285,8 +351,11 @@ def _download_zip(dataset_id: int) -> bytes:
     # exists. This is the exact silent-staleness trap D-3 is meant to avoid.
     username, password = _get_credentials()
     # Read the change-signals BEFORE paying for the ZIP (see _read_probe_baseline):
-    # they describe the source as of the moment this download started.
-    baseline = _read_probe_baseline(dataset_id)
+    # they describe the source as of the moment this download started. Skipped
+    # entirely when the probe is disabled, so ECDYSIS_SKIP_PROBE=0 is a true revert
+    # to the old download-every-time behaviour — no v2-API traffic at all, which is
+    # the point of the switch if the API itself is what is misbehaving.
+    baseline = _read_probe_baseline(dataset_id) if ECDYSIS_SKIP_PROBE else None
     try:
         session = requests.Session()
         _login_session(session, username, password)
@@ -320,6 +389,9 @@ def _download_zip(dataset_id: int) -> bytes:
     # Commit the pre-download signals now that the pull succeeded, so the next run can
     # skip if the source stays put. Advisory: failure here never affects the bytes.
     _write_probe_baseline(baseline)
+    # Tell Stelis the source moved (or stay silent if the probe couldn't tell), so a
+    # real re-ingest is distinguishable from a loader that never probed at all.
+    _write_boundary_receipt(report)
     return response.content
 
 
