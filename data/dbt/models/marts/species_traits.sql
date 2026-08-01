@@ -41,6 +41,9 @@ beegap AS (
     FROM (
         SELECT
             COALESCE(syn.accepted_name, b.canonical_name) AS canonical_name,
+            -- Was this row already filed under the accepted name, or did synonymy
+            -- rewrite it? Breaks the tie below; see there for why it matters.
+            syn.accepted_name IS NULL AS is_accepted_spelling,
             b.native, b.nesting, b.sociality, b.foraging
         FROM {{ ref('bee_traits_beegap') }} b
         LEFT JOIN syn ON syn.synonym = b.canonical_name
@@ -48,10 +51,21 @@ beegap AS (
     QUALIFY ROW_NUMBER() OVER (
         PARTITION BY canonical_name
         -- Prefer the most-populated synonym-merged row across ALL four fields (native
-        -- included so a populated native_status is never dropped), then break ties on the
-        -- field values themselves for a build-deterministic pick. Ordering by canonical_name
-        -- would be a no-op here since it is the partition key (CR WR-01 follow-up).
+        -- included so a populated native_status is never dropped).
+        --
+        -- Then, among equally-populated rows, prefer the one Bee-Gap already filed
+        -- under the ACCEPTED name. Upstream describes the taxon it thinks it is
+        -- describing: B. lapponicus is a Palearctic species Bee-Gap marks
+        -- "introduced", and folding it into the Nearctic B. sylvicola ("native")
+        -- must not relabel sylvicola. Without this key the tie fell to the value
+        -- ordering below, where 'introduced' sorts before 'native' and the synonym
+        -- row won on alphabetical luck.
+        --
+        -- Last, break remaining ties on the field values themselves for a
+        -- build-deterministic pick. Ordering by canonical_name would be a no-op
+        -- here since it is the partition key (CR WR-01 follow-up).
         ORDER BY (sociality <> '') DESC, (nesting <> '') DESC, (foraging <> '') DESC, (native <> '') DESC,
+                 is_accepted_spelling DESC,
                  native, nesting, sociality, foraging
     ) = 1
 ),
