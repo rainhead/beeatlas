@@ -1,0 +1,46 @@
+---
+pagination:
+  data: synonyms.redirects
+  size: 1
+  alias: r
+permalink: "/species/{{ r.fromSlug }}/"
+eleventyComputed:
+  title: "{{ r.fromName }} → {{ r.toName }} — BeeAtlas"
+---
+{#- A folded name keeps its old URL and forwards to the accepted one. Built from
+    the dbt synonym seeds by _data/synonyms.js; see there for why this is a meta
+    refresh rather than a 301.
+
+    Deliberately standalone — no site layout, no header, no bundle. The reader is
+    here for a fraction of a second, and a page that loads the app before jumping
+    would be slower than the redirect it performs. The visible text is for the
+    case where the refresh does not fire (a text browser, a bot, refresh disabled)
+    and for anyone who stops the load to read it. -#}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ title }}</title>
+<link rel="icon" href="data:,">
+{#- canonical + a zero-delay refresh, and deliberately NO robots noindex: a
+    noindex on a page that also names a canonical can propagate to the canonical
+    target, which would deindex the species page this is trying to send people to. -#}
+<link rel="canonical" href="https://beeatlas.net/species/{{ r.toSlug }}/index.html">
+<meta http-equiv="refresh" content="0; url=/species/{{ r.toSlug }}/index.html">
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 4rem auto; max-width: 34rem; padding: 0 1rem; }
+  em { font-style: italic; }
+  .reason { color: #555; font-size: 0.9rem; margin-top: 1.5rem; }
+</style>
+</head>
+<body>
+<p><em>{{ r.fromName }}</em> is now listed as
+  <a href="/species/{{ r.toSlug }}/index.html"><em>{{ r.toName }}</em></a>.</p>
+<p>Redirecting; if nothing happens,
+  <a href="/species/{{ r.toSlug }}/index.html">open the {{ r.toName }} page</a>.</p>
+{%- if r.reason %}
+<p class="reason">{{ r.reason }}</p>
+{%- endif %}
+</body>
+</html>

@@ -9,6 +9,10 @@ import { execSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+// @ts-expect-error -- _data/*.js is plain ESM consumed by Eleventy; no .d.ts
+import synonyms from '../../_data/synonyms.js';
+// @ts-expect-error -- _data/*.js is plain ESM consumed by Eleventy; no .d.ts
+import species from '../../_data/species.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const SKIP_BUILD = process.env.VITEST_SKIP_BUILD === '1';
@@ -296,6 +300,50 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
       .map(s => s.trim())
       .filter(s => s && s !== '/');
     expect(labels.join(' / ')).toBe(ladder);
+  });
+
+  // A folded name keeps its URL and forwards to the accepted one (beeatlas-ds4).
+
+  test('a synonym keeps a page at its old URL that forwards to the accepted name', () => {
+    // Agapostemon texanus was folded into A. subtilior (Portman et al. 2024), so
+    // its page is no longer generated as a species — but the URL must not 404.
+    const path = resolve(ROOT, '_site/species/Agapostemon/texanus/index.html');
+    expect(existsSync(path), 'no page at the folded name’s URL').toBe(true);
+    const html = readFileSync(path, 'utf-8');
+    expect(html).toMatch(
+      /<meta http-equiv="refresh" content="0; url=\/species\/Agapostemon\/subtilior\/index\.html">/,
+    );
+    expect(html).toContain('<link rel="canonical" href="https://beeatlas.net/species/Agapostemon/subtilior/index.html">');
+    // A reader who stops the load still gets a link and the reason.
+    expect(html).toMatch(/href="\/species\/Agapostemon\/subtilior\/index\.html"/);
+    expect(html).toContain('Portman et al. 2024');
+    // noindex here can propagate to the canonical target — see the template.
+    expect(html).not.toMatch(/name="robots"[^>]*noindex/);
+  });
+
+  test('every synonym redirect points at a page that exists', () => {
+    // A redirect to a 404 is worse than the 404 it replaced.
+    for (const r of (synonyms as any).redirects) {
+      expect(
+        existsSync(resolve(ROOT, `_site/species/${r.toSlug}/index.html`)),
+        `${r.fromSlug} redirects to ${r.toSlug}, which was not built`,
+      ).toBe(true);
+      expect(
+        existsSync(resolve(ROOT, `_site/species/${r.fromSlug}/index.html`)),
+        `no redirect page emitted for ${r.fromSlug}`,
+      ).toBe(true);
+    }
+  });
+
+  test('a synonym redirect never shadows a real species page', () => {
+    // Both templates write /species/<slug>/index.html; if a synonym still had a
+    // species page, one would silently overwrite the other.
+    const speciesSlugs = new Set(
+      (species as any).speciesList.filter((sp: any) => sp.slug).map((sp: any) => sp.slug),
+    );
+    for (const r of (synonyms as any).redirects) {
+      expect(speciesSlugs.has(r.fromSlug), `${r.fromSlug} is both a species and a redirect`).toBe(false);
+    }
   });
 
   // Phase 99 — place page tests (PPAGE-01, PPAGE-02)
