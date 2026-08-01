@@ -12,9 +12,11 @@
  * time a reader can see it. Hashed names are immutable — the serving layer
  * gives them long-lived cache headers; manifest.json is served no-cache.
  *
- * generated_at: SOURCE_DATE_EPOCH (seconds, exported by the data build /
- * nightly) as ISO-8601; absent = the dev sentinel "local", which the client's
- * freshness label treats as unparseable and hides (D-12).
+ * generated_at: the data dir's `generated_at` stamp (epoch seconds, written by
+ * scripts/fetch-data.sh on a full pipeline run) as ISO-8601; absent = the dev
+ * sentinel "local", which the client's freshness label treats as unparseable
+ * and hides (D-12). Deliberately NOT this build's clock — see the note at the
+ * assignment (beeatlas-923).
  *
  * A missing source artifact is a hard error: publishing a site whose manifest
  * or data dir is incomplete would strand the client (the PWA prime loop and
@@ -41,6 +43,7 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, 
 import { join, dirname, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDataDir } from '../lib/build-data-dir.js';
+import { readGeneratedAt } from '../lib/data-freshness.js';
 import { RUNTIME_ARTIFACTS } from '../lib/runtime-artifacts.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -139,8 +142,12 @@ for (const dir of STABLE_DIRS) {
   console.log(`  ${dir}/ -> data/${dir}/`);
 }
 
-const epoch = process.env.SOURCE_DATE_EPOCH;
-manifest.generated_at = epoch ? new Date(Number(epoch) * 1000).toISOString() : 'local';
+// Freshness comes from the DATA (lib/data-freshness.js), never from this build's clock.
+// It used to come from SOURCE_DATE_EPOCH, which every publish path sets to its own wall
+// clock — so a code deploy reset the "data as of" clock without touching a byte of data,
+// and a week-long nightly outage was invisible as long as someone pushed code
+// (beeatlas-923). SOURCE_DATE_EPOCH remains, for build determinism only.
+manifest.generated_at = readGeneratedAt(dataDir);
 manifest.build_id = buildId();
 
 const manifestPath = join(outDir, 'manifest.json');

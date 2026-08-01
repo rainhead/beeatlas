@@ -60,8 +60,10 @@ EXPORT_DIR="${EXPORT_DIR:-$VAR_DIR/export}"
 NOTES_DB_PATH="${NOTES_DB_PATH:-$HOME/beeatlas-store/notes.db}"
 STELIS_DIR="${STELIS_DIR:-$HOME/dev/stelis}"
 
-# One epoch for the run: stelis build determinism + the slim manifest's
-# generated_at (scripts/postbuild-data.mjs).
+# One epoch for the run: stelis build determinism ONLY. A note publish renders notes
+# into static pages and does not touch the runtime artifacts the freshness label
+# describes, so it inherits the export's existing `generated_at` stamp rather than
+# advancing it (beeatlas-923); its scoped fetch-data.sh run leaves that stamp alone.
 export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date +%s)}"
 
 _ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }

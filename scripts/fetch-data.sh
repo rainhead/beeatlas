@@ -52,6 +52,14 @@ mkdir -p "$EXPORT_DIR"
 #   scripts/fetch-data.sh --from notes-harvest notes
 if [[ $# -eq 0 ]]; then set -- --all; fi
 
+# Only a FULL run refreshes the data the site calls "the data" (the runtime artifacts
+# in lib/runtime-artifacts.js), so only a full run may advance the freshness stamp
+# below. A scoped run — notably publish-notes.sh's `--from notes-harvest notes` —
+# rebuilds notes, which are rendered into static pages and are not among those
+# artifacts, so it must leave the stamp alone.
+_full_build=0
+if [[ "$1" == "--all" ]]; then _full_build=1; fi
+
 cd "$STELIS_DIR"
 
 _stelis() { env BEEATLAS_DIR="$REPO_ROOT" racket src/main.rkt "$@"; }
@@ -65,5 +73,20 @@ if [[ -n "${STELIS_EXPLAIN:-}" ]]; then
     _stelis --explain --export-dir "$EXPORT_DIR" "$@" || echo "WARN: stelis --explain failed (non-fatal) — proceeding to build" >&2
 fi
 
-exec env BEEATLAS_DIR="$REPO_ROOT" \
+env BEEATLAS_DIR="$REPO_ROOT" \
     racket src/main.rkt --build --export-dir "$EXPORT_DIR" "$@"
+
+# The site's "Data as of" clock (beeatlas-923). Written HERE, beside the artifacts it
+# describes, because this is the only step that refreshes them — the site build reads
+# it (scripts/postbuild-data.mjs) rather than stamping its own clock, so a code-only
+# deploy or a note publish inherits it untouched instead of claiming the data is fresh.
+#
+# `set -e` means we are only reachable when the build above exited 0. Stelis is
+# partial-success, so a failed task propagates non-zero here and the stamp stays put —
+# a half-built export must not read as a successful refresh.
+#
+# Epoch seconds, matching what postbuild-data.mjs parses. Not exec'd above so this can
+# run after the build; the build's exit status still propagates via `set -e`.
+if [[ $_full_build -eq 1 ]]; then
+    date +%s > "$EXPORT_DIR/generated_at"
+fi

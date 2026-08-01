@@ -23,7 +23,9 @@
 #   4. `npm run fetch-data` — Stelis (github.com/rainhead/stelis) builds the
 #      data into $EXPORT_DIR. Content-addressed: unchanged work skips;
 #      partial-success (a failed task blocks only its dependents; non-zero
-#      exit aborts the publish below via `set -euo pipefail`).
+#      exit aborts the publish below via `set -euo pipefail`). On success it
+#      stamps $EXPORT_DIR/generated_at — the site's "Data as of" clock, which
+#      only this step may advance (beeatlas-923).
 #   5. Integration gate: ALL @integration tests must pass (fresh dbt sandbox
 #      vs. the step-3 baseline) or the publish is aborted — stale data stays
 #      live until fixed.
@@ -109,8 +111,11 @@ TAXA_CACHE_S3_KEY="raw/taxa_cache.json"
 TAXA_PATH="$SCRIPT_DIR/raw/taxa.csv.gz"
 TAXA_CACHE_PATH="$SCRIPT_DIR/raw/taxa_cache.json"
 
-# One epoch for the whole run: Stelis presets it for build determinism, and
-# postbuild-data.mjs stamps it into the slim manifest as generated_at.
+# One epoch for the whole run: Stelis presets it for build determinism. The slim
+# manifest's generated_at does NOT come from here — it comes from the export dir's
+# `generated_at` stamp, written by scripts/fetch-data.sh at step 4 when the data
+# actually refreshes, so a publish clock can never stand in for a data clock
+# (beeatlas-923).
 export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date +%s)}"
 
 _ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }

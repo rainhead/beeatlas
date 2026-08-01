@@ -48,9 +48,11 @@ SITE_ROOT="${SITE_ROOT:-$BASE_DIR/htdocs}"
 VAR_DIR="${VAR_DIR:-$BASE_DIR/var}"
 EXPORT_DIR="${EXPORT_DIR:-$VAR_DIR/export}"
 
-# One epoch for the run: the slim manifest's generated_at
-# (scripts/postbuild-data.mjs). The data is unchanged; generated_at records
-# when THIS site build ran, same semantics as the other publish paths.
+# One epoch for the run, for BUILD DETERMINISM ONLY. It deliberately does not
+# reach the slim manifest's generated_at: this path rebuilds the site against an
+# unchanged export, so the freshness label must keep whatever the last real data
+# refresh stamped (beeatlas-923). That stamp lives in the export dir and is written
+# by scripts/fetch-data.sh, which this path never runs.
 export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date +%s)}"
 
 _ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
