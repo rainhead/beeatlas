@@ -446,35 +446,138 @@ describe('bee-atlas update banner + popover lazy storage estimate (Phase 150)', 
     expect(banner!.textContent).toMatch(/A data update is available — tap to reload/);
   });
 
-  test('tap banner body calls window.__wb.messageSkipWaiting()', async () => {
-    const mockMessageSkipWaiting = vi.fn();
-    (window as any).__wb = { messageSkipWaiting: mockMessageSkipWaiting };
+  // --- beeatlas-d8j: taking the update ---------------------------------------
+  //
+  // The bug these pin: the tap used to post SKIP_WAITING and reload on the SAME TICK,
+  // racing the new worker's activation. The old worker won that race and answered the
+  // navigation from its own precached app shell, so the page came back unchanged. The
+  // ORDER is the fix, so the order is what is asserted — "messageSkipWaiting was
+  // called" (all the old test checked) stays true under the broken code.
 
-    // Stub location.reload
-    let reloadSpy: ReturnType<typeof vi.fn> | null = null;
-    try {
-      reloadSpy = vi.fn();
-      Object.defineProperty(window, 'location', {
-        value: { ...window.location, reload: reloadSpy },
-        configurable: true,
-      });
-    } catch {
-      // happy-dom may reject this — that's OK, we'll still assert messageSkipWaiting
-    }
+  /** Stub window.location.reload and return the spy.
+   *
+   *  Deliberately NOT try/catch'd into an optional. The predecessor test guarded every
+   *  reload assertion behind `if (reloadSpy)`, so had the stub ever stopped working the
+   *  suite would have gone quietly vacuous while still reporting green — which is how a
+   *  reload-ordering bug survived in a tested file. If this cannot stub, that is a real
+   *  signal about the environment and the suite should say so. */
+  const stubReload = (): ReturnType<typeof vi.fn> => {
+    const spy = vi.fn();
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, reload: spy },
+      configurable: true,
+    });
+    return spy;
+  };
 
+  /** A fake Workbox handle that records its `controlling` listeners so a test can fire
+   *  control transfer when it chooses — which is what makes the race observable. */
+  const fakeWorkbox = () => {
+    const listeners: Array<() => void> = [];
+    return {
+      messageSkipWaiting: vi.fn(),
+      addEventListener: vi.fn((_type: string, fn: () => void) => { listeners.push(fn); }),
+      takeControl: () => listeners.forEach((fn) => fn()),
+    };
+  };
+
+  const tapBanner = async (element: any) => {
     window.dispatchEvent(new CustomEvent('sw-update-available'));
-    await (el as any).updateComplete;
+    await element.updateComplete;
+    const body = element.shadowRoot!.querySelector('.update-banner__body') as HTMLElement;
+    expect(body).not.toBeNull();
+    body.click();
+    return body;
+  };
 
-    const bannerBody = el.shadowRoot!.querySelector('.update-banner__body') as HTMLElement;
-    expect(bannerBody).not.toBeNull();
-    bannerBody.click();
+  test('tap posts SKIP_WAITING but does NOT reload until the new worker takes control', async () => {
+    const wb = fakeWorkbox();
+    (window as any).__wb = wb;
+    const reloadSpy = stubReload();
 
-    expect(mockMessageSkipWaiting).toHaveBeenCalledOnce();
+    await tapBanner(el);
 
-    // Soft assert on reload — may fail in some happy-dom versions
-    if (reloadSpy) {
-      // best-effort
+    expect(wb.messageSkipWaiting).toHaveBeenCalledOnce();
+    expect(wb.addEventListener).toHaveBeenCalledWith('controlling', expect.any(Function));
+    // THE regression: reloading here is what served the old shell.
+    expect(reloadSpy).not.toHaveBeenCalled();
+    wb.takeControl();
+    expect(reloadSpy).toHaveBeenCalledOnce();
+
+    delete (window as any).__wb;
+  });
+
+  test('reloads anyway if control never transfers, so the button is never dead', async () => {
+    // A stale banner (nothing actually waiting) or a message the worker never processes:
+    // `controlling` never fires. Reloading on the old worker is the behaviour this
+    // replaced — acceptable — whereas doing nothing at all would be a worse button.
+    vi.useFakeTimers();
+    try {
+      const wb = fakeWorkbox();
+      (window as any).__wb = wb;
+      const reloadSpy = stubReload();
+
+      await tapBanner(el);
+      expect(reloadSpy).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(3000);
+      expect(reloadSpy).toHaveBeenCalledOnce();
+
+      // ...and the late arrival of control must not reload a second time.
+      wb.takeControl();
+      expect(reloadSpy).toHaveBeenCalledOnce();
+      delete (window as any).__wb;
+    } finally {
+      vi.useRealTimers();
     }
+  });
+
+  test('with no service worker at all, the tap reloads immediately', async () => {
+    // index.html mounts this same component with no SW registered (sw-registration.ts
+    // is imported only by the /app entry), so there is no control transfer to wait for.
+    delete (window as any).__wb;
+    const reloadSpy = stubReload();
+
+    await tapBanner(el);
+
+    expect(reloadSpy).toHaveBeenCalledOnce();
+  });
+
+  test('a second tap while the first is in flight does not stack another reload', async () => {
+    const wb = fakeWorkbox();
+    (window as any).__wb = wb;
+    const reloadSpy = stubReload();
+
+    const body = await tapBanner(el);
+    await (el as any).updateComplete;
+    expect((body as HTMLButtonElement).disabled).toBe(true);
+
+    body.click(); // ignored: disabled, and guarded regardless
+    expect(wb.messageSkipWaiting).toHaveBeenCalledOnce();
+
+    wb.takeControl();
+    expect(reloadSpy).toHaveBeenCalledOnce();
+
+    delete (window as any).__wb;
+  });
+
+  test('the header menu route is guarded too, not just the disabled button', async () => {
+    // `cache-update-acted` (dispatched from the account menu) is wired to the SAME
+    // handler as the banner (bee-atlas connectedCallback), so it re-enters even while
+    // the banner button is disabled. Without the in-handler guard this stacks a second
+    // `controlling` listener and a second timeout — which is why the guard cannot be
+    // left to the button's disabled state alone.
+    const wb = fakeWorkbox();
+    (window as any).__wb = wb;
+    const reloadSpy = stubReload();
+
+    await tapBanner(el);
+    el.dispatchEvent(new CustomEvent('cache-update-acted', { bubbles: true, composed: true }));
+
+    expect(wb.messageSkipWaiting).toHaveBeenCalledOnce();
+    expect(wb.addEventListener).toHaveBeenCalledOnce();
+
+    wb.takeControl();
+    expect(reloadSpy).toHaveBeenCalledOnce();
 
     delete (window as any).__wb;
   });

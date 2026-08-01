@@ -28,6 +28,24 @@ const DEFAULT_ZOOM = 7;
 // wide enough to keep the surrounding locality legible.
 const CATALOG_LOOKUP_ZOOM = 12;
 
+// beeatlas-d8j: how long the update banner waits for the new service worker to take
+// control before reloading anyway. Control transfer is normally near-instant; this only
+// has to cover a worker busy with in-flight fetches on a slow link. It is a backstop
+// against a dead button, not a budget — if it ever fires we reload on the old worker,
+// which is merely the old (broken) behaviour, not something worse.
+const SW_CONTROL_TIMEOUT_MS = 3000;
+
+/**
+ * The slice of workbox-window's Workbox that the update banner drives. Structural, not
+ * an import: sw-registration.ts owns the real instance and hands it over on `window.__wb`
+ * (see the handoff note there), and bee-atlas must not pull workbox-window into the
+ * non-/app bundle — index.html mounts this same component with no service worker at all.
+ */
+interface WorkboxUpdateHandle {
+  messageSkipWaiting(): void;
+  addEventListener(type: 'controlling', listener: () => void): void;
+}
+
 // --- D-12: iOS Safari detection helpers ---
 // These are module-level functions (not methods) so install-affordance.test.ts can
 // find the key strings via readFileSync without mounting a component.
@@ -158,6 +176,10 @@ export class BeeAtlas extends LitElement {
   @state() private _cacheState: { ready: boolean; cached: string[]; missing: string[] } | null = null;
   @state() private _primeProgress: { received: number; total: number; assetInFlight: string | null } | null = null;
   @state() private _updateAvailable: boolean = false;
+  // beeatlas-d8j: the tap has been taken and we are waiting for the new worker to take
+  // control. Reflected on the button so the wait — which is precisely when the link is
+  // slow — reads as "working", not as a button that ignored the tap.
+  @state() private _reloadPending: boolean = false;
   @state() private _freshnessLabel: string | null = null;
   // From the same manifest fetch as the freshness label (beeatlas-4uj). Loaded once:
   // unlike freshness, which is refreshed on a cadence because the DATA can move under
@@ -630,6 +652,8 @@ bee-map {
           <button
             class="update-banner__body"
             @click=${this._onBannerTap}
+            ?disabled=${this._reloadPending}
+            aria-busy=${this._reloadPending ? 'true' : 'false'}
             aria-label="A data update is available, tap to reload"
           >A data update is available — tap to reload</button>
           <button
@@ -1300,10 +1324,48 @@ bee-map {
     }
   };
 
+  /**
+   * Take the update: hand control to the waiting worker, THEN reload (beeatlas-d8j).
+   *
+   * Order is the whole fix. `messageSkipWaiting()` only POSTS {type:'SKIP_WAITING'};
+   * the waiting worker then calls skipWaiting() (src/sw.ts) and must activate and take
+   * over this client before a reload is served ITS assets. Reloading on the same tick
+   * races that and normally loses — the OLD worker handles the navigation, and since
+   * every /app/ navigation is answered from the precached app shell (the NavigationRoute
+   * in src/sw.ts), the page comes back on the old index.html and the old bundle. That is
+   * why tapping again a moment later works: by then the new worker has activated.
+   *
+   * A slow link widens the window at both ends — in-flight fetches keep the old worker
+   * busy processing the message, and the navigation itself is slower — which is exactly
+   * the condition this was reported under.
+   *
+   * So: listen for `controlling` FIRST, post second, reload only once control has
+   * actually transferred. This is the documented workbox-window ordering.
+   *
+   * The listener is attached here rather than globally in sw-registration.ts on purpose:
+   * `controlling` also fires when ANOTHER tab takes an update, and a tab the user is
+   * working in should not silently reload underneath them.
+   */
   private _onBannerTap = () => {
-    const wb = (window as Window & { __wb?: { messageSkipWaiting(): void } }).__wb;
-    wb?.messageSkipWaiting();
-    window.location.reload();
+    if (this._reloadPending) return; // a second tap must not stack another reload
+    this._reloadPending = true;
+    const wb = (window as Window & { __wb?: WorkboxUpdateHandle }).__wb;
+    // No worker to wait on (SW unsupported, or registration failed): reload straight
+    // away, exactly as before — there is no control transfer to wait for.
+    if (!wb) { window.location.reload(); return; }
+
+    let reloaded = false;
+    const reload = () => {
+      if (reloaded) return;
+      reloaded = true;
+      window.location.reload();
+    };
+    wb.addEventListener('controlling', reload);
+    wb.messageSkipWaiting();
+    // Backstop: if nothing is actually waiting — a stale banner, or a message the
+    // worker never processes — `controlling` never fires and the button would be dead.
+    // Reloading anyway is no worse than the behaviour this replaced.
+    window.setTimeout(reload, SW_CONTROL_TIMEOUT_MS);
   };
 
   private _onBannerDismiss = () => { this._updateAvailable = false; };
