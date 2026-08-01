@@ -161,8 +161,20 @@ function applyFieldOverrides(themed: StyleLayer[]): StyleSpecification['layers']
       'line-width': ['interpolate', ['exponential', 1.6], ['zoom'], 13, 0.9, 16, 2.2, 20, 5],
     };
   }
+  // Rivers get their own heavier ramp — thickened as well as darkened, and
+  // deliberately wider than a stream so the two read as different sizes of water
+  // rather than one undifferentiated blue web.
+  const river = byId.get('water_river');
+  if (river) {
+    river.paint = {
+      ...river.paint,
+      'line-color': '#3d8fb0',
+      'line-width': ['interpolate', ['exponential', 1.6], ['zoom'], 13, 1.4, 16, 3.2, 20, 7],
+    };
+  }
   for (const l of themed) {
-    if (l.id.startsWith('water') && l.type === 'line' && l.id !== 'water_stream') {
+    if (l.id.startsWith('water') && l.type === 'line' &&
+        l.id !== 'water_stream' && l.id !== 'water_river') {
       l.paint = { ...l.paint, 'line-color': '#3d8fb0' };
     }
   }
@@ -198,17 +210,36 @@ function applyFieldOverrides(themed: StyleLayer[]): StyleSpecification['layers']
  * plain arrays, ["literal", [...]], and the theme's ["case", ...] forms alike.
  * Exported so the test can assert the allowlist rather than re-implementing it.
  */
+/**
+ * Expression operators that can appear in a `text-font` value. Anything in an
+ * operator position that is NOT here is treated as a font name — so an unknown
+ * operator produces a false positive and fails the allowlist test loudly, rather
+ * than a false negative that ships blank boxes to someone standing in a field.
+ * Fail-closed is the whole point of this function.
+ */
+const TEXT_FONT_OPERATORS = new Set([
+  'literal', 'case', 'match', 'step', 'interpolate', 'coalesce', 'let', 'var',
+  'get', 'has', 'in', 'at', 'length', 'concat', 'to-string', 'zoom',
+  '==', '!=', '<', '<=', '>', '>=', '!', 'all', 'any',
+]);
+
 export function collectFontstacks(style: StyleSpecification): string[] {
   const found = new Set<string>();
   const collect = (v: unknown): void => {
-    if (typeof v === 'string') {
-      // `text-font` values also contain expression operators ("case", "literal",
-      // "get", "<="). Font names are Capitalised and multi-word; operators are
-      // neither, so this separates them without hardcoding the operator list.
-      if (/^[A-Z]/.test(v) && v.includes(' ')) found.add(v);
+    if (!Array.isArray(v) || v.length === 0) return;
+    const head = v[0];
+    // ["literal", ["Noto Sans Medium"]] — the fonts are the second element.
+    if (head === 'literal') { collect(v[1]); return; }
+    // ["case", <cond>, ["literal", …], …] — recurse past the operator.
+    if (typeof head === 'string' && TEXT_FONT_OPERATORS.has(head)) {
+      for (let i = 1; i < v.length; i++) collect(v[i]);
       return;
     }
-    if (Array.isArray(v)) v.forEach(collect);
+    // A bare stack: ["Noto Sans Regular", "Fallback"].
+    for (const el of v) {
+      if (typeof el === 'string') found.add(el);
+      else collect(el);
+    }
   };
   for (const layer of style.layers as unknown as StyleLayer[]) {
     collect(layer.layout?.['text-font']);

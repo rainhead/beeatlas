@@ -23,7 +23,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 BASE_DIR="${BASE_DIR:-/var/www/beeatlas.net}"
-BASEMAP_DIR="${BASEMAP_DIR:-$BASE_DIR/basemap}"
+# Build into a staging dir OUTSIDE the served basemap root: $BASEMAP_DIR is
+# web-reachable through the Apache Alias, so staging inside it would publish
+# every half-extracted archive at /basemap/tiles/staging/… mid-build.
+STAGING_DIR="${STAGING_DIR:-$BASE_DIR/var/basemap-staging}"
 
 # z14 is NOT a comfort setting. Measured against the Protomaps schema: paths,
 # streams and peaks — the layers volunteers named as must-haves — do not enter
@@ -47,8 +50,8 @@ PMTILES="${PMTILES:-$(command -v pmtiles || command -v go-pmtiles || true)}"
 }
 [[ -f "$REGION" ]] || { echo "ERROR: clip polygon missing: $REGION" >&2; exit 1; }
 
-mkdir -p "$BASEMAP_DIR/staging"
-STAGED="$BASEMAP_DIR/staging/$OUT_NAME"
+mkdir -p "$STAGING_DIR"
+STAGED="$STAGING_DIR/$OUT_NAME"
 
 echo "Extracting $OUT_NAME from $SRC (maxzoom $MAXZOOM)..."
 # --region (polygon) rather than --bbox: measured 18% smaller for WA, and far

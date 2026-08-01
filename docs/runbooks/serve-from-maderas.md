@@ -25,7 +25,7 @@ Maderas IP: `45.79.96.48`. DNS: Route 53 (the `beeatlas.net` hosted zone).
 
 ```sh
 sudo mkdir -p /var/www/beeatlas.net/htdocs /var/www/beeatlas.net/var \
-              /var/www/beeatlas.net/basemap/staging
+              /var/www/beeatlas.net/var/basemap-staging /var/www/beeatlas.net/basemap
 sudo chown -R "$USER": /var/www/beeatlas.net
 sudo cp ~/dev/beeatlas/infra/maderas/beeatlas.net.conf /etc/apache2/sites-available/
 sudo a2ensite beeatlas.net
@@ -208,8 +208,11 @@ One-time: install the CLI on maderas with
 `go install github.com/protomaps/go-pmtiles@latest` (note: the module root, not
 `.../cmd/pmtiles`, which does not exist). It lands in `~/go/bin` as
 **`go-pmtiles`**; Homebrew calls the same binary `pmtiles`, and both scripts
-accept either. Add `~/go/bin` to `PATH`, and ensure
-`/var/www/beeatlas.net/basemap/staging` exists (§1).
+accept either. Add `~/go/bin` to `PATH`, and ensure both
+`/var/www/beeatlas.net/basemap` and `/var/www/beeatlas.net/var/basemap-staging`
+exist (§1). Staging sits under `var/` deliberately: `basemap/` is web-reachable
+through the Alias, so building into it would publish every half-extracted
+archive mid-build (`Options -Indexes` hides a listing, not a file).
 
 Build and publish (on maderas, from the repo):
 
@@ -221,7 +224,9 @@ data/publish-basemap.sh wa-$(date -u +%Y%m%d).pmtiles
 `build-basemap.sh` pulls only the tiles inside `data/basemap/wa.geojson` via
 range requests, so it takes minutes, not hours. `publish-basemap.sh` verifies
 the archive, moves it into place atomically, writes `manifest.json` **last**,
-and prunes superseded archives after 30 days.
+and prunes superseded archives 30 days after they were SUPERSEDED — it touches
+the outgoing archive on publish, because `find -mtime` otherwise reads the build
+date and would delete a quarterly archive instantly.
 
 Verify:
 

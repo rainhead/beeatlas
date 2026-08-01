@@ -160,6 +160,28 @@ describe('glyph coverage — offline correctness', () => {
     }
   });
 
+  test('collector catches stacks the old capitalisation heuristic missed', () => {
+    // The first version identified a font as /^[A-Z]/ && includes(' '), so a
+    // single-word stack ("Roboto") slipped through and the allowlist test passed
+    // while the style referenced glyphs we do not ship. Cover every shape the
+    // theme actually emits, plus the single-word case that caused the hole.
+    const withFonts = (textFont: unknown) => ({
+      ...buildBasemapStyle(MANIFEST, { origin: ORIGIN }),
+      layers: [{ id: 'probe', type: 'symbol', layout: { 'text-font': textFont } }],
+    }) as unknown as Parameters<typeof collectFontstacks>[0];
+
+    expect(collectFontstacks(withFonts(['Roboto']))).toEqual(['Roboto']);
+    expect(collectFontstacks(withFonts(['literal', ['Inter']]))).toEqual(['Inter']);
+    expect(collectFontstacks(withFonts(['Noto Sans Regular', 'Fallback One'])))
+      .toEqual(['Fallback One', 'Noto Sans Regular']);
+    expect(collectFontstacks(withFonts(
+      ['case', ['<=', ['get', 'min_zoom'], 5],
+        ['literal', ['Noto Sans Medium']], ['literal', ['Noto Sans Regular']]],
+    ))).toEqual(['Noto Sans Medium', 'Noto Sans Regular']);
+    // Operators must never be mistaken for fonts.
+    expect(collectFontstacks(withFonts(['literal', ['Inter']]))).not.toContain('literal');
+  });
+
   test('every vendored stack and range is actually on disk', () => {
     for (const stack of VENDORED_FONTSTACKS) {
       for (const range of VENDORED_GLYPH_RANGES) {
