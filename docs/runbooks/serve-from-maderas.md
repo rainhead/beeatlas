@@ -204,8 +204,11 @@ Washington, extracted from the [Protomaps](https://build.protomaps.com/) daily
 OSM build. Refresh is manual and occasional — OSM currency is not a product
 requirement — so this is deliberately **not** wired into the nightly.
 
-One-time: install the `pmtiles` CLI on maderas
-(`go install github.com/protomaps/go-pmtiles/cmd/pmtiles@latest`), and ensure
+One-time: install the CLI on maderas with
+`go install github.com/protomaps/go-pmtiles@latest` (note: the module root, not
+`.../cmd/pmtiles`, which does not exist). It lands in `~/go/bin` as
+**`go-pmtiles`**; Homebrew calls the same binary `pmtiles`, and both scripts
+accept either. Add `~/go/bin` to `PATH`, and ensure
 `/var/www/beeatlas.net/basemap/staging` exists (§1).
 
 Build and publish (on maderas, from the repo):

@@ -36,8 +36,13 @@ BUILD_DATE="${1:-$(date -u +%Y%m%d)}"
 SRC="https://build.protomaps.com/${BUILD_DATE}.pmtiles"
 OUT_NAME="wa-${BUILD_DATE}.pmtiles"
 
-command -v pmtiles >/dev/null || {
-    echo "ERROR: pmtiles CLI not found. Install github.com/protomaps/go-pmtiles" >&2
+# Homebrew installs the binary as `pmtiles`; `go install github.com/protomaps/
+# go-pmtiles@latest` names it `go-pmtiles` after the module. Accept either rather
+# than making the runbook depend on which way it was installed.
+PMTILES="${PMTILES:-$(command -v pmtiles || command -v go-pmtiles || true)}"
+[[ -n "$PMTILES" ]] || {
+    echo "ERROR: pmtiles CLI not found (looked for 'pmtiles' and 'go-pmtiles')." >&2
+    echo "  go install github.com/protomaps/go-pmtiles@latest" >&2
     exit 1
 }
 [[ -f "$REGION" ]] || { echo "ERROR: clip polygon missing: $REGION" >&2; exit 1; }
@@ -48,7 +53,7 @@ STAGED="$BASEMAP_DIR/staging/$OUT_NAME"
 echo "Extracting $OUT_NAME from $SRC (maxzoom $MAXZOOM)..."
 # --region (polygon) rather than --bbox: measured 18% smaller for WA, and far
 # more for any region whose bounding box is mostly ocean or another jurisdiction.
-pmtiles extract "$SRC" "$STAGED" --region="$REGION" --maxzoom="$MAXZOOM"
+"$PMTILES" extract "$SRC" "$STAGED" --region="$REGION" --maxzoom="$MAXZOOM"
 
 echo
 echo "Built: $STAGED ($(du -h "$STAGED" | cut -f1))"

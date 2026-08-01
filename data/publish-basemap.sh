@@ -35,9 +35,13 @@ STAGED="$BASEMAP_DIR/staging/$ARCHIVE"
 }
 [[ -f "$STAGED" ]] || { echo "ERROR: not built: $STAGED" >&2; exit 1; }
 
+# Homebrew names the binary `pmtiles`, `go install` names it `go-pmtiles`.
+PMTILES="${PMTILES:-$(command -v pmtiles || command -v go-pmtiles || true)}"
+[[ -n "$PMTILES" ]] || { echo "ERROR: pmtiles CLI not found" >&2; exit 1; }
+
 # Sanity-check the archive before it goes live: pmtiles verifies the header and
 # directory, so a truncated download cannot be published.
-pmtiles verify "$STAGED" >/dev/null || { echo "ERROR: $ARCHIVE failed verify" >&2; exit 1; }
+"$PMTILES" verify "$STAGED" >/dev/null || { echo "ERROR: $ARCHIVE failed verify" >&2; exit 1; }
 
 # Never write into a name a client might already be range-requesting: land the
 # bytes on the same filesystem, then mv (atomic within a filesystem).
