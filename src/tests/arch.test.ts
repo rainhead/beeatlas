@@ -18,6 +18,12 @@ const SPECIES_DIR = resolve(ROOT, 'src/species');
 // ARCH-04 / PAGE-08 — forbidden imports under src/species/**.ts
 const FORBIDDEN = [
   'mapbox-gl',
+  // The map renderer and its style machinery must stay out of the species pages
+  // (beeatlas-26q). mapbox-gl stays listed until beeatlas-q73 removes it.
+  'maplibre-gl',
+  'protomaps-themes-base',
+  'pmtiles',
+  '../basemap-style.ts', '../basemap-style',
   'wa-sqlite',
   '../sqlite.ts', '../sqlite',
   '../filter.ts', '../filter',
@@ -109,6 +115,7 @@ describe('src/entries/species-index.ts allowlist (IDX-02, Phase 96)', () => {
   const FORBIDDEN_PATTERNS = [
     'bee-species-page', 'bee-species-filter', 'bee-atlas',
     'wa-sqlite', 'mapbox-gl',
+    'maplibre-gl', 'protomaps-themes-base', 'pmtiles', 'basemap-style',
   ];
 
   test('only imports CSS side-effects + bee-header (no SPA modules)', () => {
