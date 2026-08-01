@@ -335,6 +335,31 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     }
   });
 
+  test('the Apache redirect map lists every synonym redirect', () => {
+    // infra/maderas/beeatlas-species-redirects.conf points RewriteMap at this
+    // file in the docroot. If the build stops emitting it, Apache keeps serving
+    // whatever it last read and new folds silently fall back to meta refresh.
+    const map = readFileSync(resolve(ROOT, '_site/species-redirects.map'), 'utf-8');
+    const entries = new Map(
+      map
+        .split('\n')
+        .filter(l => l.startsWith('/'))
+        .map(l => l.split(/\s+/) as [string, string]),
+    );
+    expect(entries.size).toBe((synonyms as any).redirects.length);
+    for (const r of (synonyms as any).redirects) {
+      expect(entries.get(`/species/${r.fromSlug}/`)).toBe(`/species/${r.toSlug}/index.html`);
+    }
+    // A map key that is also a real page would 301 a live species away.
+    const speciesSlugs = new Set(
+      (species as any).speciesList.filter((sp: any) => sp.slug).map((sp: any) => sp.slug),
+    );
+    for (const key of entries.keys()) {
+      const slug = key.replace(/^\/species\//, '').replace(/\/$/, '');
+      expect(speciesSlugs.has(slug), `${key} would redirect a live species page`).toBe(false);
+    }
+  });
+
   test('a synonym redirect never shadows a real species page', () => {
     // Both templates write /species/<slug>/index.html; if a synonym still had a
     // species page, one would silently overwrite the other.

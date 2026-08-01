@@ -144,3 +144,47 @@ Two operational notes:
   returns `"pending"` after the lock wait (exit 75 from the script — logged
   as deferred, not an error): the run holding the lock reads the same
   committed store, so that nightly (or the next) bakes the note.
+
+## 8. Species-name redirects (one-time, sudo — beeatlas-ds4)
+
+When a name is folded into another (`data/dbt/seeds/occurrence_synonyms.csv`),
+its species page stops being generated and every link to it 404s. Apache 301s
+those URLs to the accepted name instead.
+
+**The table is data, not config.** `/species-redirects.map` is emitted by the
+site build from the synonym seeds and lands in the docroot through an ordinary
+publish, so adding a synonym needs neither root nor a reload — mod_rewrite
+re-reads a `txt:` map when the file changes. Only the rules below are config, and
+they are installed once.
+
+Deploy a build containing `/species-redirects.map` **before** running this:
+mod_rewrite validates the map file at startup, so a missing file will fail
+`configtest`.
+
+```sh
+# rules shared by both vhosts (:80 serves the site directly — it does not
+# redirect to HTTPS — so both need them)
+sudo cp ~/dev/beeatlas/infra/maderas/beeatlas-species-redirects.conf /etc/apache2/
+sudo cp ~/dev/beeatlas/infra/maderas/beeatlas.net.conf /etc/apache2/sites-available/
+
+# certbot's -le-ssl clone is generated on the host and carries no Include line;
+# add it before </VirtualHost> if it is not already there (idempotent)
+grep -q beeatlas-species-redirects /etc/apache2/sites-available/beeatlas.net-le-ssl.conf \
+  || sudo sed -i 's|^</VirtualHost>|    Include /etc/apache2/beeatlas-species-redirects.conf\n</VirtualHost>|' \
+       /etc/apache2/sites-available/beeatlas.net-le-ssl.conf
+
+sudo apachectl configtest && sudo systemctl reload apache2
+```
+
+Verify — the first must be a 301 to the accepted name, the second a 200 (a
+species that was never folded must fall straight through):
+
+```sh
+curl -sI https://beeatlas.net/species/Bombus/lapponicus/index.html | head -2
+curl -so /dev/null -w '%{http_code}\n' https://beeatlas.net/species/Bombus/sylvicola/index.html
+```
+
+The HTML page at each folded URL stays as the fallback (same source list, meta
+refresh). If the map is missing, stale, or the vhost is rebuilt without these
+rules, readers are still forwarded — the failure mode is the slower redirect,
+not a 404.

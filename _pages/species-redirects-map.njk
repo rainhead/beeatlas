@@ -1,0 +1,26 @@
+---
+permalink: "/species-redirects.map"
+eleventyExcludeFromCollections: true
+---
+{#- The redirect table Apache serves 301s from: a mod_rewrite `txt:` map, read by
+    RewriteMap species_redirect in the beeatlas.net vhosts (both :80 and :443 —
+    port 80 serves the site directly rather than redirecting to HTTPS).
+
+    It ships in the docroot because that is what the publish step swaps into
+    place, so a synonym added to a seed reaches Apache through an ordinary deploy
+    with no root access and no config edit. mod_rewrite re-reads a txt map when
+    its mtime changes, so no reload is needed either. HTTP access to the file
+    itself is denied in the vhost — mod_rewrite reads it from disk, not over the
+    network.
+
+    The HTML redirect pages (_pages/species-redirect.njk) stay, from the same
+    list, as the fallback: if this map is missing, stale, or the vhost is ever
+    rebuilt without the rules, the reader is still forwarded — just by meta
+    refresh instead of a 301. Two mechanisms, one source. -#}
+# BeeAtlas species redirects — GENERATED, do not edit.
+# Source: data/dbt/seeds/*synonyms*.csv via _data/synonyms.js.
+# Consumed by: RewriteMap species_redirect (beeatlas.net vhost).
+# Format: <old-path> <accepted-path>, one per line.
+{% for r in synonyms.redirects -%}
+/species/{{ r.fromSlug }}/ /species/{{ r.toSlug }}/index.html
+{% endfor -%}
