@@ -55,7 +55,8 @@ _ZIP_MAGIC = b"PK\x03\x04"  # ZIP local-file-header magic bytes
 #
 # If NEITHER moved since the cached ZIP was pulled, reuse the cache — letting even the
 # nightly skip an unchanged source. Two known blind spots remain, both rare and both
-# healed by the next full pull:
+# healed by the next full pull (a third — a record inserted DURING the ~2-minute ZIP
+# build — is closed by reading the baseline before the download rather than after):
 #   - a re-edit of a record ALREADY inside the baseline `since` window: its
 #     dateLastModified stays >= since, so the modified-since COUNT is unchanged (and
 #     total is flat), so the probe skips. The window is only ~1 day wide, so this is
@@ -110,27 +111,46 @@ def _probe_sidecar_path(dataset_id: int) -> Path:
     return ECDYSIS_CACHE_DIR / f"{dataset_id}.probe.json"
 
 
-def _record_probe_baseline(dataset_id: int) -> None:
-    """Snapshot the source's change-signals right after a successful full download,
-    so a later run can cheaply tell whether anything moved.
+def _read_probe_baseline(dataset_id: int) -> dict | None:
+    """Read the source's change-signals to serve as the baseline for a download that
+    is ABOUT to start, so a later run can cheaply tell whether anything moved.
+
+    Read BEFORE the download, not after: the server-side ZIP build takes ~2 minutes,
+    and a record inserted during that window may or may not have made it into the
+    ZIP. Reading the signals first makes such a record read as "changed" on the next
+    run (it is past the baseline either way) — so the worst case is a redundant
+    download, never a record the probe permanently hides.
 
     `since` is pulled back one day so day-boundary/timezone skew between us and the
-    server can never push a post-download edit below the min bound. We store the
+    server can never push a concurrent edit below the min bound. We store the
     modified-since count AT DOWNLOAD TIME as a baseline (not zero): every record in
     that window is already captured in the fresh ZIP, so "changed" later means the
-    count GREW past this baseline. Best-effort — a probe hiccup here must not fail
-    the (already successful) download; it just means the next run can't skip.
+    count GREW past this baseline. Best-effort — a probe hiccup must not fail the
+    download; it just means the next run can't skip.
     """
     try:
         since = time.strftime("%Y-%m-%d", time.gmtime(time.time() - 86400))
-        meta = {
+        return {
             "dataset_id": dataset_id,
             "since": since,
             "total": _api_occurrence_count(datasetID=dataset_id),
             "baseline_changed": _api_changed_since_count(dataset_id, since),
         }
-        _probe_sidecar_path(dataset_id).write_text(json.dumps(meta))
     except Exception as e:  # noqa: BLE001 — probe is advisory; never break the download
+        print(f"  WARNING: could not read Ecdysis probe baseline ({e})")  # noqa: T201
+        return None
+
+
+def _write_probe_baseline(baseline: dict | None) -> None:
+    """Persist a baseline read by `_read_probe_baseline`, iff the download it was read
+    for actually succeeded. A None baseline (probe hiccup) writes nothing, leaving any
+    older sidecar in place — a stale sidecar can only be MORE conservative, since its
+    counts predate this download's."""
+    if baseline is None:
+        return
+    try:
+        _probe_sidecar_path(baseline["dataset_id"]).write_text(json.dumps(baseline))
+    except OSError as e:
         print(f"  WARNING: could not record Ecdysis probe baseline ({e})")  # noqa: T201
 
 
@@ -264,6 +284,9 @@ def _download_zip(dataset_id: int) -> bytes:
     # not be silently masked by the cache-fallback when a (possibly stale) cache
     # exists. This is the exact silent-staleness trap D-3 is meant to avoid.
     username, password = _get_credentials()
+    # Read the change-signals BEFORE paying for the ZIP (see _read_probe_baseline):
+    # they describe the source as of the moment this download started.
+    baseline = _read_probe_baseline(dataset_id)
     try:
         session = requests.Session()
         _login_session(session, username, password)
@@ -294,9 +317,9 @@ def _download_zip(dataset_id: int) -> bytes:
     tmp_path = cache_path.with_suffix(".zip.tmp")
     tmp_path.write_bytes(response.content)
     tmp_path.replace(cache_path)
-    # Record the change-signals for this fresh pull so the next run can skip if the
-    # source stays put. Advisory: failure here never affects the returned bytes.
-    _record_probe_baseline(dataset_id)
+    # Commit the pre-download signals now that the pull succeeded, so the next run can
+    # skip if the source stays put. Advisory: failure here never affects the bytes.
+    _write_probe_baseline(baseline)
     return response.content
 
 

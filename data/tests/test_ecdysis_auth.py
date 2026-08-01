@@ -101,6 +101,12 @@ def _isolate_cache(tmp_path, monkeypatch):
     monkeypatch.setattr(ecdysis_pipeline, "ECDYSIS_CACHE_TTL_SECONDS", 0)
     # Default creds seam — individual tests may override.
     monkeypatch.setattr(ecdysis_pipeline, "_get_credentials", lambda: ("u", "p"))
+    # Hermeticity: the change-probe reads the v2 API with `requests.get`, which the
+    # Session patch these tests use does NOT cover — unstubbed, every success-path
+    # test would silently hit ecdysis.org. The probe itself is exercised in
+    # test_ecdysis_probe.py; here it is a no-op seam.
+    monkeypatch.setattr(ecdysis_pipeline, "_read_probe_baseline", lambda dataset_id: None)
+    monkeypatch.setattr(ecdysis_pipeline, "_probe_says_unchanged", lambda dataset_id: False)
     return tmp_path
 
 
