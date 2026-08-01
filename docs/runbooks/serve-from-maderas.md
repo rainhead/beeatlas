@@ -154,7 +154,8 @@ those URLs to the accepted name instead.
 **The table is data, not config.** `/species-redirects.map` is emitted by the
 site build from the synonym seeds and lands in the docroot through an ordinary
 publish, so adding a synonym needs neither root nor a reload — mod_rewrite
-re-reads a `txt:` map when the file changes. Only the rules below are config, and
+re-reads a `txt:` map when the file changes (verified on maderas 2026-07-31: a
+line appended to the live map took effect on the next request, no reload). Only the rules below are config, and
 they are installed once.
 
 Deploy a build containing `/species-redirects.map` **before** running this:
