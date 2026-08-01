@@ -12,13 +12,20 @@ the publish logic lives in [`data/nightly.sh`](../../data/nightly.sh)
 > into; the sibling `var/` holds pipeline state (`beeatlas.duckdb`, `export/`,
 > `baseline/`, `publish.lock`) and is never web-reachable. §6 has the one-time
 > migration from the flat pre-Model-Y root.
+>
+> A third sibling, `basemap/`, holds the self-hosted map tile archive. It is
+> web-reachable (via an `Alias`, not the DocumentRoot) but **outside** htdocs on
+> purpose: every publish path writes only inside htdocs, so nothing in the
+> nightly can delete or age-prune a ~227 MB artifact that only changes
+> quarterly. See §9.
 
 Maderas IP: `45.79.96.48`. DNS: Route 53 (the `beeatlas.net` hosted zone).
 
 ## 1. One-time install (sudo, on maderas)
 
 ```sh
-sudo mkdir -p /var/www/beeatlas.net/htdocs /var/www/beeatlas.net/var
+sudo mkdir -p /var/www/beeatlas.net/htdocs /var/www/beeatlas.net/var \
+              /var/www/beeatlas.net/basemap/staging
 sudo chown -R "$USER": /var/www/beeatlas.net
 sudo cp ~/dev/beeatlas/infra/maderas/beeatlas.net.conf /etc/apache2/sites-available/
 sudo a2ensite beeatlas.net
@@ -189,3 +196,51 @@ The HTML page at each folded URL stays as the fallback (same source list, meta
 refresh). If the map is missing, stale, or the vhost is rebuilt without these
 rules, readers are still forwarded — the failure mode is the slower redirect,
 not a 404.
+
+## 9. Basemap tile archive (beeatlas-hvp)
+
+The self-hosted map tiles for `/app/`. One ~227 MB PMTiles archive covering
+Washington, extracted from the [Protomaps](https://build.protomaps.com/) daily
+OSM build. Refresh is manual and occasional — OSM currency is not a product
+requirement — so this is deliberately **not** wired into the nightly.
+
+One-time: install the `pmtiles` CLI on maderas
+(`go install github.com/protomaps/go-pmtiles/cmd/pmtiles@latest`), and ensure
+`/var/www/beeatlas.net/basemap/staging` exists (§1).
+
+Build and publish (on maderas, from the repo):
+
+```sh
+data/build-basemap.sh              # extract today's Protomaps build -> staging/
+data/publish-basemap.sh wa-$(date -u +%Y%m%d).pmtiles
+```
+
+`build-basemap.sh` pulls only the tiles inside `data/basemap/wa.geojson` via
+range requests, so it takes minutes, not hours. `publish-basemap.sh` verifies
+the archive, moves it into place atomically, writes `manifest.json` **last**,
+and prunes superseded archives after 30 days.
+
+Verify:
+
+```sh
+# 206 + a Content-Range, and NO Content-Encoding (gzip would break ranges)
+curl -sI -r 0-16383 https://beeatlas.net/basemap/tiles/wa-20260801.pmtiles \
+  | grep -Ei 'HTTP|content-range|content-encoding|cache-control'
+curl -s https://beeatlas.net/basemap/tiles/manifest.json
+# glyphs ship with the CODE, through htdocs — not through the Alias above
+curl -so /dev/null -w '%{http_code}\n' \
+  'https://beeatlas.net/basemap/fonts/Noto%20Sans%20Regular/0-255.pbf'
+```
+
+**Why `basemap/` sits outside `htdocs/`.** Everything in the publish contract
+writes inside `htdocs`: `data/merge-swap.sh` rsyncs the page tree with
+`--delete` (excluding only `/assets` and `/data`) and age-prunes hashed files
+older than 30 days. An archive under `htdocs` would be deleted by one or the
+other, and the symptom is a blank basemap in the field rather than a failed
+build. Keeping it a sibling makes that impossible by construction instead of by
+an `--exclude` a later edit could drop.
+
+**Not backed up, deliberately.** The archive is fully reproducible from the
+Protomaps daily build plus `data/basemap/wa.geojson` and
+`data/build-basemap.sh` — both in git. Those two files *are* the backup; adding
+227 MB per refresh to the backup buckets would buy nothing.

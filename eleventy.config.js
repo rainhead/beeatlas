@@ -85,6 +85,15 @@ export default async function (eleventyConfig) {
   // rather than the export).
   eleventyConfig.addPassthroughCopy({ "public/app": "app" });
 
+  // Vendored MapLibre glyphs + sprites for the self-hosted basemap (beeatlas-hvp).
+  // These are code-coupled — src/basemap-style.ts names the fontstacks — so they
+  // ship WITH the code through merge-swap's page tree, not through the separate
+  // /basemap/tiles Alias that carries the big quarterly archive. Small (856 KB)
+  // and precacheable, which matters: MapLibre fetches glyph ranges lazily by
+  // codepoint, so a range that is missing offline renders as blank boxes with no
+  // error rather than failing loudly.
+  eleventyConfig.addPassthroughCopy({ "public/basemap": "basemap" });
+
   // In serve mode Vite runs as middleware inside the Eleventy dev server, so
   // /@vite/client, /src/*.ts and pre-bundled deps resolve while Eleventy serves the
   // HTML around them. This is the one piece of the old plugin worth keeping, minus
