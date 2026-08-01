@@ -163,6 +163,30 @@ describe('the search field submits a query', () => {
     expect(seen).toEqual(['WSDA_2303966']);
   });
 
+  test('the submit button submits — on a phone it is the only way to', async () => {
+    // inputmode="numeric" earns a numeric keypad, and a numeric keypad has no
+    // return key: on iOS there is no Enter to press. Without this button the
+    // field cannot be submitted on a phone at all.
+    const seen: string[] = [];
+    header.addEventListener('search-submit', (e) => {
+      seen.push((e as CustomEvent<{ query: string }>).detail.query);
+    });
+
+    await type(header, '2303966');
+    header.shadowRoot!.querySelector<HTMLButtonElement>('button[aria-label="Submit search"]')!.click();
+    await header.updateComplete;
+    expect(seen).toEqual(['2303966']);
+  });
+
+  test('the submit button is dead until there is something to submit', async () => {
+    const btn = () => header.shadowRoot!.querySelector<HTMLButtonElement>('button[aria-label="Submit search"]')!;
+    expect(btn().disabled).toBe(true);
+    await type(header, '  ');
+    expect(btn().disabled, 'whitespace is not a query').toBe(true);
+    await type(header, '2303966');
+    expect(btn().disabled).toBe(false);
+  });
+
   test('the event escapes the shadow root so <bee-atlas> can hear it', async () => {
     const seen: Event[] = [];
     document.addEventListener('search-submit', (e) => seen.push(e));

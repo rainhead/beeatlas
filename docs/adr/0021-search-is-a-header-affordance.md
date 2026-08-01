@@ -46,6 +46,17 @@ The state-ownership invariant is what forces this shape: `<bee-header>` is a pur
 presenter on every page it appears on, and it must not learn to query wa-sqlite just
 because it grew a text field.
 
+### The field carries a submit button, because Enter is not reachable on a phone
+
+`inputmode="numeric"` earns a numeric keypad — right for typing a label number,
+and on iOS that keypad has **no return key at all**. The first cut relied on Enter
+alone, which made the field unsubmittable on exactly the device a curator carries
+into the field. The popover now holds a 44px submit button beside the input,
+disabled while the query is empty; Enter still works where a keyboard has it.
+
+Keep the button even if the numeric hint ever goes away (it will, when search grows
+to names): on touch, a visible tap target beats a keyboard convention.
+
 ### A hit is reported, not inferred
 
 `searchStatus` carries `hit` alongside `miss` and `error`, and a hit closes the

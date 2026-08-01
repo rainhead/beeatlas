@@ -347,8 +347,15 @@ export class BeeHeader extends LitElement {
       gap: 6px;
     }
 
+    .search-row {
+      display: flex;
+      align-items: stretch;
+      gap: 6px;
+    }
+
     .search-input {
-      width: 100%;
+      flex: 1 1 auto;
+      min-width: 0;
       box-sizing: border-box;
       padding: 8px 10px;
       font-family: inherit;
@@ -363,6 +370,38 @@ export class BeeHeader extends LitElement {
     .search-input:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: -1px;
+    }
+
+    /* Submit. 44px square (the touch minimum this header uses everywhere), because
+       on a phone this is the whole submit story — see the comment at its markup. */
+    .search-submit {
+      flex: none;
+      width: 44px;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      background: transparent;
+      border: 1px solid var(--border, #ddd);
+      border-radius: 4px;
+      color: var(--accent);
+      cursor: pointer;
+    }
+
+    .search-submit:hover:not(:disabled) {
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+    }
+
+    .search-submit:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    .search-submit:disabled {
+      color: var(--text-hint, #767676);
+      cursor: default;
+      opacity: 0.6;
     }
 
     .search-hint {
@@ -688,25 +727,43 @@ export class BeeHeader extends LitElement {
     const status = reported && reported.query === typed && reported.kind !== 'hit' ? reported : null;
     return html`
       <div class="cache-popover search-popover" role="dialog" aria-modal="false" aria-label="Search">
-        <input
-          type="text"
-          class="search-input"
-          placeholder="Label number"
-          inputmode="numeric"
-          enterkeyhint="go"
-          aria-label="Find a specimen by its catalog or label number"
-          .value=${this._searchInput}
-          @input=${(e: Event) => { this._searchInput = (e.target as HTMLInputElement).value; }}
-          @keydown=${(e: KeyboardEvent) => {
-            if (e.key === 'Enter') { e.preventDefault(); this._submitSearch(); }
-            // Escape inside the field: clear first, close only when already empty.
-            if (e.key === 'Escape' && this._searchInput !== '') { e.stopPropagation(); this._clearSearch(); }
-          }}
-          autocomplete="off"
-          spellcheck="false"
-        />
+        <div class="search-row">
+          <input
+            type="text"
+            class="search-input"
+            placeholder="Label number"
+            inputmode="numeric"
+            enterkeyhint="go"
+            aria-label="Find a specimen by its catalog or label number"
+            .value=${this._searchInput}
+            @input=${(e: Event) => { this._searchInput = (e.target as HTMLInputElement).value; }}
+            @keydown=${(e: KeyboardEvent) => {
+              if (e.key === 'Enter') { e.preventDefault(); this._submitSearch(); }
+              // Escape inside the field: clear first, close only when already empty.
+              if (e.key === 'Escape' && this._searchInput !== '') { e.stopPropagation(); this._clearSearch(); }
+            }}
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <!-- The ONLY way to submit on a phone. inputmode="numeric" earns a numeric
+               keypad, and a numeric keypad has no return key — so on iOS there is no
+               Enter to press, and the field was unsubmittable there. Keep this button
+               even if the keypad hint ever goes away: a tap target beats a keyboard
+               convention on touch. -->
+          <button
+            class="search-submit"
+            @click=${() => this._submitSearch()}
+            ?disabled=${typed === ''}
+            aria-label="Submit search"
+            title="Search"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" width="20" height="20" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m1.85-4.65a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"/>
+            </svg>
+          </button>
+        </div>
         ${status === null
-          ? html`<p class="search-hint">Type the number on a specimen label, then press Enter.</p>`
+          ? html`<p class="search-hint">Type the number on a specimen label.</p>`
           : status.kind === 'miss'
             ? html`<p class="search-error" role="status">No specimen with number ${typed}</p>`
             : html`<p class="search-error" role="status">Couldn't look that up just now — try again</p>`}
