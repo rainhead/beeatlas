@@ -9,8 +9,14 @@ eleventyComputed:
 layout: default.njk
 ---
 <article class="taxon-page">
+  {# Ladder built in _data/species.js — same builder every taxon page uses.
+     Whitespace between crumbs is deliberate: it is the only wrap opportunity in
+     the chain, and without it the full ladder overflows a phone viewport. #}
   <nav class="breadcrumb">
-    {{ subgenus.family }}<span class="sep">/</span><a href="/species/{{ subgenus.genus }}/index.html">{{ subgenus.genus }}</a><span class="sep">/</span>{{ subgenus.subgenus }}
+    {% for crumb in subgenus.crumbs %}
+    {%- if not loop.first %}<span class="sep">/</span> {% endif -%}
+    {% if crumb.href %}<a href="{{ crumb.href }}">{{ crumb.label }}</a>{% else %}{{ crumb.label }}{% endif %}
+    {% endfor %}
   </nav>
   <h1><em>{{ subgenus.subgenus }}</em></h1>
   <p class="metadata">{{ subgenus.speciesCount | quantify("species", "species") }} · {{ subgenus.totalOccurrences | quantify("record") }}</p>

@@ -682,40 +682,102 @@ const fullTree = buildFullTree();
 const generatedSubgenusKeys = new Set(subgenusList.map((s) => `${s.genus}::${s.subgenus}`));
 const generatedTribeNames = new Set(tribeList.map((t) => t.tribe));
 const generatedSubfamilyNames = new Set(subfamilyList.map((sf) => sf.subfamily));
+const generatedGenusNames = new Set(genusList.map((g) => g.genus));
 
-// Species pages walk the same ladder in their breadcrumb. Build it here as
-// data — [{label, href}], href null when no page was generated — so the
-// template renders one uniform loop instead of repeating a
-// rank/has-page/link-or-text branch per rank.
+// EVERY taxon page walks the same ladder in its breadcrumb — species, genus,
+// subgenus, tribe, subfamily alike. Build it here as data — [{label, href}],
+// href null when no page was generated — so each template renders one uniform
+// loop instead of repeating a rank/has-page/link-or-text branch per rank.
+//
+// The rungs a page knows about are the ones above it plus itself: a tribe page
+// has no genus to name, a genus page has no subgenus. Absent rungs are simply
+// omitted, which is also how a genuinely tribe-less subfamily renders.
 //
 // A nominotypical subgenus repeats its genus verbatim ("Andrena / Andrena");
 // that rung is dropped because it reads as a rendering fault rather than
-// taxonomy. See docs/adr/0009.
+// taxonomy (ADR 0014 §3) — except on the subgenus's OWN page, where dropping it
+// would leave the page unnamed in its own breadcrumb.
+//
+// The last rung is the current page, so it never links to itself.
+function taxonCrumbs({ family, subfamily, tribe, genus, subgenus, epithet }) {
+  const crumbs = [];
+  if (family) crumbs.push({ label: family, href: null }); // no family pages exist
+  if (subfamily) {
+    crumbs.push({
+      label: subfamily,
+      href: generatedSubfamilyNames.has(subfamily) ? `/species/subfamily/${subfamily}/index.html` : null,
+    });
+  }
+  if (tribe) {
+    crumbs.push({
+      label: tribe,
+      href: generatedTribeNames.has(tribe) ? `/species/tribe/${tribe}/index.html` : null,
+    });
+  }
+  if (genus) {
+    crumbs.push({
+      label: genus,
+      href: generatedGenusNames.has(genus) ? `/species/${genus}/index.html` : null,
+    });
+  }
+  const isOwnPage = !epithet && subgenus;
+  if (subgenus && (subgenus !== genus || isOwnPage)) {
+    crumbs.push({
+      label: subgenus,
+      href: generatedSubgenusKeys.has(`${genus}::${subgenus}`) ? `/species/${genus}/${subgenus}/index.html` : null,
+    });
+  }
+  if (epithet) crumbs.push({ label: epithet, href: null });
+
+  if (crumbs.length > 0) crumbs[crumbs.length - 1].href = null;
+  return crumbs;
+}
+
 for (const sp of speciesList) {
-  const crumbs = [{ label: sp.family, href: null }];
-
-  if (sp.subfamily) {
-    crumbs.push({
-      label: sp.subfamily,
-      href: generatedSubfamilyNames.has(sp.subfamily) ? `/species/subfamily/${sp.subfamily}/index.html` : null,
-    });
-  }
-  if (sp.tribe) {
-    crumbs.push({
-      label: sp.tribe,
-      href: generatedTribeNames.has(sp.tribe) ? `/species/tribe/${sp.tribe}/index.html` : null,
-    });
-  }
-  crumbs.push({ label: sp.genus, href: `/species/${sp.genus}/index.html` });
-  if (sp.subgenus && sp.subgenus !== sp.genus) {
-    crumbs.push({
-      label: sp.subgenus,
-      href: generatedSubgenusKeys.has(`${sp.genus}::${sp.subgenus}`) ? `/species/${sp.genus}/${sp.subgenus}/index.html` : null,
-    });
-  }
-  crumbs.push({ label: sp.specific_epithet, href: null });
-
-  sp.crumbs = crumbs;
+  sp.crumbs = taxonCrumbs({
+    family: sp.family,
+    subfamily: sp.subfamily,
+    tribe: sp.tribe,
+    genus: sp.genus,
+    subgenus: sp.subgenus,
+    epithet: sp.specific_epithet,
+  });
+}
+// The higher-rank lists are grouped from species rows and carry only the ranks
+// their grouping key needed; higher_taxa.json is the authority for the rest
+// (every row there carries the full family/subfamily/tribe/genus ancestry).
+for (const g of genusList) {
+  const row = higherTaxaByRankName['genus']?.[g.genus];
+  g.crumbs = taxonCrumbs({
+    family: g.family ?? row?.family,
+    subfamily: g.subfamily ?? row?.subfamily,
+    tribe: row?.tribe,
+    genus: g.genus,
+  });
+}
+for (const sg of subgenusList) {
+  // higher_taxa is keyed by name alone, so only trust a subgenus row that agrees
+  // about the parent genus (subgenus names are not globally unique).
+  const byName = higherTaxaByRankName['subgenus']?.[sg.subgenus];
+  const row = byName?.genus === sg.genus ? byName : undefined;
+  sg.crumbs = taxonCrumbs({
+    family: sg.family ?? row?.family,
+    subfamily: sg.subfamily ?? row?.subfamily,
+    tribe: sg.tribe ?? row?.tribe,
+    genus: sg.genus,
+    subgenus: sg.subgenus,
+  });
+}
+for (const t of tribeList) {
+  const row = higherTaxaByRankName['tribe']?.[t.tribe];
+  t.crumbs = taxonCrumbs({
+    family: t.family ?? row?.family,
+    subfamily: row?.subfamily,
+    tribe: t.tribe,
+  });
+}
+for (const sf of subfamilyList) {
+  sf.crumbs = taxonCrumbs({ family: sf.family, subfamily: sf.subfamily });
 }
 
 for (const g of genusList) {

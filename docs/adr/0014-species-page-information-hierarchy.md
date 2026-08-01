@@ -90,3 +90,31 @@ gains a fifth tile.
   `{% if rank %}…{% if rankHasPage %}` blocks; adding a rank meant a fourth.
 - **Hide the breadcrumb rung for every subgenus.** Loses real taxonomic
   information for the majority (non-nominotypical) case.
+
+---
+
+## Amendment (2026-07-31): the ladder belongs to every taxon page, not just the species page
+
+Decision 3 above was implemented on the species detail page only. The genus,
+subgenus, tribe, and subfamily pages kept their hand-written two-rung
+breadcrumbs, so `/species/Bombus/Pyrobombus/` read "Apidae / Bombus" while
+`/species/Bombus/caliginosus/` read "Apidae / Apinae / Bombini / Bombus /
+Pyrobombus". Same site, same ladder, two different answers.
+
+`sp.crumbs` is therefore now `taxonCrumbs()` in `_data/species.js`, applied to
+all five lists; each page names the ranks above it plus itself, and the four
+templates render the identical loop. The higher-rank lists are grouped from
+species rows and carry only the ranks their grouping key needed, so the builder
+fills the rest from `higher_taxa.json`, which carries full ancestry on every row.
+
+Two rules the single builder makes explicit:
+
+- **The last rung never links.** It is the page you are on. This was already
+  true rung-by-rung; stating it once removes the chance of a page linking to
+  itself as a new rank is added.
+- **The nominotypical suppression does not apply to the page it names.**
+  Dropping `Andrena` from `/species/Andrena/Andrena/` would leave that page
+  absent from its own breadcrumb and with no rung linking up to the genus. So
+  the rung is suppressed mid-ladder (species pages, as decided above) and kept
+  as the terminal rung on the subgenus's own page — which is what those pages
+  already showed before this change.

@@ -635,6 +635,62 @@ function walkNodes(nodes: any[]): any[] {
   return result;
 }
 
+describe('_data/species.js taxon breadcrumbs', () => {
+  const lists: [string, any[]][] = [
+    ['speciesList', (species as any).speciesList],
+    ['genusList', (species as any).genusList],
+    ['subgenusList', (species as any).subgenusList],
+    ['tribeList', (species as any).tribeList],
+    ['subfamilyList', (species as any).subfamilyList],
+  ];
+
+  test.each(lists)('%s: every entry carries a crumb ladder rooted at its family', (name, list) => {
+    expect(list.length).toBeGreaterThan(0);
+    for (const entry of list) {
+      const label = entry.scientificName ?? entry.subgenus ?? entry.genus ?? entry.tribe ?? entry.subfamily;
+      expect(Array.isArray(entry.crumbs), `${name} ${label} has no crumbs`).toBe(true);
+      expect(entry.crumbs[0].label, `${name} ${label} ladder does not start at family`).toBe(entry.family);
+      // The family has no page; the last rung is the page itself.
+      expect(entry.crumbs[0].href).toBeNull();
+      expect(entry.crumbs.at(-1).href, `${name} ${label} links its last rung`).toBeNull();
+      for (const crumb of entry.crumbs) {
+        expect(crumb.label, `${name} ${label} has an empty crumb`).toBeTruthy();
+      }
+    }
+  });
+
+  test('higher-rank pages show the same ancestry the species pages show', () => {
+    // The bug this closes: /species/Bombus/Pyrobombus/ stopped at "Apidae / Bombus"
+    // while /species/Bombus/caliginosus/ walked subfamily and tribe.
+    const labels = (crumbs: any[]) => crumbs.map((c) => c.label);
+    const sp = (species as any).speciesList.find((s: any) => s.scientificName === 'Bombus caliginosus');
+    const sg = (species as any).subgenusList.find((s: any) => s.genus === 'Bombus' && s.subgenus === 'Pyrobombus');
+    const g = (species as any).genusList.find((x: any) => x.genus === 'Bombus');
+    const t = (species as any).tribeList.find((x: any) => x.tribe === 'Bombini');
+    const sf = (species as any).subfamilyList.find((x: any) => x.subfamily === 'Apinae');
+    expect(labels(sp.crumbs)).toEqual(['Apidae', 'Apinae', 'Bombini', 'Bombus', 'Pyrobombus', 'caliginosus']);
+    expect(labels(sg.crumbs)).toEqual(['Apidae', 'Apinae', 'Bombini', 'Bombus', 'Pyrobombus']);
+    expect(labels(g.crumbs)).toEqual(['Apidae', 'Apinae', 'Bombini', 'Bombus']);
+    expect(labels(t.crumbs)).toEqual(['Apidae', 'Apinae', 'Bombini']);
+    expect(labels(sf.crumbs)).toEqual(['Apidae', 'Apinae']);
+  });
+
+  test('a nominotypical subgenus is dropped mid-ladder but kept on its own page (ADR 0014 §3)', () => {
+    const sp = (species as any).speciesList.find(
+      (s: any) => s.genus === 'Andrena' && s.subgenus === 'Andrena',
+    );
+    expect(sp, 'no nominotypical Andrena species in the data').toBeDefined();
+    expect(sp.crumbs.map((c: any) => c.label).filter((l: string) => l === 'Andrena')).toHaveLength(1);
+
+    const sg = (species as any).subgenusList.find(
+      (s: any) => s.genus === 'Andrena' && s.subgenus === 'Andrena',
+    );
+    expect(sg, 'no nominotypical Andrena subgenus page').toBeDefined();
+    expect(sg.crumbs.at(-1).label).toBe('Andrena');
+    expect(sg.crumbs.at(-2).href).toBe('/species/Andrena/index.html');
+  });
+});
+
 describe('_data/species.js fullTree (TREE-01/02/04)', () => {
   const fullTree: any[] = (species as any).fullTree;
 

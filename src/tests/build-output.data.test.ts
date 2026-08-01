@@ -278,6 +278,26 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(existsSync(resolve(ROOT, '_site/species/tribe/Ammobatini/index.html'))).toBe(false);
   });
 
+  // Every taxon page walks the same ladder: the higher-rank pages used to stop at
+  // "family / self" while species pages showed subfamily and tribe.
+  test.each([
+    ['_site/species/Bombus/index.html', 'Apidae / Apinae / Bombini / Bombus'],
+    ['_site/species/Bombus/Pyrobombus/index.html', 'Apidae / Apinae / Bombini / Bombus / Pyrobombus'],
+    ['_site/species/tribe/Bombini/index.html', 'Apidae / Apinae / Bombini'],
+    ['_site/species/subfamily/Apinae/index.html', 'Apidae / Apinae'],
+    ['_site/species/Bombus/caliginosus/index.html', 'Apidae / Apinae / Bombini / Bombus / Pyrobombus / caliginosus'],
+  ])('%s breadcrumb walks the full ladder', (page, ladder) => {
+    const html = readFileSync(resolve(ROOT, page), 'utf-8');
+    const nav = /<nav class="breadcrumb">([\s\S]*?)<\/nav>/.exec(html);
+    expect(nav, 'no breadcrumb nav').not.toBeNull();
+    const labels = (nav?.[1] ?? '')
+      .replace(/<[^>]+>/g, ' ')
+      .split(' ')
+      .map(s => s.trim())
+      .filter(s => s && s !== '/');
+    expect(labels.join(' / ')).toBe(ladder);
+  });
+
   // Phase 99 — place page tests (PPAGE-01, PPAGE-02)
 
   test('_site/places.html has places-list class and per-place links (PPAGE-01)', () => {
