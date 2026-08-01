@@ -29,6 +29,12 @@ function hslToHex(h: number, s: number, l: number): string {
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
+// Reference re-implementation of isMapped in _data/species.js — "does this species
+// put dots on a group map", which is what earns it a hue instead of neutral grey.
+// Specimens are only one of the three arms that plot.
+const isMapped = (sp: any) =>
+  sp.occurrence_count > 0 || sp.inat_obs_count > 0 || sp.checklist_count > 0;
+
 describe('_data/species.js (PAGE-02)', () => {
   test('exports { flat, byScientificName, fullTree }', () => {
     expect(Array.isArray((species as any).flat)).toBe(true);
@@ -120,26 +126,25 @@ describe('_data/species.js (PAGE-02)', () => {
   });
 
   test('genusList hexColors match the Python algorithm for all genera (D-01 / subgenus-mode parity)', () => {
-    // Verifies color index computation across the full withOcc (including unresolved records),
-    // matching Python's `WHERE occurrence_count > 0 ORDER BY canonical_name` input. Data-driven
-    // so it stays green regardless of which species have occurrences in the current pipeline run.
+    // Verifies color index computation across the full MAPPED member set (including
+    // unresolved records), matching Python's _group_colors input. Data-driven so it
+    // stays green regardless of which species have occurrences in the current run.
     // Two modes (mirrors data/species_maps.py _generate_group_maps genus loop):
-    //   - >=2 distinct subgenera among occurrence-bearing epithet-bearing members -> SUBGENUS mode
+    //   - >=2 distinct subgenera among mapped epithet-bearing members -> SUBGENUS mode
     //     (one hue per subgenus over the sorted distinct-subgenus list).
     //   - 0 or 1 distinct subgenus -> SPECIES mode (one hue per species, unchanged).
-    // Checklist-only species (occurrence_count === 0) receive '#cccccc' and are excluded from
-    // this check (tested separately in the D-03 test below).
+    // A species with nothing on the map gets '#cccccc' and is checked separately below.
     const flat = (species as any).flat;
     const list = (species as any).genusList;
     for (const g of list) {
-      const withOcc = flat
-        .filter((s: any) => s.genus === g.genus && s.occurrence_count > 0)
+      const mapped = flat
+        .filter((s: any) => s.genus === g.genus && isMapped(s))
         .sort((a: any, b: any) => a.canonical_name.localeCompare(b.canonical_name));
-      const n = withOcc.length;
+      const n = mapped.length;
       const cleanSubgen = (sp: any) =>
         sp.subgenus && sp.subgenus.trim() !== '' ? sp.subgenus.trim() : null;
       const distinctSubgenera = [...new Set(
-        withOcc
+        mapped
           .filter((sp: any) => sp.specific_epithet !== null && cleanSubgen(sp))
           .map((sp: any) => cleanSubgen(sp))
       )].sort() as string[];
@@ -151,14 +156,14 @@ describe('_data/species.js (PAGE-02)', () => {
           subgenusHex[name] = hslToHex(i * 360 / distinctSubgenera.length, 70, 50);
         }
         colorByCanon = Object.fromEntries(
-          withOcc.map((sp: any) => {
+          mapped.map((sp: any) => {
             const sg = cleanSubgen(sp);
             return [sp.canonical_name, (sp.specific_epithet !== null && sg) ? subgenusHex[sg] : '#aaaaaa'];
           })
         );
       } else {
         colorByCanon = Object.fromEntries(
-          withOcc.map((sp: any, i: number) => [
+          mapped.map((sp: any, i: number) => [
             sp.canonical_name,
             sp.specific_epithet !== null ? hslToHex(i * 360 / n, 70, 50) : '#aaaaaa',
           ])
@@ -166,15 +171,15 @@ describe('_data/species.js (PAGE-02)', () => {
       }
       for (const sp of g.species) {
         if (sp.slug === null) continue; // synthetic "Genus sp." key entry — no canonical_name
-        if (sp.occurrence_count === 0) continue; // checklist-only species — verified in D-03 test
+        if (!isMapped(sp)) continue;    // draws nothing — grey, verified below
         expect(sp.hexColor, `${g.genus}/${sp.canonical_name}`).toBe(colorByCanon[sp.canonical_name]);
       }
     }
   });
 
   test('genusList: a multi-subgenus genus buckets swatch colors by subgenus (GENUS-SUBGEN-COLOR)', () => {
-    // For any genus with >=2 distinct subgenera among occurrence-bearing epithet-bearing
-    // species: every species sharing a subgenus has ONE hexColor; different subgenera differ;
+    // For any genus with >=2 distinct subgenera among mapped epithet-bearing species:
+    // every species sharing a subgenus has ONE hexColor; different subgenera differ;
     // and the recomputed reference color (hslToHex over the sorted distinct-subgenus list)
     // equals the species' hexColor — the swatch<->dot parity contract with species_maps.py.
     const flat = (species as any).flat;
@@ -184,18 +189,18 @@ describe('_data/species.js (PAGE-02)', () => {
 
     // Find every multi-subgenus genus (data-driven). At least one must exist (e.g. Andrena).
     const multiSubgenusGenera = list.filter((g: any) => {
-      const withOcc = flat.filter((s: any) => s.genus === g.genus && s.occurrence_count > 0);
+      const mapped = flat.filter((s: any) => s.genus === g.genus && isMapped(s));
       const distinct = new Set(
-        withOcc.filter((sp: any) => sp.specific_epithet !== null && cleanSubgen(sp)).map(cleanSubgen)
+        mapped.filter((sp: any) => sp.specific_epithet !== null && cleanSubgen(sp)).map(cleanSubgen)
       );
       return distinct.size >= 2;
     });
     expect(multiSubgenusGenera.length, 'expected at least one multi-subgenus genus (e.g. Andrena)').toBeGreaterThan(0);
 
     for (const g of multiSubgenusGenera) {
-      const withOcc = flat.filter((s: any) => s.genus === g.genus && s.occurrence_count > 0);
+      const mapped = flat.filter((s: any) => s.genus === g.genus && isMapped(s));
       const distinctSubgenera = [...new Set(
-        withOcc.filter((sp: any) => sp.specific_epithet !== null && cleanSubgen(sp)).map(cleanSubgen)
+        mapped.filter((sp: any) => sp.specific_epithet !== null && cleanSubgen(sp)).map(cleanSubgen)
       )].sort() as string[];
       const subgenusHex: Record<string, string> = {};
       for (let i = 0; i < distinctSubgenera.length; i++) {
@@ -206,7 +211,7 @@ describe('_data/species.js (PAGE-02)', () => {
       // (a) one distinct hexColor per subgenus + (c) reference-color parity.
       const colorBySubgenus: Record<string, string> = {};
       for (const sp of g.species) {
-        if (sp.slug === null || sp.occurrence_count === 0) continue;
+        if (sp.slug === null || !isMapped(sp)) continue;
         const sg = cleanSubgen(sp);
         if (!sg) continue;
         // (c) recomputed reference color matches the actual swatch color.
@@ -221,12 +226,14 @@ describe('_data/species.js (PAGE-02)', () => {
     }
   });
 
-  test('zero-occurrence species gets grey swatch #cccccc', () => {
+  test('a species with nothing on the map gets grey swatch #cccccc', () => {
+    // Grey means "this swatch is a legend for no dots" — not "no specimens".
     const list = (species as any).genusList;
     for (const g of list) {
       for (const sp of g.species) {
-        if (sp.occurrence_count === 0) {
-          expect(sp.hexColor).toBe('#cccccc');
+        if (sp.slug === null) continue; // synthetic "Genus sp." entry
+        if (!isMapped(sp)) {
+          expect(sp.hexColor, `${g.genus}/${sp.canonical_name}`).toBe('#cccccc');
         }
       }
     }
@@ -240,7 +247,28 @@ describe('_data/species.js (PAGE-02)', () => {
     );
     expect(checklistOnly.length).toBeGreaterThan(0);
     for (const sp of checklistOnly) {
-      expect(sp.hexColor).toBe('#cccccc');
+      // No specimens is not the same as nothing on the map: a checklist-only species
+      // with a community observation or a georeferenced checklist point keeps the hue
+      // its dots are drawn in (Chelostoma phaceliae drew three dots under a grey swatch).
+      if (isMapped(sp)) expect(sp.hexColor).not.toBe('#cccccc');
+      else expect(sp.hexColor).toBe('#cccccc');
+    }
+  });
+
+  test('a checklist-only species that plots keeps a hue, not grey', () => {
+    // Guards the regression directly: the set must be non-empty in real data, and no
+    // member of it may be grey.
+    const allSpecies = (species as any).genusList.flatMap((g: any) => g.species);
+    const plottingChecklistOnly = allSpecies.filter(
+      (sp: any) => sp.slug !== null && sp.occurrence_count === 0 && isMapped(sp),
+    );
+    expect(
+      plottingChecklistOnly.length,
+      'expected at least one specimen-less species with observations or checklist points',
+    ).toBeGreaterThan(0);
+    for (const sp of plottingChecklistOnly) {
+      expect(sp.hexColor, `${sp.canonical_name} plots but is grey`).toMatch(/^#[0-9a-f]{6}$/);
+      expect(sp.hexColor, `${sp.canonical_name} plots but is grey`).not.toBe('#cccccc');
     }
   });
 
@@ -286,26 +314,26 @@ describe('_data/species.js (PAGE-02)', () => {
   });
 
   test('subgenusList hexColors match the Python _group_colors algorithm for all groups, unresolved counted in index (Pitfall 1)', () => {
-    // Verifies color index is computed over the full withOcc (including specific_epithet=null records),
-    // not just the resolved-species subset. Data-driven across all subgenus groups.
-    // Checklist-only species (occurrence_count === 0) receive '#cccccc' and are excluded from
-    // this check (their color is verified by the zero-occurrence test above).
+    // Verifies color index is computed over the full mapped set (including
+    // specific_epithet=null records), not just the resolved-species subset.
+    // Data-driven across all subgenus groups. Species with nothing on the map get
+    // '#cccccc' and are verified by the grey-swatch test above.
     const flat = (species as any).flat;
     const list = (species as any).subgenusList;
     for (const g of list) {
-      const withOcc = flat
-        .filter((s: any) => s.genus === g.genus && s.subgenus === g.subgenus && s.occurrence_count > 0)
+      const mapped = flat
+        .filter((s: any) => s.genus === g.genus && s.subgenus === g.subgenus && isMapped(s))
         .sort((a: any, b: any) => a.canonical_name.localeCompare(b.canonical_name));
-      const n = withOcc.length;
+      const n = mapped.length;
       const colorByCanon = Object.fromEntries(
-        withOcc.map((sp: any, i: number) => [
+        mapped.map((sp: any, i: number) => [
           sp.canonical_name,
           sp.specific_epithet !== null ? hslToHex(i * 360 / n, 70, 50) : '#aaaaaa',
         ])
       );
       for (const sp of g.species) {
         if (sp.slug === null) continue; // synthetic "Genus sp." key entry — no canonical_name
-        if (sp.occurrence_count === 0) continue; // checklist-only species — verified separately
+        if (!isMapped(sp)) continue;    // draws nothing — grey, verified separately
         expect(sp.hexColor, `${g.genus}/${g.subgenus}/${sp.canonical_name}`).toBe(colorByCanon[sp.canonical_name]);
       }
     }

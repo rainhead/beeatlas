@@ -25,3 +25,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0019](0019-bundle-reuse-gate.md) | A build reuses the app bundle when its inputs are unchanged — and must then fake being a build | Accepted |
 | [0020](0020-catalog-lookup-selects-and-filters-yield.md) | A label-number lookup is a selection, and an active filter yields to it | Accepted (placement superseded by 0021) |
 | [0021](0021-search-is-a-header-affordance.md) | Search is a header affordance, and one query field serves every kind of thing | Accepted |
+| [0022](0022-a-swatch-is-a-legend-for-dots.md) | A swatch is a legend for dots, so a species earns a hue by plotting | Accepted |

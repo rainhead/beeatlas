@@ -319,9 +319,10 @@ def _generate_group_maps(
     rows = con.execute(
         f"""
         SELECT canonical_name, genus, subgenus, tribe, specific_epithet, subfamily,
-               occurrence_count
+               occurrence_count, inat_obs_count, checklist_count
         FROM read_parquet('{species_parquet}')
-        WHERE occurrence_count > 0 OR on_checklist = true
+        WHERE occurrence_count > 0 OR inat_obs_count > 0 OR checklist_count > 0
+           OR on_checklist = true
         ORDER BY canonical_name
         """
     ).fetchall()
@@ -335,14 +336,24 @@ def _generate_group_maps(
     genus_of: dict[str, str] = {}  # canonical_name -> genus (for subfamily coloring, D-06)
     # subgenus_of: canonical_name -> cleaned subgenus or None (for genus-by-subgenus coloring).
     subgenus_of: dict[str, str | None] = {}
-    occ_count_of: dict[str, int] = {}  # canonical_name -> occurrence_count
+    # mapped: canonical_names that put DOTS on a group map, and therefore earn a hue.
+    # Dots come from occurrences.parquet, which unions the specimen, community-
+    # observation and checklist-point arms, while occurrence_count counts only the
+    # Ecdysis specimen arm — so a species known solely from an iNat sample or a
+    # georeferenced checklist record plots with occurrence_count == 0. Colouring on
+    # occurrence_count alone left those dots hue-less AND, since a hue is a position
+    # in the sorted member list, shifted every later species off its own dots.
+    # isMapped() in _data/species.js is the same predicate over the same set — the
+    # page swatch and these dots are one legend and must move together.
+    mapped: set[str] = set()
     unresolved: set[str] = set()
 
     for (canonical_name, genus, subgenus, tribe, specific_epithet, subfamily,
-         occurrence_count) in rows:
+         occurrence_count, inat_obs_count, checklist_count) in rows:
         if specific_epithet is None:
             unresolved.add(canonical_name)
-        occ_count_of[canonical_name] = occurrence_count or 0
+        if (occurrence_count or 0) > 0 or (inat_obs_count or 0) > 0 or (checklist_count or 0) > 0:
+            mapped.add(canonical_name)
         # Subgenus null guard (PATTERNS observation #3): treat empty/whitespace as None.
         cleaned_subgenus = subgenus.strip() if (subgenus is not None and subgenus.strip() != '') else None
         subgenus_of[canonical_name] = cleaned_subgenus
@@ -383,10 +394,15 @@ def _generate_group_maps(
     for genus_name in sorted(genus_members.keys()):
         members = genus_members[genus_name]
         species_points = {c: occ_by_canon.get(c, []) for c in members}
+        # A hue is a POSITION in this list, so it must hold exactly the members
+        # _data/species.js colors — the mapped ones. Members that draw nothing are
+        # left out of the palette entirely and fall back to grey below; they emit
+        # no <g>, so the visible map is unaffected either way.
+        colorable = [c for c in members if c in mapped]
         distinct_subgen = sorted({
             subgenus_of[c]
-            for c in members
-            if occ_count_of.get(c, 0) > 0 and c not in unresolved and subgenus_of.get(c)
+            for c in colorable
+            if c not in unresolved and subgenus_of.get(c)
         })
         if len(distinct_subgen) >= 2:
             # SUBGENUS mode: one color per subgenus NAME.
@@ -394,23 +410,18 @@ def _generate_group_maps(
             colors = {}
             for c in members:
                 sg = subgenus_of.get(c)
-                # Parity with _data/species.js: colorByCanon is built over the
-                # occurrence-bearing member set (withOcc), so checklist-only
-                # species (occurrence_count == 0) — whose subgenus may not appear
-                # among the occurrence-bearing members and thus is absent from
-                # subgen_colors — must NOT be given a subgenus hue. Guard the
-                # lookup on membership in subgen_colors and fall back to grey.
-                # Such species draw no dots (occ_by_canon empty), so the visible
-                # map is unaffected; this is crash-safety + swatch<->dot parity.
-                if c not in unresolved and sg and sg in subgen_colors:
+                # An unmapped member's subgenus may be absent from subgen_colors
+                # (it was built over `colorable`), so guard the lookup — grey, not
+                # a KeyError, and grey is what the page swatch shows for it too.
+                if c in mapped and c not in unresolved and sg and sg in subgen_colors:
                     colors[c] = subgen_colors[sg]
                 else:
                     colors[c] = _UNRESOLVED_COLOR
         else:
             # SPECIES mode (0 or 1 distinct subgenus): unchanged per-species coloring.
-            colors = _group_colors(members)
+            colors = _group_colors(colorable)
             for c in members:
-                if c in unresolved:
+                if c in unresolved or c not in mapped:
                     colors[c] = _UNRESOLVED_COLOR
         total_clipped += _write_group_svg(genus_name, species_points, colors, backdrop, genus_dir)
         n_genus += 1
@@ -420,9 +431,9 @@ def _generate_group_maps(
     for (genus_name, subgenus_name) in sorted(subgenus_members.keys()):
         members = subgenus_members[(genus_name, subgenus_name)]
         species_points = {c: occ_by_canon.get(c, []) for c in members}
-        colors = _group_colors(members)
+        colors = _group_colors([c for c in members if c in mapped])
         for c in members:
-            if c in unresolved:
+            if c in unresolved or c not in mapped:
                 colors[c] = _UNRESOLVED_COLOR
         slug_path = f"{genus_name}/{subgenus_name}"
         total_clipped += _write_group_svg(slug_path, species_points, colors, backdrop, subgenus_dir)
@@ -433,9 +444,9 @@ def _generate_group_maps(
     for tribe_name in sorted(tribe_members.keys()):
         members = tribe_members[tribe_name]
         species_points = {c: occ_by_canon.get(c, []) for c in members}
-        colors = _group_colors(members)
+        colors = _group_colors([c for c in members if c in mapped])
         for c in members:
-            if c in unresolved:
+            if c in unresolved or c not in mapped:
                 colors[c] = _UNRESOLVED_COLOR
         total_clipped += _write_group_svg(tribe_name, species_points, colors, backdrop, tribe_dir)
         n_tribe += 1

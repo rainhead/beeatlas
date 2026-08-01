@@ -491,6 +491,8 @@ def _write_multi_subgenus_species_parquet(tmp_path):
         'subgenus': ['Alpha', 'Alpha', 'Beta', 'Beta', 'Solo', 'Solo'],
         'tribe': ['Multini', 'Multini', 'Multini', 'Multini', 'Singlini', 'Singlini'],
         'occurrence_count': [2, 2, 2, 2, 2, 2],
+        'inat_obs_count': [0, 0, 0, 0, 0, 0],
+        'checklist_count': [0, 0, 0, 0, 0, 0],
         'specific_epithet': ['alpha1', 'alpha2', 'beta1', 'beta2', 'solo1', 'solo2'],
         'subfamily': ['Testinae', 'Testinae', 'Testinae', 'Testinae', 'Testinae', 'Testinae'],
         'on_checklist': [True, True, True, True, True, True],
@@ -585,6 +587,10 @@ def _write_checklist_only_subgenus_parquet(tmp_path):
         'subgenus': ['Alpha', 'Beta', 'Parandrena'],
         'tribe': ['Andrenini', 'Andrenini', 'Andrenini'],
         'occurrence_count': [2, 2, 0],  # parandrena is checklist-only
+        # ...and puts nothing on the map: no observations, no georeferenced
+        # checklist points. It is therefore outside the palette entirely.
+        'inat_obs_count': [0, 0, 0],
+        'checklist_count': [0, 0, 0],
         'specific_epithet': ['alpha1', 'beta1', 'parandrena'],
         'subfamily': ['Andreninae', 'Andreninae', 'Andreninae'],
         'on_checklist': [True, True, True],
@@ -663,3 +669,74 @@ def test_generate_group_maps_no_eumeninae_svg(tmp_path, monkeypatch):
     assert not eumeninae_path.exists(), (
         "Eumeninae.svg must NOT be generated — Eumeninae is wasp bycatch (D-08 / HIER-05)"
     )
+
+
+def _write_specimenless_plotting_parquet(tmp_path):
+    """Write a species.parquet shaped like the Chelostoma case.
+
+    'Chelostoma phaceliae' has NO Ecdysis specimens (occurrence_count == 0) but does
+    plot: one community observation and two georeferenced checklist points, all of
+    which live in the occurrences export and therefore become dots. It must take its
+    place in the palette — both so its own dots have a hue and so it does not shift
+    'Chelostoma minutum' off the hue its page swatch shows.
+
+    'Chelostoma nowhere' has nothing on the map at all and stays out of the palette.
+    """
+    table = pa.table({
+        'canonical_name': [
+            'Chelostoma minutum', 'Chelostoma nowhere', 'Chelostoma phaceliae',
+        ],
+        'genus': ['Chelostoma', 'Chelostoma', 'Chelostoma'],
+        'subgenus': ['Neochelostoma', 'Neochelostoma', 'Neochelostoma'],
+        'tribe': ['Osmiini', 'Osmiini', 'Osmiini'],
+        'occurrence_count': [7, 0, 0],
+        'inat_obs_count': [0, 0, 1],
+        'checklist_count': [3, 0, 2],
+        'specific_epithet': ['minutum', 'nowhere', 'phaceliae'],
+        'subfamily': ['Megachilinae', 'Megachilinae', 'Megachilinae'],
+        'on_checklist': [True, True, True],
+    })
+    parquet_path = tmp_path / "species.parquet"
+    pq.write_table(table, parquet_path)
+    return parquet_path
+
+
+def test_generate_group_maps_colors_specimenless_species_that_plots(tmp_path, monkeypatch):
+    """A species with no specimens but with dots gets a hue, and does not shift others.
+
+    Regression: colouring keyed on occurrence_count (the Ecdysis arm alone) left
+    Chelostoma phaceliae's three dots outside the palette while a member with nothing
+    on the map sat inside it — so phaceliae drew blue under a grey swatch and minutum's
+    dots came out one hue off its own swatch. The palette is now the MAPPED members.
+    """
+    monkeypatch.setattr(species_maps_module, 'ASSETS_DIR', tmp_path)
+    _write_specimenless_plotting_parquet(tmp_path)
+
+    con = duckdb.connect()
+    backdrop = ET.Element(f"{{{SVG_NS}}}svg")
+    WA_IN = (-120.5, 47.5)
+    occ_by_canon = {
+        'Chelostoma minutum': [WA_IN],
+        'Chelostoma phaceliae': [WA_IN],
+    }
+    maps_dir = tmp_path / "species-maps"
+    maps_dir.mkdir()
+
+    _generate_group_maps(con, occ_by_canon, backdrop, maps_dir)
+
+    root = ET.parse(str(maps_dir / "genus" / "Chelostoma.svg")).getroot()
+    fills = [
+        g.attrib['fill']
+        for g in root.findall(f'.//{{{SVG_NS}}}g')
+        if g.attrib.get('fill')
+    ]
+
+    # The palette spans the two members that plot — NOT the three that exist, and
+    # not the one that has specimens.
+    expected = _group_colors(['Chelostoma minutum', 'Chelostoma phaceliae'])
+    assert fills == [expected['Chelostoma minutum'], expected['Chelostoma phaceliae']], (
+        f"Expected the mapped members to share one palette; got {fills!r}"
+    )
+    assert fills[0] != fills[1], "Two mapped species must not collide on one hue"
+    for fill in fills:
+        assert fill != '#aaaaaa', "A species that plots must not be drawn grey"

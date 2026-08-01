@@ -149,10 +149,29 @@ function hslToHex(h, s, l) {
 // Filter to actual species entries (excludes genus-level records where specific_epithet is null)
 const speciesList = flat.filter(s => s.specific_epithet !== null);
 
+// Does this species put DOTS on a group map? That — not "does it have specimens" —
+// is what earns it a hue, because the swatch beside its name is a legend for those
+// dots.
+//
+// The dots come from the occurrences export, which unions the specimen, community-
+// observation and checklist-point arms. `occurrence_count` counts only the Ecdysis
+// specimen arm (int_species_occurrences_agg reads ecdysis_data.occurrences), so a
+// species known solely from an iNat sample or a georeferenced checklist record has
+// occurrence_count == 0 and still plots — Chelostoma phaceliae drew three dots
+// while its swatch said "checklist-only grey". And because a hue is a POSITION in
+// the sorted member list, one such species also pushed every later species' swatch
+// off its own dots.
+//
+// data/species_maps.py applies this same predicate to the same sorted member set;
+// the two must move together. It is deliberately a superset of "actually plots":
+// a species whose only records lack coordinates is counted here and draws nothing,
+// which costs an unused hue but keeps both sides on one rule.
+const isMapped = (sp) =>
+  sp.occurrence_count > 0 || sp.inat_obs_count > 0 || sp.checklist_count > 0;
+
 // Build genus groupings with HSL colors matching Phase 93 D-01 / D-02 sort order.
-// Color indices must be computed over ALL genus members with occurrence_count > 0
-// (including unresolved records where specific_epithet is null), matching Python's
-// _group_colors input: `WHERE occurrence_count > 0 ORDER BY canonical_name`.
+// Color indices are computed over ALL mapped genus members (including unresolved
+// records where specific_epithet is null), matching Python's _group_colors input.
 const genusMap = {};
 for (const sp of flat) {
   if (!genusMap[sp.genus]) {
@@ -163,13 +182,19 @@ for (const sp of flat) {
 const genusList = Object.values(genusMap)
   .sort((a, b) => a.genus.localeCompare(b.genus))
   .map(g => {
-    // All members with occurrences, sorted by canonical_name — matches Python _group_colors input.
+    // All members with occurrences, sorted by canonical_name. Drives the DISPLAY
+    // list and the counts; colors come from `mapped` below, which is the wider set.
     const withOcc = g.allMembers
       .filter(sp => sp.occurrence_count > 0)
       .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
-    const n = withOcc.length;
+    // All members that put dots on the genus map, sorted by canonical_name —
+    // matches Python _group_colors input. A hue is a position in THIS list.
+    const mapped = g.allMembers
+      .filter(isMapped)
+      .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
+    const n = mapped.length;
     // Color the genus by SUBGENUS when it has >=2 distinct subgenera among its
-    // occurrence-bearing, epithet-bearing members; otherwise keep per-species coloring.
+    // mapped, epithet-bearing members; otherwise keep per-species coloring.
     // This MUST stay byte-identical to data/species_maps.py _generate_group_maps (genus
     // loop): same bucketing rule + same input set, so the page swatch color equals the SVG
     // dot color for every species (swatch<->dot parity, Pitfall 2). The per-subgenus <h2>
@@ -177,7 +202,7 @@ const genusList = Object.values(genusMap)
     // one rank down. Unresolved records (specific_epithet null) get #aaaaaa (Python _UNRESOLVED_COLOR).
     const cleanSubgenus = sp => (sp.subgenus && sp.subgenus.trim() !== '' ? sp.subgenus.trim() : null);
     const distinctSubgenera = [...new Set(
-      withOcc
+      mapped
         .filter(sp => sp.specific_epithet !== null && cleanSubgenus(sp))
         .map(sp => cleanSubgenus(sp))
     )].sort();
@@ -189,7 +214,7 @@ const genusList = Object.values(genusMap)
         subgenusHex[distinctSubgenera[i]] = hslToHex(i * 360 / distinctSubgenera.length, 70, 50);
       }
       colorByCanon = Object.fromEntries(
-        withOcc.map(sp => {
+        mapped.map(sp => {
           const sg = cleanSubgenus(sp);
           return [
             sp.canonical_name,
@@ -200,7 +225,7 @@ const genusList = Object.values(genusMap)
     } else {
       // SPECIES mode (0 or 1 distinct subgenus): one hue per species, unchanged.
       colorByCanon = Object.fromEntries(
-        withOcc.map((sp, i) => [
+        mapped.map((sp, i) => [
           sp.canonical_name,
           sp.specific_epithet !== null ? hslToHex(i * 360 / n, 70, 50) : '#aaaaaa',
         ])
@@ -210,12 +235,16 @@ const genusList = Object.values(genusMap)
     const speciesOnly = withOcc
       .filter(sp => sp.specific_epithet !== null)
       .map(sp => ({ ...sp, hexColor: colorByCanon[sp.canonical_name] }));
-    // Checklist-only species (no WABA occurrences, on checklist) get neutral grey.
-    // Appended AFTER color index computation so existing WABA hue assignments do not drift.
+    // Species with no WABA specimens but a checklist listing. They keep their map
+    // hue when they plot (community observation or georeferenced checklist point);
+    // neutral grey is for the ones with nothing on the map to be a legend for.
     const checklistOnly = g.allMembers
       .filter(sp => sp.occurrence_count === 0 && sp.on_checklist && sp.specific_epithet !== null)
       .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
-    const checklistSpecies = checklistOnly.map(sp => ({ ...sp, hexColor: '#cccccc' }));
+    const checklistSpecies = checklistOnly.map(sp => ({
+      ...sp,
+      hexColor: colorByCanon[sp.canonical_name] ?? '#cccccc',
+    }));
     // Append a grey "Genus sp." entry when genus-level records exist, so the
     // key matches the grey dots rendered in the SVG map.
     const unresolvedMembers = withOcc.filter(sp => sp.specific_epithet === null);
@@ -258,10 +287,9 @@ const genusList = Object.values(genusMap)
     };
   });
 
-// Build subgenus groupings. Color indices must be computed over ALL members with
-// occurrence_count > 0 (including unresolved records where specific_epithet is null),
-// matching Python's _group_colors input: `WHERE occurrence_count > 0 ORDER BY canonical_name`.
-// This is the same approach as genusList (Pitfall 1 in 95-RESEARCH.md).
+// Build subgenus groupings. Color indices are computed over ALL mapped members
+// (including unresolved records where specific_epithet is null), matching Python's
+// _group_colors input. Same approach as genusList (Pitfall 1 in 95-RESEARCH.md).
 const subgenusMap = {};
 for (const sp of flat) {
   if (!sp.subgenus || sp.subgenus.trim() === '') continue;
@@ -281,14 +309,19 @@ for (const sp of flat) {
 const subgenusList = Object.values(subgenusMap)
   .sort((a, b) => a.genus.localeCompare(b.genus) || a.subgenus.localeCompare(b.subgenus))
   .map(g => {
-    // All members with occurrences, sorted by canonical_name — matches Python _group_colors input.
+    // All members with occurrences, sorted by canonical_name. Drives the DISPLAY
+    // list and the counts; colors come from `mapped`, the set that puts dots on
+    // the subgenus map — see isMapped.
     const withOcc = g.allMembers
       .filter(sp => sp.occurrence_count > 0)
       .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
-    const n = withOcc.length;
+    const mapped = g.allMembers
+      .filter(isMapped)
+      .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
+    const n = mapped.length;
     // Unresolved records (specific_epithet null) get #aaaaaa, matching Python's _UNRESOLVED_COLOR.
     const colorByCanon = Object.fromEntries(
-      withOcc.map((sp, i) => [
+      mapped.map((sp, i) => [
         sp.canonical_name,
         sp.specific_epithet !== null ? hslToHex(i * 360 / n, 70, 50) : '#aaaaaa',
       ])
@@ -297,12 +330,15 @@ const subgenusList = Object.values(subgenusMap)
     const speciesOnly = withOcc
       .filter(sp => sp.specific_epithet !== null)
       .map(sp => ({ ...sp, hexColor: colorByCanon[sp.canonical_name] }));
-    // Checklist-only species (no WABA occurrences, on checklist) get neutral grey.
-    // Appended AFTER color index computation so existing WABA hue assignments do not drift.
+    // Species with no WABA specimens but a checklist listing. They keep their map
+    // hue when they plot; neutral grey is for the ones that draw nothing.
     const checklistOnly = g.allMembers
       .filter(sp => sp.occurrence_count === 0 && sp.on_checklist && sp.specific_epithet !== null)
       .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
-    const checklistSpecies = checklistOnly.map(sp => ({ ...sp, hexColor: '#cccccc' }));
+    const checklistSpecies = checklistOnly.map(sp => ({
+      ...sp,
+      hexColor: colorByCanon[sp.canonical_name] ?? '#cccccc',
+    }));
     // Append a grey "Subgenus sp." entry when subgenus-level records exist.
     const unresolvedSubgenusMembers = withOcc.filter(sp => sp.specific_epithet === null);
     const unresolvedOccurrences = unresolvedSubgenusMembers.reduce((acc, sp) => acc + sp.occurrence_count, 0);

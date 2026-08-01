@@ -12,6 +12,8 @@ Reusable lessons distilled from BeeAtlas's milestone retrospectives (v1.0–v8.0
 ## Data & contracts
 
 - **Atomic positional-contract commits, guarded by a coupling test.** When a change spans positionally-coupled files (the `occ_id` vocabulary across `src/occurrence.ts`, `src/filter.ts`, `occurrence_places.sql`), change all of them in one commit and keep a test that fails if they drift.
+- **When two programs compute one answer positionally, only their outputs can be compared.** The map swatch and the map dot were each computed as `hue = index in a sorted member list`, in JS and in Python. Both re-implementations were internally correct and tested; they disagreed about the member list, so one extra member silently repainted everything after it ([ADR 0022](adr/0022-a-swatch-is-a-legend-for-dots.md)). Unit tests on either side can't see that — a test that reads the two shipped artifacts and compares them can.
+- **A count column's name is not its definition.** `occurrence_count` counts the Ecdysis specimen arm, not occurrences; the map plots all five arms. Check what a column aggregates before treating it as "does this thing exist".
 - **Validate the CRS of every external shapefile.** External geodata arrives in whatever projection; assume nothing, check on ingest.
 - **ToS/licensing questions belong at discuss-time, not build-time.** Resolve rights before writing the pipeline that redistributes the data (this is why external authority is reconciled at build time — see [ADR 0009](adr/0009-build-time-only-external-authority.md)).
 
