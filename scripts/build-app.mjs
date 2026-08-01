@@ -9,19 +9,30 @@
  * this gate had to fingerprint git HEAD and so could only skip on a build where no
  * commit had landed — which is most of what it was supposed to save.
  *
- * THE TRAP, and the reason this is a script rather than an `if`: `build:app` runs Vite
- * with `emptyOutDir: true`, and that is not incidental — it is the site's CLEANING
- * BOUNDARY (ADR 0016). A full build wipes `_site` and rebuilds it; a bare `eleventy`
- * rerun is deliberately additive. Skipping the Vite step naively would remove the only
- * thing that ever deletes from `_site`, so a page dropped from the data would sit there
- * forever — and `merge-swap.sh` rsyncs pages with `--delete`, which makes `_site` the
- * authority, so it would sit on the live site forever too.
+ * THIS SCRIPT OWNS THE CLEANING, on every path (beeatlas-8df). It used to be a side
+ * effect of `vite build`'s `emptyOutDir: true` — the site's cleaning boundary (ADR
+ * 0016) — which meant a SKIP had to impersonate it, and the two paths had to be kept
+ * byte-indistinguishable and verified by comparing trees (ADR 0019). Vite no longer
+ * empties anything; the sequence below runs identically whether or not Vite ran, so
+ * there is nothing left to impersonate.
  *
- * So a skip still cleans. It removes everything in `_site` EXCEPT `assets/`, which is
- * exactly the set Vite would have re-emitted identically. Everything else is rebuilt
- * downstream: pages and `app/` by Eleventy, `app/sw.js` by the service-worker pass,
- * `data/` by postbuild-data. The result is indistinguishable from having run Vite,
- * which the tests assert by byte-comparing the two trees.
+ * The order matters and each step answers a distinct failure:
+ *   1. clean _site except assets/ — because merge-swap.sh rsyncs pages with --delete,
+ *      which makes _site the authority for the live site. Without this a page dropped
+ *      from the data sits in _site, and therefore on the site, forever. Everything
+ *      removed here is rebuilt downstream: pages and app/ by Eleventy, app/sw.js by
+ *      the service-worker pass, data/ by postbuild-data.
+ *   2. run Vite ONLY if the bundle's inputs moved.
+ *   3. prune anything in assets/ the manifest does not name. This is what actually
+ *      kills stale hashed chunks, and it now does so whether or not Vite ran — with
+ *      emptyOutDir off, a Vite run leaves the OLD chunks beside the new ones, and
+ *      vite-plugin-pwa's glob would precache both (21 asset URLs against 15 on a
+ *      clean build; unbounded across builds).
+ *   4. touch the reused files so merge-swap's age-prune spares them.
+ *
+ * Keeping the extent of assets/ equal to exactly what the manifest names is also the
+ * invariant a graph node will own when the bundle re-enters the Stelis graph as a
+ * 'dir artifact whose identity is its tree digest (stelis st-hdm).
  *
  * Deliberately NOT gated: the service-worker pass (`build:sw`). It is ~73ms of work
  * behind ~1.2s of startup, and its input is the BUILT SITE, so deciding whether it can
@@ -183,10 +194,12 @@ function refreshAssetMtimes() {
 const want = fingerprint();
 const why = reasonToRebuild(want);
 
+// 1. Always clean. Vite no longer does this, and it must happen whether or not the
+//    bundle is rebuilt — see the header.
+const removed = cleanExceptAssets();
+
 if (why) {
   console.log(`build:app — running Vite: ${why}`);
-  // Vite's own emptyOutDir does the cleaning on this path.
-  //
   // Through a shell, matching the `execSync('npm run build')` already in
   // build-output.data.test.ts: `npm` is `npm.cmd` on Windows, which execFileSync cannot
   // launch directly. The command is a fixed literal, so there is nothing to inject.
@@ -196,15 +209,19 @@ if (why) {
     BUNDLE_RECEIPT,
     JSON.stringify({ fingerprint: want, assets: manifestAssets(), at: new Date().toISOString() }, null, 2) + '\n',
   );
-  console.log(`build:app — bundle recorded (${manifestAssets().length} assets)`);
 } else {
-  const named = manifestAssets();
-  const removed = cleanExceptAssets();
-  const pruned = pruneUnnamedAssets(named);
-  const touched = refreshAssetMtimes();
-  console.log(
-    `build:app — reusing the bundle: inputs unchanged, all ${named.length} assets present ` +
-    `(cleaned ${removed} other entr${removed === 1 ? 'y' : 'ies'} from _site as a full build must; ` +
-    `pruned ${pruned} unnamed; refreshed ${touched} mtimes so merge-swap's age-prune spares them)`,
-  );
+  console.log('build:app — reusing the bundle: inputs unchanged, every named asset present');
 }
+
+// 2. Always prune, and always against the manifest as it stands NOW — which is the
+//    one Vite just wrote when it ran, and the stashed one when it did not. This is
+//    the step that removes stale chunks; with emptyOutDir off, the Vite path needs
+//    it just as much as the skip path does.
+const named = manifestAssets();
+const pruned = pruneUnnamedAssets(named);
+const touched = refreshAssetMtimes();
+console.log(
+  `build:app — ${named.length} asset(s) named by the manifest; ` +
+  `cleaned ${removed} entr${removed === 1 ? 'y' : 'ies'} from _site, ` +
+  `pruned ${pruned} unnamed, refreshed ${touched} mtime(s) so merge-swap's age-prune spares them`,
+);

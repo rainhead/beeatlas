@@ -129,25 +129,32 @@ export default defineConfig({
     // reprocessing on every publish, including note-only publishes that cannot
     // change a single byte of the bundle.
     //
-    // outDir is _site, emptied on every app build. This step runs FIRST, before
-    // Eleventy writes any HTML, so emptying here is safe — and it is the only thing
-    // that clears stale hashed chunks.
+    // outDir is _site, but this build NO LONGER EMPTIES IT (beeatlas-8df).
     //
-    // It has to be here. The old eleventy-plugin-vite reset the output implicitly
-    // (rename-and-build kept only what Vite re-emitted); removing the plugin removed
-    // that side effect. With `emptyOutDir: false` a second build left BOTH the old
-    // and new `app-entry-<hash>.js` in _site/assets, and vite-plugin-pwa's glob
-    // precached both — 21 asset URLs against 15 on a clean build, so every install
-    // downloaded dead chunks, unbounded across builds.
+    // It used to: `emptyOutDir: true` made the app bundle the site's cleaning
+    // boundary. That was load-bearing but misplaced, and it cost a whole second
+    // code path. With `emptyOutDir: false` a second build leaves BOTH the old and
+    // new `app-entry-<hash>.js` in _site/assets, and vite-plugin-pwa's glob
+    // precaches both — 21 asset URLs against 15 on a clean build, so every install
+    // downloads dead chunks, unbounded across builds. So SOMETHING must clean; the
+    // question is only what.
     //
-    // The full build is therefore the cleaning boundary, and a bare `eleventy` rerun
-    // (the note-only publish path) is deliberately additive: it rewrites HTML against
-    // the assets already on disk and must not disturb them. Running `build:app` on
-    // its own consequently wipes the rendered HTML — rerun `eleventy` after it.
+    // Vite is the wrong owner of it, for two reasons. First, a skip has to
+    // impersonate it: build-app.mjs reuses an unchanged bundle, so it had to
+    // reproduce the emptying itself and be verified byte-identical against a
+    // Vite-ran tree (ADR 0019). Two paths that must not diverge is a standing tax.
+    // Second, emptying ALL of _site means this step deletes output belonging to
+    // Eleventy and to postbuild-data — which is exactly what one-producer-per-
+    // artifact forbids once the render is a graph node (stelis st-hdm).
+    //
+    // So scripts/build-app.mjs now owns cleaning on EVERY path: it clears _site
+    // except assets/, runs Vite only when the bundle's inputs moved, and then
+    // prunes anything in assets/ the manifest does not name — which is what
+    // actually kills stale chunks, and does it whether or not Vite ran.
     manifest: true,
     outDir: '_site',
     assetsDir: 'assets',
-    emptyOutDir: true,
+    emptyOutDir: false,   // scripts/build-app.mjs cleans instead — see above
     rollupOptions: {
       // Every module a template references. A template asking for an entry that is
       // not listed here fails the build: assetTags() throws with the known-entry list
