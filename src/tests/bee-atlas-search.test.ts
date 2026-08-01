@@ -295,6 +295,45 @@ describe('a lookup that resolves nothing changes nothing', () => {
     expect(map(el!).selectedOccIds).toEqual(new Set(['ecdysis:222']));
   });
 
+  test('a malformed submission supersedes the lookup still in flight', async () => {
+    // The generation guard used to be bumped only for queries worth looking up, so
+    // a good number followed by a malformed one left the first lookup live: it
+    // landed late, replaced the miss the user was looking at, and moved the map to
+    // a specimen they had already moved on from.
+    const slow: CatalogLookupResult = { rows: [specimenRow({ ecdysis_id: 111 })], hiddenByFilter: false };
+    let releaseSlow!: (v: CatalogLookupResult) => void;
+    mockLookup.mockImplementationOnce(() => new Promise<CatalogLookupResult>(res => { releaseSlow = res; }));
+
+    header(el!).dispatchEvent(new CustomEvent('search-submit', {
+      bubbles: true, composed: true, detail: { query: '111' },
+    }));
+    await lookup(el!, 'Bombus');
+    expect(header(el!).searchStatus).toEqual({ query: 'Bombus', kind: 'miss' });
+
+    releaseSlow(slow);
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+    await el!.updateComplete;
+    expect(map(el!).selectedOccIds, 'the abandoned lookup must not select').toBeNull();
+    expect(header(el!).searchStatus).toEqual({ query: 'Bombus', kind: 'miss' });
+  });
+
+  test('an empty submission supersedes the lookup still in flight', async () => {
+    const slow: CatalogLookupResult = { rows: [specimenRow({ ecdysis_id: 111 })], hiddenByFilter: false };
+    let releaseSlow!: (v: CatalogLookupResult) => void;
+    mockLookup.mockImplementationOnce(() => new Promise<CatalogLookupResult>(res => { releaseSlow = res; }));
+
+    header(el!).dispatchEvent(new CustomEvent('search-submit', {
+      bubbles: true, composed: true, detail: { query: '111' },
+    }));
+    await lookup(el!, '');
+
+    releaseSlow(slow);
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+    await el!.updateComplete;
+    expect(map(el!).selectedOccIds).toBeNull();
+    expect(header(el!).searchStatus).toBeNull();
+  });
+
   test('an empty submission is a no-op, not a miss', async () => {
     await lookup(el!, '   ');
     expect(mockLookup).not.toHaveBeenCalled();

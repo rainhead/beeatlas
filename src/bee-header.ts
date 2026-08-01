@@ -498,10 +498,16 @@ export class BeeHeader extends LitElement {
     }
   };
 
+  // Submits the trimmed query, and nothing at all when there is none: Enter in an
+  // empty field must do what the submit button does with an empty field, which is
+  // nothing. (It matters more than it looks — every submission that reaches
+  // <bee-atlas> supersedes the lookup in flight.)
   private _submitSearch() {
+    const query = this._searchInput.trim();
+    if (query === '') return;
     this.dispatchEvent(new CustomEvent('search-submit', {
       bubbles: true, composed: true,
-      detail: { query: this._searchInput },
+      detail: { query },
     }));
   }
 

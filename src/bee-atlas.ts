@@ -1533,12 +1533,17 @@ bee-map {
   // history behaviour, not a comment fix, so it is left alone here.
   private _onSearchSubmit = async (e: CustomEvent<{ query: string }>) => {
     const typed = e.detail.query.trim();
+    // Bump the generation on EVERY submission, before the validity checks — a
+    // submission supersedes whatever is in flight regardless of what it turns out
+    // to be. Bumping only for lookups we actually run leaves the hole this guard
+    // exists to close: submit a good number, then a malformed one, and the earlier
+    // lookup still lands, overwriting the newer answer and moving the map.
+    const myGen = ++this._catalogLookupGeneration;
     if (typed === '') { this._searchStatus = null; return; }
 
     const suffix = parseCatalogSuffix(typed);
     if (suffix === null) { this._searchStatus = { query: typed, kind: 'miss' }; return; }
 
-    const myGen = ++this._catalogLookupGeneration;
     let result;
     try {
       result = await lookupByCatalogSuffix(suffix, this._filterState);

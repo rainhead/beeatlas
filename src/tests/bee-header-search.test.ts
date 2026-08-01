@@ -206,6 +206,27 @@ describe('the search field submits a query', () => {
     expect(seen).toEqual([]);
   });
 
+  test('Enter in an empty field submits nothing — same as the disabled button', async () => {
+    // Not cosmetic: every submission that reaches <bee-atlas> supersedes the lookup
+    // in flight, so a stray empty submit would cancel a search the user is waiting on.
+    const seen: Event[] = [];
+    header.addEventListener('search-submit', (e) => seen.push(e));
+    await pressEnter(header);
+    await type(header, '   ');
+    await pressEnter(header);
+    expect(seen).toEqual([]);
+  });
+
+  test('the query is submitted trimmed', async () => {
+    const seen: string[] = [];
+    header.addEventListener('search-submit', (e) => {
+      seen.push((e as CustomEvent<{ query: string }>).detail.query);
+    });
+    await type(header, '  2303966 ');
+    await pressEnter(header);
+    expect(seen).toEqual(['2303966']);
+  });
+
   test('the header stays a presenter — a search never emits filter-changed', async () => {
     const seen: Event[] = [];
     header.addEventListener('filter-changed', (e) => seen.push(e));
