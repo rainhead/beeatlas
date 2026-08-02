@@ -197,12 +197,25 @@ refresh). If the map is missing, stale, or the vhost is rebuilt without these
 rules, readers are still forwarded — the failure mode is the slower redirect,
 not a 404.
 
-## 9. Basemap tile archive (beeatlas-hvp)
+## 9. Basemap tile archive (beeatlas-hvp, beeatlas-8py)
 
-The self-hosted map tiles for `/app/`. One ~227 MB PMTiles archive covering
-Washington, extracted from the [Protomaps](https://build.protomaps.com/) daily
-OSM build. Refresh is manual and occasional — OSM currency is not a product
-requirement — so this is deliberately **not** wired into the nightly.
+The self-hosted map tiles for `/app/`. **Two** PMTiles archives covering
+Washington, sharing this directory, the Alias and one `manifest.json`:
+
+| archive | what | size | source |
+| --- | --- | --- | --- |
+| `wa-YYYYMMDD.pmtiles` | vector basemap | ~227 MB | [Protomaps](https://build.protomaps.com/) daily OSM build |
+| `wa-terrain-YYYYMMDD.pmtiles` | DEM for the hillshade | ~61 MB | [AWS Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) |
+
+Refresh of either is manual and occasional — OSM currency is not a product
+requirement and the ground moves less still — so this is deliberately **not**
+wired into the nightly.
+
+They **publish independently**: `publish-basemap.sh` merges into `manifest.json`
+rather than rewriting it, and scopes its prune by kind. That second point is
+load-bearing — `wa-*.pmtiles` also matches `wa-terrain-*.pmtiles`, so an
+unscoped prune would age-delete the terrain archive out from under a working
+hillshade.
 
 One-time: install the CLI on maderas with
 `go install github.com/protomaps/go-pmtiles@latest` (note: the module root, not
@@ -217,8 +230,13 @@ archive mid-build (`Options -Indexes` hides a listing, not a file).
 Build and publish (on maderas, from the repo):
 
 ```sh
+# vector basemap
 data/build-basemap.sh              # extract today's Protomaps build -> staging/
 data/publish-basemap.sh wa-$(date -u +%Y%m%d).pmtiles
+
+# terrain / hillshade (independent; needs the data/ uv env for numpy + pillow)
+data/build-terrain-basemap.sh
+data/publish-basemap.sh wa-terrain-$(date -u +%Y%m%d).pmtiles
 ```
 
 `build-basemap.sh` pulls only the tiles inside `data/basemap/wa.geojson` via
@@ -227,6 +245,14 @@ the archive, moves it into place atomically, writes `manifest.json` **last**,
 and prunes superseded archives 30 days after they were SUPERSEDED — it touches
 the outgoing archive on publish, because `find -mtime` otherwise reads the build
 date and would delete a quarterly archive instantly.
+
+`build-terrain-basemap.sh` is the slow one: it fetches 1,913 tiles one at a time
+and re-encodes each as lossless WebP, which on maderas's 2 cores takes ~25 min
+(a few minutes on a laptop). Run it under `nohup`. It is CPU-bound in the
+encoder, not network-bound. See [`data/terrain_tiles.py`](../../data/terrain_tiles.py)
+for why the archive is 61 MB rather than the 200 MB the raw tiles weigh — and
+for why raising its maxzoom without moving `TERRAIN_FADE_END` in
+`src/basemap-style.ts` buys nothing.
 
 Verify:
 
@@ -248,10 +274,10 @@ other, and the symptom is a blank basemap in the field rather than a failed
 build. Keeping it a sibling makes that impossible by construction instead of by
 an `--exclude` a later edit could drop.
 
-**Not backed up, deliberately.** The archive is fully reproducible from the
-Protomaps daily build plus `data/basemap/wa.geojson` and
-`data/build-basemap.sh` — both in git. Those two files *are* the backup; adding
-227 MB per refresh to the backup buckets would buy nothing.
+**Not backed up, deliberately.** Both archives are fully reproducible from their
+upstream source plus `data/basemap/wa.geojson` and the build script — all in
+git. Those files *are* the backup; adding ~290 MB per refresh to the backup
+buckets would buy nothing.
 
 ## 10. Compression (one-time, sudo — beeatlas-tb8)
 

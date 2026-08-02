@@ -93,6 +93,20 @@ cd data && uv run pytest
   failure so the occurrence layers still render. Local dev proxies
   `/basemap/tiles` to beeatlas.net (`vite.config.ts`) — the archive is never
   checked in. Still open: beeatlas-6rs (offline precache), beeatlas-mas (ADRs).
+  - **Hillshade (beeatlas-8py).** A SECOND archive, `wa-terrain-*.pmtiles`
+    (~61 MB, `data/build-terrain-basemap.sh` + `data/terrain_tiles.py`), lives
+    beside the vector one and publishes independently through the same
+    `publish-basemap.sh` — which therefore MERGES `manifest.json` instead of
+    rewriting it and scopes its prune by kind (`wa-*.pmtiles` also matches
+    `wa-terrain-*.pmtiles`). Its manifest entry is `regions.wa.terrain` and is
+    OPTIONAL: no entry means no hillshade layer and an otherwise untouched
+    basemap, which is what lets the data ship before the code. Two numbers are
+    paired and must move together — `DEFAULT_MAXZOOM` (11) in `terrain_tiles.py`
+    and `TERRAIN_FADE_END` (13.5) in `src/basemap-style.ts`; the fade is what
+    makes a cheap z11 DEM sufficient, because nothing renders above it. The
+    layer sits under the `water` fill, NOT under the first symbol layer: the
+    Protomaps theme interleaves fills and lines, so "under the labels" would
+    wash every trail and stream with terrain shading.
   - **MapLibre's worker cannot be bundled.** It finds itself by deriving a sibling
     URL from its own `import.meta.url`, so once bundled it 404s — and reports
     nothing: tiles hang in `loading`, `load` never fires, the map is blank with a
