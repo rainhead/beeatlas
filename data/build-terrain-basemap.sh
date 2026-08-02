@@ -12,15 +12,26 @@
 # hillshade rolls back by removing one source and one layer from the style. It is
 # deliberately NOT part of the nightly.
 #
-# Run this ON MADERAS: it lands a ~61 MB artifact in the staging dir that
-# publish-basemap.sh reads, and building in place avoids an upload. Measured
-# 2026-08-02: 1,913 tiles, ~9 min wall clock (lossless WebP at method=6 is the
-# slow part), 61 MB archive.
+# RUN THIS ON A WORKSTATION AND UPLOAD THE RESULT — the opposite of
+# build-basemap.sh, and for a concrete reason. That script is a network extract:
+# it range-requests a remote planet file, so the bytes have to cross the wire
+# either way and building on the server saves an upload. This one is CPU-bound
+# in the lossless WebP encoder, and the artifact is only ~61 MB. Measured
+# 2026-08-02: ~9 min on an 8-core laptop; on maderas's 2 cores the same build ran
+# at ~11 tiles/min, i.e. ~3 HOURS pinning both cores of the live web server.
+# Upload the 61 MB instead.
+#
+#   STAGING_DIR=/tmp/terrain data/build-terrain-basemap.sh
+#   scp /tmp/terrain/wa-terrain-YYYYMMDD.pmtiles \
+#       maderas:/var/www/beeatlas.net/var/basemap-staging/
+#   ssh maderas 'cd ~/dev/beeatlas && data/publish-basemap.sh wa-terrain-YYYYMMDD.pmtiles'
 #
 # Requires the pmtiles Go CLI and the data/ uv environment (numpy + pillow).
 #
 # Usage: data/build-terrain-basemap.sh [YYYYMMDD]
 #   with no argument, stamps the archive with today's date.
+#   STAGING_DIR overrides where the archive lands (default: the maderas staging
+#   dir, which is what publish-basemap.sh reads).
 
 set -euo pipefail
 

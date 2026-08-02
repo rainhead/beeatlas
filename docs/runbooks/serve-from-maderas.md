@@ -230,12 +230,21 @@ archive mid-build (`Options -Indexes` hides a listing, not a file).
 Build and publish (on maderas, from the repo):
 
 ```sh
-# vector basemap
+# vector basemap — ON MADERAS
 data/build-basemap.sh              # extract today's Protomaps build -> staging/
 data/publish-basemap.sh wa-$(date -u +%Y%m%d).pmtiles
+```
 
-# terrain / hillshade (independent; needs the data/ uv env for numpy + pillow)
-data/build-terrain-basemap.sh
+The terrain archive is the exception to "build on maderas". It is CPU-bound in
+the WebP encoder rather than network-bound, so it is built on a workstation and
+uploaded (needs the `data/` uv env for numpy + pillow):
+
+```sh
+# ON A WORKSTATION
+STAGING_DIR=/tmp/terrain data/build-terrain-basemap.sh
+scp /tmp/terrain/wa-terrain-$(date -u +%Y%m%d).pmtiles \
+    maderas:/var/www/beeatlas.net/var/basemap-staging/
+# THEN on maderas
 data/publish-basemap.sh wa-terrain-$(date -u +%Y%m%d).pmtiles
 ```
 
@@ -246,10 +255,10 @@ and prunes superseded archives 30 days after they were SUPERSEDED — it touches
 the outgoing archive on publish, because `find -mtime` otherwise reads the build
 date and would delete a quarterly archive instantly.
 
-`build-terrain-basemap.sh` is the slow one: it fetches 1,913 tiles one at a time
-and re-encodes each as lossless WebP, which on maderas's 2 cores takes ~25 min
-(a few minutes on a laptop). Run it under `nohup`. It is CPU-bound in the
-encoder, not network-bound. See [`data/terrain_tiles.py`](../../data/terrain_tiles.py)
+`build-terrain-basemap.sh` fetches 1,913 tiles and re-encodes each as lossless
+WebP. Measured 2026-08-02: ~9 min on an 8-core laptop, versus ~11 tiles/min on
+maderas — about **3 hours** pinning both cores of the live web server, which is
+why it does not run there. See [`data/terrain_tiles.py`](../../data/terrain_tiles.py)
 for why the archive is 61 MB rather than the 200 MB the raw tiles weigh — and
 for why raising its maxzoom without moving `TERRAIN_FADE_END` in
 `src/basemap-style.ts` buys nothing.
