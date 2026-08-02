@@ -125,7 +125,7 @@ recompress a database that changes once a night.
 Compressing an immutable, content-hashed artifact is a pure function of that artifact,
 which is precisely what stelis's graph edges are for. So:
 
-- **`scripts/precompress-artifacts.mjs`** writes `<data dir>/compressed/<source>.br|.gz`
+- **`scripts/precompress-artifacts.mjs`** writes `<data dir>/compressed/<source>-<hash>.br|.gz`
   for the artifacts named on argv. It is a stelis node (`precompress`) whose inputs are
   the artifacts themselves, so early cutoff runs it when the *data* moves. It always
   compresses what it is told — the caching is the graph's job, and a
@@ -144,10 +144,28 @@ the shape of a wrong cache skip. Taking the list from the caller makes the graph
 authoritative, and turns drift into "postbuild compresses that one in-process": slow and
 correct, rather than fast and stale.
 
+**A sibling is named for its source's CONTENT, and that is load-bearing.** The first cut
+named it `<source>.br` and the publish copied it by name — while naming the artifact in
+the docroot after a fresh hash of that artifact's *current* bytes. Nothing checked that
+the two were the same bytes, and two ordinary paths reach the case where they are not:
+`data/publish-notes.sh` triggers a publish without running this node at all (its stelis
+build is scoped to the notes suffix), and `scripts/pull-published.sh` replaces a dev
+checkout's artifacts while leaving `compressed/` untouched. Either one would put
+`occurrences-<newhash>.db` in the docroot with the *previous* database's `.br` beside it —
+and since every browser accepts one of the two encodings, essentially every client would
+receive the old database under a URL whose hash asserts the new one, then cache it under
+`immutable`. Nothing would error. With the hash in the sibling's name, a stale one is
+simply not found and the publish falls back to compressing: slow and correct. Caught in
+review before it ever ran a nightly; the regression test is the "STALE `compressed/`"
+case in `src/tests/precompressed-artifacts.test.ts`, which runs the real publish.
+
 **`compressed/` is a set with one producer.** The writer prunes anything it did not just
-write, so a retired artifact cannot leave a sibling to be published under a name nothing
-produces any more — and stelis content-addresses the directory as a tree, so a stray file
-would keep the digest moving besides.
+write — a retired artifact's siblings, a previous hash's, a `.tmp` from a killed run —
+so the directory holds exactly the current answer. Stelis content-addresses it as a tree,
+so a stray file would keep the digest moving besides. Siblings are written to a temp name
+and renamed, like `manifest.json`: a SIGKILL mid-write (the note path runs under a 300 s
+timeout) would otherwise leave a truncated file under a name the publish accepts, and a
+truncated `.gz` has the right name and the right hash.
 
 **The node version is part of the answer.** gzip -9 of the same 33.8 MB database is
 5,208,681 bytes under node 24.18 and 5,203,283 under node 26. Both are valid gzip and

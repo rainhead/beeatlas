@@ -45,14 +45,13 @@
  * usable.
  */
 
-import { createHash } from 'node:crypto';
 import { execSync } from 'node:child_process';
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, dirname, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDataDir } from '../lib/build-data-dir.js';
 import { readGeneratedAt } from '../lib/data-freshness.js';
-import { compressedVariants, precompressedVariants } from '../lib/precompress.js';
+import { artifactHash, compressedVariants, precompressedVariants } from '../lib/precompress.js';
 import { RUNTIME_ARTIFACTS } from '../lib/runtime-artifacts.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -106,9 +105,14 @@ mkdirSync(outDir, { recursive: true });
  * `npm run pull-published` docroot, and any artifact the graph does not name (taxon_pages
  * is derived below, from this build) all have no precomputed sibling and must still be
  * published compressed. `source` is undefined for those.
+ *
+ * The sibling is matched by `hash` as well as name — the hash of the very bytes this
+ * caller just hashed to build `hashedName`. That is what makes "prefer the precomputed
+ * one" safe: a `compressed/` left behind by an earlier run simply does not match, and
+ * falls back. See lib/precompress.js for why that is not hypothetical.
  */
-function writeVariants(hashedName, content, source) {
-  const precomputed = source ? precompressedVariants(dataDir, source) : [];
+function writeVariants(hashedName, content, source, hash) {
+  const precomputed = source ? precompressedVariants(dataDir, source, hash) : [];
   if (precomputed.length > 0) {
     return precomputed.map(({ suffix, path }) => {
       copyFileSync(path, join(outDir, hashedName + suffix));
@@ -132,11 +136,13 @@ for (const [key, { source, basename }] of Object.entries(RUNTIME_ARTIFACTS)) {
     missing.push(`${key} (${srcPath})`);
     continue;
   }
-  const hash = createHash('sha256').update(content).digest('hex').slice(0, 12);
+  // artifactHash, not an inline sha256 here and another one in the writer: the two
+  // agreeing is what binds a compressed sibling to the bytes it was compressed from.
+  const hash = artifactHash(content);
   const hashedName = `${basename}-${hash}${extname(source)}`;
   copyFileSync(srcPath, join(outDir, hashedName));
   manifest[key] = hashedName;
-  const variants = writeVariants(hashedName, content, source);
+  const variants = writeVariants(hashedName, content, source, hash);
   const sizes = [`${content.length.toLocaleString()} bytes`, ...variants].join('; ');
   console.log(`  ${key}: ${source} -> data/${hashedName} (${sizes})`);
 }
@@ -163,7 +169,7 @@ if (missing.length > 0) {
 try {
   const { default: speciesData } = await import('../_data/species.js');
   const body = Buffer.from(JSON.stringify(speciesData.taxonPages) + '\n');
-  const hash = createHash('sha256').update(body).digest('hex').slice(0, 12);
+  const hash = artifactHash(body);
   const hashedName = `taxon_pages-${hash}.json`;
   writeFileSync(join(outDir, hashedName), body);
   manifest.taxon_pages = hashedName;
