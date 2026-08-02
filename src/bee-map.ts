@@ -39,12 +39,24 @@ const DEFAULT_LAT = 47.5;
 const DEFAULT_ZOOM = 7;
 
 /**
- * How long to wait for the basemap manifest before giving up and rendering the
- * blank style. The map is not constructed until this settles, so this is also
- * the worst-case delay before the GeolocateControl exists — which is why it is
- * bounded at all: offline, `fetch` normally rejects in milliseconds, but behind
- * a captive portal it can hang indefinitely, and an unbounded hang here would
- * mean no map and no GPS rather than a blank basemap and working GPS.
+ * How long to wait for the basemap manifest before settling for the blank style.
+ *
+ * Nothing structural waits on this: the map, its controls and the GPS all exist
+ * before the fetch starts. What it delays is the OCCURRENCE LAYERS, which are
+ * installed once the style is final so they are not added, torn down by
+ * `setStyle` and re-clustered a second time.
+ *
+ * 3s is chosen against the data load, not against a network. The manifest is a
+ * same-origin file of a few hundred bytes and normally resolves an order of
+ * magnitude faster than the SQLite boot the layers already wait on, so in the
+ * healthy case this bound costs nothing at all. It exists for the pathological
+ * case — a captive portal that neither answers nor refuses — where an unbounded
+ * wait would mean no dots, ever. Offline proper does not reach it: `fetch`
+ * rejects in milliseconds with no network.
+ *
+ * A manifest that arrives later than this is simply not used for the session.
+ * Recovering it (and the online/offline transitions around it) belongs with the
+ * offline work in beeatlas-6rs, not here.
  */
 const BASEMAP_MANIFEST_TIMEOUT_MS = 3000;
 
@@ -65,25 +77,11 @@ const BASEMAP_MANIFEST_TIMEOUT_MS = 3000;
  */
 const MAPLIBRE_WORKER_URL = '/basemap/maplibre/maplibre-gl-worker.mjs';
 
-/**
- * Layers the map hit-tests on click, in priority order. The first layer with a
- * feature under the cursor wins and nothing below it is consulted; if none
- * match, the click is empty.
- *
- * This replaces Mapbox's `addInteraction` chain (five handlers whose
- * `preventDefault()` stopped propagation to the next), which MapLibre has no
- * equivalent for. `queryRenderedFeatures` returns features only from layers that
- * are actually RENDERED, so a boundary layer at `visibility: none` is skipped —
- * which is what preserved the old chain's "fires only when the layer is
- * visible" property, not any explicit check.
- */
-const CLICK_PRIORITY_LAYERS = [
-  'clusters',
-  'unclustered-point',
-  'county-fill',
-  'ecoregion-fill',
-  'place-fill',
-] as const;
+/** One rung of the click priority chain — see BeeMap._clickTargets. */
+type ClickTarget = {
+  layerId: string;
+  handle: (feature: maplibregl.MapGeoJSONFeature, e: maplibregl.MapMouseEvent) => void;
+};
 
 /**
  * The two pieces of MapLibre setup that are GLOBAL rather than per-map, and both
@@ -148,6 +146,34 @@ export class BeeMap extends LitElement {
   private _placeIdMap: Map<number, string> = new Map();
   private _clickConsumed = false;
 
+
+  /**
+   * The click priority chain: layers hit-tested in order, each with what to do
+   * when it wins. The first layer with a feature under the cursor takes the click
+   * and nothing below it is consulted; if none match, the click is empty.
+   *
+   * This replaces Mapbox's `addInteraction` chain — five handlers whose
+   * `preventDefault()` stopped propagation to the next — which MapLibre has no
+   * equivalent for. It is ONE list rather than a list of ids plus a switch on
+   * those ids, because two encodings of the same five-way ordering drift: the
+   * point of the chain is that order and membership are decided in exactly one
+   * place.
+   *
+   * `queryRenderedFeatures` returns features only from layers that are actually
+   * RENDERED, so a boundary layer at `visibility: none` is skipped. That, not any
+   * explicit check, is what preserved the old chain's "fires only when the layer
+   * is visible" property.
+   */
+  private readonly _clickTargets: readonly ClickTarget[] = [
+    // Cluster: expand to all its leaves and show them through the
+    // selected-occurrences overlay.
+    { layerId: 'clusters',          handle: f => void this._handleClusterClick(f) },
+    { layerId: 'unclustered-point', handle: f => void this._handlePointClick(f) },
+    { layerId: 'county-fill',       handle: (f, e) => this._handleRegionClick(f, 'NAME', e) },
+    { layerId: 'ecoregion-fill',    handle: (f, e) => this._handleRegionClick(f, 'NA_L3NAME', e) },
+    // D-03: emits 'place-selected' with { slug }.
+    { layerId: 'place-fill',        handle: f => this._handlePlaceClick(f) },
+  ];
 
   // Shift-drag rectangle gesture (SEL-01, SEL-02)
   private _rectStart: maplibregl.Point | null = null;
@@ -365,58 +391,51 @@ export class BeeMap extends LitElement {
   }
 
   /**
-   * Fetch the basemap manifest and build the field style from it, falling back
-   * to the blank style on ANY failure — offline, a 404 from a site whose
-   * /basemap/tiles Alias is not configured, or a payload that does not parse.
+   * Fetch the basemap manifest and build the field style from it, or null when
+   * the basemap is unavailable — offline, a 404 from a site whose /basemap/tiles
+   * Alias is not configured, or a payload that does not parse.
    *
    * The failure is logged but never surfaced as an error to <bee-atlas>: a
    * missing basemap degrades the map, it does not break the app, and the
    * occurrence layers render either way.
    */
-  private async _resolveBasemapStyle(): Promise<maplibregl.StyleSpecification> {
-    const origin = location.origin;
+  private async _resolveBasemapStyle(): Promise<maplibregl.StyleSpecification | null> {
     try {
       const resp = await fetch(basemapManifestUrl(), {
         signal: AbortSignal.timeout(BASEMAP_MANIFEST_TIMEOUT_MS),
       });
       if (!resp.ok) throw new Error(`basemap manifest: HTTP ${resp.status}`);
-      return buildBasemapStyle(parseBasemapManifest(await resp.json()), { origin });
+      return buildBasemapStyle(parseBasemapManifest(await resp.json()), { origin: location.origin });
     } catch (err) {
       console.warn('Basemap unavailable, rendering without it:', err);
-      return blankBasemapStyle({ origin });
+      return null;
     }
   }
 
   public firstUpdated(_changedProperties: PropertyValues): void {
     // Load occurrence data INDEPENDENT of the basemap. Kicked off FIRST, before
-    // _initMap awaits the manifest, so the cached data + table still render (the
-    // "Loading…" curtain clears via the data-loaded event) on a cold start where
-    // the basemap never arrives. [Phase 151 iOS offline fix]
+    // anything is awaited, so the cached data + table still render (the "Loading…"
+    // curtain clears via the data-loaded event) on a cold start where the basemap
+    // never arrives. [Phase 151 iOS offline fix]
     this._dataReady = this._loadOccurrenceData();
-    void this._initMap();
-  }
 
-  /**
-   * Construct the map and wire everything to it.
-   *
-   * Async because the style is DATA now: the archive filename is date-stamped
-   * (publish-basemap.sh keeps superseded archives alive through a grace period),
-   * so the manifest naming the current one has to be fetched before a style can
-   * name a source. That fetch is bounded — see BASEMAP_MANIFEST_TIMEOUT_MS —
-   * and always yields a style, so this method always constructs a map.
-   */
-  private async _initMap(): Promise<void> {
     // Before any map is constructed or any style naming pmtiles:// is loaded.
     configureRenderer();
 
-    const style = await this._resolveBasemapStyle();
-    // Disconnected while the manifest was in flight: constructing a map into a
-    // detached container would leak a WebGL context and a ResizeObserver.
-    if (!this.isConnected) return;
-
+    // Constructed SYNCHRONOUSLY, with the blank style, and given the real basemap
+    // afterwards by _applyBasemap.
+    //
+    // The style is data now — the archive filename is date-stamped, so the
+    // manifest naming the current one has to be fetched before a style can name a
+    // source — and an earlier cut therefore awaited that fetch before constructing
+    // anything. That put the whole map, its controls and the GPS behind a network
+    // request, which is the wrong thing to make conditional on a network: the
+    // offline blue dot is a field requirement (LOC-01 SC-2) and the map chrome has
+    // no reason to wait. Everything below is local and cannot fail, so it happens
+    // now; only the basemap waits on the basemap.
     this._map = new maplibregl.Map({
       container: this.mapElement,
-      style,
+      style: blankBasemapStyle({ origin: location.origin }),
       center: [this.viewState?.lon ?? DEFAULT_LON, this.viewState?.lat ?? DEFAULT_LAT],
       zoom: this.viewState?.zoom ?? DEFAULT_ZOOM,
       // `true` is not a MapLibre option — the control is on by default and
@@ -473,145 +492,14 @@ export class BeeMap extends LitElement {
     const rectCanvas = this._map.getCanvasContainer();
     rectCanvas.addEventListener('mousedown', this._onRectMouseDown, true);
 
-    // All source/layer setup must happen after the style loads. Unlike under
-    // Mapbox — where the style came from api.mapbox.com and so an offline cold
-    // start never reached 'load' at all — every style this map can be given is
-    // local, including the blank fallback, so 'load' now fires offline too and
-    // the occurrence layers render over blank paper. The data load stays
-    // decoupled regardless (firstUpdated owns it); do not re-couple them.
-    this._map.on('load', async () => {
-      // Signal the map-readiness barrier (ready.ts).
-      markMapReady();
-      try {
-        await this._dataReady;
-        const geojson = this._fullGeoJSON;
-        if (!geojson) return;
-
-        // Add clustered GeoJSON source for occurrences
-        this._map!.addSource('occurrences', {
-          type: 'geojson',
-          data: geojson,
-          cluster: true,
-          clusterRadius: 20,
-          clusterMinPoints: 2,
-          clusterMaxZoom: 14,
-          clusterProperties: {
-            thisYearCount: ['+', ['case', ['==', ['get', 'recencyTier'], 'thisYear'], 1, 0]],
-            lastYearCount: ['+', ['case', ['==', ['get', 'recencyTier'], 'lastYear'], 1, 0]],
-            earlierCount:  ['+', ['case', ['==', ['get', 'recencyTier'], 'earlier'], 1, 0]],
-          },
-          attribution: '<a href="https://agr.wa.gov/departments/insects-pests-and-weeds/insects/apiary-pollinators/pollinator-health/bee-atlas/" target="_blank">Washington Bee Atlas</a>',
-        });
-
-        // Add unclustered ghost source for filtered-out features
-        this._map!.addSource('occurrences-ghost', {
-          type: 'geojson',
-          data: { type: 'FeatureCollection', features: [] },
-        });
-
-        // Boundary GeoJSON sources with generateId for feature-state support
-        this._map!.addSource('counties', {
-          type: 'geojson',
-          data: { type: 'FeatureCollection', features: [] },
-          generateId: true,
-        });
-        this._map!.addSource('ecoregions', {
-          type: 'geojson',
-          data: { type: 'FeatureCollection', features: [] },
-          generateId: true,
-        });
-        this._map!.addSource('places', {
-          type: 'geojson',
-          data: { type: 'FeatureCollection', features: [] },
-          generateId: true,
-        });
-        // Wilderness no-collect overlay: no generateId — it has no click-to-select
-        // feature-state (a constant warning fill), unlike the boundary sources above.
-        this._map!.addSource('wilderness', {
-          type: 'geojson',
-          data: { type: 'FeatureCollection', features: [] },
-        });
-
-        // --- Layers in render order ---
-        // Compute initial visibility from URL-restored boundaryMode so layers
-        // are correct from creation — avoids relying on a later setLayoutProperty
-        // call that may be blocked by isStyleLoaded() returning false.
-        const countyVis = this.boundaryMode === 'counties' ? 'visible' as const : 'none' as const;
-        const ecoVis = this.boundaryMode === 'ecoregions' ? 'visible' as const : 'none' as const;
-        const placesVis = this.boundaryMode === 'places' ? 'visible' as const : 'none' as const;
-        const wildernessVis = this.boundaryMode === 'wilderness' ? 'visible' as const : 'none' as const;
-
-        this._map!.addLayer(boundaryFillLayerSpec('ecoregions', 'ecoregion-fill', ecoVis));
-        this._map!.addLayer(boundaryLineLayerSpec('ecoregions', 'ecoregion-line', ecoVis));
-        this._map!.addLayer(boundaryFillLayerSpec('counties', 'county-fill', countyVis));
-        this._map!.addLayer(boundaryLineLayerSpec('counties', 'county-line', countyVis));
-        this._map!.addLayer(placeFillLayerSpec(placesVis));
-        this._map!.addLayer(placeLineLayerSpec(placesVis));
-        this._map!.addLayer(placeLabelLayerSpec(placesVis));
-        this._map!.addLayer(wildernessFillLayerSpec(wildernessVis));
-        this._map!.addLayer(wildernessLineLayerSpec(wildernessVis));
-        this._map!.addLayer(wildernessLabelLayerSpec(wildernessVis));
-
-        // Ghost points: low-opacity gray dots for filtered-out features
-        this._map!.addLayer(ghostPointLayerSpec());
-
-        // Clusters: recency-colored circles
-        this._map!.addLayer(clusterCircleLayerSpec(RECENCY_COLORS));
-
-        // Cluster count labels
-        this._map!.addLayer(clusterCountLayerSpec(RECENCY_COLORS));
-
-        // Unclustered individual points
-        this._map!.addLayer(unclusteredPointLayerSpec(RECENCY_COLORS));
-
-        // selected-occurrences: non-clustered overlay of selected features.
-        // Renders at exact coordinates regardless of zoom, so selected points
-        // are visible even when merged into a cluster in the main source.
-        // Updated via setData on selection or filter change — no async needed.
-        this._map!.addSource('selected-occurrences', {
-          type: 'geojson',
-          cluster: false,
-          data: { type: 'FeatureCollection', features: [] },
-        });
-        this._map!.addLayer(selectedOccurrencesLayerSpec(RECENCY_COLORS));
-
-        // Fetch boundary GeoJSON (deferred after occurrence data)
-        this._loadBoundaryData();
-
-        // Apply initial source data once sources exist. Fire when visibleIds is set OR
-        // intendedFilterActive is true — otherwise a hide-all that arrived before load
-        // would not be applied (the map would flash full data on load before the query resolves).
-        if (this.visibleIds !== null || this.intendedFilterActive) {
-          this._applyVisibleIds();
-        }
-
-        // Apply initial selection if set before load completed
-        if (this.selectedOccIds !== null) {
-          this._applySelection();
-        }
-
-        // Apply initial tier filter if hiddenTiers was set before map loaded
-        if (this.hiddenTiers.size > 0) {
-          this._applyTierFilter();
-        }
-      } catch (err) {
-        // Map-layer setup failed (style loaded but a source/layer add threw). Data
-        // already loaded + table rendered via _loadOccurrenceData, so don't blank the
-        // app with a data-error — just log.
-        console.error('Failed to set up map layers:', err);
-      }
-    });
-
-    // moveend: emit view-moved event (outside load callback -- fires for all moves)
+    // moveend: emit view-moved event (fires for all moves)
     this._map.on('moveend', () => {
       const center = this._map!.getCenter();
       const zoom = this._map!.getZoom();
       this._emit('view-moved', { lon: center.lng, lat: center.lat, zoom });
     });
 
-    // --- Click interaction priority chain ---
-    // One handler walking CLICK_PRIORITY_LAYERS in order, standing in for the
-    // five Mapbox addInteraction handlers that chained by preventDefault().
+    // --- Click interaction priority chain (see _clickTargets) ---
     // The event contract to <bee-atlas> is unchanged.
     //
     // _clickConsumed is still the shift-drag guard: the rectangle gesture sets
@@ -627,23 +515,182 @@ export class BeeMap extends LitElement {
         return;
       }
       this._clickConsumed = true;
-      const [layerId, feature] = hit;
-      switch (layerId) {
-        // Cluster: expand to all its leaves and show them through the
-        // selected-occurrences overlay.
-        case 'clusters':        void this._handleClusterClick(feature); break;
-        case 'unclustered-point': void this._handlePointClick(feature); break;
-        case 'county-fill':     this._handleRegionClick(feature, 'NAME', e); break;
-        case 'ecoregion-fill':  this._handleRegionClick(feature, 'NA_L3NAME', e); break;
-        // D-03: emits 'place-selected' with { slug }.
-        case 'place-fill':      this._handlePlaceClick(feature); break;
-      }
+      hit.target.handle(hit.feature, e);
     });
 
     // ResizeObserver to handle container dimension changes (e.g., table-mode toggle)
     this._resizeObserver = new ResizeObserver(() => this._map?.resize());
     this._resizeObserver.observe(this.mapElement);
+
+    // Everything above is local and synchronous. The basemap and the occurrence
+    // layers are not, and follow in order — see _initMapContent.
+    void this._initMapContent();
   }
+
+  /**
+   * The map's content, as an ordered sequence rather than a web of listeners,
+   * because the ORDER is the point: install before the basemap swap and the
+   * layers are torn down by setStyle and re-clustered, and 98k features is not a
+   * thing to do twice for cosmetic reasons.
+   *
+   * Unlike under Mapbox — where the style came from api.mapbox.com, so an offline
+   * cold start never reached 'load' at all — every style this map can be given is
+   * local, including the blank fallback. So this runs to completion offline too
+   * and the occurrence layers render over blank paper. The data load stays
+   * decoupled regardless (firstUpdated owns it); do not re-couple them.
+   */
+  private async _initMapContent(): Promise<void> {
+    try {
+      await new Promise<void>(resolve => this._map!.once('load', () => resolve()));
+      // Signal the map-readiness barrier (ready.ts). Fires off the BLANK style, so
+      // it no longer waits on the basemap being reachable.
+      markMapReady();
+      await this._applyBasemap();
+      await this._installMapContent();
+    } catch (err) {
+      // The map and its controls work either way; a failure here costs the
+      // occurrence layers, not the app. Never a data-error — the table is fed by
+      // _loadOccurrenceData, which has already reported for itself.
+      console.error('Failed to set up map layers:', err);
+    }
+  }
+
+  /**
+   * Give the map the real basemap, if it can be had. A no-op when the manifest is
+   * unreachable, which leaves the blank style already in place.
+   *
+   * `diff: false` because the two styles share nothing — diffing a 69-layer theme
+   * against a single background layer is pure work. Resolving on `style.load`
+   * rather than returning straight away is what lets the caller install the
+   * occurrence layers exactly once, onto the final style.
+   */
+  private async _applyBasemap(): Promise<void> {
+    const style = await this._resolveBasemapStyle();
+    if (!style || !this._map || !this.isConnected) return;
+    await new Promise<void>(resolve => {
+      this._map!.once('style.load', () => resolve());
+      this._map!.setStyle(style, { diff: false });
+    });
+  }
+
+  /**
+   * Add the occurrence and boundary sources and layers to the current style.
+   * Waits on the occurrence data, which loads independently of all of this.
+   */
+  private async _installMapContent(): Promise<void> {
+    await this._dataReady;
+    const geojson = this._fullGeoJSON;
+    if (!geojson || !this._map) return;
+
+    // Add clustered GeoJSON source for occurrences
+    this._map!.addSource('occurrences', {
+      type: 'geojson',
+      data: geojson,
+      cluster: true,
+      clusterRadius: 20,
+      clusterMinPoints: 2,
+      clusterMaxZoom: 14,
+      clusterProperties: {
+        thisYearCount: ['+', ['case', ['==', ['get', 'recencyTier'], 'thisYear'], 1, 0]],
+        lastYearCount: ['+', ['case', ['==', ['get', 'recencyTier'], 'lastYear'], 1, 0]],
+        earlierCount:  ['+', ['case', ['==', ['get', 'recencyTier'], 'earlier'], 1, 0]],
+      },
+      attribution: '<a href="https://agr.wa.gov/departments/insects-pests-and-weeds/insects/apiary-pollinators/pollinator-health/bee-atlas/" target="_blank">Washington Bee Atlas</a>',
+    });
+
+    // Add unclustered ghost source for filtered-out features
+    this._map!.addSource('occurrences-ghost', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    });
+
+    // Boundary GeoJSON sources with generateId for feature-state support
+    this._map!.addSource('counties', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+      generateId: true,
+    });
+    this._map!.addSource('ecoregions', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+      generateId: true,
+    });
+    this._map!.addSource('places', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+      generateId: true,
+    });
+    // Wilderness no-collect overlay: no generateId — it has no click-to-select
+    // feature-state (a constant warning fill), unlike the boundary sources above.
+    this._map!.addSource('wilderness', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    });
+
+    // --- Layers in render order ---
+    // Compute initial visibility from URL-restored boundaryMode so layers
+    // are correct from creation — avoids relying on a later setLayoutProperty
+    // call that may be blocked by isStyleLoaded() returning false.
+    const countyVis = this.boundaryMode === 'counties' ? 'visible' as const : 'none' as const;
+    const ecoVis = this.boundaryMode === 'ecoregions' ? 'visible' as const : 'none' as const;
+    const placesVis = this.boundaryMode === 'places' ? 'visible' as const : 'none' as const;
+    const wildernessVis = this.boundaryMode === 'wilderness' ? 'visible' as const : 'none' as const;
+
+    this._map!.addLayer(boundaryFillLayerSpec('ecoregions', 'ecoregion-fill', ecoVis));
+    this._map!.addLayer(boundaryLineLayerSpec('ecoregions', 'ecoregion-line', ecoVis));
+    this._map!.addLayer(boundaryFillLayerSpec('counties', 'county-fill', countyVis));
+    this._map!.addLayer(boundaryLineLayerSpec('counties', 'county-line', countyVis));
+    this._map!.addLayer(placeFillLayerSpec(placesVis));
+    this._map!.addLayer(placeLineLayerSpec(placesVis));
+    this._map!.addLayer(placeLabelLayerSpec(placesVis));
+    this._map!.addLayer(wildernessFillLayerSpec(wildernessVis));
+    this._map!.addLayer(wildernessLineLayerSpec(wildernessVis));
+    this._map!.addLayer(wildernessLabelLayerSpec(wildernessVis));
+
+    // Ghost points: low-opacity gray dots for filtered-out features
+    this._map!.addLayer(ghostPointLayerSpec());
+
+    // Clusters: recency-colored circles
+    this._map!.addLayer(clusterCircleLayerSpec(RECENCY_COLORS));
+
+    // Cluster count labels
+    this._map!.addLayer(clusterCountLayerSpec(RECENCY_COLORS));
+
+    // Unclustered individual points
+    this._map!.addLayer(unclusteredPointLayerSpec(RECENCY_COLORS));
+
+    // selected-occurrences: non-clustered overlay of selected features.
+    // Renders at exact coordinates regardless of zoom, so selected points
+    // are visible even when merged into a cluster in the main source.
+    // Updated via setData on selection or filter change — no async needed.
+    this._map!.addSource('selected-occurrences', {
+      type: 'geojson',
+      cluster: false,
+      data: { type: 'FeatureCollection', features: [] },
+    });
+    this._map!.addLayer(selectedOccurrencesLayerSpec(RECENCY_COLORS));
+
+    // Fetch boundary GeoJSON (deferred after occurrence data)
+    this._loadBoundaryData();
+
+    // Apply initial source data once sources exist. Fire when visibleIds is set OR
+    // intendedFilterActive is true — otherwise a hide-all that arrived before load
+    // would not be applied (the map would flash full data on load before the query resolves).
+    if (this.visibleIds !== null || this.intendedFilterActive) {
+      this._applyVisibleIds();
+    }
+
+    // Apply initial selection if set before load completed
+    if (this.selectedOccIds !== null) {
+      this._applySelection();
+    }
+
+    // Apply initial tier filter if hiddenTiers was set before map loaded
+    if (this.hiddenTiers.size > 0) {
+      this._applyTierFilter();
+    }
+  }
+
 
   /**
    * D-06 seam: ask the existing Phase 152 GeolocateControl to start a location fix.
@@ -669,29 +716,41 @@ export class BeeMap extends LitElement {
    * denial here would now mean reporting "permission denied" for a control that
    * was merely a beat too early. Retry once instead; the setup it is waiting on
    * is a settled promise's continuation, so one task is enough.
+   *
+   * If the retry ALSO refuses, say so. Dropping it silently is the one outcome
+   * that is worse than a wrong message: the user taps near-me, the map does
+   * nothing, and nothing explains why. Code 2 is the Geolocation API's
+   * POSITION_UNAVAILABLE, which is what this is — the fix could not be started.
    */
   private _triggerGeolocate(): void {
     if (!this._geolocate) return;
     if (this._geolocate.trigger()) return;
-    setTimeout(() => this._geolocate?.trigger(), 0);
+    setTimeout(() => {
+      if (!this._geolocate || this._geolocate.trigger()) return;
+      this._emit('user-location-changed', {
+        error: { code: 2, message: 'Location is not available yet — try again in a moment.' },
+      });
+    }, 0);
   }
 
   // --- Private helpers ---
 
   /**
-   * The highest-priority rendered feature under a click, or null for empty map.
+   * The highest-priority rendered feature under a click, with the target that
+   * claimed it — or null when the click landed on empty map.
    *
-   * getLayer() guards each query because the occurrence layers are added on
-   * 'load' and the boundary layers exist from then on but a click can land
-   * before either; querying an unknown layer id is an error in MapLibre, not an
-   * empty result.
+   * getLayer() guards each query because the layers are added only once the
+   * style is final, and a click can land before that; querying an unknown layer
+   * id is an error in MapLibre, not an empty result.
    */
-  private _topFeatureAt(point: maplibregl.Point): [string, maplibregl.MapGeoJSONFeature] | null {
+  private _topFeatureAt(
+    point: maplibregl.Point,
+  ): { target: ClickTarget; feature: maplibregl.MapGeoJSONFeature } | null {
     if (!this._map) return null;
-    for (const layerId of CLICK_PRIORITY_LAYERS) {
-      if (!this._map.getLayer(layerId)) continue;
-      const [feature] = this._map.queryRenderedFeatures(point, { layers: [layerId] });
-      if (feature) return [layerId, feature];
+    for (const target of this._clickTargets) {
+      if (!this._map.getLayer(target.layerId)) continue;
+      const [feature] = this._map.queryRenderedFeatures(point, { layers: [target.layerId] });
+      if (feature) return { target, feature };
     }
     return null;
   }

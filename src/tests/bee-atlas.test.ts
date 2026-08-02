@@ -31,52 +31,7 @@ vi.mock('../features.ts', () => ({
   })),
 }));
 
-vi.mock('maplibre-gl', () => {
-  const MapMock = vi.fn().mockImplementation(() => ({
-    on: vi.fn(),
-    remove: vi.fn(),
-    getCenter: vi.fn(() => ({ lng: -120.5, lat: 47.5 })),
-    getZoom: vi.fn(() => 7),
-    addSource: vi.fn(),
-    addLayer: vi.fn(),
-    getSource: vi.fn(() => ({
-      setData: vi.fn(),
-      // Promise-based in MapLibre; the Mapbox signature took a callback.
-      getClusterLeaves: vi.fn(async () => []),
-    })),
-    setFilter: vi.fn(),
-    isStyleLoaded: vi.fn(() => true),
-    jumpTo: vi.fn(),
-    flyTo: vi.fn(),
-    resize: vi.fn(),
-    // No addInteraction — MapLibre has no such API. The click priority chain is
-    // one map.on('click') that walks queryRenderedFeatures layer by layer, so
-    // these two are what stand in for the five Mapbox interaction handlers.
-    getLayer: vi.fn(() => undefined),
-    queryRenderedFeatures: vi.fn(() => []),
-    setLayoutProperty: vi.fn(),
-    setPaintProperty: vi.fn(),
-    setFeatureState: vi.fn(),
-    removeFeatureState: vi.fn(),
-    querySourceFeatures: vi.fn(() => []),
-    addControl: vi.fn(),
-  }));
-  // Named exports, not a default: maplibre-gl is ESM-only with no default export,
-  // and <bee-map> imports it as a namespace.
-  return {
-    Map: MapMock,
-    GeolocateControl: vi.fn().mockImplementation(() => ({
-      on: vi.fn(),
-      trigger: vi.fn(() => true),
-    })),
-    Point: class {
-      x: number;
-      y: number;
-      constructor(x: number, y: number) { this.x = x; this.y = y; }
-    },
-    addProtocol: vi.fn(),
-  };
-});
+vi.mock('maplibre-gl', async () => (await import('./helpers/maplibre-mock.ts')).maplibreMock());
 
 vi.mock('maplibre-gl/dist/maplibre-gl.css?raw', () => ({ default: '' }));
 
@@ -244,15 +199,16 @@ describe('CLICK-01: bee-map click interaction chain', () => {
   // reordering silently changes which of two overlapping layers wins a click.
   test('bee-map.ts hit-tests clusters, points, then county/ecoregion/place, in that order', () => {
     const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
-    const listMatch = src.match(/CLICK_PRIORITY_LAYERS\s*=\s*\[([^\]]*)\]/);
-    expect(listMatch).not.toBeNull();
-    const order = [...(listMatch?.[1] ?? '').matchAll(/'([^']+)'/g)].map(m => m[1]);
+    const start = src.indexOf('private readonly _clickTargets');
+    expect(start).toBeGreaterThanOrEqual(0);
+    const list = src.slice(start, src.indexOf('\n  ];', start));
+    const order = [...list.matchAll(/layerId:\s*'([^']+)'/g)].map(m => m[1]);
     expect(order).toEqual([
       'clusters', 'unclustered-point', 'county-fill', 'ecoregion-fill', 'place-fill',
     ]);
     // Each layer is queried on its own so the first hit wins outright, which is
     // what preventDefault() did in the Mapbox chain.
-    expect(src).toMatch(/queryRenderedFeatures\s*\(\s*point\s*,\s*\{\s*layers:\s*\[\s*layerId\s*\]/);
+    expect(src).toMatch(/queryRenderedFeatures\s*\(\s*point\s*,\s*\{\s*layers:\s*\[\s*target\.layerId\s*\]/);
     // MapLibre has no addInteraction; a reintroduced CALL would silently no-op.
     // (The comments explaining the migration name it, hence matching the call form.)
     expect(src).not.toMatch(/\.addInteraction\s*\(/);
@@ -321,11 +277,16 @@ describe('selected-occurrences overlay (non-clustered selection indicator)', () 
     expect(styleSrc).toMatch(/circle-radius['"]?\s*:\s*6/);
   });
 
-  test('selected-occurrences source/layer are added inside the load handler', () => {
-    const loadIdx = src.search(/this\._map(!|)?\.on\(\s*['"]load['"]/);
+  test('selected-occurrences source/layer are added once the style is ready, not at construction', () => {
+    // Was: "added inside the load handler", found by searching for
+    // `this._map.on('load'`. The install moved out of that callback into
+    // _installMapContent, which _initMapContent calls after the style is final
+    // (beeatlas-q73). What matters is unchanged — the source must not be added
+    // against a style that has not loaded — so the assertion follows the move.
+    const installIdx = src.indexOf('private async _installMapContent()');
     const srcIdx = src.search(/addSource\s*\(\s*['"]selected-occurrences['"]/);
-    expect(loadIdx).toBeGreaterThanOrEqual(0);
-    expect(srcIdx).toBeGreaterThan(loadIdx);
+    expect(installIdx).toBeGreaterThanOrEqual(0);
+    expect(srcIdx).toBeGreaterThan(installIdx);
   });
 
   test('no async halo machinery remains', () => {

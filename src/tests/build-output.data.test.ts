@@ -632,11 +632,28 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(swSrc).not.toContain('cacheKeyWillBeUsed');
   });
 
-  test('154-01-04: src/bee-map.ts has attributionControl: true — Mapbox attribution intact (TILE-01, D-08)', () => {
-    // Read the source (not the build output) — attributionControl is a constructor option,
-    // not a runtime string literal that survives bundling. §1.4 has no offline exception.
+  test('154-01-04: the map keeps its attribution control, and both sources supply a notice (TILE-01, D-08)', () => {
+    // Read the source (not the build output) — attributionControl is a constructor
+    // option, not a runtime string literal that survives bundling.
+    //
+    // This assertion used to read `attributionControl: true`, which is a Mapbox
+    // spelling; MapLibre types the option as `false | AttributionControlOptions`,
+    // so the literal had to go (beeatlas-q73). The REQUIREMENT did not — it got
+    // stronger. Mapbox's §1.4 was a licence term; the basemap is now OSM data under
+    // ODbL, where attribution is the licence's core condition, and the Bee Atlas
+    // notice on the occurrence data is a separate obligation of our own.
+    //
+    // So this pins the two things that can silently drop the notices: turning the
+    // control off, and a source that carries no `attribution` for it to display.
     const src = readFileSync(resolve(ROOT, 'src/bee-map.ts'), 'utf-8');
-    expect(src).toContain('attributionControl: true');
+    expect(src).toMatch(/attributionControl:\s*\{/);
+    expect(src).not.toMatch(/attributionControl:\s*false/);
+    // The occurrence source names the Washington Bee Atlas...
+    expect(src).toContain('Washington Bee Atlas');
+    // ...and the basemap source passes the manifest's attribution through rather
+    // than dropping it (the OSM/Protomaps notice; see src/basemap-style.ts).
+    const style = readFileSync(resolve(ROOT, 'src/basemap-style.ts'), 'utf-8');
+    expect(style).toMatch(/attribution:\s*entry\.attribution/);
   });
 
   test('154-02-01: docs/adr/0001-mapbox-basemap-cache.md exists and contains ToS analysis (TILE-02)', () => {

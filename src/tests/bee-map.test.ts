@@ -75,14 +75,14 @@ describe('144-02: intendedFilterActive @property + render decision (SC-3, SC-4)'
 
   // mapReady gating: initial apply-after-load must fire for intendedFilterActive=true even when
   // visibleIds is null (so hide-all is applied as soon as map loads)
-  test('load handler applies _applyVisibleIds unconditionally OR gates on intendedFilterActive', () => {
-    // Find the map 'load' callback body
-    const loadIdx = src.indexOf("this._map.on('load'");
-    expect(loadIdx).toBeGreaterThanOrEqual(0);
-    // Find the next top-level comment after the load callback closing
-    const moveendIdx = src.indexOf('// moveend:', loadIdx);
-    expect(moveendIdx).toBeGreaterThan(loadIdx);
-    const loadBody = src.slice(loadIdx, moveendIdx);
+  test('the initial install applies _applyVisibleIds unconditionally OR gates on intendedFilterActive', () => {
+    // This used to slice the `this._map.on('load', …)` callback. The install moved
+    // out of that callback into _installMapContent, which runs once the style is
+    // final (beeatlas-q73) — the timing this test cares about is unchanged, so it
+    // follows the code rather than the old shape.
+    const installIdx = src.indexOf('private async _installMapContent()');
+    expect(installIdx).toBeGreaterThanOrEqual(0);
+    const loadBody = src.slice(installIdx);
 
     // The old pattern was `if (this.visibleIds !== null) { this._applyVisibleIds(); }` alone.
     // That misses the hide-all case. The new code must either:
