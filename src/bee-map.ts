@@ -1,7 +1,10 @@
 import { css, html, LitElement, unsafeCSS, type PropertyValues } from 'lit';
 import { customElement, property, query } from 'lit/decorators.js';
-import mapboxgl from 'mapbox-gl';
-import mapboxCssText from 'mapbox-gl/dist/mapbox-gl.css?raw';
+// MapLibre v6 is ESM-only and has NO DEFAULT EXPORT, so this is a namespace
+// import rather than the `import maplibregl from …` Mapbox allowed (beeatlas-26q).
+import * as maplibregl from 'maplibre-gl';
+import maplibreCssText from 'maplibre-gl/dist/maplibre-gl.css?raw';
+import { Protocol } from 'pmtiles';
 import { loadOccurrenceGeoJSON } from './features.ts';
 import { markMapReady } from './ready.ts';
 import { type FilterState, emptyFilterState, getOccurrences, type OccurrenceProperties } from './filter.ts';
@@ -23,11 +26,84 @@ import {
   wildernessLineLayerSpec,
 } from './style.ts';
 import { resolveDataUrl } from './manifest.ts';
+import {
+  basemapManifestUrl,
+  blankBasemapStyle,
+  buildBasemapStyle,
+  parseBasemapManifest,
+} from './basemap-style.ts';
 
 // Default Washington State view
 const DEFAULT_LON = -120.5;
 const DEFAULT_LAT = 47.5;
 const DEFAULT_ZOOM = 7;
+
+/**
+ * How long to wait for the basemap manifest before giving up and rendering the
+ * blank style. The map is not constructed until this settles, so this is also
+ * the worst-case delay before the GeolocateControl exists — which is why it is
+ * bounded at all: offline, `fetch` normally rejects in milliseconds, but behind
+ * a captive portal it can hang indefinitely, and an unbounded hang here would
+ * mean no map and no GPS rather than a blank basemap and working GPS.
+ */
+const BASEMAP_MANIFEST_TIMEOUT_MS = 3000;
+
+/**
+ * Where MapLibre's worker is served from — copied out of node_modules by an
+ * Eleventy passthrough (see eleventy.config.js, which carries the full why).
+ *
+ * The short version: MapLibre locates its worker by deriving a sibling URL from
+ * its own `import.meta.url`, which stops being true the moment it is bundled.
+ * It then requests a worker next to OUR chunk, gets a 404, and reports nothing —
+ * tiles stay in `loading`, `load` never fires, and since the occurrence layers
+ * are added in that handler the map renders blank with a clean console. So the
+ * URL is handed over explicitly rather than derived.
+ *
+ * A plain page-tree path, not a hashed asset: the worker is not part of the
+ * bundle graph, and the page tree is served `max-age=0`, so a version bump
+ * cannot leave a stale worker paired with a new bundle.
+ */
+const MAPLIBRE_WORKER_URL = '/basemap/maplibre/maplibre-gl-worker.mjs';
+
+/**
+ * Layers the map hit-tests on click, in priority order. The first layer with a
+ * feature under the cursor wins and nothing below it is consulted; if none
+ * match, the click is empty.
+ *
+ * This replaces Mapbox's `addInteraction` chain (five handlers whose
+ * `preventDefault()` stopped propagation to the next), which MapLibre has no
+ * equivalent for. `queryRenderedFeatures` returns features only from layers that
+ * are actually RENDERED, so a boundary layer at `visibility: none` is skipped —
+ * which is what preserved the old chain's "fires only when the layer is
+ * visible" property, not any explicit check.
+ */
+const CLICK_PRIORITY_LAYERS = [
+  'clusters',
+  'unclustered-point',
+  'county-fill',
+  'ecoregion-fill',
+  'place-fill',
+] as const;
+
+/**
+ * The two pieces of MapLibre setup that are GLOBAL rather than per-map, and both
+ * of which must happen before a map is constructed:
+ *
+ *  - the worker URL, because MapLibre's own way of finding its worker does not
+ *    survive bundling (see MAPLIBRE_WORKER_URL);
+ *  - the pmtiles:// protocol handler, because the style names that scheme.
+ *
+ * One shared Protocol instance is also what lets its directory cache survive
+ * across maps (re-mounts, HMR), so this is deliberately module-level rather than
+ * per-element. It holds no reactive state — <bee-map> stays a pure presenter.
+ */
+let rendererConfigured = false;
+function configureRenderer(): void {
+  if (rendererConfigured) return;
+  rendererConfigured = true;
+  maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
+  maplibregl.addProtocol('pmtiles', new Protocol().tile as maplibregl.AddProtocolAction);
+}
 
 
 @customElement('bee-map')
@@ -50,13 +126,13 @@ export class BeeMap extends LitElement {
   @property({ attribute: false }) intendedFilterActive = false;
   @property({ attribute: false }) offline = false;
 
-  // Mapbox GL JS map instance
-  private _map: mapboxgl.Map | null = null;
+  // MapLibre GL JS map instance
+  private _map: maplibregl.Map | null = null;
 
   // The Phase 152 GeolocateControl — stored on the instance so <bee-atlas> can
   // trigger it via requestUserLocation() (D-06 seam for near-me). NOT @state;
   // <bee-map> is a pure presenter and holds no reactive location state.
-  private _geolocate: mapboxgl.GeolocateControl | null = null;
+  private _geolocate: maplibregl.GeolocateControl | null = null;
 
 
   // Full unfiltered GeoJSON for setData-based filtering
@@ -74,10 +150,10 @@ export class BeeMap extends LitElement {
 
 
   // Shift-drag rectangle gesture (SEL-01, SEL-02)
-  private _rectStart: mapboxgl.Point | null = null;
+  private _rectStart: maplibregl.Point | null = null;
   private _rectBox: HTMLDivElement | null = null;
 
-  static _mapboxCss = unsafeCSS(mapboxCssText);
+  static _maplibreCss = unsafeCSS(maplibreCssText);
 
   static styles = css`
 :host {
@@ -121,7 +197,7 @@ export class BeeMap extends LitElement {
 
   render() {
     return html`
-      <style>${BeeMap._mapboxCss}</style>
+      <style>${BeeMap._maplibreCss}</style>
       <div id="map"></div>
       ${this.offline ? html`<div class="offline-basemap-label">Basemap tiles unavailable offline. Pan here while online to cache tiles for an area.</div>` : ''}
     `;
@@ -193,11 +269,11 @@ export class BeeMap extends LitElement {
     this._rectStart = null;
   }
 
-  private _mousePos(e: MouseEvent): mapboxgl.Point {
+  private _mousePos(e: MouseEvent): maplibregl.Point {
     const canvas = this._map!.getCanvasContainer();
     const rect = canvas.getBoundingClientRect();
     const scaling = canvas.offsetWidth === rect.width ? 1 : canvas.offsetWidth / rect.width;
-    return new mapboxgl.Point(
+    return new maplibregl.Point(
       (e.clientX - rect.left) * scaling,
       (e.clientY - rect.top) * scaling,
     );
@@ -272,8 +348,9 @@ export class BeeMap extends LitElement {
   /**
    * Load occurrence data (boots the SQLite worker, builds the GeoJSON) and emit
    * `data-loaded` so <bee-atlas> clears the loading curtain and renders the table.
-   * Deliberately NOT gated on the Mapbox style 'load' event — the basemap is
-   * unavailable offline, but the cached data must still render (Phase 151).
+   * Deliberately NOT gated on the map's 'load' event — nor on the basemap
+   * manifest. The cached data must render even when no basemap can (Phase 151),
+   * and this is kicked off before anything is awaited so the two never queue.
    */
   private async _loadOccurrenceData(): Promise<void> {
     try {
@@ -287,24 +364,73 @@ export class BeeMap extends LitElement {
     }
   }
 
-  public firstUpdated(_changedProperties: PropertyValues): void {
-    // Set Mapbox access token from Vite env
-    (mapboxgl as unknown as { accessToken: string }).accessToken = import.meta.env.VITE_MAPBOX_TOKEN ?? '';
+  /**
+   * Fetch the basemap manifest and build the field style from it, falling back
+   * to the blank style on ANY failure — offline, a 404 from a site whose
+   * /basemap/tiles Alias is not configured, or a payload that does not parse.
+   *
+   * The failure is logged but never surfaced as an error to <bee-atlas>: a
+   * missing basemap degrades the map, it does not break the app, and the
+   * occurrence layers render either way.
+   */
+  private async _resolveBasemapStyle(): Promise<maplibregl.StyleSpecification> {
+    const origin = location.origin;
+    try {
+      const resp = await fetch(basemapManifestUrl(), {
+        signal: AbortSignal.timeout(BASEMAP_MANIFEST_TIMEOUT_MS),
+      });
+      if (!resp.ok) throw new Error(`basemap manifest: HTTP ${resp.status}`);
+      return buildBasemapStyle(parseBasemapManifest(await resp.json()), { origin });
+    } catch (err) {
+      console.warn('Basemap unavailable, rendering without it:', err);
+      return blankBasemapStyle({ origin });
+    }
+  }
 
-    // Create Mapbox GL JS map
-    this._map = new mapboxgl.Map({
+  public firstUpdated(_changedProperties: PropertyValues): void {
+    // Load occurrence data INDEPENDENT of the basemap. Kicked off FIRST, before
+    // _initMap awaits the manifest, so the cached data + table still render (the
+    // "Loading…" curtain clears via the data-loaded event) on a cold start where
+    // the basemap never arrives. [Phase 151 iOS offline fix]
+    this._dataReady = this._loadOccurrenceData();
+    void this._initMap();
+  }
+
+  /**
+   * Construct the map and wire everything to it.
+   *
+   * Async because the style is DATA now: the archive filename is date-stamped
+   * (publish-basemap.sh keeps superseded archives alive through a grace period),
+   * so the manifest naming the current one has to be fetched before a style can
+   * name a source. That fetch is bounded — see BASEMAP_MANIFEST_TIMEOUT_MS —
+   * and always yields a style, so this method always constructs a map.
+   */
+  private async _initMap(): Promise<void> {
+    // Before any map is constructed or any style naming pmtiles:// is loaded.
+    configureRenderer();
+
+    const style = await this._resolveBasemapStyle();
+    // Disconnected while the manifest was in flight: constructing a map into a
+    // detached container would leak a WebGL context and a ResizeObserver.
+    if (!this.isConnected) return;
+
+    this._map = new maplibregl.Map({
       container: this.mapElement,
-      style: 'mapbox://styles/mapbox/outdoors-v12',
+      style,
       center: [this.viewState?.lon ?? DEFAULT_LON, this.viewState?.lat ?? DEFAULT_LAT],
       zoom: this.viewState?.zoom ?? DEFAULT_ZOOM,
-      attributionControl: true,
+      // `true` is not a MapLibre option — the control is on by default and
+      // configured by an options object. It carries the OSM/Protomaps notice
+      // from the vector source and the Bee Atlas notice from the occurrence
+      // source, both of which are required attribution.
+      attributionControl: {},
     });
 
     // Add GeolocateControl immediately after map construction — NOT inside 'load'.
     // The blue dot + accuracy circle are DOM Markers (appended to getCanvasContainer()),
     // not style layers, so they render offline without the style having loaded.
     // Gating this behind 'load' would break offline GPS (LOC-01 SC-2). [Phase 151 / Phase 152]
-    this._geolocate = new mapboxgl.GeolocateControl({
+    this._geolocate = new maplibregl.GeolocateControl({
       trackUserLocation: true,
       positionOptions: { enableHighAccuracy: true },
       showAccuracyCircle: true,
@@ -314,7 +440,7 @@ export class BeeMap extends LitElement {
     // map's top-right via a sibling z-index). top-left is otherwise empty.
     this._map.addControl(this._geolocate, 'top-left');
 
-    this._geolocate.on('geolocate', (e: { coords: GeolocationCoordinates; timestamp: number }) => {
+    this._geolocate.on('geolocate', e => {
       this._emit('user-location-changed', {
         lat: e.coords.latitude,
         lon: e.coords.longitude,
@@ -322,18 +448,21 @@ export class BeeMap extends LitElement {
       });
     });
 
-    this._geolocate.on('error', (e: { code: number; message: string }) => {
+    // Where a DENIED permission now surfaces. MapLibre's trigger() starts the
+    // watch regardless of permission state and lets the Geolocation API's own
+    // error callback fire this — see _triggerGeolocate for why that matters.
+    this._geolocate.on('error', e => {
       this._emit('user-location-changed', { error: { code: e.code, message: e.message } });
     });
 
     // D-03: auto-trigger only if geolocation permission is already granted.
-    // .trigger() MUST be called inside a resolved .then() — the control's _setup
-    // flag is set asynchronously after its own navigator.permissions.query microtask
-    // resolves; calling trigger() synchronously finds _setup===false and silently no-ops.
+    // Deferred into a resolved .then() because the control's `_setup` flag is set
+    // asynchronously, in the continuation of its own checkGeolocationSupport()
+    // permissions query; a synchronous trigger() finds _setup===false and no-ops.
     if (navigator.permissions) {
       navigator.permissions
         .query({ name: 'geolocation' as PermissionName })
-        .then(status => { if (status.state === 'granted') this._geolocate!.trigger(); })
+        .then(status => { if (status.state === 'granted') this._triggerGeolocate(); })
         .catch(() => {});
     }
 
@@ -344,15 +473,12 @@ export class BeeMap extends LitElement {
     const rectCanvas = this._map.getCanvasContainer();
     rectCanvas.addEventListener('mousedown', this._onRectMouseDown, true);
 
-    // Load occurrence data INDEPENDENT of the basemap style. The Mapbox style
-    // (outdoors-v12) is fetched from api.mapbox.com and is unavailable offline, so
-    // an offline cold-start never fires map 'load'. Kicking the data load here means
-    // the cached data + table still render (the "Loading…" curtain clears via the
-    // data-loaded event) instead of hanging forever; the style-dependent map layers
-    // below still wait for 'load' (online only). [Phase 151 iOS offline fix]
-    this._dataReady = this._loadOccurrenceData();
-
-    // All source/layer setup must happen after the style loads (online).
+    // All source/layer setup must happen after the style loads. Unlike under
+    // Mapbox — where the style came from api.mapbox.com and so an offline cold
+    // start never reached 'load' at all — every style this map can be given is
+    // local, including the blank fallback, so 'load' now fires offline too and
+    // the occurrence layers render over blank paper. The data load stays
+    // decoupled regardless (firstUpdated owns it); do not re-couple them.
     this._map.on('load', async () => {
       // Signal the map-readiness barrier (ready.ts).
       markMapReady();
@@ -484,72 +610,34 @@ export class BeeMap extends LitElement {
     });
 
     // --- Click interaction priority chain ---
-    // addInteraction handlers fire before generic map.on('click').
-    // preventDefault() stops propagation to lower-priority handlers.
-    // _clickConsumed flag guards the fallback in case preventDefault doesn't block generic listeners.
-
+    // One handler walking CLICK_PRIORITY_LAYERS in order, standing in for the
+    // five Mapbox addInteraction handlers that chained by preventDefault().
+    // The event contract to <bee-atlas> is unchanged.
+    //
+    // _clickConsumed is still the shift-drag guard: the rectangle gesture sets
+    // it on mousedown, and a drag that ends over a point must not also select
+    // that point.
     this._map.on('mousedown', () => { this._clickConsumed = false; });
 
-    // 1. Cluster click — get all leaves, emit map-click-occurrence (shows them via selected-occurrences overlay)
-    this._map.addInteraction('click-cluster', {
-      type: 'click',
-      target: { layerId: 'clusters' },
-      handler: (e) => {
-        this._clickConsumed = true;
-        e.preventDefault();
-        this._handleClusterClick(e);
-      },
-    });
-
-    // 2. Unclustered point click
-    this._map.addInteraction('click-point', {
-      type: 'click',
-      target: { layerId: 'unclustered-point' },
-      handler: (e) => {
-        this._clickConsumed = true;
-        e.preventDefault();
-        this._handlePointClick(e);
-      },
-    });
-
-    // 3. County fill click (fires only when county-fill layer is visible)
-    this._map.addInteraction('click-county', {
-      type: 'click',
-      target: { layerId: 'county-fill' },
-      handler: (e) => {
-        this._clickConsumed = true;
-        e.preventDefault();
-        this._handleRegionClick(e, 'NAME');
-      },
-    });
-
-    // 4. Ecoregion fill click
-    this._map.addInteraction('click-ecoregion', {
-      type: 'click',
-      target: { layerId: 'ecoregion-fill' },
-      handler: (e) => {
-        this._clickConsumed = true;
-        e.preventDefault();
-        this._handleRegionClick(e, 'NA_L3NAME');
-      },
-    });
-
-    // 5. Place fill click — fires only when place-fill layer is visible (D-03)
-    // Emits 'place-selected' with { slug } via _handlePlaceClick
-    this._map.addInteraction('click-place', {
-      type: 'click',
-      target: { layerId: 'place-fill' },
-      handler: (e) => {
-        this._clickConsumed = true;
-        e.preventDefault();
-        this._handlePlaceClick(e);
-      },
-    });
-
-    // 6. Fallback: empty map click
-    this._map.on('click', () => {
+    this._map.on('click', e => {
       if (this._clickConsumed) return;
-      this._emit('map-click-empty');
+      const hit = this._topFeatureAt(e.point);
+      if (!hit) {
+        this._emit('map-click-empty');
+        return;
+      }
+      this._clickConsumed = true;
+      const [layerId, feature] = hit;
+      switch (layerId) {
+        // Cluster: expand to all its leaves and show them through the
+        // selected-occurrences overlay.
+        case 'clusters':        void this._handleClusterClick(feature); break;
+        case 'unclustered-point': void this._handlePointClick(feature); break;
+        case 'county-fill':     this._handleRegionClick(feature, 'NAME', e); break;
+        case 'ecoregion-fill':  this._handleRegionClick(feature, 'NA_L3NAME', e); break;
+        // D-03: emits 'place-selected' with { slug }.
+        case 'place-fill':      this._handlePlaceClick(feature); break;
+      }
     });
 
     // ResizeObserver to handle container dimension changes (e.g., table-mode toggle)
@@ -562,28 +650,55 @@ export class BeeMap extends LitElement {
    * The blue dot + accuracy ring will appear; the resulting position is relayed upward
    * via `user-location-changed` so the state-owner (<bee-atlas>) can compute the
    * near-me bounding box (plan 153-03). This method does NOT store the position —
-   * <bee-map> remains a pure presenter. Safe to call before firstUpdated() (no-op).
+   * <bee-map> remains a pure presenter. Safe to call before the map exists (no-op).
    */
   public requestUserLocation(): void {
-    // Guard: safe no-op if called before firstUpdated() initialises the control.
+    this._triggerGeolocate();
+  }
+
+  /**
+   * Start a location fix, tolerating the control not being ready yet.
+   *
+   * D-08 / the Phase 152 toast fix used to synthesise a `code: 1` denial here,
+   * because under Mapbox trigger() returned false for an already-denied
+   * permission and the control then fired no 'error' event of its own.
+   * MapLibre's trigger() returns false for ONE reason — the control has not
+   * finished being added to a map — and on a denied permission it starts the
+   * watch anyway and lets the Geolocation API's error callback fire 'error',
+   * which reaches the banner through the normal listener. So synthesising a
+   * denial here would now mean reporting "permission denied" for a control that
+   * was merely a beat too early. Retry once instead; the setup it is waiting on
+   * is a settled promise's continuation, so one task is enough.
+   */
+  private _triggerGeolocate(): void {
     if (!this._geolocate) return;
-    // D-08 / toast fix: trigger() returns false when the browser has already denied
-    // geolocation permission. In that case the GeolocateControl does NOT fire its
-    // own 'error' event, so we must synthesise one to surface the Phase 152 denial
-    // banner in <bee-atlas>. This was the root cause of the UAT gap — the banner
-    // state assignment in _onUserLocationChanged was correct, but the event never
-    // arrived when the user had previously denied and then tapped the near-me button.
-    const started = this._geolocate.trigger();
-    if (started === false) {
-      this._emit('user-location-changed', { error: { code: 1, message: 'Permission denied' } });
-    }
+    if (this._geolocate.trigger()) return;
+    setTimeout(() => this._geolocate?.trigger(), 0);
   }
 
   // --- Private helpers ---
 
+  /**
+   * The highest-priority rendered feature under a click, or null for empty map.
+   *
+   * getLayer() guards each query because the occurrence layers are added on
+   * 'load' and the boundary layers exist from then on but a click can land
+   * before either; querying an unknown layer id is an error in MapLibre, not an
+   * empty result.
+   */
+  private _topFeatureAt(point: maplibregl.Point): [string, maplibregl.MapGeoJSONFeature] | null {
+    if (!this._map) return null;
+    for (const layerId of CLICK_PRIORITY_LAYERS) {
+      if (!this._map.getLayer(layerId)) continue;
+      const [feature] = this._map.queryRenderedFeatures(point, { layers: [layerId] });
+      if (feature) return [layerId, feature];
+    }
+    return null;
+  }
+
   // Drop features whose tier the user has unchecked (Phase 170, PROV-02). Applied to the
-  // source DATA (not a layer filter) so mapbox-gl re-clusters without them — a layer filter
-  // can't hide cluster bubbles, which aggregate at the source level.
+  // source DATA (not a layer filter) so the renderer re-clusters without them — a layer
+  // filter can't hide cluster bubbles, which aggregate at the source level.
   private _visibleByTier(
     features: FeatureCollection<Point, OccurrenceProperties>['features']
   ): FeatureCollection<Point, OccurrenceProperties>['features'] {
@@ -594,8 +709,8 @@ export class BeeMap extends LitElement {
   private _applyVisibleIds() {
     if (!this._map || !this._fullGeoJSON) return;
 
-    const occSource = this._map.getSource('occurrences') as mapboxgl.GeoJSONSource | undefined;
-    const ghostSource = this._map.getSource('occurrences-ghost') as mapboxgl.GeoJSONSource | undefined;
+    const occSource = this._map.getSource('occurrences') as maplibregl.GeoJSONSource | undefined;
+    const ghostSource = this._map.getSource('occurrences-ghost') as maplibregl.GeoJSONSource | undefined;
     if (!occSource || !ghostSource) return;
 
     if (this.intendedFilterActive) {
@@ -631,7 +746,7 @@ export class BeeMap extends LitElement {
 
   private _applySelection() {
     if (!this._map) return;
-    const selectedSource = this._map.getSource('selected-occurrences') as mapboxgl.GeoJSONSource | undefined;
+    const selectedSource = this._map.getSource('selected-occurrences') as maplibregl.GeoJSONSource | undefined;
     if (!selectedSource || !this._fullGeoJSON) return;
 
     const hasSelection = this.selectedOccIds !== null && this.selectedOccIds.size > 0;
@@ -708,10 +823,10 @@ export class BeeMap extends LitElement {
         )
       );
 
-      (this._map!.getSource('counties') as mapboxgl.GeoJSONSource).setData(countiesData);
-      (this._map!.getSource('ecoregions') as mapboxgl.GeoJSONSource).setData(ecoregionsData);
-      (this._map!.getSource('places') as mapboxgl.GeoJSONSource).setData(placesData);
-      (this._map!.getSource('wilderness') as mapboxgl.GeoJSONSource).setData(wildernessData);
+      (this._map!.getSource('counties') as maplibregl.GeoJSONSource).setData(countiesData);
+      (this._map!.getSource('ecoregions') as maplibregl.GeoJSONSource).setData(ecoregionsData);
+      (this._map!.getSource('places') as maplibregl.GeoJSONSource).setData(placesData);
+      (this._map!.getSource('wilderness') as maplibregl.GeoJSONSource).setData(wildernessData);
 
       // Apply visibility and selection for URL-restored state
       this._applyBoundaryMode();
@@ -769,23 +884,18 @@ export class BeeMap extends LitElement {
     }
   }
 
-  private async _handleClusterClick(e: mapboxgl.InteractionEvent) {
-    const feature = e.feature;
-    if (!feature || !this._map) return;
+  private async _handleClusterClick(feature: maplibregl.MapGeoJSONFeature) {
+    if (!this._map) return;
 
     const clusterId = feature.properties?.cluster_id as number | undefined;
     const pointCount = feature.properties?.point_count as number | undefined;
     if (clusterId == null || pointCount == null) return;
 
-    const source = this._map.getSource('occurrences') as mapboxgl.GeoJSONSource;
+    const source = this._map.getSource('occurrences') as maplibregl.GeoJSONSource;
 
     try {
-      const leaves = await new Promise<GeoJSON.Feature[]>((resolve, reject) => {
-        source.getClusterLeaves(clusterId, pointCount, 0, (error, features) => {
-          if (error) reject(error);
-          else resolve(features ?? []);
-        });
-      });
+      // Promise-based in MapLibre; the Mapbox signature took a callback.
+      const leaves = await source.getClusterLeaves(clusterId, pointCount, 0);
 
       const toShow = this.visibleIds !== null
         ? leaves.filter(f => this.visibleIds!.has(f.properties?.occId))
@@ -800,12 +910,7 @@ export class BeeMap extends LitElement {
     }
   }
 
-  private async _handlePointClick(e: mapboxgl.InteractionEvent) {
-    this._clickConsumed = true;
-    e.preventDefault();
-    const feature = e.feature;
-    if (!feature) return;
-
+  private async _handlePointClick(feature: maplibregl.MapGeoJSONFeature) {
     const occId = feature.properties?.occId as string;
     if (!occId) return;
 
@@ -817,27 +922,24 @@ export class BeeMap extends LitElement {
     this._emit('map-click-occurrence', { occurrences, occIds: [occId] });
   }
 
-  private _handleRegionClick(e: mapboxgl.InteractionEvent, nameProperty: string) {
-    this._clickConsumed = true;
-    e.preventDefault();
-    const feature = e.feature;
-    if (!feature) return;
-
+  private _handleRegionClick(
+    feature: maplibregl.MapGeoJSONFeature,
+    nameProperty: string,
+    e: maplibregl.MapMouseEvent,
+  ) {
     const name = feature.properties?.[nameProperty] as string | undefined;
     if (!name) return;
 
+    // shiftKey toggles the region into/out of a multi-region selection. Note the
+    // shift-drag gesture claims mousedown first and sets _clickConsumed, so this
+    // only ever sees a shift-CLICK.
     this._emit('map-click-region', {
       name,
       shiftKey: (e.originalEvent as MouseEvent).shiftKey,
     });
   }
 
-  private _handlePlaceClick(e: mapboxgl.InteractionEvent) {
-    this._clickConsumed = true;
-    e.preventDefault();
-    const feature = e.feature;
-    if (!feature) return;
-
+  private _handlePlaceClick(feature: maplibregl.MapGeoJSONFeature) {
     const slug = feature.properties?.['slug'] as string | undefined;
     if (!slug) return;
 

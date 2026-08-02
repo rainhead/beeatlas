@@ -3,7 +3,15 @@ import type {
   FillLayerSpecification,
   LineLayerSpecification,
   SymbolLayerSpecification,
-} from 'mapbox-gl';
+} from 'maplibre-gl';
+import { OCCURRENCE_LABEL_FONT } from './basemap-style.ts';
+
+// Every symbol layer below resolves its glyphs against the STYLE ROOT, which is
+// now our own /basemap/fonts — so a stack we do not vendor 404s and the label
+// silently disappears. `Open Sans Bold` / `Arial Unicode MS Bold`, which these
+// layers asked for while Mapbox hosted the style, are exactly that case.
+// basemap-style.test.ts asserts these specs against the vendored allowlist.
+const LABEL_FONT = [OCCURRENCE_LABEL_FONT];
 
 export const RECENCY_COLORS = {
   thisYear: '#c8cccd',
@@ -72,7 +80,7 @@ export function clusterCountLayerSpec(colors: RecencyColors): SymbolLayerSpecifi
     layout: {
       'text-field': ['to-string', ['get', 'point_count']],
       'text-size': 11,
-      'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+      'text-font': LABEL_FONT,
     },
     paint: {
       'text-color': [
@@ -217,7 +225,7 @@ export function placeLabelLayerSpec(visibility: Visibility): SymbolLayerSpecific
       visibility,
       'text-field': ['get', 'name'],
       'text-size': 12,
-      'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+      'text-font': LABEL_FONT,
       'text-max-width': 10,
       'symbol-placement': 'point',
     },
@@ -268,7 +276,7 @@ export function wildernessLabelLayerSpec(visibility: Visibility): SymbolLayerSpe
       visibility,
       'text-field': ['get', 'name'],
       'text-size': 12,
-      'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+      'text-font': LABEL_FONT,
       'text-max-width': 10,
       'symbol-placement': 'point',
     },

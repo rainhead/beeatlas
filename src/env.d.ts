@@ -1,7 +1,8 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_MAPBOX_TOKEN: string;
+  // No VITE_MAPBOX_TOKEN: the basemap is self-hosted (beeatlas-q73) and no
+  // renderer asset is behind a key any more.
   readonly VITE_DATA_BASE_URL?: string;
   readonly VITE_NOTES_API_BASE_URL?: string;
 }

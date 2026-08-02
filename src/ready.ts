@@ -1,7 +1,7 @@
 // Named one-shot readiness barriers for the app's independent async resources.
 //
 // The map-init path loads several heavy resources on independent timelines
-// (Mapbox style, wa-sqlite tables, the taxon cache). Consumers that fire before
+// (the basemap style, wa-sqlite tables, the taxon cache). Consumers that fire before
 // a dependency is ready are the root of a recurring class of races (e.g. the
 // legacy-taxon URL strand). This module gives each resource ONE awaitable
 // promise so a consumer can `await` it instead of polling/guessing.
@@ -40,7 +40,7 @@ const _mapReady = deferred<void>();
 /** Resolves once the taxon cache (`bee-atlas._taxonCache`) is populated. */
 export const taxaReady: Promise<void> = _taxaReady.promise;
 
-/** Resolves once the Mapbox map's `'load'` event has fired. */
+/** Resolves once the map's `'load'` event has fired. */
 export const mapReady: Promise<void> = _mapReady.promise;
 
 /** Owner-only: called by `bee-atlas` once the taxon cache is built. Idempotent. */

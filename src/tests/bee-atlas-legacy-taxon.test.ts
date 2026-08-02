@@ -23,8 +23,8 @@ vi.mock('../sqlite.ts', () => ({
   loadOccurrencesTable: vi.fn(() => Promise.resolve()),
   tablesReady: Promise.resolve(),
 }));
-vi.mock('mapbox-gl', () => ({ default: { accessToken: '', Map: vi.fn() } }));
-vi.mock('mapbox-gl/dist/mapbox-gl.css?raw', () => ({ default: '' }));
+vi.mock('maplibre-gl', () => ({ Map: vi.fn(), GeolocateControl: vi.fn(), Point: vi.fn(), addProtocol: vi.fn() }));
+vi.mock('maplibre-gl/dist/maplibre-gl.css?raw', () => ({ default: '' }));
 
 const DEFAULT_FILTER = {
   taxonId: null, taxonDisplayName: null, yearFrom: null, yearTo: null,

@@ -226,7 +226,7 @@ export class BeeAtlas extends LitElement {
   private _nearMePending = false;
   // Stale-discard guards for the three async query paths. A superseded query
   // returns null rather than committing its result, preventing flicker and
-  // unnecessary MapboxGL re-cluster work on outdated filter state.
+  // unnecessary re-cluster work in the map on outdated filter state.
   private _filterGuard = makeStaleGuard<{ geojson: FeatureCollection<Point, OccurrenceProperties>; ids: Set<string>; rowCount: number } | null>();
   private _tableGuard = makeStaleGuard<{ rows: OccurrenceRow[]; total: number }>();
   private _listGuard = makeStaleGuard<{ rows: OccurrenceRow[]; total: number; selectionCount: number | null }>();
@@ -288,7 +288,7 @@ bee-map {
    (relocated from <bee-map>) and — when the pane is collapsed — the filter
    toggle button, separated by a 0.5rem gap. The toolbar paints above the pane:
    z-index 2 > <bee-pane>'s :host z-index 1 > <bee-map>'s z-index 0 (the
-   load-bearing rule that keeps Mapbox's bottom-right attribution below the pane
+   load-bearing rule that keeps the map's bottom-right attribution below the pane
    — RETAINED, not deleted).
 
    row-reverse pins the region control (first child) to the RIGHT edge — the same

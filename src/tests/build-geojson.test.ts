@@ -164,7 +164,7 @@ describe('_buildGeoJSONFromRaw', () => {
   });
 
   it('checklist row: properties.tier equals "other" (D-08 — checklist folds into muted Other)', () => {
-    // Phase 170 (D-08): the Mapbox paint expression keys on tier='other' to render external
+    // Phase 170 (D-08): the map's paint expression keys on tier='other' to render external
     // records (incl. former checklist green) muted. This asserts that a checklist row carries
     // tier='other' at index 6 → properties.tier === 'other'.
     const row = makeChecklistRow({ checklist_id: 7777 });

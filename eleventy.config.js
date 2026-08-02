@@ -94,6 +94,27 @@ export default async function (eleventyConfig) {
   // error rather than failing loudly.
   eleventyConfig.addPassthroughCopy({ "public/basemap": "basemap" });
 
+  // MapLibre's WORKER, straight from node_modules — the one piece of the renderer
+  // that cannot ride inside the bundle (beeatlas-q73).
+  //
+  // MapLibre finds its worker by deriving a sibling URL from its own
+  // `import.meta.url`, which only holds while it is served as its untouched dist
+  // files; once bundled, that resolves next to OUR chunk, where no worker exists.
+  // The failure is silent and total — the worker never starts, tiles sit in
+  // `loading` forever, the map's `load` event never fires, and because the
+  // occurrence layers are added in that handler the map is a blank rectangle with
+  // nothing in the console. src/bee-map.ts hands MapLibre this path explicitly.
+  //
+  // Copied from node_modules rather than vendored into public/ so it CANNOT drift
+  // from the installed maplibre-gl; a hand-copied worker paired with a bumped
+  // library is the same silent failure wearing a different hat. Both files are
+  // required and must stay siblings: the worker imports ./maplibre-gl-shared.mjs
+  // relative to itself. maplibre-worker.test.ts pins all of it.
+  eleventyConfig.addPassthroughCopy({
+    "node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs": "basemap/maplibre/maplibre-gl-worker.mjs",
+    "node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs": "basemap/maplibre/maplibre-gl-shared.mjs",
+  });
+
   // In serve mode Vite runs as middleware inside the Eleventy dev server, so
   // /@vite/client, /src/*.ts and pre-bundled deps resolve while Eleventy serves the
   // HTML around them. This is the one piece of the old plugin worth keeping, minus

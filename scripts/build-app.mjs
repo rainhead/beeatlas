@@ -60,13 +60,16 @@ const SITE = join(ROOT, '_site');
 // whether those chunks would come out the same.
 //
 // The `.env*` files are here because Vite bakes `VITE_*` values INTO the chunks:
-// VITE_MAPBOX_TOKEN (src/bee-map.ts), VITE_DATA_BASE_URL (src/manifest.ts),
-// VITE_NOTES_API_BASE_URL (src/auth-client.ts). They are gitignored, which is exactly
-// why they are easy to forget — and forgetting them is expensive: rotate the Mapbox
-// token and, with an unchanged src/, this gate would skip every night while the live
-// site kept serving the revoked one. Maps break, the build stays green, and cause and
-// effect are weeks apart. A missing file hashes as absent (walk returns []), so listing
-// variants that do not exist here is free and survives someone adding one.
+// VITE_DATA_BASE_URL (src/manifest.ts), VITE_NOTES_API_BASE_URL (src/auth-client.ts).
+// They are gitignored, which is exactly why they are easy to forget — and forgetting
+// them is expensive: move the notes API and, with an unchanged src/, this gate would
+// skip every night while the live site kept calling the old host. The feature breaks,
+// the build stays green, and cause and effect are weeks apart. A missing file hashes
+// as absent (walk returns []), so listing variants that do not exist here is free and
+// survives someone adding one.
+//
+// VITE_MAPBOX_TOKEN was the original example here and is gone: the basemap is
+// self-hosted as of beeatlas-q73 and no renderer asset sits behind a key.
 const BUNDLE_INPUTS = [
   'src', 'vite.config.ts', 'vite.sw.config.ts', 'package.json', 'package-lock.json',
   '.env', '.env.local', '.env.production', '.env.production.local',

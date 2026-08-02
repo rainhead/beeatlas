@@ -90,6 +90,21 @@ export default defineConfig({
     // own dev server already handles reloading its output; Vite here only serves
     // modules out of src/.
     watch: { ignored: ['**/_site/**'] },
+    // The ~227 MB WA tile archive is a server-side artifact: built quarterly by
+    // data/build-basemap.sh and served on maderas through an Apache Alias, never
+    // checked in and never in _site. Without this, every local run of the app
+    // falls back to the blank basemap, so nothing about the real basemap can be
+    // QA'd locally. Proxying is the whole fix — the archive is read with HTTP
+    // range requests, which pass through untouched.
+    //
+    // A proxy rather than pointing the style at https://beeatlas.net directly:
+    // the origin serves no CORS headers, so a cross-origin fetch is blocked, and
+    // teaching the style an alternate origin would put a dev-only branch in the
+    // shipped bundle. /basemap/fonts and /basemap/sprites are NOT proxied — they
+    // ship with the code and Eleventy already serves them.
+    proxy: {
+      '/basemap/tiles': { target: 'https://beeatlas.net', changeOrigin: true },
+    },
     allowedHosts: [
       'maderas.amandrai.net',
       // Tailscale MagicDNS name — lets `tailscale serve` proxy the dev server over

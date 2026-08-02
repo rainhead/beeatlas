@@ -16,7 +16,7 @@
 //   Winter Dec-Feb, Spring Mar-May, Summer Jun-Aug, Fall Sep-Nov.
 //
 // PAGE-06: this file MUST NOT import bee-species-page.ts.
-// ARCH-04: this file MUST NOT import mapbox-gl, wa-sqlite, ../sqlite.ts,
+// ARCH-04: this file MUST NOT import maplibre-gl, wa-sqlite, ../sqlite.ts,
 //   ../filter.ts, ../bee-map.ts, ../bee-atlas.ts, ../url-state.ts.
 
 import { LitElement, html, svg, css } from 'lit';

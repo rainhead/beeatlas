@@ -1,7 +1,7 @@
 // Wraps an async function so that only the most-recently-started call can
 // commit its result. Returns null (stale) if a newer call has started since
 // this one began — preventing superseded queries from overwriting current state
-// and causing downstream work (e.g. MapboxGL re-cluster) on stale data.
+// and causing downstream work (e.g. a re-cluster in the map) on stale data.
 export type Guarded<T> = { result: T } | null;
 
 export function makeStaleGuard<T>(): (fn: () => Promise<T>) => Promise<Guarded<T>> {

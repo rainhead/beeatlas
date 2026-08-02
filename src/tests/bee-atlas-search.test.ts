@@ -22,7 +22,7 @@ vi.mock('../features.ts', () => ({
   })),
 }));
 
-vi.mock('mapbox-gl/dist/mapbox-gl.css?raw', () => ({ default: '' }));
+vi.mock('maplibre-gl/dist/maplibre-gl.css?raw', () => ({ default: '' }));
 
 vi.mock('../auth-client.ts', () => ({
   fetchWhoami: vi.fn(() => Promise.resolve({ authenticated: false })),

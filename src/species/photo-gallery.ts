@@ -14,7 +14,7 @@
 // OpenSeadragon deep-zoom. BeeAtlas has no tiled image source — iNat's
 // `large` is the biggest size available — so the lightbox is a plain <img>.
 //
-// ARCH-04: must not import mapbox-gl, wa-sqlite, ../sqlite.ts, ../filter.ts,
+// ARCH-04: must not import maplibre-gl, wa-sqlite, ../sqlite.ts, ../filter.ts,
 //   ../bee-map.ts, ../bee-atlas.ts, ../url-state.ts.
 
 import { LitElement, html, nothing, type TemplateResult } from 'lit';

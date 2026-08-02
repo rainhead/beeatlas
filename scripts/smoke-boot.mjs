@@ -10,7 +10,7 @@
 //   MODE 2 — oxc stops honoring useDefineForClassFields:false, so a declare-only
 //            `@query('#map') mapElement!` is emitted as a class field that shadows
 //            the decorator's prototype getter => this.mapElement is undefined =>
-//            new mapboxgl.Map({container: undefined}) throws => map never renders.
+//            new maplibregl.Map({container: undefined}) throws => map never renders.
 //
 // Gate design:
 //   1. Parse every _site/assets/*.js as an ES module (acorn). Catches MODE 1 with
@@ -18,11 +18,11 @@
 //   2. Boot the built site in headless chromium and assert:
 //        - <bee-atlas> and <bee-map> custom elements upgrade (MODE 1 backstop),
 //        - bee-map's @query mapElement accessor resolves to the #map div
-//          (MODE 2 — WebGL-independent, so mapbox/CI WebGL flakiness can't
-//          false-fail it; the bug makes this undefined),
+//          (MODE 2 — WebGL-independent, so CI WebGL flakiness can't false-fail
+//          it; the bug makes this undefined),
 //        - no page error with a gross-breakage signature (SyntaxError, illegal
-//          character, "is not a constructor"). Mapbox token / WebGL / network
-//          errors are TOLERATED — they don't indicate the b59 failure modes.
+//          character, "is not a constructor"). Basemap / WebGL / network errors
+//          are TOLERATED — they don't indicate the b59 failure modes.
 //
 // Run in the deploy `build` job AFTER `npm run build` and BEFORE the artifact is
 // uploaded: a failure fails the build job, so the deploy job (needs: build) never
@@ -45,9 +45,12 @@ const SITE = resolve(getArg('--site', '_site'));
 const PORT = Number(getArg('--port', '4319'));
 const BOOT_TIMEOUT_MS = 20_000;
 
-// Gross-breakage page-error signatures. Deliberately NARROW: mapbox token / WebGL
-// / network / data-load errors are expected in a tokenless or headless-CI context
-// and must NOT trip the gate. MODE 2 is caught by the mapElement probe, not here.
+// Gross-breakage page-error signatures. Deliberately NARROW: basemap / WebGL /
+// network / data-load errors are expected in headless CI and must NOT trip the
+// gate. In particular the basemap manifest 404s here — _site carries no
+// /basemap/tiles (the archive is published separately, beeatlas-hvp), so every
+// smoke run exercises the blank-style fallback by construction. MODE 2 is caught
+// by the mapElement probe, not here.
 const FATAL_ERROR = /illegal character|Unexpected token|SyntaxError|is not a constructor|useDefineForClassFields/i;
 
 function die(msg) {
@@ -109,7 +112,7 @@ function startServer() {
 async function bootCheck() {
   const server = await startServer();
   const browser = await chromium.launch({
-    // Software WebGL so mapbox can try to init in headless CI; the gate does not
+    // Software WebGL so MapLibre can try to init in headless CI; the gate does not
     // DEPEND on WebGL succeeding, these flags just reduce noise.
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
   });

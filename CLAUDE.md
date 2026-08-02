@@ -80,16 +80,27 @@ cd data && uv run pytest
 
 - Pipeline runs as `data/nightly.sh` on maderas (nightly cron) — the sole execution path. `data/nightly.sh` is the single repo entry point for the nightly pipeline: it owns NVM activation, `git pull`, `npm ci`, `uv sync`, the integration gate + its local baseline, the site build, the merge-swap publish into the Apache root, and the offsite DuckDB backup trap. The crontab knows only host-specific bits (repo location, log path, schedule) — change deployment behavior in `nightly.sh`, not the crontab. **Stelis** ([github.com/rainhead/stelis](https://github.com/rainhead/stelis)) is the DATA engine (ADR 0007 Amendment, Model Y) — a content-addressed dependency graph over the `data/` scripts, env-driven via `DB_PATH` + `EXPORT_DIR` + `NOTES_DB_PATH` — invoked through `npm run fetch-data`; it knows nothing about S3, git, or the site render. It replaced `run.py` (the imperative STEPS loop) at the 2026-07-17 cutover; recover run.py from git history if a rollback is ever needed. Local dev runs `npm run fetch-data` (or `--run <task>` from the Stelis checkout for one step) and bypasses the wrapper; `npm run pull-published` downloads the live data instead. The dormant Lambda surface (DockerImageFunction + EventBridge schedulers + Function URL) was retired 2026-05-14 (quick task `260514-fcq`).
 - The dbt contract on `marts/occurrences` (**40 columns** as of beeatlas-sn8 — counted from `data/dbt/models/marts/schema.yml`, which is the only authority; the long-standing "36 as of Phase 160" figure had silently drifted as later phases added columns, so re-count rather than incrementing the number you find here) is enforced at every `bash data/dbt/run.sh build`; there is no separate JS schema validator. (Phase 131 dropped the 4 denormalized rank-string columns — `scientificName`, `genus`, `family`, `specimen_inat_taxon_name`; `canonical_name` is retained. Phase 160 dropped the scalar `place_slug`: place membership is now many-to-many via the separately-contracted `marts/occurrence_places` bridge — an occurrence belongs to every place it falls within. See the `project_place_model_many_to_many` memory. beeatlas-sn8 added `elevation_dem_m` — DEM-**derived** elevation, deliberately a separate column from the **recorded** `elevation_m` and never COALESCEd into it; checklist rows never get one. See [ADR 0015](docs/adr/0015-dem-derived-elevation.md).)
-- **Basemap (in migration, beeatlas-4mk).** The self-hosted WA tile archive
-  (~227 MB PMTiles, quarterly) lives at `$BASE_DIR/basemap` on maderas — a third
-  sibling of the htdocs+var convention — served via an Apache `Alias` at
-  `/basemap/tiles` so no publish path can reach or prune it; built/shipped by
-  `data/build-basemap.sh` + `data/publish-basemap.sh` (staging under
-  `var/basemap-staging`, never web-reachable). Vendored MapLibre glyphs/sprites
+- **Basemap: self-hosted, MapLibre (beeatlas-4mk).** mapbox-gl is gone from the
+  tree as of beeatlas-q73; the renderer is maplibre-gl and there is no map API key
+  anywhere. The ~227 MB WA PMTiles archive (quarterly) lives at
+  `$BASE_DIR/basemap` on maderas — a third sibling of the htdocs+var convention —
+  served via an Apache `Alias` at `/basemap/tiles` so no publish path can reach or
+  prune it; built/shipped by `data/build-basemap.sh` + `data/publish-basemap.sh`
+  (staging under `var/basemap-staging`, never web-reachable). Glyphs and sprites
   ship WITH the code from `public/basemap`. `src/basemap-style.ts` builds the
-  field style. None of it is wired into the app yet — beeatlas-q73 does the
-  mapbox-gl -> maplibre-gl swap, beeatlas-6rs the offline precache.
-- The `/app` SW caches Mapbox basemap assets (StaleWhileRevalidate, 7-day TTL, `mapbox-basemap` cache, token retained, attribution intact) per §2.8.1 of the Mapbox Product Terms; web-SDK offline basemap serving is NOT licensed. Legal analysis in `docs/adr/0001-mapbox-basemap-cache.md`.
+  field style; `<bee-map>` fetches `/basemap/tiles/manifest.json` to learn the
+  current (date-stamped) archive name, and falls back to a blank style on any
+  failure so the occurrence layers still render. Local dev proxies
+  `/basemap/tiles` to beeatlas.net (`vite.config.ts`) — the archive is never
+  checked in. Still open: beeatlas-6rs (offline precache), beeatlas-mas (ADRs).
+  - **MapLibre's worker cannot be bundled.** It finds itself by deriving a sibling
+    URL from its own `import.meta.url`, so once bundled it 404s — and reports
+    nothing: tiles hang in `loading`, `load` never fires, the map is blank with a
+    clean console. Eleventy copies it out of node_modules to
+    `/basemap/maplibre/`, and `<bee-map>` passes that path to `setWorkerUrl`.
+    Pinned by `src/tests/maplibre-worker.test.ts`. Do not "simplify" it into an
+    import.
+- The `/app` SW still carries a StaleWhileRevalidate route for `api.mapbox.com` (`src/sw.ts`). It is dead — nothing requests that host any more — and beeatlas-mas removes it along with superseding `docs/adr/0001-mapbox-basemap-cache.md`, whose §2.8.1 licensing analysis no longer governs anything we serve.
 - `data/artifacts.toml` (+ tested `data/artifacts.py`) is the declarative contract for the data pipeline's artifacts — each carries a `derived`|`authoritative` provenance and the two schema-evolution regimes are machine-enforced (`authoritative` ⇒ never a dbt model, `baseline_diff=false`, forward-only migrations; rebuild/bypass forbidden). See `docs/adr/0002-derived-vs-authoritative-artifacts.md`. Since Model Y the *published* runtime manifest is owned by the site build instead (`lib/runtime-artifacts.js` + `scripts/postbuild-data.mjs`, the slim manifest); artifacts.toml's operational surface is the integration-gate baseline set (`baseline-files`) and the `pull-published` dev pull.
 
 

@@ -1,7 +1,7 @@
 // Phase 80/96 architectural boundary tests.
 // Guards three boundaries:
 //   (a) ARCH-04 / PAGE-08: no src/species/**.ts file (seasonality-viz.ts)
-//       may import the SPA's mapbox-gl / wa-sqlite /
+//       may import the SPA's maplibre-gl / wa-sqlite /
 //       sqlite / filter / bee-map / bee-atlas modules (static OR dynamic).
 //   (b) IDX-02 (Phase 96): src/entries/species-index.ts is restricted to
 //       CSS side-effects + bee-header — no SPA modules allowed.
@@ -17,9 +17,9 @@ const SPECIES_DIR = resolve(ROOT, 'src/species');
 
 // ARCH-04 / PAGE-08 — forbidden imports under src/species/**.ts
 const FORBIDDEN = [
-  'mapbox-gl',
   // The map renderer and its style machinery must stay out of the species pages
-  // (beeatlas-26q). mapbox-gl stays listed until beeatlas-q73 removes it.
+  // (beeatlas-26q). mapbox-gl is gone from the tree entirely as of beeatlas-q73,
+  // so listing it here would guard nothing.
   'maplibre-gl',
   'protomaps-themes-base',
   'pmtiles',
@@ -108,13 +108,13 @@ describe('src/entries/species-index.ts allowlist (IDX-02, Phase 96)', () => {
     // dependency-free by inspection — species-presence.ts imports NOTHING, and
     // manifest.ts is a standalone fetch+cache with no imports of its own — so the
     // guarantee this allowlist exists to protect (the static page pulls in no SPA
-    // machinery: no sqlite, no filter.ts, no Lit component tree, no mapbox) holds.
+    // machinery: no sqlite, no filter.ts, no Lit component tree, no map renderer) holds.
     '../species-presence.ts', '../species-presence',
     '../manifest.ts', '../manifest',
   ]);
   const FORBIDDEN_PATTERNS = [
     'bee-species-page', 'bee-species-filter', 'bee-atlas',
-    'wa-sqlite', 'mapbox-gl',
+    'wa-sqlite',
     'maplibre-gl', 'protomaps-themes-base', 'pmtiles', 'basemap-style',
   ];
 

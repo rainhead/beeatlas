@@ -44,6 +44,16 @@ export const VENDORED_FONTSTACKS = [
   'Noto Sans Italic',
 ] as const;
 
+/**
+ * The stack the OCCURRENCE layers label with (src/style.ts) — cluster counts,
+ * place names, wilderness names. Named here, beside the allowlist it has to
+ * satisfy, because the constraint lives here: only what public/basemap/fonts
+ * ships can render, and no Bold is shipped. Under Mapbox these layers asked for
+ * 'Open Sans Bold', which the hosted style served; post-migration an unshipped
+ * stack 404s and the labels vanish SILENTLY, so this is not a cosmetic choice.
+ */
+export const OCCURRENCE_LABEL_FONT = 'Noto Sans Medium';
+
 /** Ranges vendored for each stack. Latin + Latin Extended + general punctuation. */
 export const VENDORED_GLYPH_RANGES = ['0-255', '256-511', '8192-8447'] as const;
 
@@ -120,6 +130,37 @@ export function buildBasemapStyle(
     layers: applyFieldOverrides(themed),
   };
   return style;
+}
+
+/**
+ * The style to render when the basemap is unavailable — the manifest fetch
+ * failed, or its payload did not parse. A flat background and nothing else.
+ *
+ * This exists so that "no basemap" is a DEGRADED map rather than no map at all.
+ * The occurrence sources and layers are added on the map's `load` event, and
+ * `load` only fires once a style has finished loading; under Mapbox an offline
+ * cold start never reached it, so the dots never appeared. A local style always
+ * loads, so the occurrences render over blank paper — which, with the recency
+ * colours and the boundary overlays, is still a usable map.
+ *
+ * `glyphs` is set even though this style has no labels of its own: the
+ * occurrence layers include three symbol layers (cluster counts, place and
+ * wilderness names) and MapLibre resolves their glyphs against the STYLE ROOT.
+ * Omitting it here would blank exactly the labels this fallback exists to keep.
+ * No `sprite` — nothing in this style or in the occurrence layers draws an icon.
+ */
+export function blankBasemapStyle(options: { origin?: string } = {}): StyleSpecification {
+  const origin = (options.origin ?? defaultOrigin()).replace(/\/$/, '');
+  return {
+    version: 8,
+    glyphs: `${origin}${BASEMAP_GLYPHS_PATH}`,
+    sources: {},
+    layers: [{
+      id: 'background',
+      type: 'background',
+      paint: { 'background-color': '#f4f3ef' },
+    }],
+  };
 }
 
 // The style-spec layer type is structurally awkward to narrow here; the overrides

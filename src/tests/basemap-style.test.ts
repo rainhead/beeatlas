@@ -3,16 +3,25 @@ import { readdirSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  blankBasemapStyle,
   buildBasemapStyle,
   parseBasemapManifest,
   collectFontstacks,
   basemapManifestUrl,
+  BASEMAP_GLYPHS_PATH,
   VENDORED_FONTSTACKS,
   VENDORED_GLYPH_RANGES,
   FIELD_DETAIL_MINZOOM,
   DEFAULT_REGION,
   type BasemapManifest,
 } from '../basemap-style.ts';
+import {
+  RECENCY_COLORS,
+  clusterCountLayerSpec,
+  placeLabelLayerSpec,
+  wildernessLabelLayerSpec,
+} from '../style.ts';
+import type { StyleSpecification } from 'maplibre-gl';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -204,6 +213,54 @@ describe('glyph coverage — offline correctness', () => {
     for (const f of ['light.json', 'light.png', 'light@2x.json', 'light@2x.png']) {
       expect(existsSync(resolve(ROOT, `public/basemap/sprites/${f}`)), f).toBe(true);
     }
+  });
+
+  test('the OCCURRENCE layers stay inside the same allowlist', () => {
+    // These three are not part of the basemap style, but MapLibre resolves every
+    // symbol layer's glyphs against the STYLE ROOT — so they draw from the same
+    // vendored set, and an unshipped stack makes the label vanish with no error.
+    // They asked for 'Open Sans Bold' while Mapbox hosted the style and served
+    // it; post-migration nothing would have caught that but this (beeatlas-q73).
+    const occurrenceLabels = {
+      ...buildBasemapStyle(MANIFEST, { origin: ORIGIN }),
+      layers: [
+        clusterCountLayerSpec(RECENCY_COLORS),
+        placeLabelLayerSpec('visible'),
+        wildernessLabelLayerSpec('visible'),
+      ],
+    } as StyleSpecification;
+    const used = collectFontstacks(occurrenceLabels);
+    expect(used.length).toBeGreaterThan(0);
+    for (const stack of used) {
+      expect(VENDORED_FONTSTACKS as readonly string[]).toContain(stack);
+    }
+  });
+});
+
+describe('the blank fallback style', () => {
+  // Rendered when the manifest cannot be fetched or parsed. It exists so that a
+  // missing basemap degrades the map instead of removing it: the occurrence
+  // layers are added on the map's 'load' event, and 'load' only fires once some
+  // style has loaded. Under Mapbox an offline cold start never got there.
+  const style = blankBasemapStyle({ origin: ORIGIN });
+
+  test('is a valid, self-contained style with no sources', () => {
+    expect(style.version).toBe(8);
+    expect(style.sources).toEqual({});
+    expect(style.layers).toHaveLength(1);
+    expect(style.layers[0]?.type).toBe('background');
+  });
+
+  test('still carries glyphs — the occurrence labels depend on them', () => {
+    // The easy mistake: "no basemap, so no labels, so no glyphs". Cluster counts
+    // and place/wilderness names are occurrence layers and resolve against the
+    // style root, so dropping this blanks exactly what the fallback is for.
+    expect(style.glyphs).toBe(`${ORIGIN}${BASEMAP_GLYPHS_PATH}`);
+  });
+
+  test('reaches no host but our own', () => {
+    const urls = JSON.stringify(style).match(/https?:\/\/[^"']+/g) ?? [];
+    for (const url of urls) expect(url.startsWith(ORIGIN)).toBe(true);
   });
 });
 

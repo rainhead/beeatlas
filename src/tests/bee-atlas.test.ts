@@ -31,7 +31,7 @@ vi.mock('../features.ts', () => ({
   })),
 }));
 
-vi.mock('mapbox-gl', () => {
+vi.mock('maplibre-gl', () => {
   const MapMock = vi.fn().mockImplementation(() => ({
     on: vi.fn(),
     remove: vi.fn(),
@@ -41,36 +41,44 @@ vi.mock('mapbox-gl', () => {
     addLayer: vi.fn(),
     getSource: vi.fn(() => ({
       setData: vi.fn(),
-      getClusterLeaves: vi.fn((_clusterId: number, _limit: number, _offset: number, cb: Function) => {
-        cb(null, []);
-      }),
+      // Promise-based in MapLibre; the Mapbox signature took a callback.
+      getClusterLeaves: vi.fn(async () => []),
     })),
     setFilter: vi.fn(),
     isStyleLoaded: vi.fn(() => true),
     jumpTo: vi.fn(),
     flyTo: vi.fn(),
     resize: vi.fn(),
-    // Phase 72 additions:
-    addInteraction: vi.fn(),
+    // No addInteraction — MapLibre has no such API. The click priority chain is
+    // one map.on('click') that walks queryRenderedFeatures layer by layer, so
+    // these two are what stand in for the five Mapbox interaction handlers.
+    getLayer: vi.fn(() => undefined),
+    queryRenderedFeatures: vi.fn(() => []),
     setLayoutProperty: vi.fn(),
+    setPaintProperty: vi.fn(),
     setFeatureState: vi.fn(),
     removeFeatureState: vi.fn(),
     querySourceFeatures: vi.fn(() => []),
     addControl: vi.fn(),
   }));
+  // Named exports, not a default: maplibre-gl is ESM-only with no default export,
+  // and <bee-map> imports it as a namespace.
   return {
-    default: {
-      accessToken: '',
-      Map: MapMock,
-      GeolocateControl: vi.fn().mockImplementation(() => ({
-        on: vi.fn(),
-        trigger: vi.fn(() => true),
-      })),
+    Map: MapMock,
+    GeolocateControl: vi.fn().mockImplementation(() => ({
+      on: vi.fn(),
+      trigger: vi.fn(() => true),
+    })),
+    Point: class {
+      x: number;
+      y: number;
+      constructor(x: number, y: number) { this.x = x; this.y = y; }
     },
+    addProtocol: vi.fn(),
   };
 });
 
-vi.mock('mapbox-gl/dist/mapbox-gl.css?raw', () => ({ default: '' }));
+vi.mock('maplibre-gl/dist/maplibre-gl.css?raw', () => ({ default: '' }));
 
 // A mounted <bee-atlas> fires background fetches (whoami, the places_meta name
 // map, …) whose failures every caller swallows; without a stub they open real
@@ -230,12 +238,24 @@ describe('BOUNDARY-01: bee-map boundary layer declarations', () => {
 });
 
 describe('CLICK-01: bee-map click interaction chain', () => {
-  test('bee-map.ts registers addInteraction for cluster, point, county, and ecoregion layers', () => {
+  // The chain used to be five Mapbox addInteraction handlers keyed by layer id,
+  // and this test named them. MapLibre has no addInteraction, so the chain is now
+  // one ordered hit-test — the priority ORDER is the thing worth pinning, since a
+  // reordering silently changes which of two overlapping layers wins a click.
+  test('bee-map.ts hit-tests clusters, points, then county/ecoregion/place, in that order', () => {
     const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
-    expect(src).toMatch(/addInteraction\s*\(\s*['"]click-cluster['"]/);
-    expect(src).toMatch(/addInteraction\s*\(\s*['"]click-point['"]/);
-    expect(src).toMatch(/addInteraction\s*\(\s*['"]click-county['"]/);
-    expect(src).toMatch(/addInteraction\s*\(\s*['"]click-ecoregion['"]/);
+    const listMatch = src.match(/CLICK_PRIORITY_LAYERS\s*=\s*\[([^\]]*)\]/);
+    expect(listMatch).not.toBeNull();
+    const order = [...(listMatch?.[1] ?? '').matchAll(/'([^']+)'/g)].map(m => m[1]);
+    expect(order).toEqual([
+      'clusters', 'unclustered-point', 'county-fill', 'ecoregion-fill', 'place-fill',
+    ]);
+    // Each layer is queried on its own so the first hit wins outright, which is
+    // what preventDefault() did in the Mapbox chain.
+    expect(src).toMatch(/queryRenderedFeatures\s*\(\s*point\s*,\s*\{\s*layers:\s*\[\s*layerId\s*\]/);
+    // MapLibre has no addInteraction; a reintroduced CALL would silently no-op.
+    // (The comments explaining the migration name it, hence matching the call form.)
+    expect(src).not.toMatch(/\.addInteraction\s*\(/);
   });
 
   test('bee-map.ts cluster click handler shows leaves via map-click-occurrence', () => {
@@ -1159,7 +1179,7 @@ describe('146: session-coalesced viewport history', () => {
 describe('OFF-04/OFF-05: bee-atlas _offline state propagation (Plan 149-03)', () => {
   // Integration test: window online/offline events flip bee-atlas._offline.
   // Tests use the established pattern (instantiate without DOM attachment) to avoid
-  // triggering firstUpdated → mapboxgl.Map initialization. Instead we directly invoke
+  // triggering firstUpdated → maplibregl.Map initialization. Instead we directly invoke
   // the arrow-function handlers and verify @state mutation, matching the Phase 146
   // behavioral test pattern for bee-atlas.
   // bee-header.test.ts covers the @property → rendered DOM path for the pill.
@@ -1606,17 +1626,24 @@ describe('NEAR: near-me bounds reuse', () => {
   // -------------------------------------------------------------------------
 
   describe('NEAR toast fix (D-08 / Task 2)', () => {
-    test('bee-map requestUserLocation method checks trigger() return and emits error on false', () => {
+    // What this test protects is that a DENIED permission reaches the banner.
+    // Under Mapbox that needed a synthesised event, because trigger() returned
+    // false on a denial and the control fired nothing of its own — so the test
+    // pinned `trigger() === false` and an emit right there in requestUserLocation.
+    // MapLibre denies differently: trigger() starts the watch regardless and the
+    // Geolocation API's error callback fires the control's own 'error'. The
+    // route is the listener now, so that is what gets pinned. Keeping the old
+    // assertion would have demanded a synthetic "permission denied" for a
+    // control that was merely constructed a beat ago.
+    test('bee-map relays GeolocateControl errors as user-location-changed', () => {
       const beeMapSrc = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
-      // Find the method body (not a comment reference to the name)
-      const methodIdx = beeMapSrc.indexOf('public requestUserLocation():');
-      expect(methodIdx).toBeGreaterThan(-1);
-      // Grab up to the closing brace (look for the end of the method body)
-      const body = beeMapSrc.slice(methodIdx, methodIdx + 1000);
-      // The fix: trigger() return value is checked; false triggers an error emit
-      expect(body).toMatch(/trigger\(\)\s*===\s*false|started\s*===\s*false/);
-      // And the error emit path calls _emit with 'user-location-changed' + error payload
+      const listenerIdx = beeMapSrc.indexOf("_geolocate.on('error'");
+      expect(listenerIdx).toBeGreaterThan(-1);
+      const body = beeMapSrc.slice(listenerIdx, listenerIdx + 400);
       expect(body).toMatch(/_emit\s*\(\s*['"]user-location-changed['"]/);
+      // The payload must carry the API's own code + message — <bee-atlas> keys the
+      // banner copy off `error`, and a bare emit reads as a successful fix.
+      expect(body).toMatch(/error:\s*\{\s*code:\s*e\.code,\s*message:\s*e\.message\s*\}/);
     });
 
     test('bee-atlas.ts _locationError banner is rendered at the root template level (always reachable)', () => {
@@ -1639,7 +1666,7 @@ describe('STACK-01: regions dropdown above pane (Phase 157)', () => {
   const beePaneSrc = readFileSync(resolve(__dirname, '../bee-pane.ts'), 'utf-8');
 
   // 1. Regression guard: deleting bee-map's containing z-index:0 was the WRONG
-  //    fix (it would let Mapbox's bottom-right attribution bleed over the table
+  //    fix (it would let the map's bottom-right attribution bleed over the table
   //    pane — the Phase 108-02 regression). This locks that rule in place.
   test('bee-atlas.ts RETAINS the load-bearing `bee-map { ... z-index: 0 }` rule', () => {
     expect(beeAtlasSrc).toMatch(/bee-map\s*\{[^}]*z-index:\s*0/);
