@@ -23,6 +23,8 @@ dependencies = [
     "flask-cors>=6.0.5",
     "nh3>=0.3.6",
     "markdown-it-py>=4.2.0",
+    "numpy>=2.4.6",
+    "pillow>=12.2.0",
 ]
 
 [dependency-groups]

@@ -66,15 +66,59 @@ export const FIELD_DETAIL_MINZOOM = 13;
 
 const SOURCE = 'protomaps';
 
-export interface BasemapRegion {
+/**
+ * The DEM half of a region, when one has been published (beeatlas-8py). OPTIONAL
+ * on purpose: the terrain archive publishes on its own schedule, so a manifest
+ * without it is not an error, it is a site that has not published terrain yet —
+ * and every such site must keep rendering exactly as it did before.
+ */
+export interface BasemapTerrain {
   archive: string;
   bytes: number;
   maxzoom: number;
   attribution: string;
 }
+export interface BasemapRegion {
+  archive: string;
+  bytes: number;
+  maxzoom: number;
+  attribution: string;
+  terrain?: BasemapTerrain;
+}
 export interface BasemapManifest {
   regions: Record<string, BasemapRegion>;
 }
+
+const TERRAIN_SOURCE = 'terrain';
+
+/**
+ * Terrarium tiles are 256px. MapLibre's raster-dem default is 512, and getting
+ * this wrong is not a subtle bug: the slope at every pixel is computed over the
+ * wrong ground distance, so the whole hillshade is silently half-strength.
+ * Mirrors TILE_SIZE in data/terrain_tiles.py.
+ */
+export const TERRAIN_TILE_SIZE = 256;
+
+/**
+ * Zoom at which the hillshade is at full strength, and the zoom by which it has
+ * faded to nothing.
+ *
+ * The fade is a legibility requirement, not a taste one. The DEM is native to
+ * z11; overzoomed past ~z13 it stops adding information and starts subtracting
+ * it — a broad grey wash that darkens the map exactly where the trail network,
+ * which is the thing a volunteer is actually navigating by, needs contrast. It
+ * also caps what the archive has to contain: because nothing renders above
+ * TERRAIN_FADE_END, a z11 pyramid is native everywhere it is visible, which is
+ * what keeps the artifact tens of megabytes instead of ~1.4 GB.
+ *
+ * Paired with DEFAULT_MAXZOOM in data/terrain_tiles.py — moving either alone is
+ * a mistake. See beeatlas-8py.
+ */
+export const TERRAIN_FADE_START = 12.5;
+export const TERRAIN_FADE_END = 13.5;
+
+/** Full-strength exaggeration below TERRAIN_FADE_START. */
+export const TERRAIN_EXAGGERATION = 0.45;
 
 /** The only region today. `regions` is keyed for a future world, not a current one. */
 export const DEFAULT_REGION = 'wa';
@@ -92,6 +136,13 @@ export function parseBasemapManifest(value: unknown): BasemapManifest {
   for (const [key, r] of Object.entries(regions)) {
     if (!r || typeof r.archive !== 'string' || !r.archive) {
       throw new Error(`basemap manifest: region "${key}" has no archive`);
+    }
+    // A malformed terrain entry drops terrain rather than failing the whole
+    // manifest: the vector basemap is the product, the hillshade is a garnish,
+    // and one bad key must not cost the map.
+    if (r.terrain && (typeof r.terrain.archive !== 'string' || !r.terrain.archive)) {
+      console.warn(`basemap manifest: region "${key}" has a malformed terrain entry; ignoring it`);
+      delete r.terrain;
     }
   }
   return { regions };
@@ -114,22 +165,100 @@ export function buildBasemapStyle(
   // throughout and MapLibre rejects the entire style (protomaps-themes-base v4.5).
   const themed = layers(SOURCE, namedTheme('light'), { lang: 'en' }) as StyleLayer[];
 
+  const sources: StyleSpecification['sources'] = {
+    [SOURCE]: {
+      type: 'vector',
+      // Resolved by the pmtiles protocol handler the map registers; the archive
+      // is one file read with HTTP range requests, no tile server.
+      url: `pmtiles://${origin}${BASEMAP_TILES_BASE}/${entry.archive}`,
+      attribution: entry.attribution,
+    },
+  };
+  if (entry.terrain) {
+    sources[TERRAIN_SOURCE] = {
+      type: 'raster-dem',
+      url: `pmtiles://${origin}${BASEMAP_TILES_BASE}/${entry.terrain.archive}`,
+      encoding: 'terrarium',
+      tileSize: TERRAIN_TILE_SIZE,
+      // The DEM is a different dataset from a different source than the vector
+      // tiles; OSM/Protomaps does not cover it.
+      attribution: entry.terrain.attribution,
+    };
+  }
+
   const style: StyleSpecification = {
     version: 8,
     glyphs: `${origin}${BASEMAP_GLYPHS_PATH}`,
     sprite: `${origin}${BASEMAP_SPRITE_PATH}`,
-    sources: {
-      [SOURCE]: {
-        type: 'vector',
-        // Resolved by the pmtiles protocol handler the map registers; the archive
-        // is one file read with HTTP range requests, no tile server.
-        url: `pmtiles://${origin}${BASEMAP_TILES_BASE}/${entry.archive}`,
-        attribution: entry.attribution,
-      },
-    },
-    layers: applyFieldOverrides(themed),
+    sources,
+    layers: withHillshade(applyFieldOverrides(themed), Boolean(entry.terrain)),
   };
   return style;
+}
+
+/**
+ * The hillshade layer. Kept as its own function so the paint ramp — the part
+ * that encodes the legibility decision — reads in one screen.
+ */
+function hillshadeLayer(): StyleLayer {
+  return {
+    id: 'field_hillshade',
+    type: 'hillshade',
+    source: TERRAIN_SOURCE,
+    paint: {
+      'hillshade-exaggeration': [
+        'interpolate', ['linear'], ['zoom'],
+        TERRAIN_FADE_START, TERRAIN_EXAGGERATION,
+        TERRAIN_FADE_END, 0,
+      ],
+      // Warm grey rather than MapLibre's default near-black: the theme's paper is
+      // #f4f3ef and a neutral-black shadow reads as dirt on it. The highlight is
+      // deliberately the paper colour, not white — a white highlight on a
+      // near-white background produces banding on gentle slopes.
+      'hillshade-shadow-color': '#5a5340',
+      'hillshade-highlight-color': '#f4f3ef',
+      'hillshade-accent-color': '#8a7f66',
+    },
+  };
+}
+
+/**
+ * The layer the hillshade is inserted directly beneath.
+ *
+ * beeatlas-8py said "below the first symbol layer", which is the usual shorthand
+ * for "under the labels". It is wrong for THIS theme, and reading the layer order
+ * is what shows why: protomaps-themes-base interleaves fills and lines rather
+ * than grouping them, so the first symbol layer is index 57 — inserting there
+ * would put the hillshade on top of every road, trail and stream. This style
+ * exists to make the trail network legible in the field (see applyFieldOverrides),
+ * so washing it with terrain shading would defeat the point of the layer it sits
+ * in.
+ *
+ * The `water` fill (index 14) is the anchor that gets it right in both
+ * directions:
+ *   above  — earth, landcover, and every landuse_* fill, including the large
+ *            landuse_park polygons that blanket the Cascades. Shading lands ON
+ *            the green rather than under it.
+ *   below  — the water fill itself (a shaded lake reads as a mistake), then
+ *            streams, rivers, all roads and trails, and all labels.
+ */
+const HILLSHADE_ANCHOR_LAYER = 'water';
+
+function withHillshade(layers: StyleSpecification['layers'], enabled: boolean): StyleSpecification['layers'] {
+  if (!enabled) return layers;
+  const list = [...layers] as unknown as StyleLayer[];
+  let at = list.findIndex((l) => l.id === HILLSHADE_ANCHOR_LAYER);
+  if (at === -1) {
+    // A theme upgrade renamed or dropped the anchor. Fall back to the coarse
+    // rule (under the labels) rather than dropping the layer: a hillshade in a
+    // slightly wrong place is a visible, reportable problem; a silently missing
+    // one is the failure mode this whole area keeps producing.
+    console.warn(`basemap style: no "${HILLSHADE_ANCHOR_LAYER}" layer; placing hillshade under the labels`);
+    const firstSymbol = list.findIndex((l) => l.type === 'symbol');
+    at = firstSymbol === -1 ? list.length : firstSymbol;
+  }
+  list.splice(at, 0, hillshadeLayer());
+  return list as unknown as StyleSpecification['layers'];
 }
 
 /**

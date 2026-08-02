@@ -13,6 +13,10 @@ import {
   VENDORED_GLYPH_RANGES,
   FIELD_DETAIL_MINZOOM,
   DEFAULT_REGION,
+  TERRAIN_TILE_SIZE,
+  TERRAIN_FADE_START,
+  TERRAIN_FADE_END,
+  TERRAIN_EXAGGERATION,
   type BasemapManifest,
 } from '../basemap-style.ts';
 import {
@@ -268,5 +272,124 @@ describe('region model', () => {
   test('defaults to the one region that exists', () => {
     expect(DEFAULT_REGION).toBe('wa');
     expect(Object.keys(MANIFEST.regions)).toEqual(['wa']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Hillshade (beeatlas-8py)
+// ---------------------------------------------------------------------------
+
+const TERRAIN_MANIFEST: BasemapManifest = {
+  regions: {
+    wa: {
+      ...MANIFEST.regions.wa!,
+      terrain: {
+        archive: 'wa-terrain-20260802.pmtiles',
+        bytes: 60813576,
+        maxzoom: 11,
+        attribution: 'Elevation: Terrain Tiles (NASA SRTM, USGS 3DEP, NOAA)',
+      },
+    },
+  },
+};
+
+type AnyLayer = { id: string; type: string; source?: string; paint?: Record<string, unknown> };
+const layerIds = (s: StyleSpecification) => (s.layers as unknown as AnyLayer[]).map((l) => l.id);
+const hillshadeOf = (s: StyleSpecification) =>
+  (s.layers as unknown as AnyLayer[]).find((l) => l.type === 'hillshade');
+
+describe('hillshade — terrain absent', () => {
+  const style = buildBasemapStyle(MANIFEST, { origin: ORIGIN });
+
+  test('a manifest without terrain is not an error, it is a site without terrain', () => {
+    expect(hillshadeOf(style)).toBeUndefined();
+    expect(style.sources.terrain).toBeUndefined();
+  });
+
+  test('parsing keeps a manifest that never mentions terrain', () => {
+    expect(parseBasemapManifest(MANIFEST).regions.wa?.terrain).toBeUndefined();
+  });
+
+  test('a malformed terrain entry drops terrain rather than costing the basemap', () => {
+    const parsed = parseBasemapManifest({
+      regions: { wa: { ...MANIFEST.regions.wa, terrain: { archive: '' } } },
+    });
+    expect(parsed.regions.wa?.archive).toBe('wa-20260801.pmtiles');
+    expect(parsed.regions.wa?.terrain).toBeUndefined();
+    expect(hillshadeOf(buildBasemapStyle(parsed, { origin: ORIGIN }))).toBeUndefined();
+  });
+});
+
+describe('hillshade — terrain present', () => {
+  const style = buildBasemapStyle(TERRAIN_MANIFEST, { origin: ORIGIN });
+
+  test('the DEM is a terrarium raster-dem read through the pmtiles protocol', () => {
+    const src = style.sources.terrain as unknown as Record<string, unknown>;
+    expect(src.type).toBe('raster-dem');
+    expect(src.encoding).toBe('terrarium');
+    expect(src.url).toBe(`pmtiles://${ORIGIN}/basemap/tiles/wa-terrain-20260802.pmtiles`);
+  });
+
+  test('tileSize is 256 — the default 512 would halve every slope', () => {
+    expect((style.sources.terrain as unknown as Record<string, unknown>).tileSize)
+      .toBe(TERRAIN_TILE_SIZE);
+    expect(TERRAIN_TILE_SIZE).toBe(256);
+  });
+
+  test('the DEM carries its own attribution; OSM/Protomaps does not cover it', () => {
+    const src = style.sources.terrain as unknown as Record<string, unknown>;
+    expect(src.attribution).toContain('SRTM');
+    expect(src.attribution).not.toEqual(
+      (style.sources.protomaps as unknown as Record<string, unknown>).attribution,
+    );
+  });
+
+  test('shading lands ON the landcover — above earth and the park fills', () => {
+    const ids = layerIds(style);
+    const hillshade = ids.indexOf('field_hillshade');
+    for (const below of ['earth', 'landcover', 'landuse_park']) {
+      expect(ids.indexOf(below)).toBeGreaterThanOrEqual(0);
+      expect(ids.indexOf(below)).toBeLessThan(hillshade);
+    }
+  });
+
+  test('trails, water and every label stay above it — this style exists for the trails', () => {
+    const ids = layerIds(style);
+    const hillshade = ids.indexOf('field_hillshade');
+    // The three field overrides plus the water fill and the peak labels.
+    for (const above of ['water', 'water_stream', 'water_river', 'roads_other', 'field_peaks']) {
+      expect(ids.indexOf(above)).toBeGreaterThanOrEqual(0);
+      expect(ids.indexOf(above)).toBeGreaterThan(hillshade);
+    }
+    const firstSymbol = (style.layers as unknown as AnyLayer[]).findIndex((l) => l.type === 'symbol');
+    expect(firstSymbol).toBeGreaterThan(hillshade);
+  });
+
+  test('exaggeration ramps to exactly zero by the fade end', () => {
+    const paint = hillshadeOf(style)!.paint!;
+    expect(paint['hillshade-exaggeration']).toEqual([
+      'interpolate', ['linear'], ['zoom'],
+      TERRAIN_FADE_START, TERRAIN_EXAGGERATION,
+      TERRAIN_FADE_END, 0,
+    ]);
+    // The fade is what caps the archive at a z11 pyramid: nothing renders above
+    // TERRAIN_FADE_END, so nothing above z11 needs to exist. Paired with
+    // DEFAULT_MAXZOOM in data/terrain_tiles.py.
+    expect(TERRAIN_FADE_END).toBeGreaterThan(TERRAIN_FADE_START);
+    expect(TERRAIN_FADE_END).toBeLessThanOrEqual(13.5);
+  });
+
+  test('adding terrain changes nothing else about the style', () => {
+    const without = layerIds(buildBasemapStyle(MANIFEST, { origin: ORIGIN }));
+    expect(layerIds(style).filter((id) => id !== 'field_hillshade')).toEqual(without);
+  });
+
+  test('still reaches no host but our own', () => {
+    const urls = JSON.stringify(style).match(/https?:\/\/[^"']+/g) ?? [];
+    for (const url of urls) {
+      // The attribution string is allowed to LINK offsite; it is not fetched.
+      if (url.includes('opendata.aws') || url.includes('openstreetmap')) continue;
+      expect(url.startsWith(ORIGIN)).toBe(true);
+    }
   });
 });

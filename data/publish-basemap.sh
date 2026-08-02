@@ -18,7 +18,14 @@
 # Nothing in the publish path can reach it, by construction rather than by an
 # --exclude a future edit could drop.
 #
-# Usage: data/publish-basemap.sh <wa-YYYYMMDD.pmtiles>
+# TWO KINDS OF ARCHIVE live here (beeatlas-8py): the vector basemap
+# (wa-YYYYMMDD.pmtiles) and the terrain/DEM pyramid the hillshade reads
+# (wa-terrain-YYYYMMDD.pmtiles). They are built by different scripts on different
+# schedules and PUBLISH INDEPENDENTLY — so this script updates only its own kind's
+# entry in the manifest and prunes only its own kind's supersedes. Publishing one
+# must never disturb the other.
+#
+# Usage: data/publish-basemap.sh <wa-YYYYMMDD.pmtiles | wa-terrain-YYYYMMDD.pmtiles>
 
 set -euo pipefail
 
@@ -33,8 +40,19 @@ STAGING_DIR="${STAGING_DIR:-$BASE_DIR/var/basemap-staging}"
 # finish an in-flight download rather than 404 mid-stream.
 GRACE_DAYS="${GRACE_DAYS:-30}"
 
-ARCHIVE="${1:?usage: publish-basemap.sh <wa-YYYYMMDD.pmtiles>}"
+ARCHIVE="${1:?usage: publish-basemap.sh <wa-YYYYMMDD.pmtiles|wa-terrain-YYYYMMDD.pmtiles>}"
 STAGED="$STAGING_DIR/$ARCHIVE"
+
+# Which kind is this? The two globs are deliberately disjoint. Note that the
+# vector glob has to EXCLUDE the terrain names: 'wa-*.pmtiles' matches
+# 'wa-terrain-20260802.pmtiles' too, so a naive prune on it would age-delete the
+# terrain archive out from under a working hillshade — a blank layer in the
+# field, not a build failure.
+case "$ARCHIVE" in
+    wa-terrain-*.pmtiles) KIND=terrain; PRUNE_MATCH=(-name 'wa-terrain-*.pmtiles') ;;
+    wa-*.pmtiles)         KIND=vector;  PRUNE_MATCH=(-name 'wa-*.pmtiles' ! -name 'wa-terrain-*.pmtiles') ;;
+    *) echo "ERROR: unrecognized archive name: $ARCHIVE" >&2; exit 1 ;;
+esac
 
 [[ -d "$BASEMAP_DIR" ]] || {
     echo "NOTE: BASEMAP_DIR $BASEMAP_DIR absent (install: docs/runbooks/serve-from-maderas.md)" >&2
@@ -66,8 +84,19 @@ mv "$BASEMAP_DIR/.$ARCHIVE.incoming" "$BASEMAP_DIR/$ARCHIVE"
 # "superseded more than N days ago", which is what the requirement asked for.
 PREV=""
 if [[ -f "$BASEMAP_DIR/manifest.json" ]]; then
-    PREV=$(sed -n 's/.*"archive"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
-           "$BASEMAP_DIR/manifest.json" | head -1)
+    # Read the archive THIS KIND is superseding. A regex over the whole file used
+    # to be enough when there was one archive; with a nested terrain entry it
+    # would match whichever "archive" key came first, so this parses properly.
+    PREV=$(python3 -c '
+import json, sys
+kind, path = sys.argv[1], sys.argv[2]
+try:
+    region = json.load(open(path))["regions"]["wa"]
+except Exception:
+    sys.exit(0)
+entry = region.get("terrain", {}) if kind == "terrain" else region
+print(entry.get("archive", ""))
+' "$KIND" "$BASEMAP_DIR/manifest.json")
 fi
 if [[ -n "$PREV" && "$PREV" != "$ARCHIVE" && -f "$BASEMAP_DIR/$PREV" ]]; then
     touch "$BASEMAP_DIR/$PREV"
@@ -79,28 +108,72 @@ fi
 MAXZOOM=$("$PMTILES" show "$BASEMAP_DIR/$ARCHIVE" | sed -n 's/^max zoom:[[:space:]]*\([0-9]*\).*/\1/p' | head -1)
 [[ -n "$MAXZOOM" ]] || { echo "ERROR: could not read max zoom from $ARCHIVE" >&2; exit 1; }
 
+BYTES=$(stat -c%s "$BASEMAP_DIR/$ARCHIVE" 2>/dev/null || stat -f%z "$BASEMAP_DIR/$ARCHIVE")
+
 # The manifest is the ONLY mutable file here and is written LAST, so every name
 # it resolves already exists by the time a reader sees it. Same ordering rule as
 # merge-swap.sh's data/manifest.json.
-BYTES=$(stat -c%s "$BASEMAP_DIR/$ARCHIVE" 2>/dev/null || stat -f%z "$BASEMAP_DIR/$ARCHIVE")
-cat > "$BASEMAP_DIR/.manifest.json.tmp" <<JSON
-{
-  "regions": {
-    "wa": {
-      "archive": "$ARCHIVE",
-      "bytes": $BYTES,
-      "maxzoom": $MAXZOOM,
-      "attribution": "© OpenStreetMap contributors · Protomaps"
-    }
-  }
-}
-JSON
-mv "$BASEMAP_DIR/.manifest.json.tmp" "$BASEMAP_DIR/manifest.json"
+#
+# MERGED, not rewritten: this script publishes one kind of archive and must leave
+# the other kind's entry exactly as it found it. The terrain attribution is read
+# out of the archive the builder stamped rather than restated here, for the same
+# reason maxzoom is — one source of truth per fact.
+"$PMTILES" show "$BASEMAP_DIR/$ARCHIVE" --metadata > "$BASEMAP_DIR/.meta.json.tmp"
+python3 -c '
+import json, os, sys
+kind, out, archive, size, maxzoom, meta_path = sys.argv[1:7]
+
+manifest = {"regions": {}}
+if os.path.exists(out):
+    try:
+        loaded = json.load(open(out))
+        if isinstance(loaded.get("regions"), dict):
+            manifest = loaded
+    except (OSError, ValueError):
+        # A corrupt manifest is recoverable by rewriting it; refusing to publish
+        # over one would leave the site stuck with the corrupt file.
+        print(f"WARNING: {out} unreadable; rewriting from scratch", file=sys.stderr)
+
+region = manifest["regions"].setdefault("wa", {})
+entry = {"archive": archive, "bytes": int(size), "maxzoom": int(maxzoom)}
+
+if kind == "terrain":
+    attribution = ""
+    try:
+        attribution = json.load(open(meta_path)).get("attribution", "")
+    except (OSError, ValueError):
+        pass
+    if not attribution:
+        raise SystemExit(f"ERROR: {archive} carries no attribution metadata")
+    entry["attribution"] = attribution
+    region["terrain"] = entry
+    if "archive" not in region:
+        # Terrain published before any vector archive. The frontend requires a
+        # region to name a vector archive, so it will reject this manifest and
+        # fall back to the blank style — say so here rather than at 404 time.
+        print("WARNING: no vector archive published yet; manifest is incomplete "
+              "until data/publish-basemap.sh runs for one", file=sys.stderr)
+else:
+    entry["attribution"] = "© OpenStreetMap contributors · Protomaps"
+    # Preserve the terrain entry across a vector publish.
+    entry_terrain = region.get("terrain")
+    if entry_terrain:
+        entry["terrain"] = entry_terrain
+    manifest["regions"]["wa"] = entry
+
+tmp = out + ".tmp"
+with open(tmp, "w") as fh:
+    json.dump(manifest, fh, indent=2, ensure_ascii=False)
+    fh.write("\n")
+os.replace(tmp, out)
+' "$KIND" "$BASEMAP_DIR/manifest.json" "$ARCHIVE" "$BYTES" "$MAXZOOM" "$BASEMAP_DIR/.meta.json.tmp"
+rm -f "$BASEMAP_DIR/.meta.json.tmp"
 
 # `regions` is keyed for a future multi-region world but has exactly one entry
 # today; no picker, no abstraction. See beeatlas-4mk.
 
-find "$BASEMAP_DIR" -maxdepth 1 -type f -name 'wa-*.pmtiles' \
+# Kind-scoped, so a vector publish cannot prune terrain archives or vice versa.
+find "$BASEMAP_DIR" -maxdepth 1 -type f "${PRUNE_MATCH[@]}" \
     ! -name "$ARCHIVE" -mtime "+$GRACE_DAYS" -delete
 
-echo "Published $ARCHIVE ($BYTES bytes); manifest updated."
+echo "Published $KIND archive $ARCHIVE ($BYTES bytes); manifest updated."
