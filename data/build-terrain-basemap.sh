@@ -45,9 +45,9 @@ BASE_DIR="${BASE_DIR:-/var/www/beeatlas.net}"
 STAGING_DIR="${STAGING_DIR:-$BASE_DIR/var/basemap-staging}"
 
 # PAIRED WITH src/basemap-style.ts's TERRAIN_FADE_END. The style fades the
-# hillshade to nothing by z13.5, so tiles above this zoom would never be drawn;
-# raising it here alone buys nothing but bytes, and raising the fade alone makes
-# the map worse. Each level costs ~4x the tiles. See beeatlas-8py.
+# hillshade to nothing by z15.0, and the DEM is already overzoomed well before
+# that; raising it here alone buys bytes, and raising the fade alone makes the
+# map worse. Each level costs ~4x the tiles. See beeatlas-8py.
 MAXZOOM="${MAXZOOM:-11}"
 REGION="$REPO_ROOT/data/basemap/wa.geojson"
 

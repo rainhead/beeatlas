@@ -19,7 +19,7 @@ pyramid, not a planet PMTiles we can range-request), different tile type (PNG,
 not MVT), and a different lifecycle: OSM changes weekly, the ground does not. It
 publishes independently and rolls back by removing one source and one layer.
 
-MAXZOOM IS THE WHOLE COST STORY. The display fades the hillshade out by z13.5
+MAXZOOM IS THE WHOLE COST STORY. The display fades the hillshade out by z15.0
 (see src/basemap-style.ts), so the DEM only ever renders at zooms where a z11
 pyramid is native or nearly so. Each extra zoom level roughly quadruples the tile
 count, so this is what keeps the artifact at 61 MB rather than the ~1 GB a z13
@@ -41,7 +41,8 @@ bbox is the whole region model here.
 TILES ARE REQUANTIZED TO WHOLE METRES ON THE WAY IN, and this is not an
 optimization detail — it is most of why the archive is shippable. Terrarium packs
 elevation as R*256 + G + B/256 - 32768, so the blue channel carries 1/256 m. At a
-z11 ground resolution of ~76 m/px that is pure noise, and being noise it is
+z11 ground resolution of ~52 m/px (at Washington's latitude) that is pure
+noise, and being noise it is
 exactly what PNG cannot compress: measured over a random 60-tile z11 sample, the
 raw tiles average 119.8 KB and rounding to the nearest metre takes them to 44.8 KB
 (37%), for a worst-case elevation error of 0.496 m. Rounding, not truncation —

@@ -102,7 +102,7 @@ cd data && uv run pytest
     OPTIONAL: no entry means no hillshade layer and an otherwise untouched
     basemap, which is what lets the data ship before the code. Two numbers are
     paired and must move together — `DEFAULT_MAXZOOM` (11) in `terrain_tiles.py`
-    and `TERRAIN_FADE_END` (13.5) in `src/basemap-style.ts`; the fade is what
+    and `TERRAIN_FADE_END` (15.0) in `src/basemap-style.ts`; the fade is what
     makes a cheap z11 DEM sufficient, because nothing renders above it. The
     layer sits under the `water` fill, NOT under the first symbol layer: the
     Protomaps theme interleaves fills and lines, so "under the labels" would

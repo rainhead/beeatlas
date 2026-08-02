@@ -293,7 +293,7 @@ const TERRAIN_MANIFEST: BasemapManifest = {
   },
 };
 
-type AnyLayer = { id: string; type: string; source?: string; paint?: Record<string, unknown> };
+type AnyLayer = { id: string; type: string; source?: string; maxzoom?: number; paint?: Record<string, unknown> };
 const layerIds = (s: StyleSpecification) => (s.layers as unknown as AnyLayer[]).map((l) => l.id);
 const hillshadeOf = (s: StyleSpecification) =>
   (s.layers as unknown as AnyLayer[]).find((l) => l.type === 'hillshade');
@@ -376,7 +376,19 @@ describe('hillshade — terrain present', () => {
     // TERRAIN_FADE_END, so nothing above z11 needs to exist. Paired with
     // DEFAULT_MAXZOOM in data/terrain_tiles.py.
     expect(TERRAIN_FADE_END).toBeGreaterThan(TERRAIN_FADE_START);
-    expect(TERRAIN_FADE_END).toBeLessThanOrEqual(13.5);
+    // The ramp spans at least a full zoom level: a shorter one reads as a step
+    // while pinching, which is what the 12.5->13.5 first cut got wrong.
+    expect(TERRAIN_FADE_END - TERRAIN_FADE_START).toBeGreaterThanOrEqual(1);
+    // And it ends while the DEM is still within a few levels of native. Past
+    // this the layer is a grey wash over the zooms where trails matter, which
+    // is the failure the fade exists to prevent.
+    expect(TERRAIN_FADE_END).toBeLessThanOrEqual(15);
+  });
+
+  test('the layer stops where the ramp reaches zero, so the DEM stops downloading', () => {
+    // Past the fade the layer draws nothing, but without a maxzoom MapLibre
+    // would keep fetching DEM tiles for it forever.
+    expect(hillshadeOf(style)!.maxzoom).toBe(TERRAIN_FADE_END);
   });
 
   test('adding terrain changes nothing else about the style', () => {

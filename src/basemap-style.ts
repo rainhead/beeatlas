@@ -104,18 +104,30 @@ export const TERRAIN_TILE_SIZE = 256;
  * faded to nothing.
  *
  * The fade is a legibility requirement, not a taste one. The DEM is native to
- * z11; overzoomed past ~z13 it stops adding information and starts subtracting
- * it — a broad grey wash that darkens the map exactly where the trail network,
- * which is the thing a volunteer is actually navigating by, needs contrast. It
- * also caps what the archive has to contain: because nothing renders above
- * TERRAIN_FADE_END, a z11 pyramid is native everywhere it is visible, which is
- * what keeps the artifact tens of megabytes instead of ~1.4 GB.
+ * z11 (~52 m/px at Washington's latitude); overzoomed far past that it stops
+ * adding information and starts subtracting it — a broad grey wash that darkens
+ * the map exactly where the trail network, which is the thing a volunteer is
+ * actually navigating by, needs contrast. It also caps what the archive has to
+ * contain: because nothing renders above TERRAIN_FADE_END, the DEM is near
+ * enough native everywhere it is visible, which is what keeps the artifact at
+ * 61 MB instead of the ~1 GB a z13 pyramid would cost.
+ *
+ * WHY THE RAMP IS TWO ZOOM LEVELS AND NOT ONE. The first cut faded 12.5 -> 13.5,
+ * and on a phone that read as both too early and too sudden: a single zoom level
+ * is a fast change while pinching, and it took the relief away while the terrain
+ * was still the thing you were looking at. Starting at 13.0 keeps full strength
+ * through the zoom where you are still reading landform, and ending at 15.0
+ * spreads the remainder over two levels so no pinch produces a visible step.
+ *
+ * The cost of that choice is ~22% strength at z14, where trails first matter
+ * most — deliberately accepted, and the thing to re-check if trails ever start
+ * reading muddy at z14.
  *
  * Paired with DEFAULT_MAXZOOM in data/terrain_tiles.py — moving either alone is
  * a mistake. See beeatlas-8py.
  */
-export const TERRAIN_FADE_START = 12.5;
-export const TERRAIN_FADE_END = 13.5;
+export const TERRAIN_FADE_START = 13.0;
+export const TERRAIN_FADE_END = 15.0;
 
 /** Full-strength exaggeration below TERRAIN_FADE_START. */
 export const TERRAIN_EXAGGERATION = 0.45;
@@ -205,6 +217,11 @@ function hillshadeLayer(): StyleLayer {
     id: 'field_hillshade',
     type: 'hillshade',
     source: TERRAIN_SOURCE,
+    // Stop the layer where the ramp already reached zero. Visually a no-op — but
+    // an invisible layer is still a LIVE one, and MapLibre keeps range-requesting
+    // DEM tiles for it at every zoom above the fade, paying for a hillshade
+    // nobody can see. On a phone on cellular that is the only cost that matters.
+    maxzoom: TERRAIN_FADE_END,
     paint: {
       'hillshade-exaggeration': [
         'interpolate', ['linear'], ['zoom'],
