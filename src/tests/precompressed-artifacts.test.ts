@@ -17,13 +17,15 @@
 // check) but it catches the specific way this broke: a list of MIME types that
 // someone reads as correct because the type they picture is the type they wrote.
 import { describe, test, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { brotliDecompressSync, gunzipSync } from 'node:zlib';
 // @ts-expect-error -- lib/*.js is plain ESM shared with the build scripts; no .d.ts
-import { compressedVariants, MIN_SAVING } from '../../lib/precompress.js';
+import { compressedVariants, MIN_SAVING, precompressedVariants } from '../../lib/precompress.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const read = (p: string) => readFileSync(resolve(ROOT, p), 'utf8');
@@ -133,5 +135,70 @@ describe('the vhost serves those siblings, under the original URL', () => {
     expect(vhost).toContain('Include /etc/apache2/beeatlas-compression.conf');
     expect(vhost).not.toContain('AddOutputFilterByType');
     expect(read('docs/runbooks/serve-from-maderas.md')).toContain('beeatlas-compression.conf');
+  });
+});
+
+// The third agreement, and the newest (stelis st-ljy): the bytes are produced by a
+// stelis graph node — once per data change — and merely COPIED at publish. Two halves
+// again, in two repos this time, and again neither can observe the other: the writer is
+// invoked by a Racket graph and the reader is this repo's publish step.
+describe('the compressed bytes are produced ahead of the publish, not during it', () => {
+  const compressibleDb = Buffer.from('SQLite format 3\0' + 'a,b,c,1,2,3;'.repeat(50_000));
+
+  /** A data dir with `names` in it, as EXPORT_DIR would be after a stelis build. */
+  function dataDirWith(names: string[]) {
+    const dir = mkdtempSync(join(tmpdir(), 'precompress-'));
+    for (const name of names) writeFileSync(join(dir, name), compressibleDb);
+    return dir;
+  }
+
+  const runWriter = (dir: string, ...sources: string[]) =>
+    execFileSync(process.execPath, [resolve(ROOT, 'scripts/precompress-artifacts.mjs'), ...sources],
+      // stderr captured, not inherited: the missing-artifact case below is SUPPOSED to
+      // print one, and a passing suite should not look like something went wrong.
+      { env: { ...process.env, EXPORT_DIR: dir }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+
+  test('the writer puts them where the reader looks, and they round-trip', () => {
+    // The one fact the two halves share is precompressedPath. If it ever disagreed,
+    // nothing would fail — the publish would quietly fall back to compressing, which
+    // is the outcome this whole node exists to avoid, and it costs seconds not errors.
+    const dir = dataDirWith(['fake.db']);
+    runWriter(dir, 'fake.db');
+
+    const found = precompressedVariants(dir, 'fake.db');
+    expect(found.map((v: { suffix: string }) => v.suffix)).toEqual(['.br', '.gz']);
+    expect(brotliDecompressSync(readFileSync(found[0]!.path)).equals(compressibleDb)).toBe(true);
+    expect(gunzipSync(readFileSync(found[1]!.path)).equals(compressibleDb)).toBe(true);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test('it prunes siblings of artifacts it was not asked for', () => {
+    // The directory is a SET with one producer, and stelis content-addresses it as a
+    // tree. A leftover sibling would be published under a hashed name whose bytes
+    // nothing produces any more — and would keep the tree digest moving besides.
+    const dir = dataDirWith(['fake.db', 'retired.json']);
+    runWriter(dir, 'fake.db', 'retired.json');
+    expect(precompressedVariants(dir, 'retired.json')).toHaveLength(2);
+
+    runWriter(dir, 'fake.db');
+    expect(precompressedVariants(dir, 'retired.json')).toEqual([]);
+    expect(precompressedVariants(dir, 'fake.db')).toHaveLength(2);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test('a missing artifact is fatal, not a quietly uncompressed publish', () => {
+    const dir = dataDirWith([]);
+    expect(() => runWriter(dir, 'never-built.db')).toThrow();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test('postbuild-data prefers them, and still compresses what it derives itself', () => {
+    const src = read('scripts/postbuild-data.mjs');
+    expect(src).toContain('precompressedVariants');
+    // The copy loop passes the SOURCE name (the sibling is named for the uncompressed
+    // artifact, not its hashed publish name); taxon_pages, derived in this script from
+    // this build, has no source and must keep compressing in-process.
+    expect(src).toContain('writeVariants(hashedName, content, source)');
+    expect(src).toContain('writeVariants(hashedName, body)');
   });
 });

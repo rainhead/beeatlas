@@ -1,6 +1,8 @@
 # ADR 0024: The database is compressed by the build, not by the server
 
 **Status:** Accepted (implemented 2026-08-02; issue beeatlas-tb8)
+**Amended:** 2026-08-02 — *which build* writes them (stelis st-ljy); see the amendment
+at the end.
 
 ---
 
@@ -103,3 +105,51 @@ position a progress bar; the per-asset estimate already there is enough.
 part of the artifact's identity, so the SW cache, the manifest and every consumer would
 have to agree about which one they mean. `Accept-Encoding` is the mechanism that exists
 for this, and it degrades on its own.
+
+---
+
+## Amendment, 2026-08-02: the data build compresses; the publish copies
+
+*(stelis st-ljy, the other half of beeatlas-tb8)*
+
+The decision above is unchanged — compression is a build output, and the hash is of the
+uncompressed source. What was wrong was *which* build.
+
+`scripts/postbuild-data.mjs` is the right place for the **decision** and the wrong place
+for the **work**. It runs on `postbuild` and on `build:content`, and `build:content` is
+the note-publish path: ADR 0017 reruns the site build synchronously while an HTTP writer
+waits out a 300 s timeout. It also rebuilds `_site/data` wholesale with no cache. So the
+~2.9 s this ADR booked as a per-publish cost was being paid on **every note write**, to
+recompress a database that changes once a night.
+
+Compressing an immutable, content-hashed artifact is a pure function of that artifact,
+which is precisely what stelis's graph edges are for. So:
+
+- **`scripts/precompress-artifacts.mjs`** writes `<data dir>/compressed/<source>.br|.gz`
+  for the artifacts named on argv. It is a stelis node (`precompress`) whose inputs are
+  the artifacts themselves, so early cutoff runs it when the *data* moves. It always
+  compresses what it is told — the caching is the graph's job, and a
+  "is the sibling newer" check here would be the fourth hand-rolled cache in this repo.
+- **`postbuild-data.mjs`** prefers those bytes and copies them to the hashed names.
+  Compressing in-process stays the fallback for a dev build, a `pull-published` docroot,
+  and `taxon_pages`, which this script derives from this build and no graph node can know.
+
+Measured on the real 33.8 MB database: the publish step goes from **2.75 s to 0.15 s**,
+and the compressed bytes are byte-identical either way.
+
+**Which artifacts is stelis's to say, not this script's.** The writer could import
+`RUNTIME_ARTIFACTS` itself, and the two would agree until they didn't — at which point
+the node's output directory would change without any *declared input* changing, which is
+the shape of a wrong cache skip. Taking the list from the caller makes the graph edge
+authoritative, and turns drift into "postbuild compresses that one in-process": slow and
+correct, rather than fast and stale.
+
+**`compressed/` is a set with one producer.** The writer prunes anything it did not just
+write, so a retired artifact cannot leave a sibling to be published under a name nothing
+produces any more — and stelis content-addresses the directory as a tree, so a stray file
+would keep the digest moving besides.
+
+**The node version is part of the answer.** gzip -9 of the same 33.8 MB database is
+5,208,681 bytes under node 24.18 and 5,203,283 under node 26. Both are valid gzip and
+decode identically, so nothing breaks — but the bytes change for a reason a build cache
+cannot see unless it is told, which is why the stelis recipe hashes `.nvmrc` as task code.

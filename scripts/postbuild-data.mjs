@@ -17,6 +17,8 @@
  * infra/maderas/beeatlas-compression.conf, docs/adr/0024). The manifest does not
  * mention them and the client never asks for one by name: the hash is of the
  * UNCOMPRESSED source either way, so the URL keeps meaning the same bytes.
+ * Their BYTES are copied from `<data dir>/compressed/` when stelis's `precompress`
+ * node has produced them, and compressed here only as a fallback — see writeVariants.
  *
  * generated_at: the data dir's `generated_at` stamp (epoch seconds, written by
  * scripts/fetch-data.sh on a full pipeline run) as ISO-8601; absent = the dev
@@ -45,12 +47,12 @@
 
 import { createHash } from 'node:crypto';
 import { execSync } from 'node:child_process';
-import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, dirname, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDataDir } from '../lib/build-data-dir.js';
 import { readGeneratedAt } from '../lib/data-freshness.js';
-import { compressedVariants } from '../lib/precompress.js';
+import { compressedVariants, precompressedVariants } from '../lib/precompress.js';
 import { RUNTIME_ARTIFACTS } from '../lib/runtime-artifacts.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -93,8 +95,26 @@ mkdirSync(outDir, { recursive: true });
  * Write the pre-compressed siblings for one published artifact and describe them for
  * the log — the only place the size that matters (what a reader actually downloads) is
  * visible, since the manifest and the filename both talk about the original.
+ *
+ * A COPY when the bytes already exist (stelis st-ljy). Compressing here is ~2.9 s, and
+ * this script runs on `build:content` — the note-publish path, which reruns the site
+ * build synchronously while an HTTP writer waits out a 300 s timeout (ADR 0017) — for a
+ * database that changes once a night. Stelis's `precompress` node produces the siblings
+ * when the DATA moves and leaves them in the data dir; this prefers them.
+ *
+ * Compressing in-process stays the fallback, not a legacy path: a dev build, a
+ * `npm run pull-published` docroot, and any artifact the graph does not name (taxon_pages
+ * is derived below, from this build) all have no precomputed sibling and must still be
+ * published compressed. `source` is undefined for those.
  */
-function writeVariants(hashedName, content) {
+function writeVariants(hashedName, content, source) {
+  const precomputed = source ? precompressedVariants(dataDir, source) : [];
+  if (precomputed.length > 0) {
+    return precomputed.map(({ suffix, path }) => {
+      copyFileSync(path, join(outDir, hashedName + suffix));
+      return `${suffix.slice(1)} ${statSync(path).size.toLocaleString()} (precompressed)`;
+    });
+  }
   return compressedVariants(content).map(({ suffix, body }) => {
     writeFileSync(join(outDir, hashedName + suffix), body);
     return `${suffix.slice(1)} ${body.length.toLocaleString()}`;
@@ -116,7 +136,7 @@ for (const [key, { source, basename }] of Object.entries(RUNTIME_ARTIFACTS)) {
   const hashedName = `${basename}-${hash}${extname(source)}`;
   copyFileSync(srcPath, join(outDir, hashedName));
   manifest[key] = hashedName;
-  const variants = writeVariants(hashedName, content);
+  const variants = writeVariants(hashedName, content, source);
   const sizes = [`${content.length.toLocaleString()} bytes`, ...variants].join('; ');
   console.log(`  ${key}: ${source} -> data/${hashedName} (${sizes})`);
 }
