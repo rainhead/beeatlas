@@ -12,6 +12,12 @@
  * time a reader can see it. Hashed names are immutable — the serving layer
  * gives them long-lived cache headers; manifest.json is served no-cache.
  *
+ * Each hashed artifact also gets pre-compressed `.br` / `.gz` siblings, which the
+ * serving layer hands back under the artifact's own URL (lib/precompress.js,
+ * infra/maderas/beeatlas-compression.conf, docs/adr/0024). The manifest does not
+ * mention them and the client never asks for one by name: the hash is of the
+ * UNCOMPRESSED source either way, so the URL keeps meaning the same bytes.
+ *
  * generated_at: the data dir's `generated_at` stamp (epoch seconds, written by
  * scripts/fetch-data.sh on a full pipeline run) as ISO-8601; absent = the dev
  * sentinel "local", which the client's freshness label treats as unparseable
@@ -44,6 +50,7 @@ import { join, dirname, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDataDir } from '../lib/build-data-dir.js';
 import { readGeneratedAt } from '../lib/data-freshness.js';
+import { compressedVariants } from '../lib/precompress.js';
 import { RUNTIME_ARTIFACTS } from '../lib/runtime-artifacts.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -82,6 +89,18 @@ const outDir = join(ROOT, '_site', 'data');
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 
+/**
+ * Write the pre-compressed siblings for one published artifact and describe them for
+ * the log — the only place the size that matters (what a reader actually downloads) is
+ * visible, since the manifest and the filename both talk about the original.
+ */
+function writeVariants(hashedName, content) {
+  return compressedVariants(content).map(({ suffix, body }) => {
+    writeFileSync(join(outDir, hashedName + suffix), body);
+    return `${suffix.slice(1)} ${body.length.toLocaleString()}`;
+  });
+}
+
 const manifest = {};
 const missing = [];
 for (const [key, { source, basename }] of Object.entries(RUNTIME_ARTIFACTS)) {
@@ -97,7 +116,9 @@ for (const [key, { source, basename }] of Object.entries(RUNTIME_ARTIFACTS)) {
   const hashedName = `${basename}-${hash}${extname(source)}`;
   copyFileSync(srcPath, join(outDir, hashedName));
   manifest[key] = hashedName;
-  console.log(`  ${key}: ${source} -> data/${hashedName} (${content.length.toLocaleString()} bytes)`);
+  const variants = writeVariants(hashedName, content);
+  const sizes = [`${content.length.toLocaleString()} bytes`, ...variants].join('; ');
+  console.log(`  ${key}: ${source} -> data/${hashedName} (${sizes})`);
 }
 
 if (missing.length > 0) {
@@ -126,7 +147,8 @@ try {
   const hashedName = `taxon_pages-${hash}.json`;
   writeFileSync(join(outDir, hashedName), body);
   manifest.taxon_pages = hashedName;
-  console.log(`  taxon_pages: ${Object.keys(speciesData.taxonPages).length} taxa -> data/${hashedName} (${body.length.toLocaleString()} bytes)`);
+  const sizes = [`${body.length.toLocaleString()} bytes`, ...writeVariants(hashedName, body)].join('; ');
+  console.log(`  taxon_pages: ${Object.keys(speciesData.taxonPages).length} taxa -> data/${hashedName} (${sizes})`);
 } catch (err) {
   console.warn(`! taxon_pages: not derived (${err.message}) — the taxa pane will render names as plain text`);
 }

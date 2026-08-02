@@ -252,3 +252,55 @@ an `--exclude` a later edit could drop.
 Protomaps daily build plus `data/basemap/wa.geojson` and
 `data/build-basemap.sh` — both in git. Those two files *are* the backup; adding
 227 MB per refresh to the backup buckets would buy nothing.
+
+## 10. Compression (one-time, sudo — beeatlas-tb8)
+
+What gets compressed on the way out lives in one file,
+[`infra/maderas/beeatlas-compression.conf`](../../infra/maderas/beeatlas-compression.conf),
+Included from **both** vhosts — the same shape as §8, and for the same reason:
+the `-le-ssl` clone is generated on this host, carries no Include lines of its
+own, and serves essentially all real traffic. When these rules were inline, the
+`:443` copy had already drifted from the tracked `:80` one.
+
+Install it and the vhost that Includes it:
+
+```sh
+sudo cp ~/dev/beeatlas/infra/maderas/beeatlas-compression.conf /etc/apache2/
+sudo cp ~/dev/beeatlas/infra/maderas/beeatlas.net.conf /etc/apache2/sites-available/
+
+# same idempotent add for certbot's clone as §8's redirects line
+grep -q beeatlas-compression /etc/apache2/sites-available/beeatlas.net-le-ssl.conf \
+  || sudo sed -i 's|^</VirtualHost>|    Include /etc/apache2/beeatlas-compression.conf\n</VirtualHost>|' \
+       /etc/apache2/sites-available/beeatlas.net-le-ssl.conf
+
+sudo apachectl configtest && sudo systemctl reload apache2
+```
+
+Order does not matter: the pre-compressed `.br`/`.gz` siblings are produced by
+the site build (`scripts/postbuild-data.mjs`), and the rules test for the file
+before using it, so this can be installed before or after the first build that
+writes them — the interim behaviour is exactly today's.
+
+Verify. The first two are the point of the exercise; the third is the one that
+would be silently wrong if `.gz` were served as its own content type:
+
+```sh
+DB=$(curl -s https://beeatlas.net/data/manifest.json | sed -n 's/.*"occurrences_db": "\([^"]*\)".*/\1/p')
+
+# ~4 MB with `content-encoding: br`, not ~34 MB — this is the whole 27 MB
+curl -so /dev/null -H 'Accept-Encoding: br' -w '%{size_download} %{content_type}\n' \
+  "https://beeatlas.net/data/$DB"
+# a client that accepts neither still gets a working database, uncompressed
+curl -so /dev/null -w '%{size_download}\n' "https://beeatlas.net/data/$DB"
+
+# every .js on the page must say `content-encoding: gzip` (this is what broke)
+curl -sI --compressed https://beeatlas.net/assets/$(
+  curl -s https://beeatlas.net/app/index.html | sed -n 's|.*/assets/\([^"]*\.js\)".*|\1|p' | head -1
+) | grep -Ei 'HTTP|content-type|content-encoding|vary'
+```
+
+**Measure at the server, not in the browser.** The database is fetched inside
+the SQLite Web Worker, so it never appears in the page's Resource Timing — a
+cold load measured from `performance.getEntriesByType('resource')` omits the
+largest item by an order of magnitude and reads as ~5 MB. Byte-count the access
+log (`%b` is the response body size) or use `curl` as above.

@@ -8,6 +8,7 @@ Reusable lessons distilled from BeeAtlas's milestone retrospectives (v1.0–v8.0
 - **An adversarial code-review gate catches what a green suite can't.** Integration regressions that every unit test passes through are the ones a skeptical review pass finds. Keep the review gate even when CI is green.
 - **Stale derived data lies in local UAT.** If your local artifacts are old, the page you're testing is not the page users see. Refresh derived data before trusting a manual check.
 - **Audit before "complete."** A milestone-close audit catches gaps a per-phase check misses — notably S3-upload gaps where the build passed but the artifact never published.
+- **Measure page weight at the server, not in the page.** Anything fetched from a Web Worker never enters the page's Resource Timing: a cold load measured with `performance.getEntriesByType('resource')` read as ~5 MB while the server was sending 37 MB, because the 32 MB database is fetched inside the SQLite worker ([ADR 0024](adr/0024-compression-is-a-build-artifact.md)). Byte-count the access log.
 
 ## Data & contracts
 
@@ -20,4 +21,6 @@ Reusable lessons distilled from BeeAtlas's milestone retrospectives (v1.0–v8.0
 ## Delivery & platform
 
 - **Internal links must end in `index.html`.** CloudFront + OAC has no directory-index behavior; a link to `/foo/` 404s. Emit `/foo/index.html`.
+- **A config list of MIME types is only as right as the names in it.** `AddOutputFilterByType DEFLATE … application/javascript` looks correct and does nothing, because Apache serves `.js` as `text/javascript` — while the `text/css` beside it works, which is what makes the file read as fine. Check the name the server actually assigns (`/etc/mime.types`), and note that a per-vhost list *replaces* the global one rather than adding to it.
+- **When you delete a serving layer, inventory what it was doing for you.** Both halves of the 37 MB cold load were solved before and were deleted as incidental parts of larger removals — CloudFront's auto-compression with the distribution, `_upload_hashed_gz` with the S3 upload legs ([ADR 0024](adr/0024-compression-is-a-build-artifact.md)). Neither removal was wrong; neither noticed it was carrying a second responsibility, and nothing failed when it stopped.
 - **Target the slower browser** in any performance criterion — Firefox's WASM JIT runs ~2× slower than V8, so "fast in Chrome" is not the bar (see [ADR 0004](adr/0004-prebuilt-sqlite-artifact.md)).

@@ -31,13 +31,35 @@ const STORAGE_KEY = 'beeatlas-prime-total-bytes';
 const ASSET_KEYS = ['occurrences_db', 'counties', 'ecoregions', 'places'] as const;
 type AssetKey = typeof ASSET_KEYS[number];
 
-/** Per-asset fallback byte estimates when Content-Length header is absent (RESEARCH Pitfall 2). */
+/**
+ * Per-asset fallback byte estimates when Content-Length is absent or unusable
+ * (RESEARCH Pitfall 2). UNCOMPRESSED sizes — see decodedLength below — and only ever a
+ * progress denominator, so being roughly right is the whole requirement.
+ */
 const FALLBACK_BYTES: Record<AssetKey, number> = {
-  occurrences_db: 23_000_000,
+  occurrences_db: 33_000_000,
   counties: 3_000_000,
   ecoregions: 2_000_000,
   places: 200_000,
 };
+
+/**
+ * How many bytes this response will yield to the reader loop below.
+ *
+ * Content-Length counts the bytes ON THE WIRE, but fetch hands JS the DECODED body, so
+ * for a Content-Encoding'd response the two disagree by the compression ratio — and
+ * since beeatlas-tb8 the data artifacts are served pre-compressed, that is now the
+ * normal case rather than an exotic one. Taken at face value the database alone would
+ * report 33 MB received against a 4 MB total and drive the progress bar to 800%.
+ *
+ * The estimate is the honest answer here: the decoded length is genuinely not in the
+ * response, and every alternative (a size in the manifest, a HEAD of the identity
+ * representation) buys precision in a number that only positions a progress bar.
+ */
+function decodedLength(headers: Headers, fallback: number): number {
+  if (headers.get('content-encoding')) return fallback;
+  return Number(headers.get('content-length')) || fallback;
+}
 
 /** Throttle progress events to ~every 100 KB (D-discretion). */
 const REPORT_EVERY = 100_000;
@@ -98,7 +120,9 @@ async function primeAsset(
   // Cache-as-truth: skip if already cached (resumability — RESEARCH Pitfall 3)
   const cached = await caches.match(url, { cacheName: CACHE_NAME });
   if (cached) {
-    const cachedLength = Number(cached.headers.get('content-length')) || FALLBACK_BYTES[key];
+    // Cache Storage keeps the response's headers as they arrived while storing the
+    // decoded body, so a cached artifact needs the same reading as a live one.
+    const cachedLength = decodedLength(cached.headers, FALLBACK_BYTES[key]);
     runState.received += cachedLength;
     onProgress(url, runState.received, runState.total);
     return;
@@ -123,7 +147,7 @@ async function primeAsset(
   // what lands in Cache Storage. The body must not be consumed again after this
   // reader loop — it will be fully drained.
   const assetFallback = FALLBACK_BYTES[key];
-  const assetTotal = Number(res.headers.get('content-length')) || assetFallback;
+  const assetTotal = decodedLength(res.headers, assetFallback);
   // Reconcile total: replace the fallback estimate with the discovered size
   runState.total = runState.total - FALLBACK_BYTES[key] + assetTotal;
 
