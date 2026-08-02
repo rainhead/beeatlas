@@ -27,7 +27,7 @@
     "validate": "npm run validate-species && npm run validate-db && npm run typecheck",
     "build": "npm run validate && npm run build:app && eleventy && npm run build:sw && npm run validate-bundle-size",
     "build:app": "node scripts/build-app.mjs",
-    "build:bundle": "vite build",
+    "build:bundle": "vite build && node scripts/finish-bundle.mjs",
     "build:sw": "vite build -c vite.sw.config.ts",
     "build:content": "npm run validate && eleventy && node scripts/postbuild-data.mjs",
     "postbuild": "node scripts/postbuild-data.mjs && node scripts/build-receipt.mjs --write",

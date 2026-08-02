@@ -48,12 +48,11 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, uti
 import { join, relative, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MANIFEST_PATH } from '../lib/vite-manifest.js';
-import { manifestAssetPaths, unnamedAssetPaths } from '../lib/bundle-assets.js';
+import { finishBundle, manifestAssets } from './finish-bundle.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BUNDLE_RECEIPT = join(ROOT, '.cache', 'beeatlas-build', 'bundle.json');
 const SITE = join(ROOT, '_site');
-const ASSETS = join(SITE, 'assets');
 
 // Everything the bundle is a function of. package-lock.json is here — unlike in the
 // site receipt, where it is deliberately absent — because here it is a direct input:
@@ -90,14 +89,6 @@ function fingerprint() {
   return h.digest('hex').slice(0, 16);
 }
 
-/** Every file the manifest claims the bundle produced, as _site-relative paths.
- *
- * Read fresh each call rather than through lib/vite-manifest.js's loadManifest, which
- * caches per process: this runs both BEFORE and AFTER `vite build`, and a cached read
- * would describe the pre-build manifest in the receipt we then write. */
-function manifestAssets() {
-  return manifestAssetPaths(JSON.parse(readFileSync(join(ROOT, MANIFEST_PATH), 'utf8')));
-}
 
 /** Why we must rebuild, or null to reuse what is on disk. */
 function reasonToRebuild(want) {
@@ -136,60 +127,8 @@ function cleanExceptAssets() {
   return removed;
 }
 
-/** Delete anything in assets/ the manifest does not name, so the reused directory is
- * exactly what Vite would have emitted rather than merely a superset of it. Without
- * this the presence check is one-directional (manifest ⊆ disk) and a stray file would
- * survive every skipped build, get precached by the service worker's assets/** glob,
- * and be published — the unbounded dead-chunk accumulation ADR 0016 fixed once. */
-function pruneUnnamedAssets(named) {
-  if (!existsSync(ASSETS)) return 0;
-  // walk gives FULL assets/-relative paths, so a nested chunk is compared as
-  // 'species/index-x.js' rather than as the directory 'species' — see
-  // lib/bundle-assets.js for why that distinction is load-bearing.
-  const unnamed = unnamedAssetPaths(named, walk(ASSETS, ASSETS));
-  for (const rel of unnamed) rmSync(join(ASSETS, rel), { force: true });
-  // ...and remove any directory left empty, because an empty one is NOT inert.
-  // scripts/validate-bundle-size.mjs tests `existsSync(_site/assets/species/)` FIRST
-  // and only falls back to the flat `species-*.js` shape when that directory is absent
-  // — so an emptied `species/` sends it down the nested branch, where it finds no
-  // chunks and fails the build. Vite would have left no such directory behind.
-  pruneEmptyDirs(ASSETS);
-  return unnamed.length;
-}
 
-/** Depth-first removal of empty directories under `dir` (never `dir` itself). */
-function pruneEmptyDirs(dir) {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    const child = join(dir, entry.name);
-    pruneEmptyDirs(child);
-    if (readdirSync(child).length === 0) rmSync(child, { recursive: true, force: true });
-  }
-}
 
-/** Mark the reused assets as part of THIS publish.
- *
- * data/merge-swap.sh does not --delete assets (a cached page may still reference last
- * publish's hashed names); it age-prunes them instead, and its header states the
- * assumption that makes that safe: "new URLs each publish, so nothing stale is ever
- * re-served under a current name". Every real `vite build` rewrote these files, so
- * anything still referenced was always younger than a day and only dead names aged out.
- *
- * Reusing the bundle breaks precisely that. `rsync -a` preserves mtimes, so the served
- * copies would keep aging while remaining live, and after 30 days of skipped builds the
- * prune would delete the entire bundle out from under pages that reference it — nightly,
- * with a green build and a healthy ping, and invisible to every local check because
- * `_site` is intact. Touching them restores the invariant the prune relies on: these
- * files ARE part of this publish, so they should look it. */
-function refreshAssetMtimes() {
-  const now = new Date();
-  let touched = 0;
-  for (const rel of walk(ASSETS, ASSETS)) {
-    utimesSync(join(ASSETS, rel), now, now);
-    touched += 1;
-  }
-  return touched;
-}
 
 const want = fingerprint();
 const why = reasonToRebuild(want);
@@ -213,15 +152,14 @@ if (why) {
   console.log('build:app — reusing the bundle: inputs unchanged, every named asset present');
 }
 
-// 2. Always prune, and always against the manifest as it stands NOW — which is the
-//    one Vite just wrote when it ran, and the stashed one when it did not. This is
-//    the step that removes stale chunks; with emptyOutDir off, the Vite path needs
-//    it just as much as the skip path does.
-const named = manifestAssets();
-const pruned = pruneUnnamedAssets(named);
-const touched = refreshAssetMtimes();
+// 2. Make assets/ exactly the manifest. `npm run build:bundle` already did this
+//    on the rebuild path (it ends in finish-bundle.mjs), so this call is for the
+//    REUSE path — where nothing was emitted and a stray file would otherwise
+//    survive forever. It is idempotent, so running it on both paths would be
+//    correct too; calling it here keeps one statement instead of two branches.
+const { named, pruned, touched } = finishBundle();
 console.log(
-  `build:app — ${named.length} asset(s) named by the manifest; ` +
+  `build:app — ${named} asset(s) named by the manifest; ` +
   `cleaned ${removed} entr${removed === 1 ? 'y' : 'ies'} from _site, ` +
   `pruned ${pruned} unnamed, refreshed ${touched} mtime(s) so merge-swap's age-prune spares them`,
 );

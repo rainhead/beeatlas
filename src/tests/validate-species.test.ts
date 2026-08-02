@@ -175,7 +175,7 @@ ordering = 1
     // hoisted out, because on a skip it also performs the cleaning that Vite's
     // emptyOutDir would have done — without it a full build stops deleting from _site.
     expect(pkg.scripts['build:app']).toBe('node scripts/build-app.mjs');
-    expect(pkg.scripts['build:bundle']).toBe('vite build');
+    expect(pkg.scripts['build:bundle']).toBe('vite build && node scripts/finish-bundle.mjs');
     expect(pkg.scripts['build:sw']).toBe('vite build -c vite.sw.config.ts');
     // Model Y: the postbuild lifecycle hashes the runtime data artifacts into
     // _site/data and writes the slim manifest (scripts/postbuild-data.mjs), then
@@ -208,20 +208,39 @@ ordering = 1
   test('the bundle gate wraps vite rather than replacing it', () => {
     const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
     // The gate shells build:bundle on a rebuild, so removing that script breaks it.
-    expect(pkg.scripts['build:bundle']).toBe('vite build');
+    expect(pkg.scripts['build:bundle']).toBe('vite build && node scripts/finish-bundle.mjs');
     const gate = readFileSync(resolve(REPO_ROOT, 'scripts/build-app.mjs'), 'utf-8');
     expect(gate).toContain('build:bundle');
-    // The two side effects of `vite build` that a skip has to impersonate: cleaning
-    // _site (without it a full build stops deleting anything, and a page dropped from
-    // the data lives forever, since merge-swap rsyncs pages with --delete), and
-    // refreshing the reused assets' mtimes (without that merge-swap's `-mtime +30`
-    // prune eventually deletes the live bundle). Both per ADR 0019.
+    // Cleaning _site stays with the GATE, because it is a whole-site concern, not a
+    // bundle one: without it a full build stops deleting anything, and a page dropped
+    // from the data lives forever, since merge-swap rsyncs pages with --delete.
     expect(gate).toMatch(/cleanExceptAssets\(\)/);
-    expect(gate).toMatch(/refreshAssetMtimes\(\)/);
+    // Everything that makes assets/ *correct* moved to finish-bundle.mjs (beeatlas-8df),
+    // so that PRODUCING the bundle and DECIDING whether to produce it are separate
+    // jobs — the decision is a cache question and is moving to Stelis (st-hdm). The
+    // gate must still reach it on the reuse path, where Vite never ran.
+    expect(gate).toMatch(/finishBundle\(\)/);
+  });
+
+  // The finishing step's structural properties. Its delete decision — which files it
+  // removes — is asserted behaviourally in src/tests/bundle-assets.test.ts; what is
+  // pinned here is what that behaviour depends on structurally, and nothing more.
+  test('finish-bundle makes assets/ exactly the manifest, and looks fresh', () => {
+    const finish = readFileSync(resolve(REPO_ROOT, 'scripts/finish-bundle.mjs'), 'utf-8');
+    // Refreshing the reused assets' mtimes: without it merge-swap's `-mtime +30` prune
+    // eventually deletes the live bundle out from under the pages referencing it
+    // (ADR 0019). It has to run on the reuse path, which is why it is here and not
+    // behind the `vite build` that no longer happens.
+    expect(finish).toMatch(/refreshAssetMtimes\(\)/);
     // And it must not leave an emptied directory behind: validate-bundle-size checks
     // existsSync(_site/assets/species/) BEFORE falling back to the flat species-*.js
     // shape, so an empty species/ sends it down a branch with no chunks in it and fails
     // the build. Vite would have left no such directory.
-    expect(gate).toMatch(/pruneEmptyDirs\(ASSETS\)/);
+    expect(finish).toMatch(/pruneEmptyDirs\(ASSETS\)/);
+    // It must run after a REAL vite build too, not just a reuse: since beeatlas-8df
+    // Vite no longer empties _site, so a rebuild leaves the old hashed chunk beside
+    // the new one and vite-plugin-pwa's glob would precache both.
+    const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
+    expect(pkg.scripts['build:bundle']).toMatch(/vite build && node scripts\/finish-bundle\.mjs/);
   });
 });
