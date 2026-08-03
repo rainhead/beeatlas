@@ -34,11 +34,33 @@ async function registerServiceWorker(): Promise<void> {
   // wb.messageSkipWaiting() to post {type:'SKIP_WAITING'} to the waiting SW.
   (window as Window & { __wb?: Workbox }).__wb = wb;
 
-  try {
-    await wb.register();
-  } catch (err) {
-    console.error('[SW] Registration failed:', err);
+  // register() triggers an UPDATE CHECK: the browser re-fetches /app/sw.js to
+  // byte-compare it. The service worker is deliberately never precached (a worker
+  // caching itself is how you strand a device on a broken version), so offline
+  // that fetch cannot be served — and on iOS a failed request inside an installed
+  // app raises the system "Turn On Wi-Fi to Use the Internet" modal, over a map
+  // that is working perfectly from cache.
+  //
+  // Offline there is nothing to gain: the active worker is already controlling
+  // this page, and an update cannot be downloaded anyway. So defer registration
+  // to the 'online' event, where it does something.
+  //
+  // This does not disable updates — it moves them to the moment they can succeed.
+  // Note the browser may still run its own soft update check on navigation; this
+  // removes the one WE ask for.
+  const register = async () => {
+    try {
+      await wb.register();
+    } catch (err) {
+      console.error('[SW] Registration failed:', err);
+    }
+  };
+
+  if (navigator.onLine === false) {
+    window.addEventListener('online', () => { void register(); }, { once: true });
+    return;
   }
+  await register();
 }
 
 registerServiceWorker();

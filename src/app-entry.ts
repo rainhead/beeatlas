@@ -6,6 +6,10 @@
 // Prime orchestrator (CACHE-01/02/04 in Phase 150) is imported as a side-effect module —
 // it owns the cold-start cache prime + cache probe + 'online' re-prime listener.
 // See prime-orchestrator.ts and CONTEXT D-02 (Phase 150-03).
+// FIRST: module side effects run in import order, and some modules fetch as they
+// initialise. Wrapping fetch after them would miss exactly the requests we are
+// hunting (beeatlas-c8v).
+import './net-log.ts';
 import './bee-atlas.ts';
 import './sw-registration.ts';
 import './prime-orchestrator.ts';

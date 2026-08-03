@@ -21,6 +21,7 @@
  */
 
 import { archiveReadStats } from './basemap-cache.ts';
+import { netAttempts, browserLoadedResources } from './net-log.ts';
 
 const PARAM = 'diag';
 
@@ -219,6 +220,28 @@ export async function collectDiagnostics(): Promise<string> {
       return `${feats ?? 'NOT LOADED'} features; layers ${layer ? 'present' : 'MISSING'}; ${rendered}`;
     }));
   }
+  add('');
+
+  // --- Who actually touched the network. Recorded rather than reasoned about:
+  // every previous round of this hunt eliminated one suspect by reading code and
+  // the nag survived. On iOS each failed request can raise the system "Turn On
+  // Wi-Fi" modal, so anything marked FAILED here is a candidate.
+  add('— network attempts (app) —');
+  add(await probe('fetch/xhr', () => {
+    if (netAttempts.length === 0) return 'none';
+    return netAttempts
+      .map((a) => `\n    ${a.outcome === 'ok' ? '   ' : '>> '}${a.at}ms ${a.outcome}  ${a.url.replace(location.origin, '')}`)
+      .join('');
+  }));
+  add(await probe('browser-loaded (suspect only)', () => {
+    // Loads no JS initiated — the webmanifest, icons, images. A zero-byte
+    // transfer AND zero-length body AND zero duration is the failure signature;
+    // a cache hit reports a decoded size.
+    const suspect = browserLoadedResources().filter((r) => r.suspect);
+    return suspect.length === 0
+      ? `none (${browserLoadedResources().length} resources seen)`
+      : suspect.map((r) => `\n    ${r.kind}  ${r.url.replace(location.origin, '')}`).join('');
+  }));
   add('');
   add(await probe('userAgent', () => navigator.userAgent));
 
