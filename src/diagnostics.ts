@@ -158,22 +158,23 @@ export async function collectDiagnostics(): Promise<string> {
 }
 
 /**
- * Mount the panel when `?diag=1` is present. The app still runs underneath — map
- * state is part of the report, so the report cannot replace the app.
+ * Open the panel now. This is the path that matters: an installed PWA has no
+ * address bar, so `?diag=1` cannot be typed on the device where the offline
+ * failures actually happen — and a link tapped from Safari opens in Safari's
+ * SEPARATE storage bucket, which reports the wrong state entirely. The account
+ * menu's Diagnostics row calls this.
+ *
+ * `delayMs` exists only for the URL-parameter path, where the map has not
+ * resolved a style yet; opened from the menu the app is already up.
  */
-export function installDiagnosticsPanel(): void {
-  try {
-    if (new URLSearchParams(location.search).get(PARAM) !== '1') return;
-  } catch {
-    return;
-  }
-
+export function openDiagnostics(delayMs = 0): void {
   const render = async (pre: HTMLPreElement) => {
     pre.textContent = 'collecting…';
     pre.textContent = await collectDiagnostics();
   };
 
   const mount = () => {
+    if (document.querySelector('[data-beeatlas-diagnostics]')) return;
     const host = document.createElement('div');
     host.setAttribute('data-beeatlas-diagnostics', '');
     host.style.cssText = [
@@ -206,9 +207,8 @@ export function installDiagnosticsPanel(): void {
     host.append(bar, pre);
     document.body.appendChild(host);
 
-    // Late enough that <bee-map> has had a chance to resolve a style; the map
-    // section is the most useful part and it is empty if we run immediately.
-    setTimeout(() => void render(pre), 4000);
+    if (delayMs > 0) setTimeout(() => void render(pre), delayMs);
+    else void render(pre);
   };
 
   if (document.readyState === 'loading') {
@@ -216,4 +216,20 @@ export function installDiagnosticsPanel(): void {
   } else {
     mount();
   }
+}
+
+/**
+ * The `?diag=1` entry point. Kept for desktop and for the dev server, where an
+ * address bar exists; on an installed app use the account menu instead.
+ *
+ * The delay is so the map section is populated: <bee-map> resolves its style
+ * asynchronously, and that section is the most useful part of the report.
+ */
+export function installDiagnosticsPanel(): void {
+  try {
+    if (new URLSearchParams(location.search).get(PARAM) !== '1') return;
+  } catch {
+    return;
+  }
+  openDiagnostics(4000);
 }

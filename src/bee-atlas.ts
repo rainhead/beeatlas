@@ -16,6 +16,7 @@ import type { CachePrimeProgressDetail, CacheStateChangedDetail } from './prime-
 import { loadBuildId, loadFreshnessLabel, resolveDataUrl } from './manifest.ts';
 import { fetchWhoami, signOut, startSignIn, type AuthState } from './auth-client.ts';
 import { loadBasemapManifest } from './basemap-cache.ts';
+import { openDiagnostics } from './diagnostics.ts';
 import {
   computeBasemapState,
   primeBasemap,
@@ -542,6 +543,7 @@ bee-map {
         .freshnessLabel=${this._freshnessLabel}
         .buildId=${this._buildId}
         .storageEstimate=${this._storageEstimate}
+        .diagnosticsEnabled=${true}
         .basemapState=${this._basemapState}
         .basemapProgress=${this._basemapProgress}
         .updateAvailable=${this._updateAvailable}
@@ -812,6 +814,7 @@ bee-map {
     window.addEventListener('basemap-prime-progress', this._onBasemapProgress);
     window.addEventListener('basemap-state-changed', this._onBasemapStateChanged);
     this.addEventListener('basemap-download-requested', this._onBasemapDownloadRequested);
+    this.addEventListener('diagnostics-requested', this._onDiagnosticsRequested);
     this._refreshBasemapState();
     this.addEventListener('cache-popover-toggle', this._onPopoverToggle);
     this.addEventListener('cache-update-acted', this._onBannerTap);
@@ -844,6 +847,7 @@ bee-map {
     window.removeEventListener('basemap-prime-progress', this._onBasemapProgress);
     window.removeEventListener('basemap-state-changed', this._onBasemapStateChanged);
     this.removeEventListener('basemap-download-requested', this._onBasemapDownloadRequested);
+    this.removeEventListener('diagnostics-requested', this._onDiagnosticsRequested);
     window.removeEventListener('sw-update-available', this._onSwUpdateAvailable);
     this.removeEventListener('cache-popover-toggle', this._onPopoverToggle);
     this.removeEventListener('cache-update-acted', this._onBannerTap);
@@ -1325,6 +1329,10 @@ bee-map {
       await primeBasemap(manifest);
     })();
   };
+
+  // The account menu's Diagnostics row. The panel is the only way to read this
+  // device's state on an installed PWA, which has no address bar and no console.
+  private _onDiagnosticsRequested = () => { openDiagnostics(); };
 
   /** Recompute the offer's state — on mount, and whenever install status flips. */
   private _refreshBasemapState = () => {

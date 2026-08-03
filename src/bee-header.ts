@@ -40,6 +40,9 @@ export class BeeHeader extends LitElement {
   // cacheState this is an OFFER rather than a status — see _renderBasemapRow.
   @property({ attribute: false }) basemapState: BasemapOfflineState | null = null;
   @property({ attribute: false }) basemapProgress: { received: number; total: number } | null = null;
+  // Diagnostics row. Off by default so the static pages that also mount this
+  // header do not get a control nothing handles; <bee-atlas> turns it on.
+  @property({ attribute: false }) diagnosticsEnabled = false;
   @property({ attribute: false }) updateAvailable: boolean = false;
   // D-09/D-10: true when Android beforeinstallprompt available and not yet installed.
   @property({ attribute: false }) installable = false;
@@ -684,6 +687,16 @@ export class BeeHeader extends LitElement {
     `;
   }
 
+  // An installed PWA has no address bar, so the diagnostics panel needs a control
+  // inside the app — ?diag=1 cannot be typed on the device where the offline
+  // failures happen, and a link tapped from Safari lands in Safari's separate
+  // storage bucket and reports the wrong state. See src/diagnostics.ts.
+  private _onDiagnostics = () => {
+    this.dispatchEvent(new CustomEvent('diagnostics-requested', {
+      bubbles: true, composed: true,
+    }));
+  };
+
   private _onBasemapDownload = () => {
     this.dispatchEvent(new CustomEvent('basemap-download-requested', {
       bubbles: true, composed: true,
@@ -782,6 +795,14 @@ export class BeeHeader extends LitElement {
               <div class="menu-meta">of ${this.storageEstimate.quotaMB} MB available</div>
             ` : ''}
           </div>
+        ` : ''}
+        ${this.diagnosticsEnabled ? html`
+          <button class="menu-row" @click=${this._onDiagnostics}>
+            <svg class="menu-row__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 12h4l2.5-6 4 12L16 12h5"/>
+            </svg>
+            Diagnostics
+          </button>
         ` : ''}
         ${this.buildId ? html`<div class="menu-meta">Build ${this.buildId}</div>` : ''}
       </div>
