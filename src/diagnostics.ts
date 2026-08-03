@@ -167,9 +167,35 @@ export async function collectDiagnostics(): Promise<string> {
     // the map that move as you zoom, and is otherwise completely silent.
     add(await probe('archive reads', () => {
       const s = archiveReadStats;
-      return `${s.reads} reads, ${s.retries} retried, ${s.failures} FAILED` +
-        (s.failures > 0 ? '  ← holes in the map come from these' : '');
+      const hung = s.reads - s.completed;
+      return `${s.reads} started, ${s.completed} completed, ${s.retries} retried, ${s.failures} failed` +
+        `\n    slowest ${s.maxMs.toFixed(0)} ms, total ${s.totalMs.toFixed(0)} ms` +
+        (hung > 0 ? `\n    ${hung} NEVER RETURNED ← the read path is stalled, not the renderer` : '');
     }));
+    // map.loaded() is false while ANY source still has tiles in flight, so it
+    // separates "still working" from "gave up".
+    add(await probe('map state', () => {
+      const mm = m as unknown as { loaded?: () => boolean; isStyleLoaded?: () => boolean };
+      return `loaded=${mm.loaded?.()} styleLoaded=${mm.isStyleLoaded?.()}`;
+    }));
+    // Everything that renders — vector tile parsing, GeoJSON clustering, symbol
+    // layout — happens on MapLibre's worker. If it cannot start, tiles AND the
+    // purely-local occurrence layer both render nothing, which is exactly the
+    // shape of this failure. The page CAN fetch the worker file (see above), but
+    // that proves nothing: a dedicated worker is a separate service-worker
+    // client, matched on its own URL. This actually spawns one.
+    add(await probe('maplibre worker spawns', () => new Promise<string>((res) => {
+      const url = '/app/basemap/maplibre/maplibre-gl-worker.mjs';
+      const t = setTimeout(() => res('yes (no message, as expected)'), 4000);
+      try {
+        const w = new Worker(url, { type: 'module' });
+        w.onerror = (e) => { clearTimeout(t); w.terminate(); res(`NO — ${(e as ErrorEvent).message || 'opaque error'}`); };
+        w.onmessage = () => { clearTimeout(t); w.terminate(); res('yes'); };
+      } catch (err) {
+        clearTimeout(t);
+        res(`NO — threw ${err instanceof Error ? err.message : String(err)}`);
+      }
+    })));
     // Distinguishes "no dots because the data never loaded" from "no dots
     // because the layers are missing" from "no dots because there are none here".
     add(await probe('occurrences', () => {

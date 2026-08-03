@@ -140,7 +140,21 @@ export async function loadBasemapManifest(): Promise<BasemapManifest | null> {
  * logged and nothing throws. A counter is the cheapest way to tell a bad read
  * path from a bad archive.
  */
-export const archiveReadStats = { reads: 0, retries: 0, failures: 0 };
+export const archiveReadStats = {
+  /** Incremented when a read STARTS. */
+  reads: 0,
+  /** Incremented when a read RESOLVES. A gap between this and `reads` means
+   *  reads are hanging — which looks identical to "no tiles requested" from
+   *  outside, and is the difference between a stalled read path and a stalled
+   *  render pipeline. */
+  completed: 0,
+  retries: 0,
+  failures: 0,
+  /** Slowest single read, ms. The spike measured p95 of 1 ms on an iPhone; a
+   *  number in the seconds means the Blob is not the cheap view it should be. */
+  maxMs: 0,
+  totalMs: 0,
+};
 
 export class BlobSource {
   readonly #url: string;
@@ -167,14 +181,22 @@ export class BlobSource {
    */
   async getBytes(offset: number, length: number): Promise<{ data: ArrayBuffer }> {
     archiveReadStats.reads++;
+    const started = performance.now();
+    const done = <T>(v: T): T => {
+      const ms = performance.now() - started;
+      archiveReadStats.completed++;
+      archiveReadStats.totalMs += ms;
+      if (ms > archiveReadStats.maxMs) archiveReadStats.maxMs = ms;
+      return v;
+    };
     try {
-      return { data: await this.#blob.slice(offset, offset + length).arrayBuffer() };
+      return done({ data: await this.#blob.slice(offset, offset + length).arrayBuffer() });
     } catch (first) {
       archiveReadStats.retries++;
       try {
         const fresh = await cachedArchive(this.#url);
         if (fresh) this.#blob = fresh;
-        return { data: await this.#blob.slice(offset, offset + length).arrayBuffer() };
+        return done({ data: await this.#blob.slice(offset, offset + length).arrayBuffer() });
       } catch (second) {
         archiveReadStats.failures++;
         console.warn('[basemap] archive read failed twice', this.#url, offset, length, first, second);
