@@ -146,6 +146,45 @@ installed app** — a browser tab is a separate storage bucket
 | F10 | A "Turn On Wi-Fi to Use the Internet" alert may appear once at launch | KNOWN AND ACCEPTED (`beeatlas-c8v`). The app makes zero failed requests; the remaining candidate is the browser's own service-worker update check, which no page code initiates. Do not re-investigate without new evidence |
 | F11 | Account menu → **Diagnostics** | A full state dump: caches, archives, map state, and every request the app made. This is the tool for reporting anything on this list — a screenshot answers most questions outright |
 
+## Faster loop: the iOS Simulator
+
+For anything FUNCTIONAL, the Simulator beats a physical device — chiefly because
+**Safari Web Inspector attaches to it with no cable, no device trust, and no
+fighting the Develop menu**. A real console is the thing whose absence turned the
+beeatlas-6rs offline bug into four rounds of guess-and-fix.
+
+It is also closer to the truth than Playwright's WebKit, which is the same engine
+in a different embedder: the Simulator runs actual Safari, so `navigator.standalone`,
+Home-Screen launch semantics, and the installed-app storage bucket behave as they
+do on a phone.
+
+```bash
+xcrun simctl list devices available          # pick one; iOS runtimes ship with Xcode
+xcrun simctl boot <UDID> && xcrun simctl bootstatus <UDID>
+xcrun simctl openurl <UDID> https://beeatlas.net/app/
+xcrun simctl io <UDID> screenshot shot.png   # also: `recordVideo`
+```
+
+Then Safari → Develop → Simulator → the page. Install to the Home Screen by hand
+(Share → Add to Home Screen); that step is not scriptable through `simctl` — it
+needs XCUITest, which is rarely worth it.
+
+**Two traps, both of which would produce a confident false negative:**
+
+- **There is no airplane mode.** The Simulator uses the *host's* network stack, so
+  the only real ways offline are turning the Mac's Wi-Fi off, or installing
+  Network Link Conditioner (Additional Tools for Xcode) and selecting the 100%
+  Loss profile.
+- **`simctl status_bar override --dataNetwork` is COSMETIC.** It draws an airplane
+  icon and changes nothing about connectivity. A test "passing" under it has
+  tested nothing.
+
+**Still needs a real device:** storage limits and `persist()` behaviour, anything
+performance-shaped (the Simulator has desktop CPU and disk, so the `Blob.slice`
+and 285 MB download timings from spike beeatlas-93t are not reproducible), and
+system UI such as the "Turn On Wi-Fi to Use the Internet" alert — that is
+device-level network-reachability UI and is not known to appear here.
+
 ## G. Regression guards worth re-running
 
 ```bash
