@@ -94,6 +94,22 @@ function isIosSafari(): boolean {
   return true;
 }
 
+/**
+ * Copy for a DENIED geolocation permission (beeatlas-8qb).
+ *
+ * The Settings path below is only true on iOS, and it used to be shown
+ * everywhere: a desktop Chrome user was sent to a Safari settings screen that
+ * does not exist on their machine — a dead end dressed up as instructions. iOS is
+ * the field surface and keeps its tested wording; everyone else gets copy that is
+ * true rather than specific, because no single path holds across Chrome, Firefox,
+ * Edge and Android and none is worth asserting.
+ */
+function locationDeniedMessage(): string {
+  return isIosSafari()
+    ? 'Location access is blocked. To enable, go to Settings → Safari → Location.'
+    : 'Location access is blocked. Re-enable location for this site in your browser settings.';
+}
+
 // ---------------------------------------------------------------------------
 // D-02: near-me ±10 km bounding box helper
 // ---------------------------------------------------------------------------
@@ -687,7 +703,7 @@ bee-map {
         <div class="location-error-banner" role="alert" aria-live="polite">
           <span class="location-error-banner__body">
             ${this._locationErrorKind === 'denied'
-              ? 'Location access is blocked. To enable, go to Settings → Safari → Location.'
+              ? locationDeniedMessage()
               : 'Unable to determine your location.'}
           </span>
           <button

@@ -42,3 +42,33 @@ describe('LOC-02: pure-presenter invariant — <bee-map> emits, <bee-atlas> stor
     expect(beeAtlasSrc).toMatch(/@user-location-changed/);
   });
 });
+
+// beeatlas-8qb: the denial message named an iOS path on every platform, so a
+// desktop Chrome user was pointed at a Settings screen that does not exist.
+describe('the location-denied message is platform-appropriate', () => {
+  test('the Safari path is behind isIosSafari(), not unconditional', () => {
+    const fn = beeAtlasSrc.slice(
+      beeAtlasSrc.indexOf('function locationDeniedMessage'),
+      beeAtlasSrc.indexOf('function locationDeniedMessage') + 500,
+    );
+    expect(fn).toMatch(/isIosSafari\(\)/);
+    expect(fn).toMatch(/Settings → Safari → Location/);
+  });
+
+  test('the render path calls the helper rather than inlining either string', () => {
+    expect(beeAtlasSrc).toMatch(/\? locationDeniedMessage\(\)/);
+    // exactly one occurrence of the iOS string, inside the helper
+    expect(beeAtlasSrc.match(/Settings → Safari → Location/g)?.length).toBe(1);
+  });
+
+  test('the non-iOS fallback names no platform-specific path', () => {
+    const fn = beeAtlasSrc.slice(
+      beeAtlasSrc.indexOf('function locationDeniedMessage'),
+      beeAtlasSrc.indexOf('function locationDeniedMessage') + 500,
+    );
+    const fallback = fn.split('isIosSafari()')[1] ?? '';
+    for (const platform of ['Safari', 'Chrome', 'Firefox', 'Edge', 'Android', 'iOS']) {
+      expect(fallback.split(':')[1] ?? '').not.toContain(platform);
+    }
+  });
+});
