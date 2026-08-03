@@ -28,6 +28,9 @@ import type { SearchStatus } from './bee-header.ts';
 import './bee-pane.ts';
 import './bee-map.ts';
 
+/** See connectedCallback: long enough for navigator.onLine to be trustworthy. */
+const WHOAMI_DELAY_MS = 1200;
+
 const DEFAULT_LON = -120.5;
 const DEFAULT_LAT = 47.5;
 const DEFAULT_ZOOM = 7;
@@ -198,6 +201,7 @@ export class BeeAtlas extends LitElement {
   // is an opt-in download rather than something primed automatically.
   @state() private _basemapState: BasemapOfflineState | null = null;
   @state() private _basemapProgress: { received: number; total: number } | null = null;
+  private _whoamiTimer: number | null = null;
   // D-09/D-10: true when beforeinstallprompt was captured and app is not yet standalone.
   @state() private _installable: boolean = false;
   // D-11/D-12: true on iOS Safari (not standalone); computed once at construction time.
@@ -832,12 +836,23 @@ bee-map {
     // 178-07 gap fix: fetch whoami for the map-page header. fetchWhoami() never
     // throws — resolves {authenticated:false} on any network error — so this
     // never blocks or delays map init (mirrors src/entries/bee-header.ts).
-    void fetchWhoami().then((state) => { this._authState = state; });
+    //
+    // DEFERRED, because at page-init `navigator.onLine` is not yet trustworthy:
+    // on a real iPhone in airplane mode it still read true at 110 ms and only
+    // flipped to false later, so fetchWhoami's own offline guard fired too early
+    // to help and the request went out anyway — and on iOS a failed request in an
+    // installed app raises the system "Turn On Wi-Fi" modal over the map. A
+    // second of delay costs an identity chip appearing slightly late; it buys not
+    // interrupting someone in the field. The 'online' handler re-runs it.
+    this._whoamiTimer = window.setTimeout(() => {
+      void fetchWhoami().then((state) => { this._authState = state; });
+    }, WHOAMI_DELAY_MS);
     this.addEventListener('sign-in', this._onSignIn);
     this.addEventListener('sign-out', this._onSignOut);
   }
 
   disconnectedCallback() {
+    if (this._whoamiTimer !== null) { clearTimeout(this._whoamiTimer); this._whoamiTimer = null; }
     super.disconnectedCallback();
     window.removeEventListener('popstate', this._onPopState);
     window.removeEventListener('online', this._onOnline);
@@ -1291,7 +1306,15 @@ bee-map {
     void fetchWhoami().then((state) => { this._authState = state; });
     this._refreshBasemapState();
   };
-  private _onOffline = () => { this._offline = true; };
+  private _onOffline = () => {
+    this._offline = true;
+    // Cancel the pending identity check rather than letting it race the platform.
+    // WHOAMI_DELAY_MS is a guess at how long navigator.onLine takes to become
+    // trustworthy; this 'offline' event is the platform telling us directly, so
+    // whichever arrives first, the doomed request is not sent. Identity is
+    // re-fetched on 'online', so nothing is lost by skipping it.
+    if (this._whoamiTimer !== null) { clearTimeout(this._whoamiTimer); this._whoamiTimer = null; }
+  };
 
   // --- Phase 150 cache state handlers ---
 

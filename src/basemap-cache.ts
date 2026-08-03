@@ -86,14 +86,28 @@ export const BASEMAP_MANIFEST_TIMEOUT_MS = 3000;
 let _inFlight: Promise<BasemapManifest | null> | null = null;
 
 /**
- * Concurrent callers share one request; sequential ones do not.
+ * CACHE FIRST, then revalidate in the background — not network first.
  *
- * Two callers want this on every boot — <bee-map> to build the style, <bee-atlas>
- * to decide what the offline-maps row says — and without this they issue two
- * identical requests. Deliberately NOT memoized past settlement: the result must
- * stay network-first, because the publish prunes superseded archives and a
- * client pinned to a stale manifest names a file the server no longer has. A
- * later call is a new question and deserves a new answer.
+ * It was network first, on the reasoning that the publish prunes superseded
+ * archives so a client pinned to a stale manifest would name a file the server no
+ * longer has. That reasoning was wrong: data/publish-basemap.sh keeps a
+ * superseded archive for GRACE_DAYS (30), and its comment says why in as many
+ * words — "so a client holding a cached manifest can" still load it. The stale
+ * window is a month; a publish cycle is a quarter.
+ *
+ * What network first actually cost was two failed requests on every offline
+ * launch, and on iOS a failed request inside an installed app raises the system
+ * "Turn On Wi-Fi to Use the Internet" modal over a working map.
+ *
+ * `navigator.onLine` did not save us, and this is the useful part: on a real
+ * device it still read TRUE at 110 ms and only flipped to false later, so a guard
+ * evaluated during page init fires too early to help. The fix is not a better
+ * guard, it is not needing one — with a cached copy the foreground never touches
+ * the network at all. The revalidation is deferred by REVALIDATE_DELAY_MS, by
+ * which point onLine is trustworthy.
+ *
+ * Concurrent callers still share one request — <bee-map> wants this for the style
+ * and <bee-atlas> for the offline-maps row.
  */
 export function loadBasemapManifest(): Promise<BasemapManifest | null> {
   if (_inFlight) return _inFlight;
@@ -101,24 +115,60 @@ export function loadBasemapManifest(): Promise<BasemapManifest | null> {
   return _inFlight;
 }
 
+/** Fetch, validate, and store. Parsing happens BEFORE the put so a 200 carrying a
+ *  payload that cannot produce a style never displaces a good cached copy. */
+async function _fetchAndCacheManifest(url: string): Promise<BasemapManifest> {
+  const resp = await fetch(url, { signal: AbortSignal.timeout(BASEMAP_MANIFEST_TIMEOUT_MS) });
+  if (!resp.ok) throw new Error(`basemap manifest: HTTP ${resp.status}`);
+  const manifest = parseBasemapManifest(await resp.clone().json());
+  if (typeof caches !== 'undefined') {
+    try {
+      const c = await caches.open(BASEMAP_MANIFEST_CACHE);
+      await c.put(url, resp);
+    } catch { /* best-effort; the manifest is still usable this session */ }
+  }
+  return manifest;
+}
+
+/**
+ * Long enough that `navigator.onLine` has settled — it is not reliable during
+ * page init — and long enough to be well clear of the first paint.
+ */
+const REVALIDATE_DELAY_MS = 8000;
+
+let _revalidateScheduled = false;
+
+/** Refresh the cached manifest for the NEXT launch. Never awaited, never fatal. */
+function scheduleRevalidate(url: string): void {
+  if (_revalidateScheduled || typeof window === 'undefined') return;
+  _revalidateScheduled = true;
+  window.setTimeout(() => {
+    // Cleared as the timer fires, not never: at most one refresh is ever pending,
+    // but a long-lived session may schedule another later.
+    _revalidateScheduled = false;
+    if (navigator.onLine === false) return;
+    void _fetchAndCacheManifest(url).catch(() => { /* next launch will retry */ });
+  }, REVALIDATE_DELAY_MS);
+}
+
+async function _cachedManifest(url: string): Promise<BasemapManifest | null> {
+  if (typeof caches === 'undefined') return null;
+  try {
+    const hit = await caches.match(url, { cacheName: BASEMAP_MANIFEST_CACHE });
+    return hit ? parseBasemapManifest(await hit.json()) : null;
+  } catch (err) {
+    console.warn('[basemap] cached manifest unusable:', err);
+    return null;
+  }
+}
+
 async function _loadBasemapManifestOnce(): Promise<BasemapManifest | null> {
   const url = basemapManifestUrl();
 
-  // OFFLINE: go to the cache FIRST rather than letting the fetch fail.
-  //
-  // Not an optimisation. On iOS a failed request inside an installed PWA raises
-  // the system "Turn On Wi-Fi to Use the Internet" alert — a modal, over the map,
-  // for someone standing in a forest who already knows they have no signal. The
-  // request cannot succeed, so the only thing it buys is the alert.
-  //
-  // Keyed on `navigator.onLine === false`, which is the trustworthy direction:
-  // false reliably means no interface, while true can still be a captive portal.
-  // If the cache somehow misses we fall through and try anyway.
-  if (typeof navigator !== 'undefined' && navigator.onLine === false && typeof caches !== 'undefined') {
-    try {
-      const hit = await caches.match(url, { cacheName: BASEMAP_MANIFEST_CACHE });
-      if (hit) return parseBasemapManifest(await hit.json());
-    } catch { /* fall through to the network attempt */ }
+  const cached = await _cachedManifest(url);
+  if (cached) {
+    scheduleRevalidate(url);
+    return cached;
   }
 
   try {
@@ -127,23 +177,8 @@ async function _loadBasemapManifestOnce(): Promise<BasemapManifest | null> {
     // Parse BEFORE caching: a payload that cannot produce a style is worse than
     // no cached manifest at all, because it would be served back on every
     // subsequent offline load in place of a good copy from an earlier one.
-    const manifest = parseBasemapManifest(await resp.clone().json());
-    if (typeof caches !== 'undefined') {
-      try {
-        const c = await caches.open(BASEMAP_MANIFEST_CACHE);
-        await c.put(url, resp);
-      } catch { /* best-effort; the manifest is still usable this session */ }
-    }
-    return manifest;
+    return await _fetchAndCacheManifest(url);
   } catch (netErr) {
-    if (typeof caches !== 'undefined') {
-      try {
-        const hit = await caches.match(url, { cacheName: BASEMAP_MANIFEST_CACHE });
-        if (hit) return parseBasemapManifest(await hit.json());
-      } catch (cacheErr) {
-        console.warn('[basemap] cached manifest unusable:', cacheErr);
-      }
-    }
     console.warn('[basemap] no manifest available, rendering without a basemap:', netErr);
     return null;
   }

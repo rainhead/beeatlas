@@ -109,10 +109,13 @@ describe('bee-atlas map-page <bee-header> auth wiring (178-07 gap fix)', () => {
     document.body.appendChild(el!);
     await el!.updateComplete;
 
-    expect(mockFetchWhoami).toHaveBeenCalledOnce();
+    // Deferred (WHOAMI_DELAY_MS): at page-init navigator.onLine is not yet
+    // trustworthy on iOS, so firing immediately defeats fetchWhoami's own offline
+    // guard and puts a doomed request — and an iOS system modal — on the screen of
+    // someone in the field. So it is not called synchronously on mount.
+    expect(mockFetchWhoami).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(mockFetchWhoami).toHaveBeenCalledOnce(), { timeout: 4000 });
 
-    // Allow the fire-and-forget fetchWhoami().then(...) microtask to settle and
-    // trigger the @state re-render.
     await Promise.resolve();
     await Promise.resolve();
     await el!.updateComplete;
@@ -129,6 +132,9 @@ describe('bee-atlas map-page <bee-header> auth wiring (178-07 gap fix)', () => {
     el = document.createElement('bee-atlas') as any;
     document.body.appendChild(el!);
     await el!.updateComplete;
+    // whoami is deferred past navigator.onLine settling (WHOAMI_DELAY_MS), so
+    // wait for it rather than counting microtasks.
+    await vi.waitFor(() => expect(mockFetchWhoami).toHaveBeenCalled(), { timeout: 4000 });
     await Promise.resolve();
     await Promise.resolve();
     await el!.updateComplete;
@@ -163,6 +169,9 @@ describe('bee-atlas map-page <bee-header> auth wiring (178-07 gap fix)', () => {
     el = document.createElement('bee-atlas') as any;
     document.body.appendChild(el!);
     await el!.updateComplete;
+    // whoami is deferred past navigator.onLine settling (WHOAMI_DELAY_MS), so
+    // wait for it rather than counting microtasks.
+    await vi.waitFor(() => expect(mockFetchWhoami).toHaveBeenCalled(), { timeout: 4000 });
     await Promise.resolve();
     await Promise.resolve();
     await el!.updateComplete;

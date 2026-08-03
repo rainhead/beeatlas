@@ -51,8 +51,12 @@ function installFakeCaches(): Map<string, Map<string, Response>> {
     open: async (name: string) => ({
       put: async (url: string, resp: Response) => { bucket(name).set(url, resp); },
     }),
+    // .clone(), because real Cache Storage hands out a fresh body every time and
+    // this code reads the same entry more than once per session (cache-first read,
+    // then again after the deferred revalidation). Without it the second read sees
+    // a consumed stream.
     match: async (url: string, opts?: { cacheName?: string }) =>
-      opts?.cacheName ? bucket(opts.cacheName).get(url) : undefined,
+      opts?.cacheName ? bucket(opts.cacheName).get(url)?.clone() : undefined,
   });
   return buckets;
 }
@@ -124,15 +128,51 @@ describe('the basemap manifest survives going offline', () => {
     expect((await loadBasemapManifest())?.regions.wa?.archive).toBe('wa-20260801.pmtiles');
   });
 
-  test('the network is tried first, so a republished archive name is picked up', async () => {
+  test('a cached copy is used WITHOUT touching the network', async () => {
+    // The whole point. Network-first cost two failed requests on every offline
+    // launch, and on iOS each one raises the system "Turn On Wi-Fi" modal over a
+    // working map. navigator.onLine could not be used to avoid them: on a real
+    // device it still read true at 110 ms and flipped to false only later, so any
+    // guard evaluated during page init fires too early. Not needing the network
+    // is the fix.
+    //
+    // Safe because data/publish-basemap.sh keeps a superseded archive for
+    // GRACE_DAYS (30) expressly "so a client holding a cached manifest can" still
+    // load it — a month of slack against a quarterly publish.
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(MANIFEST)));
-    await loadBasemapManifest();
+    await loadBasemapManifest();          // first load populates the cache
 
-    const next = { regions: { wa: { ...MANIFEST.regions.wa, archive: 'wa-20261001.pmtiles' } } };
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(next)));
-    // Cache-first would pin the client to an archive the publish has since
-    // pruned — a broken basemap online, which is the case that matters most.
-    expect((await loadBasemapManifest())?.regions.wa?.archive).toBe('wa-20261001.pmtiles');
+    const fetchSpy = vi.fn(async () => jsonResponse(MANIFEST));
+    vi.stubGlobal('fetch', fetchSpy);
+    expect((await loadBasemapManifest())?.regions.wa?.archive).toBe('wa-20260801.pmtiles');
+    expect(fetchSpy, 'a cached manifest must not trigger a foreground fetch').not.toHaveBeenCalled();
+  });
+
+  test('a republished archive name is picked up by the deferred revalidation', async () => {
+    // Freshness is not abandoned, only deferred: the background refresh updates
+    // the cache so the NEXT launch names the new archive. It runs on a timer long
+    // after first paint, by which point navigator.onLine is trustworthy.
+    // A FRESH module instance: "a refresh is already scheduled" is module state,
+    // and earlier tests in this file leave a real 8s timer pending, which would
+    // suppress the one under test here.
+    vi.resetModules();
+    const fresh = await import('../basemap-cache.ts');
+
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(MANIFEST)));
+      await fresh.loadBasemapManifest();
+
+      const next = { regions: { wa: { ...MANIFEST.regions.wa, archive: 'wa-20261001.pmtiles' } } };
+      vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(next)));
+      await fresh.loadBasemapManifest();  // serves the cached copy, schedules a refresh
+      await vi.advanceTimersByTimeAsync(10_000);
+      const hit = await caches.match(basemapManifestUrl(), { cacheName: BASEMAP_MANIFEST_CACHE });
+      const body = await hit!.json() as typeof next;
+      expect(body.regions.wa.archive).toBe('wa-20261001.pmtiles');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
