@@ -44,29 +44,39 @@ describe('the MapLibre worker is served, and from where bee-map says it is', () 
     expect(configure).toBeLessThan(construct);
   });
 
-  test('Eleventy copies the worker to that exact path', () => {
+  test('the build puts a worker at that exact path', () => {
     const config = read('eleventy.config.js');
-    expect(config).toContain('node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs');
     // The passthrough target is written without the leading slash; the URL has it.
     expect(config).toContain(WORKER_URL.replace(/^\//, ''));
+    // …sourced from the BUNDLED staging dir, not from node_modules directly.
+    expect(config).toContain('.cache/beeatlas-maplibre/maplibre-gl-worker.mjs');
   });
 
-  test('the worker ships with the shared chunk it imports, as a sibling', () => {
-    // maplibre-gl-worker.mjs does `from "./maplibre-gl-shared.mjs"`. Copying the
-    // worker alone reproduces the same 404 one level down, and just as quietly.
-    const worker = read('node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs');
-    const relativeImports = [...worker.matchAll(/from\s*["'](\.[^"']+)["']/g)]
-      .map(m => m[1])
-      .filter((s): s is string => !!s);
-    expect(relativeImports.length).toBeGreaterThan(0);
+  test('the shipped worker imports NOTHING at runtime', () => {
+    // THE ONE THAT SHIPPED BROKEN. maplibre-gl-worker.mjs as distributed opens
+    // with `from "./maplibre-gl-shared.mjs"` — a fetch made BY THE WORKER at
+    // startup. A dedicated worker is its own service-worker client and is not
+    // controlled by the /app/ registration, so offline that import is never
+    // served from the precache: it goes to the network, fails, and the worker
+    // dies before running a line. Tile parsing, GeoJSON clustering and symbol
+    // layout all stop, with no error anywhere.
+    //
+    // Shipping BOTH files side by side did not fix it and could not. It looked
+    // fixed: the precache listed both, and a page-side fetch of either returned
+    // 200 — but only the worker needs them and only the worker cannot read them.
+    // Measured offline (server killed, not emulated) in WebKit AND Chromium.
+    //
+    // So the build bundles it into one self-contained file. If a relative import
+    // ever comes back, offline dies silently again — hence this assertion.
+    const upstream = read('node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs');
+    expect(upstream, 'upstream no longer splits the worker; re-check whether the bundling step is still needed')
+      .toMatch(/from\s*["']\.\//);
 
-    const config = read('eleventy.config.js');
-    for (const spec of new Set(relativeImports)) {
-      const name = spec.replace(/^\.\//, '');
-      expect(existsSync(resolve(ROOT, 'node_modules/maplibre-gl/dist', name)), `${name} missing from dist`).toBe(true);
-      expect(config, `${name} is imported by the worker but never copied`)
-        .toContain(`app/basemap/maplibre/${name}`);
-    }
+    const bundled = resolve(ROOT, '.cache/beeatlas-maplibre/maplibre-gl-worker.mjs');
+    if (!existsSync(bundled)) return; // not built yet; the build script asserts this too
+    const out = readFileSync(bundled, 'utf8');
+    expect([...out.matchAll(/\bfrom\s*["'](\.[^"']+)["']/g)].map(m => m[1]))
+      .toEqual([]);
   });
 
   test('the worker is NOT bundled — it must stay a standalone file', () => {

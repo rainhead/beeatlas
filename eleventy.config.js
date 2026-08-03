@@ -121,9 +121,17 @@ export default async function (eleventyConfig) {
   // nothing, because nothing that can read the cache ever asks for them.
   // Inside /app/ both requests are intercepted and served. Verified offline with
   // scripts/offline-uat.mjs; it is the check that caught this.
+  // ONE self-contained file, built by scripts/build-maplibre-worker.mjs, not the
+  // two dist files side by side. The worker's own
+  // `from "./maplibre-gl-shared.mjs"` is a fetch made BY THE WORKER, which is its
+  // own service-worker client and is NOT controlled by the /app/ registration —
+  // so offline that import is never served, the worker dies before it runs, and
+  // everything it does (tile parsing, GeoJSON clustering, symbol layout) silently
+  // stops. Precaching both files did not help and could not: only the worker
+  // needs them, and only the worker cannot read them. See that script for the
+  // measurement.
   eleventyConfig.addPassthroughCopy({
-    "node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs": "app/basemap/maplibre/maplibre-gl-worker.mjs",
-    "node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs": "app/basemap/maplibre/maplibre-gl-shared.mjs",
+    ".cache/beeatlas-maplibre/maplibre-gl-worker.mjs": "app/basemap/maplibre/maplibre-gl-worker.mjs",
   });
 
   // In serve mode Vite runs as middleware inside the Eleventy dev server, so
