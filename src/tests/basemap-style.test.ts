@@ -21,8 +21,10 @@ import {
 } from '../basemap-style.ts';
 import {
   RECENCY_COLORS,
+  clusterCircleLayerSpec,
   clusterCountLayerSpec,
   placeLabelLayerSpec,
+  unclusteredPointLayerSpec,
   wildernessLabelLayerSpec,
 } from '../style.ts';
 import type { StyleSpecification } from 'maplibre-gl';
@@ -403,5 +405,42 @@ describe('hillshade — terrain present', () => {
       if (url.includes('opendata.aws') || url.includes('openstreetmap')) continue;
       expect(url.startsWith(ORIGIN)).toBe(true);
     }
+  });
+});
+
+// Recency is deliberately NOT encoded in colour (2026-08-03). The old scheme read
+// backwards against the self-hosted basemap: the light this-year colour vanished
+// into pale terrain while the dark "older" colour dominated, and white count
+// labels on the light circle were 1.62:1. See RECENCY_COLORS in src/style.ts.
+describe('recency is not colour-encoded', () => {
+  test('all three recency tiers are the same colour', () => {
+    expect(RECENCY_COLORS.lastYear).toBe(RECENCY_COLORS.thisYear);
+    expect(RECENCY_COLORS.earlier).toBe(RECENCY_COLORS.thisYear);
+  });
+
+  test('the cluster circle is a flat colour, not a case over the recency counts', () => {
+    // An expression that still branches reads as a live distinction to the next
+    // person and to getPaintProperty, even when every branch is equal.
+    const paint = clusterCircleLayerSpec(RECENCY_COLORS).paint!;
+    expect(paint['circle-color']).toBe(RECENCY_COLORS.thisYear);
+  });
+
+  test('the cluster count label is dark, and legible on that circle', () => {
+    const color = clusterCountLayerSpec(RECENCY_COLORS).paint!['text-color'];
+    expect(typeof color).toBe('string');
+    const lum = (hex: string) => {
+      const f = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+      const ch = (i: number) => f(parseInt(hex.slice(i, i + 2), 16) / 255);
+      return 0.2126 * ch(1) + 0.7152 * ch(3) + 0.0722 * ch(5);
+    };
+    const a = lum(color as string), b = lum(RECENCY_COLORS.thisYear);
+    const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
+  test('tier is still encoded — it was not part of the recency decision', () => {
+    const paint = unclusteredPointLayerSpec(RECENCY_COLORS).paint!;
+    expect(JSON.stringify(paint['circle-color'])).toContain('tier');
+    expect(JSON.stringify(paint['circle-color'])).toContain('#7a8a99');
   });
 });

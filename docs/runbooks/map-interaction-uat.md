@@ -106,7 +106,8 @@ individual records. The two coexist.
 | D2 | Reload with location permission already granted | Locates automatically, no tap needed |
 | D3 | Deny location permission | A clear error; the app does not hang |
 | D4 | Regions button | Top-**right**, above the map, opens the boundary menu |
-| D5 | Read the attribution | OpenStreetMap/Protomaps **and** Washington Bee Atlas **and** the DEM/terrain notice |
+| D5 | Read the attribution | OpenStreetMap/Protomaps **and** Washington Bee Atlas **and** the DEM/terrain notice. The terrain line correctly disappears above z15, where the hillshade has faded out |
+| D5a | Narrow the window under 640px, or use a phone | The attribution collapses to the ⓘ button **at load**, not after the first drag — MapLibre opens it and we close it (`_collapseCompactAttribution`). Open it by tapping ⓘ, then pan: it must **stay** open |
 | D6 | Check control stacking | Nothing is trapped under `<bee-pane>` — `bee-map`'s `z-index: 0` is load-bearing |
 
 ## E. Style and legibility — the reason the field style exists
@@ -123,7 +124,7 @@ At Rainier, `?x=-121.76&y=46.85&z=13`:
 | E6 | Hillshade is at full strength at z13 and has faded to nothing by z15 — judge by EYE. `queryRenderedFeatures` on a hillshade layer always returns 0: raster layers have no queryable features, so it is not a usable check |
 | E7 | Lakes and rivers are **not** shaded by the hillshade |
 | E8 | Zoom below z13: trails/streams/peaks disappear rather than showing an empty map |
-| E9 | Dot colours follow recency — but the scheme is **two** colours, not three: `RECENCY_COLORS` in `src/style.ts` gives `lastYear` and `earlier` the same `#7f8c8d` on purpose, and a `tier: 'other'` record takes `#7a8a99` regardless of its year. So: this-year dots read lighter; everything else does not |
+| E9 | Recency is **not** colour-encoded (2026-08-03). Every dot and cluster is the one light grey; the only colour split left is `tier`, where `other` takes a muted `#7a8a99`. Cluster counts are dark on that light circle — white was 1.62:1 and unreadable, which is what made the old scheme read backwards. See `RECENCY_COLORS` in `src/style.ts` |
 | E10 | Tier filter hides and restores dots. Note a tier-excluded record does **not** become a ghost — the ghost set is itself tier-filtered, so tier reads as a layer toggle while taxon reads as a filter |
 
 ## F. Mobile / installed PWA

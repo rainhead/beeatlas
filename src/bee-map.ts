@@ -301,6 +301,46 @@ export class BeeMap extends LitElement {
     this._rectStart = null;
   }
 
+  // Whether the attribution has been auto-collapsed since it last became
+  // compact. See _collapseCompactAttribution.
+  private _attributionCollapsed = false;
+
+  /**
+   * Collapse the attribution the first time it becomes compact.
+   *
+   * MapLibre and Mapbox differ here, and the swap changed the behaviour. Both
+   * make the attribution collapsible below a 640px canvas; MapLibre's
+   * `_updateCompact` then also adds `maplibregl-compact-show`, so it renders
+   * OPEN and is minimized only by the first `drag`. On a phone that is two lines
+   * of legalese across 95% of the width, over the bottom of the map, at every
+   * launch. Mapbox started collapsed.
+   *
+   * There is no option — `compact: true` takes the same branch and is about
+   * WHETHER to collapse, not whether to start collapsed — and no public API to
+   * minimize, so this removes the class MapLibre itself keys on. Leaving
+   * `maplibregl-compact` keeps the ⓘ toggle, so the attribution stays one tap
+   * away and no attribution requirement is weakened.
+   *
+   * The LATCH is the whole subtlety. The classes are not applied at construction:
+   * with no sources yet the control is `maplibregl-attrib-empty`, which
+   * `_updateCompact` skips, so they appear only when the first attribution text
+   * arrives — on `sourcedata`. But `sourcedata` also fires continuously while
+   * panning, and collapsing on every one of those would fight a user who has
+   * deliberately opened the thing. So: collapse once per transition INTO compact,
+   * and re-arm only when MapLibre has taken `maplibregl-compact` back off (the
+   * canvas went wide again).
+   */
+  private _collapseCompactAttribution = () => {
+    const el = this.mapElement?.querySelector('.maplibregl-ctrl-attrib');
+    if (!el?.classList.contains('maplibregl-compact')) {
+      this._attributionCollapsed = false;
+      return;
+    }
+    if (this._attributionCollapsed) return;
+    el.classList.remove('maplibregl-compact-show');
+    this._attributionCollapsed = true;
+  };
+
   private _mousePos(e: MouseEvent): maplibregl.Point {
     const canvas = this._map!.getCanvasContainer();
     const rect = canvas.getBoundingClientRect();
@@ -490,6 +530,14 @@ export class BeeMap extends LitElement {
       // source, both of which are required attribution.
       attributionControl: {},
     });
+
+    // The attribution starts COLLAPSED on narrow screens, which MapLibre will
+    // not do on its own. These are the three events after which it can have
+    // (re-)applied compact mode — see _collapseCompactAttribution, which latches
+    // so the sourcedata firehose does not keep slamming it shut.
+    this._map.on('sourcedata', this._collapseCompactAttribution);
+    this._map.on('styledata', this._collapseCompactAttribution);
+    this._map.on('resize', this._collapseCompactAttribution);
 
     // Add GeolocateControl immediately after map construction — NOT inside 'load'.
     // The blue dot + accuracy circle are DOM Markers (appended to getCanvasContainer()),

@@ -142,3 +142,34 @@ describe('OFF-04: bee-map blank-basemap overlay (Plan 149-03)', () => {
     expect(src).not.toMatch(/private\s+_offline/);
   });
 });
+
+// The attribution collapses itself on narrow screens. MapLibre will not:
+// _updateCompact adds `maplibregl-compact-show` alongside `maplibregl-compact`,
+// so below 640px the control renders OPEN — two lines over the bottom of a phone
+// map at every launch — and is minimized only by the first `drag`. Mapbox started
+// collapsed, and the swap silently changed that (beeatlas-ecn follow-up).
+describe('attribution starts collapsed when compact', () => {
+  test('bee-map.ts hooks all three events after which compact mode can appear', () => {
+    // The classes are NOT applied at construction: with no sources the control is
+    // `maplibregl-attrib-empty`, which _updateCompact skips. They arrive with the
+    // first attribution text, on sourcedata.
+    for (const ev of ['sourcedata', 'styledata', 'resize']) {
+      expect(src).toMatch(new RegExp(`on\\(\\s*['"]${ev}['"]\\s*,\\s*this\\._collapseCompactAttribution\\s*\\)`));
+    }
+  });
+
+  test('_collapseCompactAttribution latches, so panning does not re-close a user-opened panel', () => {
+    // sourcedata fires continuously while panning.
+    expect(src).toMatch(/if\s*\(this\._attributionCollapsed\)\s*return;/);
+    expect(src).toMatch(/this\._attributionCollapsed\s*=\s*true/);
+    // and re-arms when MapLibre drops compact mode (canvas went wide again)
+    expect(src).toMatch(/this\._attributionCollapsed\s*=\s*false/);
+  });
+
+  test('_collapseCompactAttribution removes only compact-show, keeping the toggle', () => {
+    // Removing `maplibregl-compact` too would delete the ⓘ button and with it the
+    // only way back to the attribution text — which IS an attribution requirement.
+    expect(src).toMatch(/classList\.remove\(\s*['"]maplibregl-compact-show['"]\s*\)/);
+    expect(src).not.toMatch(/classList\.remove\([^)]*['"]maplibregl-compact['"]/);
+  });
+});

@@ -13,11 +13,37 @@ import { OCCURRENCE_LABEL_FONT } from './basemap-style.ts';
 // basemap-style.test.ts asserts these specs against the vendored allowlist.
 const LABEL_FONT = [OCCURRENCE_LABEL_FONT];
 
+/**
+ * Recency is NOT encoded in colour right now — all three tiers are the same
+ * light grey, deliberately (2026-08-03).
+ *
+ * It used to be `thisYear: '#c8cccd'` against `#7f8c8d` for the other two, and
+ * against the self-hosted basemap that read backwards: the light this-year
+ * colour has almost no contrast with the pale terrain, so it was the OLD records
+ * that jumped out — the opposite of the intended "fresh work pops". The count
+ * label made it worse; white on `#c8cccd` is 1.62:1, effectively unreadable.
+ *
+ * Rather than re-tune two colours inside a scheme nobody had designed as a
+ * whole, the distinction is dropped and the quieter of the two greys kept. The
+ * DATA side is untouched — `recencyTier()` still classifies, the cluster
+ * aggregation still counts `thisYearCount`/`lastYearCount`/`earlierCount`, and
+ * the `recencyTier` feature property is still emitted — so restoring a recency
+ * encoding is a change to these three values and the layer specs below, with no
+ * pipeline work. Do that as part of designing the symbology properly, not by
+ * reinstating the old pair.
+ */
 export const RECENCY_COLORS = {
   thisYear: '#c8cccd',
-  lastYear: '#7f8c8d',
-  earlier:  '#7f8c8d',
+  lastYear: '#c8cccd',
+  earlier:  '#c8cccd',
 } as const;
+
+/**
+ * Cluster count labels. Dark, because the circle under them is now always the
+ * light grey above — white was legible only on the dark half of the old scheme.
+ * 6.2:1 on `#c8cccd`.
+ */
+const CLUSTER_COUNT_COLOR = '#3b4348';
 
 const _thisYear = new Date().getFullYear();
 const _lastYear = _thisYear - 1;
@@ -52,12 +78,10 @@ export function clusterCircleLayerSpec(colors: RecencyColors): CircleLayerSpecif
     source: 'occurrences',
     filter: ['has', 'point_count'],
     paint: {
-      'circle-color': [
-        'case',
-        ['>', ['get', 'thisYearCount'], 0], colors.thisYear,
-        ['>', ['get', 'lastYearCount'], 0], colors.lastYear,
-        colors.earlier,
-      ],
+      // Flat, not a `case` over the recency counts whose branches happen to be
+      // equal: an expression that still branches reads as a live distinction to
+      // the next person, and to `getPaintProperty`. See RECENCY_COLORS.
+      'circle-color': colors.thisYear,
       'circle-radius': [
         'step', ['get', 'point_count'],
         12,
@@ -83,30 +107,24 @@ export function clusterCountLayerSpec(colors: RecencyColors): SymbolLayerSpecifi
       'text-font': LABEL_FONT,
     },
     paint: {
-      'text-color': [
-        'case',
-        ['>', ['get', 'thisYearCount'], 0], '#ffffff',
-        '#d0d6d7',
-      ],
+      'text-color': CLUSTER_COUNT_COLOR,
     },
   };
 }
 
 function _occurrencePointPaint(colors: RecencyColors): CircleLayerSpecification['paint'] {
   return {
-    // Phase 170 (D-08): tier drives the color family. `atlas` (community work) keeps the
-    // recency gradient so fresh work pops — the liveness/togetherness signal. `other`
-    // (expert observations + literature, incl. former checklist green) renders muted/neutral
-    // so external records recede. Muted color: a desaturated grey-blue, distinct from the
-    // recency palette so Atlas stands out.
+    // Phase 170 (D-08): tier drives the color family. `other` (expert observations
+    // and literature) renders a muted desaturated grey-blue so external records
+    // recede; `atlas` (community work) takes the recency palette.
+    //
+    // That palette is now one colour (see RECENCY_COLORS), so this is a two-way
+    // split on TIER alone. Tier was not part of the 2026-08-03 decision and is
+    // deliberately still encoded — dropping it too is a separate call.
     'circle-color': [
       'match', ['get', 'tier'],
       'other', '#7a8a99',
-      ['match', ['get', 'recencyTier'],
-        'thisYear', colors.thisYear,
-        'lastYear', colors.lastYear,
-        colors.earlier,
-      ],
+      colors.thisYear,
     ],
     'circle-radius': 6,
     'circle-stroke-width': 1,
