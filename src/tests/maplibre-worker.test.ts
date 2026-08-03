@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const read = (p: string) => readFileSync(resolve(ROOT, p), 'utf8');
 
-const WORKER_URL = '/basemap/maplibre/maplibre-gl-worker.mjs';
+const WORKER_URL = '/app/basemap/maplibre/maplibre-gl-worker.mjs';
 
 describe('the MapLibre worker is served, and from where bee-map says it is', () => {
   test('bee-map hands MapLibre an explicit worker URL', () => {
@@ -65,7 +65,7 @@ describe('the MapLibre worker is served, and from where bee-map says it is', () 
       const name = spec.replace(/^\.\//, '');
       expect(existsSync(resolve(ROOT, 'node_modules/maplibre-gl/dist', name)), `${name} missing from dist`).toBe(true);
       expect(config, `${name} is imported by the worker but never copied`)
-        .toContain(`basemap/maplibre/${name}`);
+        .toContain(`app/basemap/maplibre/${name}`);
     }
   });
 

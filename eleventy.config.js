@@ -110,9 +110,20 @@ export default async function (eleventyConfig) {
   // library is the same silent failure wearing a different hat. Both files are
   // required and must stay siblings: the worker imports ./maplibre-gl-shared.mjs
   // relative to itself. maplibre-worker.test.ts pins all of it.
+  //
+  // UNDER /app/, AND THAT IS LOAD-BEARING (beeatlas-6rs). The service worker is
+  // registered with scope /app/. A page it controls has its requests intercepted
+  // at any path — but a DEDICATED WORKER is a separate service-worker client, and
+  // both its script load and its own imports are matched against the registration
+  // by the WORKER's URL. Served from /basemap/, the worker sits outside the scope,
+  // so neither request ever reaches the cache: offline they go to the network and
+  // fail, and the map is blank with a clean console — precaching the files changes
+  // nothing, because nothing that can read the cache ever asks for them.
+  // Inside /app/ both requests are intercepted and served. Verified offline with
+  // scripts/offline-uat.mjs; it is the check that caught this.
   eleventyConfig.addPassthroughCopy({
-    "node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs": "basemap/maplibre/maplibre-gl-worker.mjs",
-    "node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs": "basemap/maplibre/maplibre-gl-shared.mjs",
+    "node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs": "app/basemap/maplibre/maplibre-gl-worker.mjs",
+    "node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs": "app/basemap/maplibre/maplibre-gl-shared.mjs",
   });
 
   // In serve mode Vite runs as middleware inside the Eleventy dev server, so

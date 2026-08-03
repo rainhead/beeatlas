@@ -52,8 +52,17 @@ const DEFAULT_ZOOM = 7;
  * A plain page-tree path, not a hashed asset: the worker is not part of the
  * bundle graph, and the page tree is served `max-age=0`, so a version bump
  * cannot leave a stale worker paired with a new bundle.
+ *
+ * UNDER /app/ FOR OFFLINE (beeatlas-6rs), not for tidiness. The service worker's
+ * scope is /app/, and a dedicated worker is its own service-worker client:
+ * whether its script load and its `./maplibre-gl-shared.mjs` import are
+ * intercepted is decided by THIS URL, not by the page that spawned it. At
+ * /basemap/ both requests missed the cache entirely and went to the network —
+ * offline that is a blank map and an empty console, with the files sitting
+ * precached and unreachable. The root page has no service worker and does not
+ * care where this lives.
  */
-const MAPLIBRE_WORKER_URL = '/basemap/maplibre/maplibre-gl-worker.mjs';
+const MAPLIBRE_WORKER_URL = '/app/basemap/maplibre/maplibre-gl-worker.mjs';
 
 /** One rung of the click priority chain — see BeeMap._clickTargets. */
 type ClickTarget = {

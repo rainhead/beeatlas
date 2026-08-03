@@ -74,9 +74,10 @@ beforeAll(() => {
 
   // Eleventy copies public/basemap verbatim to _site/basemap (eleventy.config.js).
   for (const rel of walk(resolve(ROOT, 'public/basemap'))) touch(`basemap/${rel}`);
-  // …and the two MapLibre dist files to _site/basemap/maplibre/.
-  touch('basemap/maplibre/maplibre-gl-worker.mjs');
-  touch('basemap/maplibre/maplibre-gl-shared.mjs');
+  // …and the two MapLibre dist files to _site/app/basemap/maplibre/ — inside the
+  // service worker's /app/ scope, which is what makes them reachable offline.
+  touch('app/basemap/maplibre/maplibre-gl-worker.mjs');
+  touch('app/basemap/maplibre/maplibre-gl-shared.mjs');
   for (const rel of SYNTHETIC) touch(rel);
 
   // The exact call workbox-build makes, per pattern, with the ignores applied.
@@ -95,8 +96,8 @@ describe('the service worker precaches everything the basemap needs to draw', ()
   test('the MapLibre worker and the chunk it imports as a sibling', () => {
     // Both, or neither works: the worker does `from "./maplibre-gl-shared.mjs"`,
     // so precaching it alone reproduces the same 404 one level down.
-    expect(matched).toContain('basemap/maplibre/maplibre-gl-worker.mjs');
-    expect(matched).toContain('basemap/maplibre/maplibre-gl-shared.mjs');
+    expect(matched).toContain('app/basemap/maplibre/maplibre-gl-worker.mjs');
+    expect(matched).toContain('app/basemap/maplibre/maplibre-gl-shared.mjs');
   });
 
   test('every vendored fontstack x every vendored range', () => {
@@ -138,20 +139,40 @@ describe('the service worker precaches everything the basemap needs to draw', ()
     expect(matched).toContain('assets/app/index-abc123.css');
   });
 
+  test('the MapLibre worker is served from inside the service worker scope', () => {
+    // THE ONE THAT ACTUALLY SHIPPED BROKEN, so it is worth being precise about.
+    //
+    // The SW is registered with scope /app/. A page it CONTROLS has its requests
+    // intercepted at any path, so a main-thread fetch of /basemap/fonts/… is
+    // served from the precache. But a DEDICATED WORKER is its own service-worker
+    // client, and whether its script load and its own imports are intercepted is
+    // matched on the WORKER's URL — not on the page that spawned it.
+    //
+    // Shipped at /basemap/maplibre/, the worker was outside the scope, so neither
+    // its script nor its `./maplibre-gl-shared.mjs` import ever reached the cache:
+    // offline both went to the network and failed, the map never fired `load`, and
+    // the two precached files sat there unreachable. Every test passed. The build
+    // was clean. The console was clean. (This is the same scope problem that makes
+    // the SQLite engine run from an inline blob: worker — see src/manifest.ts.)
+    //
+    // Caught by scripts/offline-uat.mjs, which is the only thing that could.
+    for (const p of globPatterns.filter((g) => g.includes('maplibre'))) {
+      expect(p, 'the MapLibre worker must be precached from inside the /app/ SW scope')
+        .toMatch(/^app\//);
+    }
+    const src = readFileSync(resolve(ROOT, 'src/bee-map.ts'), 'utf8');
+    expect(src, 'setWorkerUrl must point inside /app/, or the worker cannot be served offline')
+      .toContain("'/app/basemap/maplibre/maplibre-gl-worker.mjs'");
+  });
+
   test('glyphs are fetched from the main thread, where the SW can serve them', () => {
-    // THE ASSUMPTION THE WHOLE PRECACHE RESTS ON, and it is not obvious.
+    // The main thread IS controlled, so a glyph fetch from it is served from the
+    // precache wherever the file lives — which is why the fonts and sprites can
+    // stay outside /app/ while the worker cannot.
     //
-    // The service worker is registered at /app/ scope. It intercepts anything the
-    // pages it CONTROLS request, whatever the path — so a main-thread fetch of
-    // /basemap/fonts/… is served from the precache. A DEDICATED WORKER is a
-    // different client: MapLibre's worker is served from /basemap/maplibre/, which
-    // is outside /app/, so it is not controlled and its own fetches would go
-    // straight to the network and simply fail offline. That scope mismatch is why
-    // the SQLite engine runs from an inline blob: worker (see src/manifest.ts).
-    //
-    // In MapLibre v6 the glyph URL template is expanded on the main thread, so
-    // precaching is sufficient. If an upgrade ever moves that into the worker, the
-    // failure is the usual one — labels silently become blank boxes offline — so
+    // In MapLibre v6 the glyph URL template is expanded on the main thread. If an
+    // upgrade ever moves that into the worker, those fetches become the worker's
+    // own and stop being served — labels silently become blank boxes offline — so
     // it is caught HERE, structurally, rather than in a forest.
     const substitutesFontstack = (f: string) =>
       /replace\(.\{fontstack\}./.test(readFileSync(

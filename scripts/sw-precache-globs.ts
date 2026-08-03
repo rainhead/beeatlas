@@ -26,7 +26,13 @@ export const globPatterns = [
   // The MapLibre worker and the chunk it imports as a sibling. Missing, tiles sit
   // in `loading` forever, the map's `load` event never fires, and the map is a
   // blank rectangle with nothing in the console. See src/tests/maplibre-worker.test.ts.
-  'basemap/maplibre/*.mjs',
+  //
+  // The `app/` prefix is the whole reason this works. A dedicated worker is its
+  // own service-worker client, matched against the registration by its OWN URL,
+  // so a worker served from /basemap/ is outside the /app/ scope and neither its
+  // script load nor its sibling import ever reaches the cache. Precaching it
+  // there was a no-op that looked correct in every test. Do not move it.
+  'app/basemap/maplibre/*.mjs',
   // MapLibre fetches glyph ranges LAZILY BY CODEPOINT, so a range that was never
   // exercised online renders as blank boxes offline — again with no error. All
   // three vendored stacks x three ranges, ~800 KB total. The stacks and ranges
