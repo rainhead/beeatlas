@@ -49,6 +49,38 @@ if [[ $missing -eq 1 ]]; then
     exit 1
 fi
 
+# Check the SOURCE before trusting it. The first cut of this script validated only
+# the destination, which meant it could report "was a previously-simplified file ->
+# copied" in reassuring green while moving an equally bad file sideways. A sandbox
+# copy can be stale or itself a former output; `_meta` catches the latter exactly,
+# and the vertex count catches the former by being obviously too small.
+for name in "${MARTS[@]}"; do
+    if grep -q '"_meta"' "$SANDBOX_DIR/$name"; then
+        echo "ERROR: $SANDBOX_DIR/$name carries _meta — the SANDBOX copy is itself a" >&2
+        echo "       previously-simplified file, not a dbt mart. Copying it would move the" >&2
+        echo "       problem rather than fix it. Re-run 'bash data/dbt/run.sh build' first." >&2
+        exit 1
+    fi
+done
+
+# Ring positions across every feature — the unit simplification destroys, and the
+# only number that makes "is this mart plausible?" answerable at a glance.
+count_vertices() {
+    python3 - "$1" <<'PY'
+import json, sys
+o = json.load(open(sys.argv[1]))
+n = 0
+for f in o.get("features") or []:
+    g = (f or {}).get("geometry") or {}
+    c = g.get("coordinates") or []
+    if g.get("type") == "Polygon":
+        n += sum(len(r) for r in c)
+    elif g.get("type") == "MultiPolygon":
+        n += sum(len(r) for p in c for r in p)
+print(n)
+PY
+}
+
 for name in "${MARTS[@]}"; do
     src="$SANDBOX_DIR/$name"
     dst="$EXPORT_DIR/$name"
@@ -63,9 +95,22 @@ for name in "${MARTS[@]}"; do
         state="absent"
     fi
     cp "$src" "$dst"
-    printf '  %-22s %-32s -> %s bytes\n' "$name" "$state" "$(wc -c < "$dst" | tr -d ' ')"
+    printf '  %-22s %-32s -> %9s vertices, %10s bytes\n' \
+        "$name" "$state" "$(count_vertices "$dst")" "$(wc -c < "$dst" | tr -d ' ')"
 done
 
-echo
-echo "Done. Re-run the pipeline; topology_postprocess now logs vertices in and out."
-echo "Expect ecoregions 102,699 -> 4,674 and counties 20,657 -> 20,657."
+cat <<'NOTE'
+
+Done. Read the vertex counts above before re-running the pipeline — they are the
+mart's real detail, and a mart that is too coarse cannot be rescued downstream.
+
+For reference, a host whose geographies sources are current produces roughly:
+
+    counties.geojson     ~20,700 vertices   (~510 KB)  Census cb_2024_us_county_500k
+    ecoregions.geojson  ~102,700 vertices   (~4.0 MB)  CEC NA_CEC_Eco_Level3
+
+An order of magnitude below those means the SOURCE is the problem, not this step:
+the geographies loader caches its downloads (data/geographies_pipeline.py), and a
+DuckDB table loaded before a source URL changed keeps the old geometry until that
+loader runs again. Re-run the geographies step, then dbt build, then this script.
+NOTE
