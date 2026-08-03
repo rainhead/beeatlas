@@ -97,11 +97,67 @@ def _resolve_built_at() -> str:
     return datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _count_vertices(obj: dict) -> int:
+    """Total ring positions across every feature. The unit simplification destroys.
+
+    Bytes are the wrong unit to watch here: coordinate precision, key order and
+    `_meta` all move them, so a file can halve in vertices while its size barely
+    shifts. This is what the log reports.
+    """
+    total = 0
+    for feature in obj.get("features") or []:
+        geom = (feature or {}).get("geometry") or {}
+        coords = geom.get("coordinates") or []
+        if geom.get("type") == "Polygon":
+            total += sum(len(ring) for ring in coords)
+        elif geom.get("type") == "MultiPolygon":
+            total += sum(len(ring) for poly in coords for ring in poly)
+    return total
+
+
+def _assert_not_our_own_output(name: str, obj: dict) -> None:
+    """Refuse to simplify a file this step already simplified.
+
+    THIS IS THE BUG THIS GUARD EXISTS FOR. Before beeatlas-hyq (136bce2f) the step
+    wrote its simplified result back over the raw mart in place. Those files are
+    still sitting in EXPORT_DIR's RAW slot on any long-lived data directory, and
+    because the raw copy is only refreshed when stelis decides `place-marts` needs
+    to re-run, a subsequent run re-simplifies an already-simplified file. Compound
+    that a few times and 3% retention becomes 0.09%: the published ecoregions went
+    to 761 vertices over 64 features — 46 of them under six vertices, i.e.
+    triangles standing in for ecoregion outlines — where one honest pass over the
+    real mart yields 4,674.
+
+    `_meta` is an exact sentinel for it, and free: `_inject_meta` is the only thing
+    that writes that key, and it only ever writes it to this step's OUTPUT. A dbt
+    mart straight out of `emit_feature_collection` has no `_meta`. So a `_meta` on
+    the INPUT means the raw slot is holding our own output.
+
+    Loud failure rather than a warning, because the failure mode it replaces is
+    silent and cumulative — nothing downstream notices, the file just quietly gets
+    coarser every time. Fix by refreshing the raw copy from the dbt sandbox
+    (re-run `place-marts`, or delete the raw file and let stelis rebuild it).
+    """
+    if "_meta" not in obj:
+        return
+    meta = obj.get("_meta") or {}
+    raise RuntimeError(
+        f"{name} carries _meta (git_sha={meta.get('git_sha', '?')}, "
+        f"built_at={meta.get('built_at', '?')}) — only this step stamps that, so the "
+        f"raw mart slot is holding a PREVIOUSLY SIMPLIFIED file. Simplifying it "
+        f"again compounds: 3% twice is 0.09%. Refresh it from the dbt sandbox "
+        f"(re-run place-marts, or delete {name} and rebuild) and re-run."
+    )
+
+
 def _inject_meta(path: Path) -> None:
     """Add a `_meta` field to the FeatureCollection root with provenance.
 
     Lets us identify which commit produced any deployed asset:
         curl https://beeatlas.net/data/counties.geojson | jq ._meta
+
+    It doubles as the sentinel `_assert_not_our_own_output` keys on, so this
+    remains the ONLY writer of `_meta` — do not stamp it anywhere else.
     """
     obj = json.loads(path.read_text())
     obj["_meta"] = {
@@ -145,35 +201,50 @@ def _run_mapshaper(src: Path, dst: Path) -> None:
 def main() -> None:
     """Run topology-aware cleanup + simplification on both region layers.
 
-    Counties (CB 5m) are already topology-clean from the source; -clean is a
-    no-op on them but -simplify shrinks the file ~5x without re-introducing
-    gaps (mapshaper simplifies shared arcs once, unlike DuckDB's per-feature
-    ST_SimplifyPreserveTopology).
+    Counties (CB 5m) are already topology-clean and cartographically generalized
+    from the source, so they get -clean only — no -simplify at all, per
+    _SIMPLIFY_PCT. A correct pass is therefore near-identity: 20,657 vertices in,
+    20,657 out, ~510 KB. (The docstring here used to claim -simplify shrank it 5x;
+    that was written before counties were set to None and is exactly the kind of
+    stale number the vertex logging below now makes impossible to keep.)
 
     Ecoregions need both -clean (resolves the EPA L3 source's ~160 km² of
-    inter-feature overlaps in WA) and -simplify (brings 6 MB raw down to
-    a tens-of-KB lazy-loadable file).
+    inter-feature overlaps in WA) and -simplify. The mart is ~4 MB of GeoJSON —
+    102,699 vertices over 66 features after the model clips EPA L3 to the WA
+    outline — and 3% retention lands it at ~4,674 vertices in ~190 KB, which is
+    ~73 vertices per feature against counties' 45. That is the level this step is
+    tuned for, and the only way to land far below it is to feed it its own output
+    (see _assert_not_our_own_output).
     """
     for name in ("counties.geojson", "ecoregions.geojson", "wilderness.geojson"):
         src = _EXPORT_DIR / name
         dst = _EXPORT_DIR / _clean_name(name)
         if not src.exists():
             raise FileNotFoundError(f"{src} not found — run dbt build first")
+        obj = json.loads(src.read_text())
+        _assert_not_our_own_output(str(src), obj)
         # An empty FeatureCollection can occur for wilderness.geojson before the
         # PAD-US source table is loaded (see dbt_project.yml on-run-start guard).
         # mapshaper rejects zero-feature input, so copy the raw file to the cleaned
         # name and just stamp _meta — keeps the nightly green (and the downstream
         # .clean.geojson present) while the overlay is still empty.
-        if not json.loads(src.read_text()).get("features"):
+        if not obj.get("features"):
             shutil.copy2(src, dst)
             _inject_meta(dst)
             print(f"  {name}: 0 features — mapshaper skipped")  # noqa: T201
             continue
-        before = src.stat().st_size
+        before, before_v = src.stat().st_size, _count_vertices(obj)
         _run_mapshaper(src, dst)
         _inject_meta(dst)
         after = dst.stat().st_size
-        print(f"  {name} -> {dst.name}: {before:,} -> {after:,} bytes")  # noqa: T201
+        after_v = _count_vertices(json.loads(dst.read_text()))
+        # Vertices first: they are what simplification actually removes, and the
+        # number a reviewer can compare against the last run. Bytes move for
+        # reasons that have nothing to do with detail.
+        print(  # noqa: T201
+            f"  {name} -> {dst.name}: {before_v:,} -> {after_v:,} vertices "
+            f"({before:,} -> {after:,} bytes)"
+        )
 
 
 if __name__ == "__main__":
