@@ -14,6 +14,10 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { resolve } from 'node:path';
+// The precache list lives in its own module so the test that pins it can run the
+// SAME patterns through workbox's globber instead of re-declaring them — see
+// scripts/sw-precache-globs.ts and src/tests/basemap-precache.test.ts.
+import { globPatterns, globIgnores } from './scripts/sw-precache-globs.ts';
 
 export default defineConfig({
   publicDir: false,
@@ -35,15 +39,8 @@ export default defineConfig({
       injectManifest: {
         globDirectory: resolve(process.cwd(), '_site'),
         swDest: resolve(process.cwd(), '_site/app/sw.js'),
-        // `.wasm` is load-bearing for offline cold-start: the wa-sqlite engine binary
-        // (assets/wa-sqlite-<hash>.wasm) must be precached or the SQL worker can't
-        // initialize offline → tablesReady never resolves → the "Loading…" curtain
-        // hangs forever (Phase 151 real-device UAT, PWA-03).
-        globPatterns: ['app/index.html', 'assets/**/*.{js,css,wasm}'],
-        globIgnores: [
-          'data/**', 'feeds/**', '**/*.db', '**/*.geojson',
-          '**/*.parquet', '**/*.png', '**/sw.js',
-        ],
+        globPatterns,
+        globIgnores,
         maximumFileSizeToCacheInBytes: 30_000_000,  // D-03: 30 MB cap
         // Glob paths are relative to globDirectory (_site/) without a leading /.
         // modifyURLPrefix prepends / so precache URLs are absolute site paths

@@ -1,0 +1,57 @@
+/**
+ * What the service worker precaches, as data (beeatlas-6rs).
+ *
+ * Lifted out of vite.sw.config.ts so src/tests/basemap-precache.test.ts can run
+ * these EXACT patterns through workbox's own globber rather than re-declaring
+ * them. Two copies of this list is the failure this file exists to prevent: every
+ * omission here is invisible until someone is standing in a forest with a blank
+ * map and a clean console.
+ *
+ * Paths are relative to _site/ (workbox's globDirectory) with no leading slash;
+ * modifyURLPrefix turns them into absolute site paths afterwards.
+ */
+
+export const globPatterns = [
+  'app/index.html',
+  // `.wasm` is load-bearing for offline cold-start: the wa-sqlite engine binary
+  // (assets/wa-sqlite-<hash>.wasm) must be precached or the SQL worker can't
+  // initialize offline → tablesReady never resolves → the "Loading…" curtain
+  // hangs forever (Phase 151 real-device UAT, PWA-03).
+  'assets/**/*.{js,css,wasm}',
+
+  // --- The basemap RENDERER (beeatlas-6rs). Not the map data; these are the
+  // small files without which the map cannot draw at all. Each fails silently
+  // when absent, which is why they are enumerated rather than assumed.
+
+  // The MapLibre worker and the chunk it imports as a sibling. Missing, tiles sit
+  // in `loading` forever, the map's `load` event never fires, and the map is a
+  // blank rectangle with nothing in the console. See src/tests/maplibre-worker.test.ts.
+  'basemap/maplibre/*.mjs',
+  // MapLibre fetches glyph ranges LAZILY BY CODEPOINT, so a range that was never
+  // exercised online renders as blank boxes offline — again with no error. All
+  // three vendored stacks x three ranges, ~800 KB total. The stacks and ranges
+  // themselves are pinned by src/basemap-style.ts (VENDORED_FONTSTACKS,
+  // VENDORED_GLYPH_RANGES) and asserted against disk in basemap-style.test.ts.
+  'basemap/fonts/**/*.pbf',
+  // The icon sheets, at both densities. Both the .json index and the .png sheet
+  // are required; MapLibre treats a missing sprite as a style-load failure.
+  'basemap/sprites/*.{json,png}',
+];
+
+export const globIgnores = [
+  // Runtime data artifacts. These are primed into Cache Storage by
+  // src/prime-orchestrator.ts instead, which reports byte progress; precaching
+  // them here would make the SW install a silent 33 MB download.
+  'data/**',
+  'feeds/**',
+  '**/*.db',
+  '**/*.geojson',
+  '**/*.parquet',
+  // The PWA icons. Narrowed from a blanket '**/*.png' (beeatlas-6rs), which was
+  // aimed at these but also swallowed basemap/sprites/light{,@2x}.png — and
+  // globIgnores beats globPatterns, so listing the sprites above would not have
+  // been enough on its own. Scope unchanged for the icons themselves.
+  'app/icons/**/*.png',
+  // The service worker must never precache itself.
+  '**/sw.js',
+];
