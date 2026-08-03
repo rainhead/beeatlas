@@ -120,7 +120,7 @@ At Rainier, `?x=-121.76&y=46.85&z=13`:
 | E3 | Peak names are labelled from z13 |
 | E4 | Every label is **readable text, never blank boxes** (a blank box is a missing glyph range) |
 | E5 | Cluster counts and place/wilderness names render (they use Noto Sans Medium; no Bold is shipped) |
-| E6 | Hillshade is at full strength at z13 and has faded to nothing by z15 |
+| E6 | Hillshade is at full strength at z13 and has faded to nothing by z15 — judge by EYE. `queryRenderedFeatures` on a hillshade layer always returns 0: raster layers have no queryable features, so it is not a usable check |
 | E7 | Lakes and rivers are **not** shaded by the hillshade |
 | E8 | Zoom below z13: trails/streams/peaks disappear rather than showing an empty map |
 | E9 | Dot colours follow recency (this year / last year / earlier) |
@@ -143,7 +143,8 @@ installed app** — a browser tab is a separate storage bucket
 | F7 | Download it | Progress counts up; ends at "✓ Offline maps ready" |
 | F8 | Force-quit → airplane mode → cold start | Basemap, dots **and labels with icons** at z13–14 |
 | F9 | While offline, run through **A** again | Interactions work with no network |
-| F10 | Note any "Turn On Wi-Fi to Use the Internet" alerts | Some are expected at startup — tracked as `beeatlas-c8v` |
+| F10 | A "Turn On Wi-Fi to Use the Internet" alert may appear once at launch | KNOWN AND ACCEPTED (`beeatlas-c8v`). The app makes zero failed requests; the remaining candidate is the browser's own service-worker update check, which no page code initiates. Do not re-investigate without new evidence |
+| F11 | Account menu → **Diagnostics** | A full state dump: caches, archives, map state, and every request the app made. This is the tool for reporting anything on this list — a screenshot answers most questions outright |
 
 ## G. Regression guards worth re-running
 

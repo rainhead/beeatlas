@@ -108,9 +108,17 @@ cd data && uv run pytest
     The RENDERER (MapLibre worker + 9 glyph ranges + 4 sprite files) is precached
     by the SW instead, from `scripts/sw-precache-globs.ts` — a single list, run
     through workbox's own globber by `src/tests/basemap-precache.test.ts`. That
-    works only because MapLibre v6 expands `{fontstack}` on the MAIN thread; the
-    worker is outside the `/app/` SW scope and its own fetches would bypass the
-    cache. The test pins that structurally.
+    works only because MapLibre v6 expands `{fontstack}` on the MAIN thread.
+    The WORKER is bundled into ONE self-contained file by
+    `scripts/build-maplibre-worker.mjs` and served from `/app/basemap/maplibre/`:
+    a dedicated worker is its own SW client matched on its OWN url, so both its
+    script load and its runtime `import './maplibre-gl-shared.mjs'` were
+    unreachable offline — the worker died before running a line and every silent
+    offline symptom followed. Both manifests are CACHE-FIRST with a deferred
+    revalidation, not `navigator.onLine`-guarded: on a real iPhone onLine still
+    read true at 110ms. On-device debugging: account menu → **Diagnostics**
+    (`src/diagnostics.ts`); automated offline cold start:
+    `node scripts/offline-uat.mjs`. Verified on a real iPhone 2026-08-03.
   - **Hillshade (beeatlas-8py).** A SECOND archive, `wa-terrain-*.pmtiles`
     (~61 MB, `data/build-terrain-basemap.sh` + `data/terrain_tiles.py`), lives
     beside the vector one and publishes independently through the same

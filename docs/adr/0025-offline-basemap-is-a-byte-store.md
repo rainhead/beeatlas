@@ -142,6 +142,71 @@ basemap. It gates **reading** as well as downloading: a local archive is a large
 blob this code trusts to be well-formed, and if a device ever ends up with a
 corrupt one, "stop offering the download" would leave the broken copy in use.
 
+## Amendment (2026-08-03): the worker, and cache-first manifests
+
+Two things this record got wrong, found on a real device after it was written.
+
+### The MapLibre worker must be ONE file
+
+§3 above says the SW is scoped to `/app/`, that a dedicated worker is a separate
+client, and that precaching glyphs is therefore sufficient because MapLibre
+expands `{fontstack}` on the main thread. All true. What it missed is that the
+same reasoning applies to the worker's OWN module import: `maplibre-gl-worker.mjs`
+opens with `from "./maplibre-gl-shared.mjs"`, and that fetch is made by the worker,
+which is uncontrolled. Offline it goes to the network, fails, and the worker dies
+before running a line.
+
+Everything the worker does then stops silently — vector tile parsing, GeoJSON
+clustering, symbol layout — so both PMTiles sources stalled at `loaded=false` AND
+the purely-local occurrence layer drew none of its 101,516 features. Three
+symptoms, one cause. A worker POOL where only some members die produces
+tile-shaped holes that move with zoom, which is how it was first reported.
+
+Moving both files inside `/app/` did not help and could not: only the worker needs
+them, and only the worker cannot read them. `scripts/build-maplibre-worker.mjs`
+now bundles it into one self-contained file and fails the build if a relative
+import survives.
+
+Measured, offline, server killed rather than emulated, in WebKit and Chromium:
+
+| offline | features | styleLoaded | clusters | dots |
+|---|---|---|---|---|
+| two files | 98,762 | `false` | 0 | 0 |
+| bundled | 98,762 | `true` | 690 | 87 |
+
+### Manifests are cache-first, not network-first
+
+Both manifests were network-first with a cached fallback, which meant every
+offline launch began with failed requests — and on iOS a failed request inside an
+installed app raises a system "Turn On Wi-Fi" modal over a working map.
+
+`navigator.onLine` cannot prevent this. On the device it still read **true at
+110 ms** and flipped to false only later, so a guard evaluated during page init is
+too early to matter. The fix is not needing the network: serve the cached copy and
+revalidate on a timer.
+
+The original network-first argument — that the publish prunes superseded archives —
+was simply wrong, and checkable: `data/publish-basemap.sh` keeps a superseded
+archive for `GRACE_DAYS` (30) expressly "so a client holding a cached manifest
+can" still load it, and `merge-swap.sh` age-prunes `/data` only at +30 days.
+
+`src/manifest.ts` matters most here because it also runs in the SQLite worker,
+which is created from an inline `blob:` URL — outside the SW scope AND in a
+separate realm, so its requests are both unhelped by the cache and invisible to
+page instrumentation.
+
+### Accepted residual
+
+A system network nag can still appear on an offline launch. The app itself makes
+zero failed requests (verified on device via the diagnostics panel's request log);
+the remaining candidate is the browser's own soft service-worker update check,
+which re-fetches `/app/sw.js` on navigation. The SW is deliberately never
+precached — a worker that caches itself is how a device gets stranded on a broken
+version — and nothing the page owns initiates that request. Mitigating it means
+`updateViaCache: 'all'` plus a `max-age` on `sw.js`, which would delay update
+discovery and weaken the update-prompt flow. Decided 2026-08-03 not to pay that:
+the map works, the dialog is dismissible.
+
 ## Consequences
 
 - Storage stopped being the binding constraint on basemap scope. A future BC
