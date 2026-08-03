@@ -197,15 +197,24 @@ page instrumentation.
 
 ### Accepted residual
 
-A system network nag can still appear on an offline launch. The app itself makes
-zero failed requests (verified on device via the diagnostics panel's request log);
-the remaining candidate is the browser's own soft service-worker update check,
-which re-fetches `/app/sw.js` on navigation. The SW is deliberately never
-precached — a worker that caches itself is how a device gets stranded on a broken
-version — and nothing the page owns initiates that request. Mitigating it means
-`updateViaCache: 'all'` plus a `max-age` on `sw.js`, which would delay update
-discovery and weaken the update-prompt flow. Decided 2026-08-03 not to pay that:
-the map works, the dialog is dismissible.
+A system network nag still appears on an offline launch, and its cause is now
+CONFIRMED rather than suspected: the browser's own soft service-worker update
+check re-fetches `/app/sw.js` at every launch. Established by watching the server
+rather than the client (`scripts/offline-leak-check.sh`) — with the network up, an
+online launch logged `/app/sw.js` at T+0 and the three intentional deferred
+manifest revalidations at T+8s, and nothing else. The app itself makes zero failed
+requests offline, verified independently by the diagnostics panel's own log.
+
+The SW is deliberately never precached — a worker that caches itself is how a
+device gets stranded on a broken version — and nothing the page owns initiates
+that request. The only mitigation is `updateViaCache: 'all'` plus a `max-age` on
+`sw.js`, letting the HTTP cache satisfy the check; the spec caps the useful window
+at 24h regardless. That would delay update discovery by up to a day and weaken the
+"App update available" flow, and it needs an Apache change on maderas.
+
+Decided 2026-08-03, with the cause known, not to pay that: the map works
+completely offline and the dialog is dismissible. Prompt update discovery is worth
+more while fixes are still shipping to field users.
 
 ## Consequences
 

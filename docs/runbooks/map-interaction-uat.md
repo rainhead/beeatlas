@@ -143,7 +143,7 @@ installed app** — a browser tab is a separate storage bucket
 | F7 | Download it | Progress counts up; ends at "✓ Offline maps ready" |
 | F8 | Force-quit → airplane mode → cold start | Basemap, dots **and labels with icons** at z13–14 |
 | F9 | While offline, run through **A** again | Interactions work with no network |
-| F10 | A "Turn On Wi-Fi to Use the Internet" alert may appear once at launch | KNOWN AND ACCEPTED (`beeatlas-c8v`). The app makes zero failed requests; the remaining candidate is the browser's own service-worker update check, which no page code initiates. Do not re-investigate without new evidence |
+| F10 | A "Turn On Wi-Fi to Use the Internet" alert appears once at launch | KNOWN, CAUSE CONFIRMED, ACCEPTED (`beeatlas-c8v`). It is the browser's own service-worker update check re-fetching `/app/sw.js`, which no page code initiates and which cannot be precached. The app itself makes zero failed requests. **Do not re-investigate** — the suppression trade-off was considered and declined |
 | F11 | Account menu → **Diagnostics** | A full state dump: caches, archives, map state, and every request the app made. This is the tool for reporting anything on this list — a screenshot answers most questions outright |
 
 ## Faster loop: the iOS Simulator
