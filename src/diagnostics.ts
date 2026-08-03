@@ -20,6 +20,8 @@
  * one failure yields one "ERR" line rather than an empty panel.
  */
 
+import { archiveReadStats } from './basemap-cache.ts';
+
 const PARAM = 'diag';
 
 /** Bytes as a short human string; the report is read on a phone screen. */
@@ -34,6 +36,16 @@ async function probe(label: string, fn: () => Promise<string> | string): Promise
     return `${label}: ${await fn()}`;
   } catch (err) {
     return `${label}: ERR ${err instanceof Error ? err.message : String(err)}`;
+  }
+}
+
+/** The <bee-map> element, if mounted. Reached defensively — it may not exist. */
+function beeMapElement(): HTMLElement | null {
+  try {
+    const atlas = document.querySelector('bee-atlas') as (HTMLElement & { shadowRoot: ShadowRoot }) | null;
+    return (atlas?.shadowRoot?.querySelector('bee-map') as HTMLElement | null) ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -149,6 +161,32 @@ export async function collectDiagnostics(): Promise<string> {
       const entries = Object.entries(src).filter(([, v]) => typeof v?.url === 'string' && v.url.startsWith('pmtiles://'));
       if (entries.length === 0) return 'NONE — the style names no archive';
       return entries.map(([k, v]) => `\n    ${k}: ${v.url?.split('/').pop()} loaded=${m.isSourceLoaded?.(k)}`).join('');
+    }));
+    // Read failures are the difference between "the archive is missing" and "the
+    // archive is there but reads are dropping" — the second looks like holes in
+    // the map that move as you zoom, and is otherwise completely silent.
+    add(await probe('archive reads', () => {
+      const s = archiveReadStats;
+      return `${s.reads} reads, ${s.retries} retried, ${s.failures} FAILED` +
+        (s.failures > 0 ? '  ← holes in the map come from these' : '');
+    }));
+    // Distinguishes "no dots because the data never loaded" from "no dots
+    // because the layers are missing" from "no dots because there are none here".
+    add(await probe('occurrences', () => {
+      const bm = beeMapElement() as unknown as { _fullGeoJSON?: { features?: unknown[] } } | null;
+      const feats = bm?._fullGeoJSON?.features?.length;
+      const mm = m as unknown as {
+        getLayer?: (id: string) => unknown;
+        queryRenderedFeatures?: (o: { layers: string[] }) => unknown[];
+      };
+      const layer = !!mm.getLayer?.('unclustered-point');
+      let rendered = 'n/a';
+      try {
+        const dots = mm.queryRenderedFeatures?.({ layers: ['unclustered-point'] })?.length ?? 0;
+        const clusters = mm.queryRenderedFeatures?.({ layers: ['clusters'] })?.length ?? 0;
+        rendered = `${dots} dots + ${clusters} clusters on screen`;
+      } catch { /* layer absent */ }
+      return `${feats ?? 'NOT LOADED'} features; layers ${layer ? 'present' : 'MISSING'}; ${rendered}`;
     }));
   }
   add('');

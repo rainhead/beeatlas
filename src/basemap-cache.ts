@@ -131,9 +131,20 @@ export async function loadBasemapManifest(): Promise<BasemapManifest | null> {
  * `pmtiles://`, because that string is what Protocol dispatches on. Callers get
  * it from basemapArchiveUrl() rather than assembling it, so the two cannot drift.
  */
+/**
+ * Read statistics, surfaced by the diagnostics panel (src/diagnostics.ts).
+ *
+ * These exist because a failed range read is INVISIBLE: PMTiles does not retry,
+ * MapLibre marks that one tile errored and moves on, and the result is a hole in
+ * the map that a user describes as "some quads have no hillshade". Nothing is
+ * logged and nothing throws. A counter is the cheapest way to tell a bad read
+ * path from a bad archive.
+ */
+export const archiveReadStats = { reads: 0, retries: 0, failures: 0 };
+
 export class BlobSource {
   readonly #url: string;
-  readonly #blob: Blob;
+  #blob: Blob;
 
   constructor(url: string, blob: Blob) {
     this.#url = url;
@@ -144,8 +155,32 @@ export class BlobSource {
     return this.#url;
   }
 
+  /**
+   * RETRIED ONCE, RE-ACQUIRING THE BLOB, because a rejection here is permanent
+   * damage rather than a blip. MapLibre requests many tiles at once, each one a
+   * `Blob.slice().arrayBuffer()` against a file of hundreds of megabytes; a
+   * single rejection under that concurrency leaves a tile errored forever, and
+   * PMTiles has no retry of its own. The second attempt re-reads the handle out
+   * of Cache Storage first, so it also recovers a Blob whose backing store the
+   * browser has invalidated underneath us — which a long-lived reference to a
+   * 227 MB entry is exactly the kind of thing to suffer.
+   */
   async getBytes(offset: number, length: number): Promise<{ data: ArrayBuffer }> {
-    return { data: await this.#blob.slice(offset, offset + length).arrayBuffer() };
+    archiveReadStats.reads++;
+    try {
+      return { data: await this.#blob.slice(offset, offset + length).arrayBuffer() };
+    } catch (first) {
+      archiveReadStats.retries++;
+      try {
+        const fresh = await cachedArchive(this.#url);
+        if (fresh) this.#blob = fresh;
+        return { data: await this.#blob.slice(offset, offset + length).arrayBuffer() };
+      } catch (second) {
+        archiveReadStats.failures++;
+        console.warn('[basemap] archive read failed twice', this.#url, offset, length, first, second);
+        throw second;
+      }
+    }
   }
 }
 
