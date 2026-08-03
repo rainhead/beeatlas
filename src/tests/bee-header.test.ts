@@ -98,7 +98,14 @@ describe('OFF-05: bee-header offline pill (Plan 149-03)', () => {
 
     const pill = el.shadowRoot!.querySelector('.offline-pill');
     expect(pill).not.toBeNull();
-    expect(pill!.textContent).toBe('Offline');
+    expect(pill!.textContent!.trim()).toBe('Offline');
+    // The label is hidden below 640px so the header fits one row on a phone
+    // (beeatlas-ax2), so the accessible name has to come from the element
+    // itself rather than from the text — otherwise the pill becomes a
+    // decorative icon announcing nothing on exactly the screens that hide it.
+    expect(pill!.getAttribute('aria-label')).toBe('Offline');
+    expect(pill!.getAttribute('role')).toBe('status');
+    expect(pill!.querySelector('svg')).not.toBeNull();
   });
 
   test('renders no pill when offline=false (OFF-05)', async () => {

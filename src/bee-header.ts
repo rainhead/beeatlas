@@ -130,13 +130,18 @@ export class BeeHeader extends LitElement {
     }
 
     .offline-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
       font-size: 0.75rem;
       background: rgba(255, 255, 255, 0.2);
       border: 1px solid rgba(255, 255, 255, 0.4);
       border-radius: 999px;
       padding: 0.2rem 0.6rem;
       color: white;
+      flex: none;
     }
+    .offline-pill svg { display: block; }
 
     /* Editor-role chip. Lives inside the white menu surface (its only render
        site since beeatlas-j96) — NOT on the dark header, so it takes body/accent
@@ -452,6 +457,14 @@ export class BeeHeader extends LitElement {
       /* Reclaim horizontal space so title + 4 nav icons + the trailing chrome
          fit one row down to ~360px (the icon padding keeps tap targets). */
       .left-group { gap: 0; }
+      /* The word "Offline" is ~70px the budget above never accounted for, and it
+         is only ever present in the one situation where the header is most
+         likely to be looked at closely. With the search button beside it the
+         row overflowed at 390px and the safety-net wrap fired, putting the
+         header on two lines on an iPhone (beeatlas-ax2). The icon carries the
+         state; the word is dropped, and aria-label keeps it for screen readers. */
+      .offline-pill { padding: 0.25rem; }
+      .offline-pill__label { display: none; }
       .right-group { margin-left: auto; padding-right: 0; }
       h1 { font-size: 1rem; margin-left: 0.5rem; }
     }
@@ -977,7 +990,16 @@ export class BeeHeader extends LitElement {
         </a>
       </div>
       <div class="right-group">
-        ${this.offline ? html`<span class="offline-pill">Offline</span>` : ''}
+        ${this.offline ? html`
+          <span class="offline-pill" role="status" aria-label="Offline">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true">
+              <path stroke-linecap="round" d="M3 3l18 18"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.5 16.4a5 5 0 0 1 7 0M5 13a10 10 0 0 1 3.2-2.1M19 13a10 10 0 0 0-4.6-2.6M2 9.5A15 15 0 0 1 7 6.6m4.2-.6A15 15 0 0 1 22 9.5"/>
+              <circle cx="12" cy="20" r="0.8" fill="currentColor" stroke="none"/>
+            </svg>
+            <span class="offline-pill__label">Offline</span>
+          </span>
+        ` : ''}
         ${this.installable ? html`
           <button
             class="icon-btn install-btn"
