@@ -34,10 +34,17 @@ county_dedup AS (
     SELECT DISTINCT ON (_row_id) _row_id, county
     FROM with_county
 ),
+-- Snap to the NEAREST county, but only within region_snap_tolerance_deg — see the
+-- macro for why the ceiling exists and how 0.2 was measured. Beyond it the point
+-- is not in Washington and county is NULL, which is the true answer rather than
+-- the nearest-looking one (beeatlas-8pz).
 county_fallback AS (
     SELECT _row_id,
-        (SELECT county FROM wa_counties
-         ORDER BY ST_Distance(geom,
+        (SELECT c.county FROM wa_counties c
+         WHERE ST_Distance(c.geom,
+             (SELECT pt FROM occ_pt o2 WHERE o2._row_id = county_dedup._row_id))
+             <= {{ region_snap_tolerance_deg() }}
+         ORDER BY ST_Distance(c.geom,
              (SELECT pt FROM occ_pt o2 WHERE o2._row_id = county_dedup._row_id))
          LIMIT 1) AS county
     FROM county_dedup
@@ -56,10 +63,18 @@ eco_dedup AS (
     SELECT DISTINCT ON (_row_id) _row_id, ecoregion_l3
     FROM with_eco
 ),
+-- Same ceiling, same reason. Ecoregions are the more forgiving of the two — they
+-- are physiographic and genuinely continue across the state line, so the nearest
+-- one is often still correct for a point just outside. That makes a fabricated
+-- value HARDER to spot here, not easier, which is the argument for capping it on
+-- the same terms rather than trusting it further.
 eco_fallback AS (
     SELECT _row_id,
-        (SELECT ecoregion_l3 FROM wa_eco
-         ORDER BY ST_Distance(geom,
+        (SELECT e.ecoregion_l3 FROM wa_eco e
+         WHERE ST_Distance(e.geom,
+             (SELECT pt FROM occ_pt o2 WHERE o2._row_id = eco_dedup._row_id))
+             <= {{ region_snap_tolerance_deg() }}
+         ORDER BY ST_Distance(e.geom,
              (SELECT pt FROM occ_pt o2 WHERE o2._row_id = eco_dedup._row_id))
          LIMIT 1) AS ecoregion_l3
     FROM eco_dedup
