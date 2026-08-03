@@ -10,3 +10,10 @@ import './bee-atlas.ts';
 import './sw-registration.ts';
 import './prime-orchestrator.ts';
 import './install-prompt.ts';
+// `?diag=1` only — inert otherwise. It exists because the device where the
+// offline failures actually happen (a phone, installed, in airplane mode) is the
+// one where attaching a console is hardest, and every failure in that area is
+// silent. See src/diagnostics.ts.
+import { installDiagnosticsPanel } from './diagnostics.ts';
+
+installDiagnosticsPanel();
