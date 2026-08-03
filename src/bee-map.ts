@@ -30,7 +30,7 @@ import {
   blankBasemapStyle,
   buildBasemapStyle,
 } from './basemap-style.ts';
-import { loadBasemapManifest } from './basemap-cache.ts';
+import { loadBasemapManifest, registerPrimedArchives } from './basemap-cache.ts';
 
 // Default Washington State view
 const DEFAULT_LON = -120.5;
@@ -72,12 +72,13 @@ type ClickTarget = {
  * across maps (re-mounts, HMR), so this is deliberately module-level rather than
  * per-element. It holds no reactive state — <bee-map> stays a pure presenter.
  */
-let rendererConfigured = false;
-function configureRenderer(): void {
-  if (rendererConfigured) return;
-  rendererConfigured = true;
+let pmtilesProtocol: Protocol | null = null;
+function configureRenderer(): Protocol {
+  if (pmtilesProtocol) return pmtilesProtocol;
+  pmtilesProtocol = new Protocol();
   maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
-  maplibregl.addProtocol('pmtiles', new Protocol().tile as maplibregl.AddProtocolAction);
+  maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile as maplibregl.AddProtocolAction);
+  return pmtilesProtocol;
 }
 
 
@@ -389,7 +390,18 @@ export class BeeMap extends LitElement {
     const manifest = await loadBasemapManifest();
     if (!manifest) return null;
     try {
-      return buildBasemapStyle(manifest, { origin: location.origin });
+      const style = buildBasemapStyle(manifest, { origin: location.origin });
+      // Before the style is handed to MapLibre, and therefore before a single
+      // tile is requested: point the pmtiles protocol at whichever archives this
+      // device has already downloaded. Protocol memoizes a PMTiles instance per
+      // URL on first use, so doing this afterwards would leave the tiles already
+      // in flight on the network path. A device that has primed nothing registers
+      // nothing and everything below is unchanged.
+      const primed = await registerPrimedArchives(
+        configureRenderer(), manifest, { origin: location.origin },
+      );
+      if (primed > 0) console.info(`[basemap] reading ${primed} archive(s) from local storage`);
+      return style;
     } catch (err) {
       console.warn('Basemap manifest names no usable region, rendering without it:', err);
       return null;

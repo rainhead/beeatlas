@@ -19,7 +19,13 @@
  * against OPFS.
  */
 
-import { basemapManifestUrl, parseBasemapManifest, type BasemapManifest } from './basemap-style.ts';
+import { PMTiles, type Protocol } from 'pmtiles';
+import {
+  basemapArchiveUrls,
+  basemapManifestUrl,
+  parseBasemapManifest,
+  type BasemapManifest,
+} from './basemap-style.ts';
 
 /** Cache Storage bucket for the basemap manifest. */
 export const BASEMAP_MANIFEST_CACHE = 'basemap-manifest';
@@ -82,4 +88,84 @@ export async function loadBasemapManifest(): Promise<BasemapManifest | null> {
     console.warn('[basemap] no manifest available, rendering without a basemap:', netErr);
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Reading a primed archive
+// ---------------------------------------------------------------------------
+
+/**
+ * A PMTiles {@link Source} backed by a Blob rather than by HTTP range requests.
+ *
+ * This is the whole offline read path, and it is this short because Cache
+ * Storage hands back a real Blob and `Blob.slice` is a view, not a copy — the
+ * bytes are paged in from disk on demand, so a 227 MB archive costs 227 MB of
+ * disk and essentially no memory. On an iPhone the beeatlas-93t spike measured
+ * 50 random 16 KB reads at a median below Safari's timer resolution and a p95 of
+ * 1 ms, which is what settled Cache Storage over OPFS.
+ *
+ * `getKey()` MUST return the same absolute URL the style names after
+ * `pmtiles://`, because that string is what Protocol dispatches on. Callers get
+ * it from basemapArchiveUrl() rather than assembling it, so the two cannot drift.
+ */
+export class BlobSource {
+  readonly #url: string;
+  readonly #blob: Blob;
+
+  constructor(url: string, blob: Blob) {
+    this.#url = url;
+    this.#blob = blob;
+  }
+
+  getKey(): string {
+    return this.#url;
+  }
+
+  async getBytes(offset: number, length: number): Promise<{ data: ArrayBuffer }> {
+    return { data: await this.#blob.slice(offset, offset + length).arrayBuffer() };
+  }
+}
+
+/** The primed archive at `url`, or null if it has never been downloaded. */
+export async function cachedArchive(url: string): Promise<Blob | null> {
+  if (typeof caches === 'undefined') return null;
+  try {
+    const hit = await caches.match(url, { cacheName: BASEMAP_ARCHIVE_CACHE });
+    return hit ? await hit.blob() : null;
+  } catch (err) {
+    console.warn('[basemap] could not read primed archive:', url, err);
+    return null;
+  }
+}
+
+/**
+ * Point the pmtiles protocol at any archives already primed on this device, and
+ * report how many it found.
+ *
+ * Registration is per archive and entirely optional: `Protocol` falls back to its
+ * own FetchSource for any URL it has not been given, so an unprimed archive keeps
+ * working exactly as before over the network. That is also what lets the vector
+ * basemap be primed while terrain is not — the two are independent sources.
+ *
+ * MUST run before `setStyle`. Protocol memoizes a PMTiles instance per URL on
+ * first use, and `add()` overwrites that entry — so registering afterwards leaves
+ * whatever tiles are already in flight on the network path. Registering first
+ * costs nothing when the cache is empty.
+ *
+ * Deliberately not throwing: a device that cannot read its own cache should fall
+ * back to the network, not lose the map.
+ */
+export async function registerPrimedArchives(
+  protocol: Protocol,
+  manifest: BasemapManifest,
+  options: { region?: string; origin?: string } = {},
+): Promise<number> {
+  let registered = 0;
+  for (const url of basemapArchiveUrls(manifest, options)) {
+    const blob = await cachedArchive(url);
+    if (!blob) continue;
+    protocol.add(new PMTiles(new BlobSource(url, blob)));
+    registered++;
+  }
+  return registered;
 }

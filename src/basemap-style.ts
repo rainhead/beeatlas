@@ -139,6 +139,34 @@ export function basemapManifestUrl(): string {
   return `${BASEMAP_TILES_BASE}/manifest.json`;
 }
 
+/**
+ * Where an archive named by the manifest is served from.
+ *
+ * ONE definition, used both to build the style's `pmtiles://` source URL and to
+ * key the Cache Storage entry the offline reader looks up (basemap-cache.ts).
+ * The pmtiles Protocol dispatches on exactly the string that follows
+ * `pmtiles://`, matching it against `Source.getKey()`, so the two spellings have
+ * to be identical character for character — and if they drift, nothing errors:
+ * the reader is simply never consulted and the map silently goes back to range
+ * requests over a network that is not there.
+ */
+export function basemapArchiveUrl(origin: string, archive: string): string {
+  return `${origin.replace(/\/$/, '')}${BASEMAP_TILES_BASE}/${archive}`;
+}
+
+/** Every archive the style for `region` will name — the vector one, and terrain when published. */
+export function basemapArchiveUrls(
+  manifest: BasemapManifest,
+  options: { region?: string; origin?: string } = {},
+): string[] {
+  const origin = options.origin ?? defaultOrigin();
+  const entry = manifest.regions[options.region ?? DEFAULT_REGION];
+  if (!entry) return [];
+  const urls = [basemapArchiveUrl(origin, entry.archive)];
+  if (entry.terrain) urls.push(basemapArchiveUrl(origin, entry.terrain.archive));
+  return urls;
+}
+
 /** Narrow an unknown payload to a manifest, so a bad fetch fails here not in MapLibre. */
 export function parseBasemapManifest(value: unknown): BasemapManifest {
   const regions = (value as BasemapManifest | null)?.regions;
@@ -181,15 +209,16 @@ export function buildBasemapStyle(
     [SOURCE]: {
       type: 'vector',
       // Resolved by the pmtiles protocol handler the map registers; the archive
-      // is one file read with HTTP range requests, no tile server.
-      url: `pmtiles://${origin}${BASEMAP_TILES_BASE}/${entry.archive}`,
+      // is one file read with range requests — over HTTP, or out of Cache Storage
+      // when it has been primed (basemap-cache.ts), with no tile server either way.
+      url: `pmtiles://${basemapArchiveUrl(origin, entry.archive)}`,
       attribution: entry.attribution,
     },
   };
   if (entry.terrain) {
     sources[TERRAIN_SOURCE] = {
       type: 'raster-dem',
-      url: `pmtiles://${origin}${BASEMAP_TILES_BASE}/${entry.terrain.archive}`,
+      url: `pmtiles://${basemapArchiveUrl(origin, entry.terrain.archive)}`,
       encoding: 'terrarium',
       tileSize: TERRAIN_TILE_SIZE,
       // The DEM is a different dataset from a different source than the vector
