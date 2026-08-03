@@ -29,6 +29,7 @@ import { resolveDataUrl } from './manifest.ts';
 import {
   blankBasemapStyle,
   buildBasemapStyle,
+  type BasemapManifest,
 } from './basemap-style.ts';
 import { loadBasemapManifest, registerPrimedArchives } from './basemap-cache.ts';
 
@@ -118,6 +119,10 @@ export class BeeMap extends LitElement {
   private _dataReady: Promise<void> | null = null;
 
   private _resizeObserver: ResizeObserver | null = null;
+
+  // The manifest the current style was built from, kept so a prime that finishes
+  // mid-session can be picked up without re-resolving it (see _onBasemapPrimed).
+  private _basemapManifest: BasemapManifest | null = null;
 
   private _countyIdMap: Map<number, string> = new Map();
   private _ecoregionIdMap: Map<number, string> = new Map();
@@ -283,7 +288,28 @@ export class BeeMap extends LitElement {
     );
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    window.addEventListener('basemap-state-changed', this._onBasemapPrimed);
+  }
+
+  /**
+   * A download finished while the map was already up. Re-register, so the rest of
+   * this session reads locally instead of waiting for a relaunch.
+   *
+   * Cheap on purpose: `Protocol.add` replaces the memoized PMTiles instance for
+   * that URL, so every tile requested from here on comes off the Blob. Tiles
+   * already on screen keep whatever they were fetched with, which is fine — they
+   * are the same bytes. Deliberately NOT a `setStyle`, which would tear down and
+   * re-cluster 98k occurrence features for no visible gain.
+   */
+  private _onBasemapPrimed = () => {
+    if (!this._basemapManifest || !this._map) return;
+    void registerPrimedArchives(configureRenderer(), this._basemapManifest, { origin: location.origin });
+  };
+
   disconnectedCallback() {
+    window.removeEventListener('basemap-state-changed', this._onBasemapPrimed);
     // Clean up any in-progress rectangle gesture
     if (this._rectBox) {
       this._rectBox.remove();
@@ -389,6 +415,7 @@ export class BeeMap extends LitElement {
   private async _resolveBasemapStyle(): Promise<maplibregl.StyleSpecification | null> {
     const manifest = await loadBasemapManifest();
     if (!manifest) return null;
+    this._basemapManifest = manifest;
     try {
       const style = buildBasemapStyle(manifest, { origin: location.origin });
       // Before the style is handed to MapLibre, and therefore before a single

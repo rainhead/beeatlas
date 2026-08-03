@@ -33,6 +33,29 @@ export const BASEMAP_MANIFEST_CACHE = 'basemap-manifest';
 export const BASEMAP_ARCHIVE_CACHE = 'basemap-archives';
 
 /**
+ * The kill switch: `localStorage['beeatlas-basemap-offline'] = 'off'` reverts to
+ * an online-only basemap, exactly as it behaved before beeatlas-6rs.
+ *
+ * It gates READING as well as downloading, and that is the point. A local
+ * archive is a large blob this code trusts to be well-formed; if a device ever
+ * ends up with a corrupt or truncated one, "stop offering the download" would
+ * leave the broken copy still in use. Off means the network path, unconditionally.
+ *
+ * Failing OPEN (any error → enabled) so that a browser which throws on
+ * localStorage — Safari in some private modes — gets the feature rather than
+ * silently losing it.
+ */
+export const BASEMAP_OFFLINE_FLAG = 'beeatlas-basemap-offline';
+
+export function basemapOfflineEnabled(): boolean {
+  try {
+    return localStorage.getItem(BASEMAP_OFFLINE_FLAG) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+/**
  * How long to wait for the manifest before giving up on the network.
  *
  * Inherited from <bee-map>, where it delayed the occurrence layers. It exists for
@@ -160,6 +183,7 @@ export async function registerPrimedArchives(
   manifest: BasemapManifest,
   options: { region?: string; origin?: string } = {},
 ): Promise<number> {
+  if (!basemapOfflineEnabled()) return 0;
   let registered = 0;
   for (const url of basemapArchiveUrls(manifest, options)) {
     const blob = await cachedArchive(url);

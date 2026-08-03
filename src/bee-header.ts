@@ -1,6 +1,7 @@
 import { LitElement, css, html, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { AuthState } from './auth-client.ts';
+import type { BasemapOfflineState } from './basemap-prime.ts';
 
 /**
  * What came of the last submitted search, reported back by whoever resolves it.
@@ -35,6 +36,10 @@ export class BeeHeader extends LitElement {
   // nothing at all — the same reason the freshness row is absent there.
   @property({ attribute: false }) buildId: string | null = null;
   @property({ attribute: false }) storageEstimate: { usageMB: string; quotaMB: string | null } | null = null;
+  // Offline basemap (beeatlas-6rs). Opt-in and installed-only, so unlike
+  // cacheState this is an OFFER rather than a status — see _renderBasemapRow.
+  @property({ attribute: false }) basemapState: BasemapOfflineState | null = null;
+  @property({ attribute: false }) basemapProgress: { received: number; total: number } | null = null;
   @property({ attribute: false }) updateAvailable: boolean = false;
   // D-09/D-10: true when Android beforeinstallprompt available and not yet installed.
   @property({ attribute: false }) installable = false;
@@ -620,6 +625,71 @@ export class BeeHeader extends LitElement {
     this._avatarError = true;
   };
 
+  /**
+   * The offline-basemap row (beeatlas-6rs) — an OFFER, not a status.
+   *
+   * It sits beside the cache status rather than folding into it because the two
+   * mean different things. The ~33 MB of data is primed automatically and
+   * "Offline-ready" describes something that has already happened; the ~288 MB
+   * basemap is a deliberate download the user chooses, and rolling it into the
+   * same readiness label would leave every user permanently "not ready".
+   *
+   * The not-installed case is the one worth reading carefully. It is not a
+   * preference: the beeatlas-93t spike proved on real hardware that an installed
+   * iOS PWA has its OWN storage bucket, so bytes downloaded in a browser tab are
+   * invisible to the installed app AND unprotected against eviction. So this
+   * explains rather than offers, and points at the install button the header
+   * already carries — no second install control.
+   */
+  private _renderBasemapRow(): TemplateResult | typeof nothing {
+    const bs = this.basemapState;
+    if (!bs?.available) return nothing;
+
+    const mb = (bytes: number) => (bytes / 1_048_576).toFixed(0);
+
+    if (bs.primed) {
+      return html`<div class="menu-status"><span style="color: var(--accent)">✓</span> Offline maps ready</div>`;
+    }
+    if (bs.downloading) {
+      const p = this.basemapProgress;
+      return html`<div class="menu-status">
+        ${p && p.total > 0
+          ? html`Downloading maps ${mb(p.received)} of ${mb(p.total)} MB`
+          : html`Downloading maps…`}
+        <div class="menu-meta">Keep the app open until this finishes</div>
+      </div>`;
+    }
+    if (!bs.installed) {
+      return html`<div class="menu-status">
+        Offline maps ${mb(bs.totalBytes)} MB
+        <div class="menu-meta">Install the app first — maps downloaded in the browser can't be used by the installed app</div>
+      </div>`;
+    }
+    if (this.offline) {
+      return html`<div class="menu-status">
+        Offline maps ${mb(bs.totalBytes)} MB
+        <div class="menu-meta">Connect to WiFi to download</div>
+      </div>`;
+    }
+    // A partial set — the vector basemap primed but terrain not, or an
+    // interrupted run — resumes at the next whole archive rather than restarting.
+    const remaining = Math.max(0, bs.totalBytes - bs.primedBytes);
+    return html`
+      <button class="menu-row" @click=${this._onBasemapDownload}>
+        <svg class="menu-row__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+        </svg>
+        ${bs.primedBytes > 0 ? 'Resume offline maps' : 'Download offline maps'} · ${mb(remaining)} MB
+      </button>
+    `;
+  }
+
+  private _onBasemapDownload = () => {
+    this.dispatchEvent(new CustomEvent('basemap-download-requested', {
+      bubbles: true, composed: true,
+    }));
+  };
+
   // beeatlas-j96: the one account/status menu. Carries auth (sign in, or account
   // + sign out), offline-cache status, freshness, storage, the update button, the
   // source link and the build id. Keeps the .cache-popover shell class so the
@@ -703,6 +773,7 @@ export class BeeHeader extends LitElement {
         <hr class="menu-divider">
 
         ${statusContent ? html`<div class="menu-status">${statusContent}</div>` : ''}
+        ${this._renderBasemapRow()}
         ${this.freshnessLabel ? html`<div class="menu-status">${this.freshnessLabel}</div>` : ''}
         ${this.storageEstimate ? html`
           <div class="menu-status">

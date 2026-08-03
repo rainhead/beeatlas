@@ -15,6 +15,13 @@ import { loadTaxonPages } from './taxon-pages.ts';
 import type { CachePrimeProgressDetail, CacheStateChangedDetail } from './prime-orchestrator.ts';
 import { loadBuildId, loadFreshnessLabel, resolveDataUrl } from './manifest.ts';
 import { fetchWhoami, signOut, startSignIn, type AuthState } from './auth-client.ts';
+import { loadBasemapManifest } from './basemap-cache.ts';
+import {
+  computeBasemapState,
+  primeBasemap,
+  type BasemapOfflineState,
+  type BasemapPrimeProgressDetail,
+} from './basemap-prime.ts';
 import './bee-header.ts';
 import type { SearchStatus } from './bee-header.ts';
 import './bee-pane.ts';
@@ -186,6 +193,10 @@ export class BeeAtlas extends LitElement {
   // a long-lived tab, the build id cannot change without a reload.
   @state() private _buildId: string | null = null;
   @state() private _storageEstimate: { usageMB: string; quotaMB: string | null } | null = null;
+  // Offline basemap (beeatlas-6rs). Separate from _cacheState because the basemap
+  // is an opt-in download rather than something primed automatically.
+  @state() private _basemapState: BasemapOfflineState | null = null;
+  @state() private _basemapProgress: { received: number; total: number } | null = null;
   // D-09/D-10: true when beforeinstallprompt was captured and app is not yet standalone.
   @state() private _installable: boolean = false;
   // D-11/D-12: true on iOS Safari (not standalone); computed once at construction time.
@@ -531,6 +542,8 @@ bee-map {
         .freshnessLabel=${this._freshnessLabel}
         .buildId=${this._buildId}
         .storageEstimate=${this._storageEstimate}
+        .basemapState=${this._basemapState}
+        .basemapProgress=${this._basemapProgress}
         .updateAvailable=${this._updateAvailable}
         .installable=${this._installable}
         .iosInstructable=${this._iosInstructable}
@@ -795,6 +808,10 @@ bee-map {
     window.addEventListener('cache-prime-progress', this._onPrimeProgress);
     window.addEventListener('cache-state-changed', this._onCacheStateChanged);
     window.addEventListener('sw-update-available', this._onSwUpdateAvailable);
+    window.addEventListener('basemap-prime-progress', this._onBasemapProgress);
+    window.addEventListener('basemap-state-changed', this._onBasemapStateChanged);
+    this.addEventListener('basemap-download-requested', this._onBasemapDownloadRequested);
+    this._refreshBasemapState();
     this.addEventListener('cache-popover-toggle', this._onPopoverToggle);
     this.addEventListener('cache-update-acted', this._onBannerTap);
     // D-09/D-10: install affordance listeners
@@ -823,6 +840,9 @@ bee-map {
     window.removeEventListener('offline', this._onOffline);
     window.removeEventListener('cache-prime-progress', this._onPrimeProgress);
     window.removeEventListener('cache-state-changed', this._onCacheStateChanged);
+    window.removeEventListener('basemap-prime-progress', this._onBasemapProgress);
+    window.removeEventListener('basemap-state-changed', this._onBasemapStateChanged);
+    this.removeEventListener('basemap-download-requested', this._onBasemapDownloadRequested);
     window.removeEventListener('sw-update-available', this._onSwUpdateAvailable);
     this.removeEventListener('cache-popover-toggle', this._onPopoverToggle);
     this.removeEventListener('cache-update-acted', this._onBannerTap);
@@ -1277,6 +1297,40 @@ bee-map {
   };
 
   private _onSwUpdateAvailable = () => { this._updateAvailable = true; };
+
+  // --- beeatlas-6rs offline basemap ---
+
+  private _onBasemapProgress = (e: Event) => {
+    const ce = e as CustomEvent<BasemapPrimeProgressDetail>;
+    this._basemapProgress = { received: ce.detail.received, total: ce.detail.total };
+  };
+
+  private _onBasemapStateChanged = (e: Event) => {
+    this._basemapState = (e as CustomEvent<BasemapOfflineState>).detail;
+  };
+
+  /**
+   * The user chose to download the basemap from the account menu.
+   *
+   * The manifest is re-read rather than remembered from <bee-map>: it is a few
+   * hundred bytes served from Cache Storage when the network cannot supply it,
+   * and reading it here keeps the download from depending on the map having
+   * mounted and resolved a style first.
+   */
+  private _onBasemapDownloadRequested = () => {
+    void (async () => {
+      const manifest = await loadBasemapManifest();
+      if (!manifest) return;
+      await primeBasemap(manifest);
+    })();
+  };
+
+  /** Recompute the offer's state — on mount, and whenever install status flips. */
+  private _refreshBasemapState = () => {
+    void (async () => {
+      this._basemapState = await computeBasemapState(await loadBasemapManifest());
+    })();
+  };
 
   // --- Phase 151 install affordance handlers (D-09/D-10/D-11) ---
 
