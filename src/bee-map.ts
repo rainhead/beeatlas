@@ -102,6 +102,18 @@ export class BeeMap extends LitElement {
   @property({ attribute: false }) hiddenTiers: Set<string> = new Set();
   @property({ attribute: false }) intendedFilterActive = false;
   @property({ attribute: false }) offline = false;
+  /**
+   * Whether the basemap archives are on this device (beeatlas-6rs).
+   *
+   * Changes what "offline" MEANS for the map. Before, offline always meant no
+   * basemap, so the label was unconditional — and its copy was Mapbox-era
+   * ("pan here while online to cache tiles for an area"), describing a
+   * tile-by-tile cache that no longer exists and that Mapbox's terms did not
+   * license anyway (docs/adr/0001). Now a primed device has a full basemap
+   * offline and must be told nothing at all; only an unprimed one gets a pointer
+   * to where the download lives.
+   */
+  @property({ attribute: false }) basemapPrimed = false;
 
   // MapLibre GL JS map instance
   private _map: maplibregl.Map | null = null;
@@ -208,7 +220,9 @@ export class BeeMap extends LitElement {
     return html`
       <style>${BeeMap._maplibreCss}</style>
       <div id="map"></div>
-      ${this.offline ? html`<div class="offline-basemap-label">Basemap tiles unavailable offline. Pan here while online to cache tiles for an area.</div>` : ''}
+      ${this.offline && !this.basemapPrimed
+        ? html`<div class="offline-basemap-label">No basemap offline. Download it from the account menu while on WiFi.</div>`
+        : ''}
     `;
   }
 

@@ -109,15 +109,22 @@ describe('OFF-04: bee-map blank-basemap overlay (Plan 149-03)', () => {
     expect(src).toMatch(/\.offline-basemap-label\s*\{/);
   });
 
-  test('bee-map.ts renders offline-basemap-label div when offline is true (OFF-04)', () => {
+  test('bee-map.ts renders offline-basemap-label div when offline and unprimed (OFF-04, beeatlas-6rs)', () => {
     // The conditional template must reference 'offline-basemap-label'
     expect(src).toMatch(/offline-basemap-label/);
-    // Condition must gate on this.offline
-    expect(src).toMatch(/this\.offline\s*\?/);
+    // Still gated on this.offline — but no longer on that ALONE. Since
+    // beeatlas-6rs a device with the archives primed has a full basemap offline,
+    // so telling it there is none would be a lie.
+    expect(src).toMatch(/this\.offline\s*&&\s*!this\.basemapPrimed/);
   });
 
-  test('bee-map.ts overlay text contains informational message about basemap unavailability (OFF-04)', () => {
-    expect(src).toMatch(/Basemap tiles unavailable offline/);
+  test('bee-map.ts overlay text points at the download, not at panning (OFF-04, beeatlas-6rs)', () => {
+    // The old copy — "pan here while online to cache tiles for an area" —
+    // described a Mapbox-era tile-by-tile cache that no longer exists and that
+    // Mapbox's terms never licensed anyway (docs/adr/0001). The basemap is now
+    // one archive, downloaded deliberately from the account menu.
+    expect(src).toMatch(/No basemap offline/);
+    expect(src).not.toMatch(/Pan here while online/);
   });
 
   test('bee-map.ts offline @property is input-only: no internal assignment to this.offline (OFF-04)', () => {

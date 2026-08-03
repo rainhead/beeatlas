@@ -92,7 +92,25 @@ cd data && uv run pytest
   current (date-stamped) archive name, and falls back to a blank style on any
   failure so the occurrence layers still render. Local dev proxies
   `/basemap/tiles` to beeatlas.net (`vite.config.ts`) — the archive is never
-  checked in. Still open: beeatlas-6rs (offline precache), beeatlas-mas (ADRs).
+  checked in. Still open: beeatlas-mas (ADRs).
+  - **Offline (beeatlas-6rs, [ADR 0025](docs/adr/0025-offline-basemap-is-a-byte-store.md)).**
+    The archives are primed into Cache Storage as opaque blobs and read back with
+    `Blob.slice` behind a PMTiles `Source` — the SW never serves tiles, because
+    Cache Storage has no range semantics. No custom MapLibre protocol: the
+    reader's `getKey()` IS the URL the style names, so `Protocol.add()` takes over
+    that archive; if the two spellings ever drift nothing throws, it silently
+    reverts to the network. One definition, `basemapArchiveUrl()`, serves both.
+    The ~288 MB download is OPT-IN (a row in the account menu, not the automatic
+    data prime) and INSTALLED-ONLY — an installed iOS PWA has its own storage
+    bucket, so bytes fetched in a Safari tab are invisible to it and unprotected.
+    `localStorage['beeatlas-basemap-offline']='off'` reverts to online-only and
+    disables reading too. `src/basemap-cache.ts` + `src/basemap-prime.ts`.
+    The RENDERER (MapLibre worker + 9 glyph ranges + 4 sprite files) is precached
+    by the SW instead, from `scripts/sw-precache-globs.ts` — a single list, run
+    through workbox's own globber by `src/tests/basemap-precache.test.ts`. That
+    works only because MapLibre v6 expands `{fontstack}` on the MAIN thread; the
+    worker is outside the `/app/` SW scope and its own fetches would bypass the
+    cache. The test pins that structurally.
   - **Hillshade (beeatlas-8py).** A SECOND archive, `wa-terrain-*.pmtiles`
     (~61 MB, `data/build-terrain-basemap.sh` + `data/terrain_tiles.py`), lives
     beside the vector one and publishes independently through the same

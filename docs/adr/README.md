@@ -28,3 +28,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0022](0022-a-swatch-is-a-legend-for-dots.md) | A swatch is a legend for dots, so a species earns a hue by plotting | Accepted |
 | [0023](0023-ecdysis-change-probe.md) | The Ecdysis loader asks whether the source moved before paying to rebuild it | Accepted |
 | [0024](0024-compression-is-a-build-artifact.md) | The database is compressed by the build, not by the server | Accepted |
+| [0025](0025-offline-basemap-is-a-byte-store.md) | The offline basemap is a byte store the page reads, not something the SW serves | Accepted |

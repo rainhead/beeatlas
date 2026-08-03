@@ -578,6 +578,7 @@ bee-map {
             .filterState=${this._filterState}
             .hiddenTiers=${this._filterState.hiddenTiers}
             .offline=${this._offline}
+            .basemapPrimed=${this._basemapState?.primed ?? false}
             @view-moved=${this._onViewMoved}
             @map-click-occurrence=${this._onOccurrenceClick}
             @map-click-region=${this._onRegionClick}
