@@ -13,6 +13,17 @@
 
 export const globPatterns = [
   'app/index.html',
+  // The webmanifest and the icons, ~80 KB in total.
+  //
+  // These are the ones no amount of `fetch` instrumentation can find, because
+  // nothing in the app requests them: `app/index.html` links them, and the
+  // BROWSER fetches them when it launches a standalone PWA. Offline and
+  // unprecached they fail, and iOS answers a failed request in an installed app
+  // with the system "Turn On Wi-Fi to Use the Internet" alert — a modal over a
+  // map that is otherwise working perfectly. The webmanifest also names three of
+  // the icons itself, so it is not enough to ship it alone.
+  'app/manifest.webmanifest',
+  'app/icons/**/*.png',
   // `.wasm` is load-bearing for offline cold-start: the wa-sqlite engine binary
   // (assets/wa-sqlite-<hash>.wasm) must be precached or the SQL worker can't
   // initialize offline → tablesReady never resolves → the "Loading…" curtain
@@ -53,11 +64,11 @@ export const globIgnores = [
   '**/*.db',
   '**/*.geojson',
   '**/*.parquet',
-  // The PWA icons. Narrowed from a blanket '**/*.png' (beeatlas-6rs), which was
-  // aimed at these but also swallowed basemap/sprites/light{,@2x}.png — and
-  // globIgnores beats globPatterns, so listing the sprites above would not have
-  // been enough on its own. Scope unchanged for the icons themselves.
-  'app/icons/**/*.png',
+  // NOTE: the app icons are NOT ignored. A blanket '**/*.png' used to live here
+  // and was doubly wrong — it swallowed basemap/sprites/light{,@2x}.png (and
+  // globIgnores beats globPatterns, so listing the sprites was not enough on its
+  // own), and excluding the icons meant iOS re-requested them on every offline
+  // launch and raised a system network alert each time.
   // The service worker must never precache itself.
   '**/sw.js',
 ];

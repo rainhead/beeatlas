@@ -16,7 +16,8 @@
 //
 // It runs off a synthesized _site layout rather than a real one: `npm test` must
 // not require a completed build, and the layout is derivable — Eleventy copies
-// public/basemap verbatim and adds the two MapLibre dist files beside it.
+// public/basemap verbatim, plus the bundled MapLibre worker and the PWA shell
+// files (webmanifest + icons) under app/.
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { globSync } from 'glob';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -57,8 +58,8 @@ const SYNTHETIC = [
   'data/occurrences-abc.parquet',
   'feeds/notes.json',
   'app/sw.js',
-  'app/icons/icon-192.png',
 ];
+
 
 let siteDir: string;
 let matched: Set<string>;
@@ -74,10 +75,13 @@ beforeAll(() => {
 
   // Eleventy copies public/basemap verbatim to _site/basemap (eleventy.config.js).
   for (const rel of walk(resolve(ROOT, 'public/basemap'))) touch(`basemap/${rel}`);
-  // …and the two MapLibre dist files to _site/app/basemap/maplibre/ — inside the
-  // service worker's /app/ scope, which is what makes them reachable offline.
+  // …and the bundled MapLibre worker to _site/app/basemap/maplibre/ — inside the
+  // service worker's /app/ scope, which is what makes it reachable offline.
   touch('app/basemap/maplibre/maplibre-gl-worker.mjs');
-  touch('app/basemap/maplibre/maplibre-gl-shared.mjs');
+  // The PWA shell files the BROWSER requests (linked from app/index.html).
+  touch('app/manifest.webmanifest');
+  for (const i of ['apple-touch-icon-180.png','icon-192.png','icon-512.png','icon-maskable-512.png'])
+    touch(`app/icons/${i}`);
   for (const rel of SYNTHETIC) touch(rel);
 
   // The exact call workbox-build makes, per pattern, with the ignores applied.
@@ -93,11 +97,14 @@ afterAll(() => {
 });
 
 describe('the service worker precaches everything the basemap needs to draw', () => {
-  test('the MapLibre worker and the chunk it imports as a sibling', () => {
-    // Both, or neither works: the worker does `from "./maplibre-gl-shared.mjs"`,
-    // so precaching it alone reproduces the same 404 one level down.
+  test('the MapLibre worker, as ONE self-contained file', () => {
+    // It used to ship as two files, the worker importing its sibling at startup.
+    // That import is made by the WORKER, which is not a controlled client, so
+    // offline it went to the network and the worker died before running a line —
+    // see the scope test below and scripts/build-maplibre-worker.mjs. The build
+    // now bundles it; there is no sibling left to precache.
     expect(matched).toContain('app/basemap/maplibre/maplibre-gl-worker.mjs');
-    expect(matched).toContain('app/basemap/maplibre/maplibre-gl-shared.mjs');
+    expect([...matched].filter((p) => p.includes('maplibre'))).toHaveLength(1);
   });
 
   test('every vendored fontstack x every vendored range', () => {
@@ -183,17 +190,29 @@ describe('the service worker precaches everything the basemap needs to draw', ()
     expect(substitutesFontstack('maplibre-gl-shared.mjs'), 'glyph loading moved into the shared chunk — check whether the worker now fetches glyphs').toBe(false);
   });
 
+  test('the webmanifest and icons are precached — the browser requests them', () => {
+    // Nothing in the app fetches these; app/index.html LINKS them and the browser
+    // requests them when it launches a standalone PWA. Unprecached they fail
+    // offline, and iOS answers each failure with a system network alert over a
+    // map that is otherwise working. No fetch instrumentation can find them,
+    // which is why they survived every other probe.
+    expect(matched).toContain('app/manifest.webmanifest');
+    expect(matched).toContain('app/icons/apple-touch-icon-180.png');
+    // …plus the three the webmanifest itself names.
+    for (const f of ['icon-192.png', 'icon-512.png', 'icon-maskable-512.png']) {
+      expect(matched, `webmanifest icon not precached: ${f}`).toContain(`app/icons/${f}`);
+    }
+  });
+
   test('runtime data artifacts and the SW itself stay out', () => {
-    // Narrowing '**/*.png' to 'app/icons/**/*.png' must not have widened anything
-    // else. The database in particular: precached, it becomes a silent 33 MB
-    // download during SW install with no progress UI.
+    // The database above all: precached, it becomes a silent 33 MB download
+    // during SW install with no progress UI.
     for (const rel of [
       'data/occurrences-abc.db',
       'data/counties-abc.geojson',
       'data/occurrences-abc.parquet',
       'feeds/notes.json',
       'app/sw.js',
-      'app/icons/icon-192.png',
     ]) {
       expect(matched, `should not be precached: ${rel}`).not.toContain(rel);
     }
