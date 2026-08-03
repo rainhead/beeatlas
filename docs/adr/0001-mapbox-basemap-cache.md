@@ -1,17 +1,22 @@
 # ADR 0001: Mapbox Basemap Cache — ToS Compliance Analysis
 
-**Status:** Obsolete (2026-08-01) — awaiting formal supersession by beeatlas-mas.
+**Status:** Superseded by [ADR 0026](0026-self-hosted-basemap.md) (2026-08-03;
+obsolete in practice since 2026-08-01).
 
 > **This record no longer describes the running system.** beeatlas-q73 removed
 > mapbox-gl from the tree; the basemap is a self-hosted PMTiles archive rendered
 > by MapLibre, and nothing requests `api.mapbox.com`. The Mapbox Product Terms
-> analysed below therefore govern nothing we serve, and the §2.8.1 performance
-> cache this ADR authorised is dead code in `src/sw.ts` pending its removal.
+> analysed below therefore govern nothing we serve. The §2.8.1 performance cache
+> this ADR authorised has been removed from `src/sw.ts`, and the
+> `mapbox-basemap` Cache Storage bucket it filled is now deleted on
+> service-worker activate so devices that used the app before the swap reclaim
+> the space.
 >
-> Marked here rather than rewritten because the replacement — the migration ADR
-> that supersedes this one — is beeatlas-mas's job. Kept, not deleted: the ToS
-> reasoning is the record of why offline basemap serving was never an option
-> under Mapbox, which is a large part of why the archive is self-hosted now.
+> Kept, not deleted, and worth reading for one reason: the ToS reasoning here is
+> the record of why offline basemap serving was never an option under Mapbox —
+> which is a large part of why the archive is self-hosted now, and why
+> [ADR 0025](0025-offline-basemap-is-a-byte-store.md) could then store it on a
+> device indefinitely.
 >
 > Read the checklist below as history. One row is already false: attribution is
 > still displayed, but by MapLibre's control (`attributionControl: {}`), and it

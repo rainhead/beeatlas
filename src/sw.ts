@@ -24,7 +24,7 @@ declare const self: ServiceWorkerGlobalScope & typeof globalThis & {
 
 import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
-import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import { CacheFirst, NetworkFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
@@ -93,39 +93,31 @@ registerRoute(
   })
 );
 
-// D-03/D-04/D-05/D-06/D-07: Mapbox basemap performance cache — §2.8.1 compliant.
-// StaleWhileRevalidate: serves cached asset instantly, revalidates from network in background.
-// This is the actual perf win over the browser's own HTTP cache (D-03).
+// The api.mapbox.com StaleWhileRevalidate route lived here until beeatlas-mas.
+// Nothing requests that host any more — the basemap is self-hosted PMTiles read
+// through a MapLibre protocol (ADR 0026) — so the route matched nothing, and the
+// §2.8.1 licensing analysis it carried governs nothing we serve. See
+// docs/adr/0001-mapbox-basemap-cache.md, now superseded.
 //
-// matchCallback: strict hostname check so events.mapbox.com (telemetry) is NEVER matched
-// (different hostname). The /map-sessions/ billing path is explicitly excluded (D-07; RESEARCH Open Q2).
+// The CACHE it filled can still be on a device that used the app before
+// 2026-08-01, holding up to 150 tile responses of storage the user cannot see or
+// reclaim. Delete it on activate: no route will ever read it again, and an
+// installed PWA competing for an iOS storage bucket with a 285 MB basemap
+// download (ADR 0025) should not be carrying a dead one.
 //
-// access_token is RETAINED in the cache key — no cache-key-rewriting plugin (D-04: §1.1 / §2.9.4).
-// Token is static per deployment, so cache URLs are naturally stable.
-//
-// 200-only (D-05): CacheableResponsePlugin implements cacheWillUpdate, which suppresses
-// SWR's default cacheOkAndOpaquePlugin (status 0 / opaque allowance) — see RESEARCH Pitfall 2.
-//
-// TTL: 604800s = 7 days — well within the 2,592,000s (30-day) §2.8.1 ceiling (D-05).
-// maxEntries: 150 is safe given Mapbox CORS (non-opaque) responses (D-05; RESEARCH CORS vs Opaque).
-// Dedicated cacheName 'mapbox-basemap' keeps storage-estimate breakdown clean (D-06).
-// Registered unconditionally — no feature flag (D-07).
-registerRoute(
-  ({ url }) =>
-    url.hostname === 'api.mapbox.com' && !url.pathname.startsWith('/map-sessions/'),
-  new StaleWhileRevalidate({
-    cacheName: 'mapbox-basemap',
-    plugins: [
-      // 200-only: excludes opaque (status 0) responses; see RESEARCH Pitfall 2.
-      new CacheableResponsePlugin({ statuses: [200] }),
-      new ExpirationPlugin({
-        maxEntries: 150,
-        maxAgeSeconds: 604800, // 7 days (§2.8.1 ceiling is 30 days = 2,592,000s)
-        purgeOnQuotaError: true,
-      }),
-    ],
-  })
-);
+// Unconditional and idempotent — caches.delete resolves false when it is already
+// gone, which is the steady state for every install after this ships. Kept out of
+// the fetch path deliberately; this is the one lifecycle event that runs once per
+// worker version.
+// The `activate` listener is typed with a plain Event under this project's libs
+// (the only ambient service-worker type here is the `self` declaration at the
+// top), so name the one member used rather than pulling in the WebWorker lib for
+// a three-line handler.
+type ExtendableLike = Event & { waitUntil(promise: Promise<unknown>): void };
+
+self.addEventListener('activate', (event) => {
+  (event as ExtendableLike).waitUntil(caches.delete('mapbox-basemap'));
+});
 
 // D-16: skipWaiting fires ONLY in response to wb.messageSkipWaiting() from the user-clicked update banner.
 // No top-level skipWaiting call — the no-skipWaiting invariant from 147/148/149 is satisfied

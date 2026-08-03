@@ -28,7 +28,7 @@ Config the engineering skills (`to-issues`, `to-prd`, `grill-with-docs`, `improv
 
 **State ownership:** `<bee-atlas>` owns all reactive state. `<bee-map>` and `<bee-sidebar>` are pure presenters — they receive state as properties and emit custom events upward. No shared module-level mutable state.
 
-**Style cache:** mapbox-gl style functions must bypass the cache when `filterState` is active or `selectedOccIds` is non-empty. Cache only when nothing is selected or filtered.
+**Style cache:** maplibre-gl style functions must bypass the cache when `filterState` is active or `selectedOccIds` is non-empty. Cache only when nothing is selected or filtered.
 
 **Filter race guard:** `bee-atlas` increments `_filterQueryGeneration` on each filter change. Async `queryVisibleIds` results must be discarded if the counter has advanced — prevents stale ID set overwrites.
 
@@ -92,7 +92,8 @@ cd data && uv run pytest
   current (date-stamped) archive name, and falls back to a blank style on any
   failure so the occurrence layers still render. Local dev proxies
   `/basemap/tiles` to beeatlas.net (`vite.config.ts`) — the archive is never
-  checked in. Still open: beeatlas-mas (ADRs).
+  checked in. Recorded in [ADR 0026](docs/adr/0026-self-hosted-basemap.md), which
+  supersedes ADR 0001.
   - **Offline (beeatlas-6rs, [ADR 0025](docs/adr/0025-offline-basemap-is-a-byte-store.md)).**
     The archives are primed into Cache Storage as opaque blobs and read back with
     `Blob.slice` behind a PMTiles `Source` — the SW never serves tiles, because
@@ -140,7 +141,7 @@ cd data && uv run pytest
     `/basemap/maplibre/`, and `<bee-map>` passes that path to `setWorkerUrl`.
     Pinned by `src/tests/maplibre-worker.test.ts`. Do not "simplify" it into an
     import.
-- The `/app` SW still carries a StaleWhileRevalidate route for `api.mapbox.com` (`src/sw.ts`). It is dead — nothing requests that host any more — and beeatlas-mas removes it along with superseding `docs/adr/0001-mapbox-basemap-cache.md`, whose §2.8.1 licensing analysis no longer governs anything we serve.
+- Nothing in the tree touches Mapbox any more (beeatlas-mas, 2026-08-03). The dead `api.mapbox.com` SW route is gone, and `src/sw.ts` deletes the `mapbox-basemap` Cache Storage bucket on activate so pre-swap devices reclaim the space. `docs/adr/0001-mapbox-basemap-cache.md` is superseded by [ADR 0026](docs/adr/0026-self-hosted-basemap.md); keep 0001 for its record of why offline basemap serving was never licensable under Mapbox.
 - `data/artifacts.toml` (+ tested `data/artifacts.py`) is the declarative contract for the data pipeline's artifacts — each carries a `derived`|`authoritative` provenance and the two schema-evolution regimes are machine-enforced (`authoritative` ⇒ never a dbt model, `baseline_diff=false`, forward-only migrations; rebuild/bypass forbidden). See `docs/adr/0002-derived-vs-authoritative-artifacts.md`. Since Model Y the *published* runtime manifest is owned by the site build instead (`lib/runtime-artifacts.js` + `scripts/postbuild-data.mjs`, the slim manifest); artifacts.toml's operational surface is the integration-gate baseline set (`baseline-files`) and the `pull-published` dev pull.
 
 

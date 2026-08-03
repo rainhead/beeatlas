@@ -4,7 +4,7 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 
 | # | Decision | Status |
 |---|----------|--------|
-| [0001](0001-mapbox-basemap-cache.md) | Mapbox basemap SW cache (licensing analysis) | Accepted |
+| [0001](0001-mapbox-basemap-cache.md) | Mapbox basemap SW cache (licensing analysis) | Superseded by [0026](0026-self-hosted-basemap.md) |
 | [0002](0002-derived-vs-authoritative-artifacts.md) | Derived vs authoritative artifacts — schema-evolution regimes | Accepted |
 | [0003](0003-client-query-engine-wa-sqlite.md) | Client query engine: wa-sqlite + hyparquet (DuckDB-WASM rejected) | Accepted |
 | [0004](0004-prebuilt-sqlite-artifact.md) | Prebuilt SQLite artifact + `geo_blob` (WASM→JS callback cliff) | Accepted |
@@ -29,3 +29,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0023](0023-ecdysis-change-probe.md) | The Ecdysis loader asks whether the source moved before paying to rebuild it | Accepted |
 | [0024](0024-compression-is-a-build-artifact.md) | The database is compressed by the build, not by the server | Accepted |
 | [0025](0025-offline-basemap-is-a-byte-store.md) | The offline basemap is a byte store the page reads, not something the SW serves | Accepted |
+| [0026](0026-self-hosted-basemap.md) | The basemap is ours — MapLibre over a self-hosted Protomaps extract | Accepted |

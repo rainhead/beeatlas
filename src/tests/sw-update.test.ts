@@ -10,6 +10,11 @@
 //   3. Await a microtask tick after import so the async registerServiceWorker chain completes
 
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------------------
 // Hoist all mock state so it is accessible both inside the vi.mock() factory
@@ -210,5 +215,30 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
 
     // The Workbox constructor must NOT have been called
     expect(mocks.constructorCalls).toHaveLength(0);
+  });
+});
+
+// beeatlas-mas: the api.mapbox.com route outlived the thing it cached by two
+// days and the cache it filled outlived it on real devices. ADR 0001 superseded
+// by ADR 0026.
+describe('no Mapbox surface remains in the service worker', () => {
+  const swSrc = readFileSync(resolve(__dirname, '../sw.ts'), 'utf-8');
+
+  test('sw.ts has no executable reference to api.mapbox.com', () => {
+    // The hostname is still NAMED in the comment explaining the removal — that
+    // comment is the point — so strip comments before asserting.
+    const code = swSrc.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+    expect(code).not.toContain('api.mapbox.com');
+    expect(code).not.toContain('StaleWhileRevalidate');
+  });
+
+  test('sw.ts deletes the orphaned mapbox-basemap cache on activate', () => {
+    expect(swSrc).toMatch(/addEventListener\(\s*'activate'/);
+    expect(swSrc).toMatch(/caches\.delete\(\s*'mapbox-basemap'\s*\)/);
+  });
+
+  test('the delete is inside waitUntil, so activation cannot finish before it', () => {
+    const activate = swSrc.slice(swSrc.indexOf("addEventListener('activate'"));
+    expect(activate.slice(0, 300)).toMatch(/waitUntil\(/);
   });
 });
