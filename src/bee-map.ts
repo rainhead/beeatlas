@@ -27,38 +27,15 @@ import {
 } from './style.ts';
 import { resolveDataUrl } from './manifest.ts';
 import {
-  basemapManifestUrl,
   blankBasemapStyle,
   buildBasemapStyle,
-  parseBasemapManifest,
 } from './basemap-style.ts';
+import { loadBasemapManifest } from './basemap-cache.ts';
 
 // Default Washington State view
 const DEFAULT_LON = -120.5;
 const DEFAULT_LAT = 47.5;
 const DEFAULT_ZOOM = 7;
-
-/**
- * How long to wait for the basemap manifest before settling for the blank style.
- *
- * Nothing structural waits on this: the map, its controls and the GPS all exist
- * before the fetch starts. What it delays is the OCCURRENCE LAYERS, which are
- * installed once the style is final so they are not added, torn down by
- * `setStyle` and re-clustered a second time.
- *
- * 3s is chosen against the data load, not against a network. The manifest is a
- * same-origin file of a few hundred bytes and normally resolves an order of
- * magnitude faster than the SQLite boot the layers already wait on, so in the
- * healthy case this bound costs nothing at all. It exists for the pathological
- * case — a captive portal that neither answers nor refuses — where an unbounded
- * wait would mean no dots, ever. Offline proper does not reach it: `fetch`
- * rejects in milliseconds with no network.
- *
- * A manifest that arrives later than this is simply not used for the session.
- * Recovering it (and the online/offline transitions around it) belongs with the
- * offline work in beeatlas-6rs, not here.
- */
-const BASEMAP_MANIFEST_TIMEOUT_MS = 3000;
 
 /**
  * Where MapLibre's worker is served from — copied out of node_modules by an
@@ -391,23 +368,30 @@ export class BeeMap extends LitElement {
   }
 
   /**
-   * Fetch the basemap manifest and build the field style from it, or null when
-   * the basemap is unavailable — offline, a 404 from a site whose /basemap/tiles
-   * Alias is not configured, or a payload that does not parse.
+   * Build the field style from the current manifest, or null when the basemap is
+   * unavailable — never fetched and never cached, a 404 from a site whose
+   * /basemap/tiles Alias is not configured, or a payload that does not parse.
+   *
+   * As of beeatlas-6rs the manifest can come from Cache Storage when the network
+   * cannot supply it, so "offline" is no longer automatically null; see
+   * basemap-cache.ts, which owns the fetch policy and its timeout.
+   *
+   * Nothing structural waits on this. The map, its controls and the GPS all exist
+   * before it is called; what it delays is the OCCURRENCE LAYERS, which are
+   * installed once the style is final so they are not added, torn down by
+   * `setStyle`, and re-clustered a second time.
    *
    * The failure is logged but never surfaced as an error to <bee-atlas>: a
    * missing basemap degrades the map, it does not break the app, and the
    * occurrence layers render either way.
    */
   private async _resolveBasemapStyle(): Promise<maplibregl.StyleSpecification | null> {
+    const manifest = await loadBasemapManifest();
+    if (!manifest) return null;
     try {
-      const resp = await fetch(basemapManifestUrl(), {
-        signal: AbortSignal.timeout(BASEMAP_MANIFEST_TIMEOUT_MS),
-      });
-      if (!resp.ok) throw new Error(`basemap manifest: HTTP ${resp.status}`);
-      return buildBasemapStyle(parseBasemapManifest(await resp.json()), { origin: location.origin });
+      return buildBasemapStyle(manifest, { origin: location.origin });
     } catch (err) {
-      console.warn('Basemap unavailable, rendering without it:', err);
+      console.warn('Basemap manifest names no usable region, rendering without it:', err);
       return null;
     }
   }
