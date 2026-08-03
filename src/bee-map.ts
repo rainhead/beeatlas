@@ -1035,9 +1035,14 @@ export class BeeMap extends LitElement {
     const name = feature.properties?.[nameProperty] as string | undefined;
     if (!name) return;
 
-    // shiftKey toggles the region into/out of a multi-region selection. Note the
-    // shift-drag gesture claims mousedown first and sets _clickConsumed, so this
-    // only ever sees a shift-CLICK.
+    // shiftKey toggles the region into/out of a multi-region selection, and this
+    // only ever sees a shift-CLICK — but NOT because _clickConsumed guards it.
+    // The capture-phase _onRectMouseDown sets that flag and MapLibre's own
+    // map-level 'mousedown' handler clears it a moment later, which is precisely
+    // what lets a shift-click reach the chain at all. What keeps a shift-DRAG out
+    // is MapLibre: past its click tolerance it fires no 'click' event. Verified
+    // by UAT (beeatlas-ecn, A7/A8 and B3), so do not "fix" the ordering to make
+    // the flag survive — that would kill shift-click region selection outright.
     this._emit('map-click-region', {
       name,
       shiftKey: (e.originalEvent as MouseEvent).shiftKey,

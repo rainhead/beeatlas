@@ -93,10 +93,10 @@ individual records. The two coexist.
 |---|---|---|
 | C1 | Pan and zoom | `x`/`y`/`z` update in the URL after the move settles |
 | C2 | Reload | The same view is restored |
-| C3 | Search a species, pick a hit | Map pans to it and the sidebar updates |
-| C4 | Look up a catalogue number | Selects the specimen **and yields an active filter** ([ADR 0020](../adr/0020-catalog-lookup-selects-and-filters-yield.md)) |
+| C3 | Filter to a species (sidebar **Species or group**) | The dot set and the sidebar re-filter. The camera does **not** move — a taxon is a filter, not a destination, and nothing in `bee-map.updated()` moves the camera for one. There is no species *search* yet; the header search takes label numbers only (beeatlas-7nx) |
+| C4 | Look up a catalogue number | Selects the specimen **and yields an active filter** ([ADR 0020](../adr/0020-catalog-lookup-selects-and-filters-yield.md)). To test the yield you must have a filter that *excludes* the match — e.g. `?taxon=130222` (Bombus melanopygus) then look up `2303966` (a Lasioglossum). With no filter active there is nothing to yield |
 | C5 | Browser back / forward | View and selection follow the history entry |
-| C6 | Toggle table mode | Map resizes to the new container without a blank or stretched canvas |
+| C6 | Toggle table mode | The map does **not** resize, and should not: `bee-pane` is `position: absolute; z-index: 1` over a full-size map, in table mode as in list mode. What this step actually guards is the canvas — no blank, no stretch, no letterbox |
 
 ## D. Controls and chrome
 
@@ -123,8 +123,8 @@ At Rainier, `?x=-121.76&y=46.85&z=13`:
 | E6 | Hillshade is at full strength at z13 and has faded to nothing by z15 — judge by EYE. `queryRenderedFeatures` on a hillshade layer always returns 0: raster layers have no queryable features, so it is not a usable check |
 | E7 | Lakes and rivers are **not** shaded by the hillshade |
 | E8 | Zoom below z13: trails/streams/peaks disappear rather than showing an empty map |
-| E9 | Dot colours follow recency (this year / last year / earlier) |
-| E10 | Tier filter hides and restores dots |
+| E9 | Dot colours follow recency — but the scheme is **two** colours, not three: `RECENCY_COLORS` in `src/style.ts` gives `lastYear` and `earlier` the same `#7f8c8d` on purpose, and a `tier: 'other'` record takes `#7a8a99` regardless of its year. So: this-year dots read lighter; everything else does not |
+| E10 | Tier filter hides and restores dots. Note a tier-excluded record does **not** become a ghost — the ghost set is itself tier-filtered, so tier reads as a layer toggle while taxon reads as a filter |
 
 ## F. Mobile / installed PWA
 
@@ -134,7 +134,7 @@ installed app** — a browser tab is a separate storage bucket
 
 | # | Do | Expect |
 |---|---|---|
-| F1 | Every check in **A**, by tapping | Same results. Taps 2, 3, 4… must all work, not just the first |
+| F1 | Every check in **A** except A7/A8, by tapping | Same results. Taps 2, 3, 4… must all work, not just the first. A7/A8 are shift-clicks and have no touch equivalent — multi-region selection is desktop-only, and that is a gap, not a test failure |
 | F2 | Pinch-zoom and two-finger pan | Smooth; no stuck gesture afterwards |
 | F3 | Tap a cluster with many leaves | Sidebar fills; the pane is usable one-handed |
 | F4 | Rotate the device | Map resizes correctly, no letterboxing |
@@ -197,3 +197,13 @@ node scripts/offline-uat.mjs --browser=webkit              # Safari-engine onlin
 sharing Safari's storage semantics; a Chromium/WebKit difference *is* a finding.
 Its offline half needs `--browser=chromium` (Playwright's `setOffline` is not
 reliable in WebKit).
+
+**Both of these currently fail on a clean tree, so read them carefully rather
+than reading the exit code** (tracked as `beeatlas-69s`):
+
+- chromium reports **8/9**; the failure is `no network attempts for .pmtiles`,
+  which is the accepted, closed `beeatlas-c8v`. A **9/9**, or a *different*
+  failing check, is the news.
+- webkit passes its two online checks and then dies with
+  `page.goto: WebKit encountered an internal error` — it attempts the offline
+  half it is documented not to run. Everything before that line still counts.
