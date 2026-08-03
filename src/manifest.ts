@@ -37,53 +37,78 @@ let _promise: Promise<Manifest> | null = null;
 /** Cache Storage bucket for manifest.json — same name as the SW NetworkFirst route. */
 const MANIFEST_CACHE = 'data-manifest';
 
-async function _loadManifestOnce(): Promise<Manifest> {
-  const url = `${_BASE}/manifest.json`;
+/**
+ * Long enough that `navigator.onLine` has settled — it is not trustworthy during
+ * page init — and clear of first paint. Mirrors basemap-cache.ts.
+ */
+const REVALIDATE_DELAY_MS = 8000;
+let _revalidateScheduled = false;
 
-  // OFFLINE: read the primed copy without attempting a fetch that cannot succeed.
-  // On iOS a failed request inside an installed PWA raises the system "Turn On
-  // Wi-Fi to Use the Internet" modal, so a doomed request costs a dialog over the
-  // map rather than nothing. `navigator.onLine === false` is the trustworthy
-  // direction (true can still be a captive portal); a cache miss falls through
-  // and tries the network anyway.
-  if (typeof navigator !== 'undefined' && navigator.onLine === false && typeof caches !== 'undefined') {
-    try {
-      const hit = (await caches.match(url, { cacheName: MANIFEST_CACHE })) ?? (await caches.match(url));
-      if (hit) return await hit.json() as Manifest;
-    } catch { /* fall through to the network attempt */ }
-  }
-
-  try {
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`manifest.json: ${r.status}`);
-    // Self-prime: write a copy straight into Cache Storage so an offline cold-start
-    // can read it WITHOUT depending on the service worker controlling this client.
-    // The SQLite worker runs outside the /app SW scope, and a freshly-installed
-    // PWA's first page load is uncontrolled (no clientsClaim) — in both cases the
-    // SW's passive NetworkFirst route never fires, so we cache it ourselves here
-    // (Phase 151 offline cold-start fix).
-    if (typeof caches !== 'undefined') {
-      try { const c = await caches.open(MANIFEST_CACHE); await c.put(url, r.clone()); } catch { /* best-effort */ }
-    }
-    return await r.json() as Manifest;
-  } catch (netErr) {
-    // Offline / network failure: fall back to the copy primed on a prior online load.
-    if (typeof caches !== 'undefined') {
-      const hit = (await caches.match(url, { cacheName: MANIFEST_CACHE })) ?? (await caches.match(url));
-      if (hit) return await hit.json() as Manifest;
-    }
-    throw netErr;
-  }
+function scheduleRevalidate(url: string): void {
+  if (_revalidateScheduled || typeof setTimeout === 'undefined') return;
+  _revalidateScheduled = true;
+  setTimeout(() => {
+    _revalidateScheduled = false;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    void _fetchAndCache(url).catch(() => { /* next launch retries */ });
+  }, REVALIDATE_DELAY_MS);
 }
 
+async function _fetchAndCache(url: string): Promise<Manifest> {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`manifest.json: ${r.status}`);
+  if (typeof caches !== 'undefined') {
+    try { const c = await caches.open(MANIFEST_CACHE); await c.put(url, r.clone()); }
+    catch { /* best-effort */ }
+  }
+  return await r.json() as Manifest;
+}
+
+/**
+ * CACHE FIRST, then revalidate in the background.
+ *
+ * It was network-first with a cached fallback, which meant every offline launch
+ * began with a failed request — and on iOS a failed request inside an installed
+ * app raises the system "Turn On Wi-Fi to Use the Internet" modal over a map that
+ * is working entirely from cache.
+ *
+ * `navigator.onLine` cannot prevent that: measured on a real iPhone in airplane
+ * mode it still read TRUE at 110 ms and flipped only later, so a guard evaluated
+ * during page init is too early to help. Not needing the network is what works.
+ *
+ * THIS RUNS IN THE SQLITE WORKER TOO, which is where it matters most: that worker
+ * is created from an inline blob: URL, so it is outside the /app service-worker
+ * scope and uncontrolled — its fetches bypass the SW entirely and go to the
+ * network. It is also a separate realm, so nothing the page instruments can see
+ * it, which is why this survived several rounds of hunting.
+ *
+ * Safe because published artifacts are hashed and retained: merge-swap.sh
+ * age-prunes /data only at +30 days, so a manifest cached yesterday names files
+ * that still exist. The deferred refresh updates the cache for the next launch.
+ */
 export function loadManifest(): Promise<Manifest> {
   if (!_promise) {
-    // Do NOT memoize a rejected fetch: a failed boot (e.g. offline before the
-    // manifest was cached) would otherwise stay sticky and block recovery when
-    // connectivity returns. Clear the cache on failure so the next call retries.
+    // Do NOT memoize a rejected load: a failed boot (e.g. offline before the
+    // manifest was ever cached) would otherwise stay sticky and block recovery
+    // when connectivity returns. Clear it on failure so the next call retries.
     _promise = _loadManifestOnce().catch((err: unknown) => { _promise = null; throw err; });
   }
   return _promise;
+}
+
+async function _loadManifestOnce(): Promise<Manifest> {
+  const url = `${_BASE}/manifest.json`;
+
+  if (typeof caches !== 'undefined') {
+    try {
+      const hit = (await caches.match(url, { cacheName: MANIFEST_CACHE })) ?? (await caches.match(url));
+      if (hit) {
+        scheduleRevalidate(url);
+        return await hit.json() as Manifest;
+      }
+    } catch { /* fall through and fetch */ }
+  }
+  return await _fetchAndCache(url);
 }
 
 const DAY_MS = 86_400_000;
