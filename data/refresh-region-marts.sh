@@ -29,6 +29,24 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# EXPORT_DIR defaults to the repo's public/data — right for a dev checkout, and
+# WRONG on a deployed host, where nightly.sh uses $BASE_DIR/var/export instead. The
+# first run of this script on maderas went to the checkout and reported success
+# while the directory the nightly actually reads was untouched. So: when a
+# deployed-looking export dir exists and EXPORT_DIR was not set explicitly, refuse
+# to guess.
+DEPLOYED_EXPORT="${BASE_DIR:-/var/www/beeatlas.net}/var/export"
+if [[ -z "${EXPORT_DIR:-}" && -d "$DEPLOYED_EXPORT" ]]; then
+    echo "ERROR: this host has a deployed export dir at" >&2
+    echo "         $DEPLOYED_EXPORT" >&2
+    echo "       and EXPORT_DIR is unset, so the default would be the checkout's" >&2
+    echo "         $REPO_ROOT/public/data" >&2
+    echo "       which the nightly does not read. Set EXPORT_DIR explicitly:" >&2
+    echo >&2
+    echo "         EXPORT_DIR=$DEPLOYED_EXPORT bash data/refresh-region-marts.sh" >&2
+    exit 1
+fi
+
 EXPORT_DIR="${EXPORT_DIR:-$REPO_ROOT/public/data}"
 SANDBOX_DIR="${SANDBOX_DIR:-$SCRIPT_DIR/dbt/target/sandbox}"
 
