@@ -173,3 +173,20 @@ describe('attribution starts collapsed when compact', () => {
     expect(src).not.toMatch(/classList\.remove\([^)]*['"]maplibregl-compact['"]/);
   });
 });
+
+// beeatlas-pwm: `pmtiles extract` keeps whole intersecting tiles without clipping
+// their contents, so at low zoom the tile holding Washington holds its whole
+// quadrant — z1 drew Greenland. A floor makes the pathological range unreachable.
+describe('the map has a zoom floor', () => {
+  test('bee-map.ts passes minZoom to the Map constructor', () => {
+    const ctor = src.slice(src.indexOf('new maplibregl.Map({'));
+    expect(ctor.slice(0, 400)).toMatch(/minZoom:\s*MIN_ZOOM/);
+  });
+
+  test('MIN_ZOOM is 5 — a floor for every viewport, so the smallest decides it', () => {
+    // At z6 a 393px phone sees 8.6deg of longitude against Washington's 7.9deg:
+    // the state fits edge to edge with no margin. Raising this needs that check
+    // re-run on the smallest supported screen, not on a desktop.
+    expect(src).toMatch(/const MIN_ZOOM = 5;/);
+  });
+});

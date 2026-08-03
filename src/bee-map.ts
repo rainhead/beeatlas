@@ -39,6 +39,29 @@ const DEFAULT_LAT = 47.5;
 const DEFAULT_ZOOM = 7;
 
 /**
+ * How far out the map can be zoomed (beeatlas-pwm).
+ *
+ * `pmtiles extract` keeps every tile that INTERSECTS Washington and keeps them
+ * WHOLE — tile contents are never clipped to the region. At low zoom one tile is
+ * a continent, so the tile holding WA also holds its entire quadrant for free:
+ * measured, z1 draws Greenland and Montreal, z2.5 still draws Kansas, and the
+ * bonus geography retreats toward WA as each step halves the tile. Below the
+ * coverage the background shows through, so the view degrades into a hard-edged
+ * rectangle of map floating in grey.
+ *
+ * 5 rather than 6, because this is a floor for every viewport and the small ones
+ * decide it: at z6 a 393px phone sees 8.6° of longitude against Washington's 7.9°,
+ * which fits the state edge to edge with no margin at all. z5 gives it 12.2°.
+ *
+ * This bounds the ugliness; it does not remove it — a wide desktop at z5 still
+ * reaches past the archive. Making the beyond read as deliberate (a mask, or
+ * maxBounds) is a separate call with real trade-offs: maxBounds would also fence
+ * off the ~15 records whose coordinates land outside the state, which are data
+ * errors worth being able to see. Deliberately NOT bundled in here.
+ */
+const MIN_ZOOM = 5;
+
+/**
  * Where MapLibre's worker is served from — copied out of node_modules by an
  * Eleventy passthrough (see eleventy.config.js, which carries the full why).
  *
@@ -524,6 +547,7 @@ export class BeeMap extends LitElement {
       style: blankBasemapStyle({ origin: location.origin }),
       center: [this.viewState?.lon ?? DEFAULT_LON, this.viewState?.lat ?? DEFAULT_LAT],
       zoom: this.viewState?.zoom ?? DEFAULT_ZOOM,
+      minZoom: MIN_ZOOM,
       // `true` is not a MapLibre option — the control is on by default and
       // configured by an options object. It carries the OSM/Protomaps notice
       // from the vector source and the Bee Atlas notice from the occurrence
