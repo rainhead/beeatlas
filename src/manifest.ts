@@ -39,6 +39,20 @@ const MANIFEST_CACHE = 'data-manifest';
 
 async function _loadManifestOnce(): Promise<Manifest> {
   const url = `${_BASE}/manifest.json`;
+
+  // OFFLINE: read the primed copy without attempting a fetch that cannot succeed.
+  // On iOS a failed request inside an installed PWA raises the system "Turn On
+  // Wi-Fi to Use the Internet" modal, so a doomed request costs a dialog over the
+  // map rather than nothing. `navigator.onLine === false` is the trustworthy
+  // direction (true can still be a captive portal); a cache miss falls through
+  // and tries the network anyway.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false && typeof caches !== 'undefined') {
+    try {
+      const hit = (await caches.match(url, { cacheName: MANIFEST_CACHE })) ?? (await caches.match(url));
+      if (hit) return await hit.json() as Manifest;
+    } catch { /* fall through to the network attempt */ }
+  }
+
   try {
     const r = await fetch(url);
     if (!r.ok) throw new Error(`manifest.json: ${r.status}`);

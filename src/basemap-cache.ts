@@ -83,8 +83,44 @@ export const BASEMAP_MANIFEST_TIMEOUT_MS = 3000;
  * Returns null rather than throwing when there is no manifest to be had from
  * either source. A missing basemap degrades the map; it does not break the app.
  */
-export async function loadBasemapManifest(): Promise<BasemapManifest | null> {
+let _inFlight: Promise<BasemapManifest | null> | null = null;
+
+/**
+ * Concurrent callers share one request; sequential ones do not.
+ *
+ * Two callers want this on every boot — <bee-map> to build the style, <bee-atlas>
+ * to decide what the offline-maps row says — and without this they issue two
+ * identical requests. Deliberately NOT memoized past settlement: the result must
+ * stay network-first, because the publish prunes superseded archives and a
+ * client pinned to a stale manifest names a file the server no longer has. A
+ * later call is a new question and deserves a new answer.
+ */
+export function loadBasemapManifest(): Promise<BasemapManifest | null> {
+  if (_inFlight) return _inFlight;
+  _inFlight = _loadBasemapManifestOnce().finally(() => { _inFlight = null; });
+  return _inFlight;
+}
+
+async function _loadBasemapManifestOnce(): Promise<BasemapManifest | null> {
   const url = basemapManifestUrl();
+
+  // OFFLINE: go to the cache FIRST rather than letting the fetch fail.
+  //
+  // Not an optimisation. On iOS a failed request inside an installed PWA raises
+  // the system "Turn On Wi-Fi to Use the Internet" alert — a modal, over the map,
+  // for someone standing in a forest who already knows they have no signal. The
+  // request cannot succeed, so the only thing it buys is the alert.
+  //
+  // Keyed on `navigator.onLine === false`, which is the trustworthy direction:
+  // false reliably means no interface, while true can still be a captive portal.
+  // If the cache somehow misses we fall through and try anyway.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false && typeof caches !== 'undefined') {
+    try {
+      const hit = await caches.match(url, { cacheName: BASEMAP_MANIFEST_CACHE });
+      if (hit) return parseBasemapManifest(await hit.json());
+    } catch { /* fall through to the network attempt */ }
+  }
+
   try {
     const resp = await fetch(url, { signal: AbortSignal.timeout(BASEMAP_MANIFEST_TIMEOUT_MS) });
     if (!resp.ok) throw new Error(`basemap manifest: HTTP ${resp.status}`);

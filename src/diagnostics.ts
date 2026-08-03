@@ -132,9 +132,13 @@ export async function collectDiagnostics(): Promise<string> {
   // inside its /app/ scope; a worker outside it is unreachable offline however
   // thoroughly it was precached.
   add('— renderer reachability —');
+  // maplibre-gl-shared.mjs is deliberately NOT here: the worker is bundled into
+  // one self-contained file now, so probing the old sibling both reports a
+  // failure that is correct-but-meaningless AND fires a doomed network request —
+  // which on iOS raises the system "Turn On Wi-Fi" alert. A diagnostic must not
+  // create the symptom it is diagnosing.
   for (const url of [
     '/app/basemap/maplibre/maplibre-gl-worker.mjs',
-    '/app/basemap/maplibre/maplibre-gl-shared.mjs',
     '/basemap/fonts/Noto Sans Medium/0-255.pbf',
     '/basemap/sprites/light.json',
   ]) {

@@ -1278,7 +1278,19 @@ bee-map {
     }
   }
 
-  private _onOnline = () => { this._offline = false; void this._refreshFreshness(); };
+  // Re-check identity on reconnect. fetchWhoami() cannot tell "signed out" from
+  // "could not ask" — every network failure resolves to {authenticated:false} —
+  // so a session that started offline showed a Sign in button and kept showing
+  // one for the rest of the session, even once back on WiFi. That is the field
+  // flow, not an edge case: the app is opened with no signal and gets connectivity
+  // later. Also refresh the offline-maps row, which is likewise unanswerable
+  // offline.
+  private _onOnline = () => {
+    this._offline = false;
+    void this._refreshFreshness();
+    void fetchWhoami().then((state) => { this._authState = state; });
+    this._refreshBasemapState();
+  };
   private _onOffline = () => { this._offline = true; };
 
   // --- Phase 150 cache state handlers ---

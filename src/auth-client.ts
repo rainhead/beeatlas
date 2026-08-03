@@ -122,6 +122,22 @@ async function _postJson(url: string, method: 'POST' | 'PATCH', payload: unknown
  * bee-header entry controller) never blocks page render on this call.
  */
 export async function fetchWhoami(): Promise<AuthState> {
+  // Offline this reports {authenticated:false}, which is NOT a claim that you are
+  // signed out — only that the session cannot be introspected. That conflation is
+  // this function's pre-existing contract (see the catch below: every network
+  // failure already collapses to the same answer), and skipping the request
+  // offline reaches it without also raising iOS's system "Turn On Wi-Fi to Use
+  // the Internet" modal over the map for someone who knows they have no signal.
+  //
+  // What makes the conflation tolerable is that it is TEMPORARY: <bee-atlas>
+  // re-runs this when connectivity returns, so a real session reappears rather
+  // than staying hidden for the rest of the session.
+  //
+  // `onLine === false` is the trustworthy direction; `true` can still be a
+  // captive portal, which the catch below handles.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return { authenticated: false };
+  }
   try {
     const res = await fetch(`${API_BASE}/auth/whoami`, { credentials: 'include' });
     if (!res.ok) return { authenticated: false };
