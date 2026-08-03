@@ -160,8 +160,28 @@ if (PRIME) {
 }
 
 // ---------------------------------------------------------------------------
-// OFFLINE COLD START
+// OFFLINE COLD START — chromium only
 // ---------------------------------------------------------------------------
+// The header explains WHY the default engine is webkit (it is the only
+// automatable one sharing Safari's storage semantics) and that the offline half
+// needs chromium because setOffline is unreliable in WebKit. Nothing acted on
+// that: the offline half ran regardless, and under webkit the reload dies with
+// "WebKit encountered an internal error" — an uncaught exception and a stack
+// trace, AFTER the online checks have quietly passed. So the invocation the
+// runbook documents always looked broken (beeatlas-69s). Stop before it, and
+// report on what did run.
+if (BROWSER !== 'chromium') {
+  console.log(
+    `\n— offline cold start: SKIPPED —\n` +
+    `  Playwright's setOffline is not reliable in ${BROWSER}; the reload throws.\n` +
+    `  Re-run with --browser=chromium --prime for the offline half.\n`,
+  );
+  await context.close();
+  const onlineFailed = results.filter((r) => !r.pass);
+  console.log(`${results.length - onlineFailed.length}/${results.length} online checks passed\n`);
+  process.exit(onlineFailed.length ? 1 : 0);
+}
+
 console.log('— offline cold start —');
 echoConsole = true;
 await context.setOffline(true);
@@ -219,8 +239,41 @@ if (PRIME) {
     check(`source "${id}" loaded from the local archive`, loaded);
   }
   check('no offline-basemap overlay', state.offlineLabel === null, state.offlineLabel ?? '');
-  const archiveNet = netAttempts.filter((u) => u.includes('.pmtiles'));
-  check('no network attempts for .pmtiles', archiveNet.length === 0, archiveNet.slice(0, 3).join(', '));
+
+  // The tile READ path must be entirely local. This deliberately does NOT assert
+  // "zero .pmtiles requests ever": beeatlas-c8v established that 2-3 fire during
+  // startup, from pmtiles' own FetchSource creating a network-backed archive
+  // before registerPrimedArchives replaces the entry, and that was ACCEPTED and
+  // closed. Asserting on it left this whole harness permanently red, which is
+  // worse than not checking — nobody reads a run that always fails (beeatlas-69s).
+  //
+  // So: report the startup burst as information, then measure the property that
+  // actually matters and that c8v itself verified by hand — once the style is up,
+  // panning must produce nothing.
+  const startupNet = netAttempts.filter((u) => u.includes('.pmtiles'));
+  console.log(
+    `  note  ${startupNet.length} .pmtiles request(s) during startup — expected, beeatlas-c8v`,
+  );
+
+  netAttempts.length = 0;
+  for (const [lon, lat, zoom] of [
+    [-122.33, 47.61, 11],  // Seattle
+    [-117.43, 47.66, 11],  // Spokane — the far side of the archive
+    [-121.76, 46.85, 13],  // Rainier, where the field detail layers switch on
+    [-123.39, 48.11, 12],  // Olympic coast
+  ]) {
+    await page.evaluate(([lon_, lat_, z]) => {
+      const m = document.querySelector('bee-atlas')?.shadowRoot?.querySelector('bee-map')?._map;
+      m?.jumpTo({ center: [lon_, lat_], zoom: z });
+    }, [lon, lat, zoom]);
+    await page.waitForTimeout(2500);
+  }
+  const pannedNet = netAttempts.filter((u) => u.includes('.pmtiles'));
+  check(
+    'no .pmtiles network attempts while panning (the read path is local)',
+    pannedNet.length === 0,
+    pannedNet.slice(0, 3).join(', '),
+  );
 }
 check('no uncaught page errors', pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '));
 

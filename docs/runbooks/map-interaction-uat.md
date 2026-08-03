@@ -199,12 +199,18 @@ sharing Safari's storage semantics; a Chromium/WebKit difference *is* a finding.
 Its offline half needs `--browser=chromium` (Playwright's `setOffline` is not
 reliable in WebKit).
 
-**Both of these currently fail on a clean tree, so read them carefully rather
-than reading the exit code** (tracked as `beeatlas-69s`):
+Both should be **green** — chromium 9/9, webkit 2/2 with the offline half
+skipped and said so. They were both permanently red until `beeatlas-69s`; if you
+find yourself explaining away a failure, that is the bug, not the run.
 
-- chromium reports **8/9**; the failure is `no network attempts for .pmtiles`,
-  which is the accepted, closed `beeatlas-c8v`. A **9/9**, or a *different*
-  failing check, is the news.
-- webkit passes its two online checks and then dies with
-  `page.goto: WebKit encountered an internal error` — it attempts the offline
-  half it is documented not to run. Everything before that line still counts.
+One line of the chromium run is informational, not a check:
+
+```
+  note  2 .pmtiles request(s) during startup — expected, beeatlas-c8v
+```
+
+Those come from pmtiles' own `FetchSource` before `registerPrimedArchives`
+replaces the entry, and were accepted and closed. What is *asserted* is the
+property that matters: after the style is up, jumping across Seattle, Spokane,
+Rainier and the Olympic coast must produce **zero** `.pmtiles` requests — the
+tile read path is entirely local.
