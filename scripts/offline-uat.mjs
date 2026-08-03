@@ -172,9 +172,18 @@ await page.goto(URL_, { waitUntil: 'domcontentloaded' });
 
 const state = await page.evaluate(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  for (let i = 0; i < 40; i++) {
+  // Do NOT wait on isStyleLoaded(): it is true IMMEDIATELY, because the map is
+  // constructed with the local blank style and the real basemap is swapped in
+  // afterwards by setStyle. Sampling on that flag reads the blank fallback and
+  // reports a failure that is not there — which is exactly what this harness did
+  // on its first run, and a false negative here is worse than no harness at all.
+  // Wait for the thing actually being tested: a pmtiles source in the style.
+  for (let i = 0; i < 60; i++) {
     const m = document.querySelector('bee-atlas')?.shadowRoot?.querySelector('bee-map')?._map;
-    if (m?.isStyleLoaded?.()) break;
+    const s = m?.getStyle?.();
+    const hasArchive = s && Object.values(s.sources ?? {})
+      .some((v) => typeof v.url === 'string' && v.url.startsWith('pmtiles://'));
+    if (hasArchive) { await wait(2000); break; } // settle, then let sources load
     await wait(500);
   }
   const beeMap = document.querySelector('bee-atlas')?.shadowRoot?.querySelector('bee-map');
