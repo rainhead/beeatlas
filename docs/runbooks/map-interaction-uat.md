@@ -199,9 +199,33 @@ sharing Safari's storage semantics; a Chromium/WebKit difference *is* a finding.
 Its offline half needs `--browser=chromium` (Playwright's `setOffline` is not
 reliable in WebKit).
 
-Both should be **green** — chromium 9/9, webkit 2/2 with the offline half
+It also defaults to **the live site**, so a change that is committed but not yet
+deployed fails it for the wrong reason. To run it against a local build instead:
+
+```bash
+npm run build && npx vite preview --outDir _site --port 4173
+node scripts/offline-uat.mjs --browser=chromium --url=http://localhost:4173/ --fresh
+```
+
+`vite preview` inherits `server.proxy` from `vite.config.ts`, so `/basemap/tiles`
+proxies to beeatlas.net and the manifest self-prime works — which is what makes a
+local run meaningful at all. `--fresh` discards the profile; without it a stale
+service worker from the previous build keeps controlling the page. `npm run dev`
+is NOT a substitute: it serves no `/sw.js`, so there is nothing to test.
+
+Both should be **green** — chromium 11/11, webkit 4/4 with the offline half
 skipped and said so. They were both permanently red until `beeatlas-69s`; if you
 find yourself explaining away a failure, that is the bug, not the run.
+
+Four of those are the ADR 0029 surface boundary, added when the app moved to `/`
+(beeatlas-3xx). Two run online — a species page must be served as ITSELF, and it
+must come from the network rather than the worker (`fromServiceWorker() === false`,
+i.e. no route matched). The second is what protects note writing: `bee-notes.ts`
+reloads after a live publish and that reload IS how an author sees their own note,
+so any route in front of it returns the pre-write copy. Two run offline — the app
+shell must boot at `/`, and an offline species navigation must NOT be answered with
+the map. Override the read-path target with `--read-url=` if that species page ever
+goes away.
 
 One line of the chromium run is informational, not a check:
 
