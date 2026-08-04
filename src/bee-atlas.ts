@@ -1,7 +1,7 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js';
 import type { BeeMap } from './bee-map.ts';
-import { type FilterState, type CollectorEntry, type PlaceOption, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, getOccurrencePlaceSlugs, queryTaxaTree, type OccurrenceProperties, emptyFilterState, parseCatalogSuffix, lookupByCatalogSuffix } from './filter.ts';
+import { type FilterState, type CollectorEntry, type PlaceOption, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, getOccurrencePlaceSlugs, queryTaxaTree, type OccurrenceProperties, emptyFilterState, lookupByCatalogSuffix } from './filter.ts';
 import type { TaxonNode } from './taxa-tree.ts';
 import { parseOccId, occIdFromRow } from './occurrence.ts';
 import { buildParams, parseParams, type TierKey } from './url-state.ts';
@@ -12,6 +12,8 @@ import { buildTaxonOptions, resolveTaxonDisplayName, type TaxonCacheEntry } from
 import type { FeatureCollection, Point } from 'geojson';
 import { makeStaleGuard } from './stale-guard.ts';
 import { loadTaxonPages } from './taxon-pages.ts';
+import { buildSearchIndex, rankCandidates, rollUpTaxonCounts, EMPTY_INDEX,
+         type SearchIndex, type SearchCandidate } from './search.ts';
 import type { CachePrimeProgressDetail, CacheStateChangedDetail } from './prime-orchestrator.ts';
 import { loadBuildId, loadFreshnessLabel, resolveDataUrl } from './manifest.ts';
 import { fetchWhoami, loadLastKnownIdentity, signOut, startSignIn, type AuthState } from './auth-client.ts';
@@ -188,6 +190,18 @@ export class BeeAtlas extends LitElement {
   @state() private _countyOptions: string[] = [];
   @state() private _ecoregionOptions: string[] = [];
   @state() private _collectorOptions: CollectorEntry[] = [];
+  // Header search (beeatlas-7nx.5, ADR 0028). The index is assembled here from the
+  // option lists this component already owns; ranking is pure (src/search.ts).
+  private _searchIndex: SearchIndex = EMPTY_INDEX;
+  // Record counts behind each searchable thing — the ranking tie-break. Queried once
+  // (they change only when the DB reloads) and cached, so _rebuildSearchIndex stays
+  // synchronous and can be re-run cheaply as its other inputs land.
+  private _searchWeights: {
+    taxa: Map<number, number>;
+    counties: Map<string, number>;
+    ecoregions: Map<string, number>;
+    people: Map<string, number>;
+  } | null = null;
   // Named places (beeatlas-7nx.3). Two shapes on purpose — see _loadPlaces.
   @state() private _placeOptions: PlaceOption[] = [];
   @state() private _placeNameBySlug: Map<string, string> = new Map();
@@ -973,6 +987,7 @@ bee-map {
         }
       );
       this._taxaOptions = buildTaxonOptions(presentIds, this._taxonCache);
+      this._rebuildSearchIndex();
 
       // Step 3: Backfill the display name for a taxon restored from the URL via integer
       // taxon_id — the URL carries only the id, so the "Species or group" input would
@@ -981,19 +996,29 @@ bee-map {
       // this covers only the integer-from-URL restore case.
       this._resolveTaxonDisplayName();
 
-      // County options
-      this._countyOptions = [];
+      // County and ecoregion options.
+      //
+      // Filled into LOCALS and assigned once each, rather than assigned empty and
+      // pushed into. The old shape opened a window: `this._ecoregionOptions = []`
+      // wiped the list, an `await` sat on either side, and any other loader that
+      // rebuilt the search index in between saw counties populated and ecoregions
+      // empty — after which nothing rebuilt, so ecoregions were silently missing
+      // from search while counties were present (beeatlas-7nx.5, caught in the app).
+      // Assign-then-mutate also hides the change from Lit, which only reacts to the
+      // assignment.
+      const counties: string[] = [];
       await sqlite3.exec(db,
         `SELECT DISTINCT county FROM occurrences WHERE county IS NOT NULL ORDER BY county`,
-        (rowValues: unknown[]) => { this._countyOptions.push(String(rowValues[0])); }
+        (rowValues: unknown[]) => { counties.push(String(rowValues[0])); }
       );
-
-      // Ecoregion options
-      this._ecoregionOptions = [];
+      const ecoregions: string[] = [];
       await sqlite3.exec(db,
         `SELECT DISTINCT ecoregion_l3 FROM occurrences WHERE ecoregion_l3 IS NOT NULL ORDER BY ecoregion_l3`,
-        (rowValues: unknown[]) => { this._ecoregionOptions.push(String(rowValues[0])); }
+        (rowValues: unknown[]) => { ecoregions.push(String(rowValues[0])); }
       );
+      this._countyOptions = counties;
+      this._ecoregionOptions = ecoregions;
+      this._rebuildSearchIndex();
 
       // _collectorOptions is populated by _loadCollectorOptions, called from _onDataLoaded
       // independently of view mode — no need to duplicate the query here.
@@ -1111,6 +1136,7 @@ bee-map {
         newOptions.push({ displayName: recordedBy, recordedBy, host_inat_login } satisfies CollectorEntry);
       });
       this._collectorOptions = newOptions;
+      this._rebuildSearchIndex();
     } catch (err) {
       console.error('Failed to load collector options:', err);
       // leave _collectorOptions unchanged
@@ -1135,6 +1161,102 @@ bee-map {
    * raw slug, which is what it did before. This runs on the boot path, so it must
    * never throw.
    */
+  /**
+   * Count the records behind every searchable thing (beeatlas-7nx.5).
+   *
+   * Deliberately its own pass rather than widening the DISTINCT queries that feed
+   * the pane's autocompletes: those serve a different surface with a different
+   * shape, and a weight is only ever needed by search. Four GROUP BYs over a table
+   * that is already resident cost single-digit milliseconds.
+   *
+   * The people query mirrors _loadCollectorOptions' WHERE exactly — the same rows
+   * that become options must be the rows that get counted, or a collector ranks on
+   * a number that does not describe the option beside it.
+   */
+  private async _loadSearchWeights(): Promise<void> {
+    try {
+      await tablesReady;
+      const { sqlite3, db } = await getDB();
+      const taxa = new Map<number, number>();
+      const counties = new Map<string, number>();
+      const ecoregions = new Map<string, number>();
+      const people = new Map<string, number>();
+
+      await sqlite3.exec(db,
+        `SELECT taxon_id, COUNT(*) AS n FROM occurrences WHERE taxon_id IS NOT NULL GROUP BY taxon_id`,
+        (v: unknown[]) => { taxa.set(Number(v[0]), Number(v[1])); });
+      await sqlite3.exec(db,
+        `SELECT county, COUNT(*) AS n FROM occurrences WHERE county IS NOT NULL GROUP BY county`,
+        (v: unknown[]) => { counties.set(String(v[0]), Number(v[1])); });
+      await sqlite3.exec(db,
+        `SELECT ecoregion_l3, COUNT(*) AS n FROM occurrences WHERE ecoregion_l3 IS NOT NULL GROUP BY ecoregion_l3`,
+        (v: unknown[]) => { ecoregions.set(String(v[0]), Number(v[1])); });
+      await sqlite3.exec(db,
+        `SELECT recordedBy, COUNT(*) AS n FROM occurrences
+          WHERE recordedBy IS NOT NULL AND ecdysis_id IS NOT NULL GROUP BY recordedBy`,
+        (v: unknown[]) => { people.set(String(v[0]), Number(v[1])); });
+
+      this._searchWeights = { taxa, counties, ecoregions, people };
+      this._rebuildSearchIndex();
+    } catch (err) {
+      console.error('Failed to load search weights:', err);
+      // Leave the index as it stands; search degrades to whatever is already built
+      // rather than throwing on the boot path.
+    }
+  }
+
+  /**
+   * Assemble the search index from whatever has loaded so far (beeatlas-7nx.5).
+   *
+   * Synchronous, idempotent, and safe to call repeatedly: its inputs arrive from
+   * four independent async paths (the DB's option lists, the weights, places.json,
+   * the taxon→page map) and there is no ordering between them. Each one calls this
+   * when it lands, and the index simply gets better. Searching before everything has
+   * arrived returns fewer candidates, never wrong ones.
+   */
+  private _rebuildSearchIndex(): void {
+    const w = this._searchWeights;
+    if (w === null) return; // nothing can be ranked without weights
+
+    // A genus earns the weight of its species — see rollUpTaxonCounts. Without this
+    // Bombus sorts below every bumblebee for the query "bombus".
+    const taxonWeights = rollUpTaxonCounts(w.taxa, this._taxonCache);
+
+    this._searchIndex = buildSearchIndex({
+      taxa: this._taxaOptions.map(o => ({
+        taxonId: o.taxonId,
+        // The plain name is what a reader types; o.label carries "(genus)".
+        name: this._taxonCache.get(o.taxonId)?.name ?? o.label,
+        label: o.label,
+        rank: o.rank,
+        weight: taxonWeights.get(o.taxonId) ?? 0,
+        // Absent for families and for the ~20 taxa with no published page. null is
+        // the honest answer; a string-munged /species/ URL would be a 404.
+        href: this._taxonPages[String(o.taxonId)] ?? null,
+      })),
+      people: this._collectorOptions.map(c => ({
+        collector: c,
+        weight: c.recordedBy === null ? 0 : (w.people.get(c.recordedBy) ?? 0),
+        // NO LINK YET, on purpose. A collector page exists only for the logins in
+        // collectors.json (124 of the 158 that appear on occurrences — 22% would
+        // 404), and that file is 2.8 MB, far too heavy for the boot path just to
+        // learn which. It needs the slim published map that taxon-pages.ts already
+        // established for taxa; filed separately.
+        href: null,
+      })),
+      places: this._placeOptions.map(p => ({
+        slug: p.slug,
+        name: p.name,
+        landOwner: p.landOwner,
+        weight: p.specimenCount + p.sampleCount,
+        // Every place in places.json is paginated into a page (_pages/place-detail.njk).
+        href: `/places/${p.slug}.html`,
+      })),
+      counties: this._countyOptions.map(name => ({ name, weight: w.counties.get(name) ?? 0 })),
+      ecoregions: this._ecoregionOptions.map(name => ({ name, weight: w.ecoregions.get(name) ?? 0 })),
+    });
+  }
+
   private _loadPlaces(): Promise<void> {
     if (this._placesPromise !== null) return this._placesPromise;
     this._placesPromise = (async () => {
@@ -1193,6 +1315,7 @@ bee-map {
         (rowValues: unknown[]) => { ecoregions.push(String(rowValues[0])); }
       );
       this._ecoregionOptions = ecoregions;
+      this._rebuildSearchIndex();
     } catch (err) {
       console.error('Failed to load county/ecoregion options:', err);
     }
@@ -1776,12 +1899,19 @@ bee-map {
     const myGen = ++this._catalogLookupGeneration;
     if (typed === '') { this._searchStatus = null; return; }
 
-    const suffix = parseCatalogSuffix(typed);
-    if (suffix === null) { this._searchStatus = { query: typed, kind: 'miss' }; return; }
+    // ADR 0028: the query is ranked against the index, and the top candidate is what
+    // a bare submit means. A digits query still yields exactly one label candidate,
+    // so the path below is unchanged for it; a name now resolves to a view instead
+    // of falling straight through to `miss`.
+    const { candidates } = rankCandidates(this._searchIndex, typed);
+    const top = candidates[0];
+    if (top === undefined) { this._searchStatus = { query: typed, kind: 'miss' }; return; }
+
+    if (top.kind !== 'label') { this._applyViewCandidate(top, typed); return; }
 
     let result;
     try {
-      result = await lookupByCatalogSuffix(suffix, this._filterState);
+      result = await lookupByCatalogSuffix(top.suffix, this._filterState);
     } catch (err) {
       console.error('Catalog lookup failed:', err);
       if (myGen !== this._catalogLookupGeneration) return; // superseded
@@ -1958,6 +2088,77 @@ bee-map {
       this._paneState = 'collapsed';
       this._replaceUrlState();
     }
+  }
+
+  /**
+   * Apply a search result that names a VIEW (beeatlas-7nx.5, ADR 0028).
+   *
+   * The counterpart to the label path above. That one resolves a RECORD, so it
+   * selects and the filter yields to it; this one names a set, so it sets the one
+   * FilterState dimension that expresses that set and changes nothing else.
+   *
+   * COMPOSITION (ADR 0028): the named dimension is REPLACED — searching one county
+   * after another shows the second, not both — and every other dimension is LEFT
+   * ALONE, so a search composes with the year, elevation or bounds already in force.
+   * This is deliberately not the label yield: a selection can be hidden by a filter
+   * (queryListPage intersects them), whereas a filter can only compose to zero,
+   * which is a legible answer rather than a broken screen.
+   *
+   * Everything after the dimension is set mirrors _onFilterChanged, because this IS
+   * a filter change and the two must not drift — same boundary-layer auto-switch,
+   * same selection clearing, same pane handling, same query fan-out. The differences
+   * from the pane are exactly two: search names one dimension rather than sending a
+   * whole FilterState, and search reports a hit so the header can close its popover.
+   */
+  private _applyViewCandidate(c: SearchCandidate, typed: string): void {
+    const prev = this._filterState;
+    let next: FilterState;
+    switch (c.kind) {
+      case 'taxon':
+        // c.label is the pane's own label scheme (buildTaxonLabel), so a chip from
+        // search is spelled exactly like a chip from the autocomplete.
+        next = { ...prev, taxonId: c.taxonId, taxonDisplayName: c.label };
+        break;
+      case 'person':
+        next = { ...prev, selectedCollectors: [c.collector] };
+        break;
+      case 'place':
+        next = { ...prev, selectedPlace: c.slug };
+        break;
+      case 'county':
+        next = { ...prev, selectedCounties: new Set([c.name]) };
+        break;
+      case 'ecoregion':
+        next = { ...prev, selectedEcoregions: new Set([c.name]) };
+        break;
+      case 'label':
+        return; // handled by the lookup path; never reaches here
+    }
+    this._filterState = next;
+
+    // Same auto-switch the pane does: a region filter brings its boundary layer up,
+    // or the filter is invisible on the map.
+    if (c.kind === 'county') this._boundaryMode = 'counties';
+    else if (c.kind === 'ecoregion') this._boundaryMode = 'ecoregions';
+    else if (c.kind === 'place') this._boundaryMode = 'places';
+
+    // Reported, not inferred — the header cannot tell "resolved" from "nothing has
+    // been searched for yet", and it closes the popover on a hit (ADR 0021).
+    this._searchStatus = { query: typed, kind: 'hit' };
+
+    // Clear record selections, as any other filter change does: a pinned selection
+    // would intersect the new view and show a card for a record it no longer contains.
+    this._selectedOccIds = null;
+    this._selectedCluster = null;
+    if (this._paneState !== 'list') this._paneState = 'collapsed';
+    if (this._paneState === 'list') { this._listPage = 1; this._runListQuery(); }
+
+    this._tablePage = 1;
+    this._runFilterQuery().then(() => {
+      this._replaceUrlState();
+    });
+    this._runTableQuery();
+    this._runTaxaQuery();
   }
 
   private _onFilterChanged(e: CustomEvent<FilterChangedEvent>) {
@@ -2137,11 +2338,17 @@ bee-map {
     const _heapMB = ((performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0) / 1_048_576;
     console.log(`[BENCHMARK] data-loaded (loading screen lifted): ${(performance.now() - this._bootT0).toFixed(0)} ms from boot | main-thread heap: ${_heapMB.toFixed(1)} MB`);
     this._loadCollectorOptions();
+    // Search (beeatlas-7nx.5). Both land after the DB is up, like the option lists,
+    // and each rebuilds the index when it arrives — there is no ordering between them.
+    void this._loadSearchWeights();
+    if (Object.keys(this._taxonPages).length === 0) {
+      void loadTaxonPages().then(m => { this._taxonPages = m; this._rebuildSearchIndex(); });
+    }
     // Named places (beeatlas-7nx.3). Eager, alongside the other option lists —
     // <bee-pane> loaded this lazily and only when a place was already SELECTED, so
     // its place autocomplete was empty on a fresh session and a place could not be
     // found by typing its name until one had somehow been chosen already.
-    void this._loadPlaces();
+    void this._loadPlaces().then(() => this._rebuildSearchIndex());
     // Load county and ecoregion options from SQLite
     // (previously loaded from region GeoJSON sources, now stubbed for Phase 71)
     this._loadCountyEcoregionOptions();

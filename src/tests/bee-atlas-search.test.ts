@@ -7,6 +7,7 @@
 // cache-state.test.ts and bee-atlas-auth.test.ts.
 import { test, expect, describe, vi, beforeEach, afterEach } from 'vitest';
 import { emptyFilterState, type CatalogLookupResult, type OccurrenceRow } from '../filter.ts';
+import { buildSearchIndex } from '../search.ts';
 
 vi.mock('../sqlite.ts', () => ({
   getDB: vi.fn(() => Promise.resolve({ sqlite3: { exec: vi.fn(() => Promise.resolve()) }, db: 0 })),
@@ -118,7 +119,7 @@ function pane(atlas: AtlasEl) {
 function header(atlas: AtlasEl) {
   return atlas.shadowRoot.querySelector('bee-header') as HTMLElement & {
     searchEnabled: boolean;
-    searchStatus: { query: string; kind: 'miss' | 'error' } | null;
+    searchStatus: { query: string; kind: 'hit' | 'miss' | 'error' } | null;
   };
 }
 
@@ -127,6 +128,7 @@ function map(atlas: AtlasEl) {
     selectedOccIds: Set<string> | null;
     viewState: { lon: number; lat: number; zoom: number } | null;
     filterState: ReturnType<typeof emptyFilterState>;
+    boundaryMode: string;
   };
 }
 
@@ -339,5 +341,105 @@ describe('a lookup that resolves nothing changes nothing', () => {
     await lookup(el!, '   ');
     expect(mockLookup).not.toHaveBeenCalled();
     expect(header(el!).searchStatus).toBeNull();
+  });
+});
+
+// --- beeatlas-7nx.5 — a search result that names a VIEW ----------------------
+//
+// The counterpart to everything above. A label number resolves a RECORD, so it
+// selects and the filter yields; a taxon, person, place, county or ecoregion names
+// a SET, so it sets one filter dimension and leaves the rest alone (ADR 0028).
+//
+// The index is seeded directly: building it for real needs four async loaders and a
+// populated DB, none of which is what these cases are about. Ranking itself is
+// covered exhaustively in search.test.ts.
+describe('a search result that names a view filters instead of selecting', () => {
+  const COLLECTOR = { displayName: 'Roe, J.', recordedBy: 'Roe, J.', host_inat_login: 'beequeen' };
+
+  function seedIndex(atlas: AtlasEl) {
+    const holder = atlas as unknown as { _searchIndex: unknown };
+    holder._searchIndex = buildSearchIndex({
+      taxa: [{ taxonId: 42, name: 'Bombus', label: 'Bombus (genus)', rank: 'genus', weight: 4182, href: '/species/Bombus/' }],
+      people: [{ collector: COLLECTOR, weight: 40, href: null }],
+      places: [{ slug: 'asotin-creek-wildlife-area', name: 'Asotin Creek', landOwner: 'WDFW', weight: 148, href: '/places/asotin-creek-wildlife-area.html' }],
+      counties: [{ name: 'King', weight: 900 }, { name: 'Whatcom', weight: 300 }],
+      ecoregions: [{ name: 'Puget Lowland', weight: 500 }],
+    });
+  }
+
+  beforeEach(() => seedIndex(el!));
+
+  test('a taxon name sets the taxon filter and selects nothing', async () => {
+    await lookup(el!, 'Bombus');
+    expect(pane(el!).filterState.taxonId).toBe(42);
+    expect(map(el!).selectedOccIds, 'a view is not a selection').toBeNull();
+    expect(mockLookup, 'a name must never reach the catalog lookup').not.toHaveBeenCalled();
+  });
+
+  test('the chip is spelled the way the pane spells it', async () => {
+    // Same label scheme as the autocomplete (buildTaxonLabel), so a chip from search
+    // and a chip from the filter panel are indistinguishable.
+    await lookup(el!, 'Bombus');
+    expect(pane(el!).filterState.taxonDisplayName).toBe('Bombus (genus)');
+  });
+
+  test('a hit is reported, so the header can close its popover', async () => {
+    await lookup(el!, 'Bombus');
+    expect(header(el!).searchStatus).toEqual({ query: 'Bombus', kind: 'hit' });
+  });
+
+  test('a search COMPOSES — every dimension it did not name survives', async () => {
+    const p = pane(el!);
+    p.dispatchEvent(new CustomEvent('filter-changed', {
+      bubbles: true, composed: true,
+      detail: { ...emptyFilterState(), yearFrom: 2024, yearTo: 2024, selectedCounties: new Set(['Whatcom']) },
+    }));
+    await el!.updateComplete;
+
+    await lookup(el!, 'Bombus');
+    const f = pane(el!).filterState;
+    expect(f.taxonId).toBe(42);
+    expect(f.yearFrom, 'the year filter must survive a taxon search').toBe(2024);
+    expect([...f.selectedCounties], 'an unnamed dimension is untouched').toEqual(['Whatcom']);
+  });
+
+  test('a search REPLACES the dimension it names', async () => {
+    await lookup(el!, 'Whatcom');
+    expect([...pane(el!).filterState.selectedCounties]).toEqual(['Whatcom']);
+    await lookup(el!, 'King');
+    expect([...pane(el!).filterState.selectedCounties], 'the second county, not both').toEqual(['King']);
+  });
+
+  test('a place sets the place filter, never bounds', async () => {
+    await lookup(el!, 'Asotin Creek');
+    expect(pane(el!).filterState.selectedPlace).toBe('asotin-creek-wildlife-area');
+    expect(pane(el!).filterState.bounds, 'a place is a membership, not a box').toBeNull();
+  });
+
+  test('a person sets the collector filter', async () => {
+    await lookup(el!, 'beequeen');
+    expect(pane(el!).filterState.selectedCollectors).toEqual([COLLECTOR]);
+  });
+
+  test('a region search raises its boundary layer, as the filter panel does', async () => {
+    await lookup(el!, 'King');
+    expect(map(el!).boundaryMode).toBe('counties');
+    await lookup(el!, 'Puget Lowland');
+    expect(map(el!).boundaryMode).toBe('ecoregions');
+    await lookup(el!, 'Asotin Creek');
+    expect(map(el!).boundaryMode).toBe('places');
+  });
+
+  test('digits still mean a label number, whatever else is in the index', async () => {
+    mockLookup.mockResolvedValue({ rows: [specimenRow()], hiddenByFilter: false });
+    await lookup(el!, '2303966');
+    expect(mockLookup).toHaveBeenCalledOnce();
+    expect(pane(el!).filterState.taxonId, 'no view was applied').toBeNull();
+  });
+
+  test('a name nothing answers to is still a miss', async () => {
+    await lookup(el!, 'Zzzzz');
+    expect(header(el!).searchStatus).toEqual({ query: 'Zzzzz', kind: 'miss' });
+    expect(pane(el!).filterState.taxonId).toBeNull();
   });
 });
