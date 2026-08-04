@@ -12,6 +12,7 @@ import { buildTaxonOptions, resolveTaxonDisplayName, type TaxonCacheEntry } from
 import type { FeatureCollection, Point } from 'geojson';
 import { makeStaleGuard } from './stale-guard.ts';
 import { loadTaxonPages } from './taxon-pages.ts';
+import { loadCollectorPages } from './collector-pages.ts';
 import { buildSearchIndex, rankCandidates, rollUpTaxonCounts, EMPTY_INDEX,
          type SearchIndex, type SearchCandidate } from './search.ts';
 import type { CachePrimeProgressDetail, CacheStateChangedDetail } from './prime-orchestrator.ts';
@@ -149,6 +150,9 @@ export class BeeAtlas extends LitElement {
   @state() private _taxaSpeciesCount = 0;
   @state() private _taxaExcludedForNoElevation = 0;
   @state() private _taxonPages: Record<string, string> = {};
+  // iNat login -> collector page href (beeatlas-7nx.6). Search-only, so unlike
+  // _taxonPages it is not handed to any presenter.
+  private _collectorPages: Record<string, string> = {};
   // Guards against a slow taxa query overwriting a newer one — same hazard the
   // filter-race guard addresses for queryVisibleIds (CLAUDE.md invariant).
   private _taxaQueryGeneration = 0;
@@ -1300,12 +1304,11 @@ bee-map {
       people: this._collectorOptions.map(c => ({
         collector: c,
         weight: c.recordedBy === null ? 0 : (w.people.get(c.recordedBy) ?? 0),
-        // NO LINK YET, on purpose. A collector page exists only for the logins in
-        // collectors.json (124 of the 158 that appear on occurrences — 22% would
-        // 404), and that file is 2.8 MB, far too heavy for the boot path just to
-        // learn which. It needs the slim published map that taxon-pages.ts already
-        // established for taxa; filed separately.
-        href: null,
+        // Only for a login the site build actually published a page for. A page
+        // exists for the entries in collectors.json, not for every login on an
+        // occurrence — 34 of 158 have none — so this is looked up, never derived
+        // (beeatlas-7nx.6).
+        href: c.host_inat_login === null ? null : (this._collectorPages[c.host_inat_login] ?? null),
       })),
       places: this._placeOptions.map(p => ({
         slug: p.slug,
@@ -2441,6 +2444,7 @@ bee-map {
     if (Object.keys(this._taxonPages).length === 0) {
       void loadTaxonPages().then(m => { this._taxonPages = m; this._rebuildSearchIndex(); });
     }
+    void loadCollectorPages().then(m => { this._collectorPages = m; this._rebuildSearchIndex(); });
     // Named places (beeatlas-7nx.3). Eager, alongside the other option lists —
     // <bee-pane> loaded this lazily and only when a place was already SELECTED, so
     // its place autocomplete was empty on a fresh session and a place could not be

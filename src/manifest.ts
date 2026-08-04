@@ -25,6 +25,9 @@ interface Manifest {
   // paginates (beeatlas-dt7). Optional: a build that could not derive it omits the
   // key, and the taxa pane degrades to plain-text names rather than dead links.
   taxon_pages?: string;
+  // iNat login -> /collectors/ page href, same provenance and same optionality
+  // (beeatlas-7nx.6). Absent means search shows people without links.
+  collector_pages?: string;
   generated_at: string;
   // Which code produced this publish, e.g. "4535cd0" (beeatlas-4uj). Optional: a
   // manifest written before this field existed, or by a tool that does not set it,

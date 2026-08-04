@@ -179,6 +179,43 @@ try {
   console.warn(`! taxon_pages: not derived (${err.message}) — the taxa pane will render names as plain text`);
 }
 
+// The same shape for PEOPLE (beeatlas-7nx.6): iNat login -> collector-page href,
+// for the links on header-search result rows.
+//
+// It has to be published rather than derived in the browser for the reason
+// taxon_pages exists: page existence is not a function of a name. A collector page
+// is emitted only for the entries in collectors.json, while the app's people come
+// from the occurrences DB — measured 2026-08-03, 124 logins have pages against 158
+// distinct host_inat_login values on occurrences, so 22% of `/collectors/<login>/`
+// URLs guessed from the DB alone would be 404s. Reading _data/collectors.js here is
+// what makes this authoritative: it is the very list Eleventy paginates over.
+//
+// Slim on purpose. collectors.json itself is ~2.8 MB and carries per-collector
+// stats, coverage and event pages the app has no use for; this is the 124 strings
+// that answer "does this person have a page".
+//
+// Non-fatal, like taxon_pages: no map means no links, which is the correct
+// degradation — a dead link is worse than a plain-text name.
+try {
+  const { default: collectorsData } = await import('../_data/collectors.js');
+  const collectorPages = {};
+  for (const c of collectorsData.collectorsArray) {
+    if (!c.login) continue;
+    // Mirrors _pages/collector-detail.njk's permalink exactly, index.html included
+    // (subdirectory index resolution is not guaranteed — see taxonPages).
+    collectorPages[c.login] = `/collectors/${encodeURIComponent(c.login)}/index.html`;
+  }
+  const body = Buffer.from(JSON.stringify(collectorPages) + '\n');
+  const hash = artifactHash(body);
+  const hashedName = `collector_pages-${hash}.json`;
+  writeFileSync(join(outDir, hashedName), body);
+  manifest.collector_pages = hashedName;
+  const sizes = [`${body.length.toLocaleString()} bytes`, ...writeVariants(hashedName, body)].join('; ');
+  console.log(`  collector_pages: ${Object.keys(collectorPages).length} people -> data/${hashedName} (${sizes})`);
+} catch (err) {
+  console.warn(`! collector_pages: not derived (${err.message}) — search will show people without links`);
+}
+
 const STABLE_DIRS = ['feeds', 'species-maps', 'place-maps'];
 for (const dir of STABLE_DIRS) {
   const src = join(dataDir, dir);

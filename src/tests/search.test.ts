@@ -341,3 +341,37 @@ describe('rollUpTaxonCounts — a genus earns the weight of its species', () => 
     expect(rolled.size).toBe(1);
   });
 });
+
+describe('a person links only to a page that exists (beeatlas-7nx.6)', () => {
+  // 34 of 158 logins on occurrences have no collector page, so an href derived from
+  // the login alone would 404 for 22% of people. The map is looked up, never guessed.
+  const withPage = { displayName: 'Jane Roe', recordedBy: 'Roe, J.', host_inat_login: 'beequeen' };
+  const noPage = { displayName: 'Sam Poe', recordedBy: 'Poe, S.', host_inat_login: 'newcomer' };
+  const pages: Record<string, string> = { beequeen: '/collectors/beequeen/index.html' };
+
+  function indexFor(collector: CollectorEntry) {
+    return buildSearchIndex(sources({
+      people: [{
+        collector,
+        weight: 10,
+        href: collector.host_inat_login === null ? null : (pages[collector.host_inat_login] ?? null),
+      }],
+    }));
+  }
+
+  test('a login the build published a page for gets that exact href', () => {
+    const { candidates } = rankCandidates(indexFor(withPage), 'beequeen');
+    expect(candidates[0]!.href).toBe('/collectors/beequeen/index.html');
+  });
+
+  test('a login with no published page gets no link at all', () => {
+    const { candidates } = rankCandidates(indexFor(noPage), 'newcomer');
+    expect(candidates[0]!.href).toBeNull();
+  });
+
+  test('a person known only by the name on a label has no login to link', () => {
+    const { candidates } = rankCandidates(indexFor(
+      { displayName: 'Old, A.', recordedBy: 'Old, A.', host_inat_login: null }), 'old');
+    expect(candidates[0]!.href).toBeNull();
+  });
+});
