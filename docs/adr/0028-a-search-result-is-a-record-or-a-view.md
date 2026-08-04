@@ -1,6 +1,6 @@
 # ADR 0028: A search result names a record or a view — a record is selected, a view is filtered
 
-**Status:** Proposed (issue beeatlas-7nx)
+**Status:** Accepted (implemented 2026-08-03; issues beeatlas-7nx.1–.6)
 
 Builds on [ADR 0021](0021-search-is-a-header-affordance.md), which put one query field in
 the header and left `_onSearchSubmit` as a router with exactly one route. This record
@@ -72,8 +72,15 @@ This is a different rule from the label-number yield, and deliberately so. The y
 exists because a *selection* can be hidden by a filter — `queryListPage` intersects the
 two, so selecting a filtered-out record shows "1 selected" over an empty card. A filter
 cannot be hidden by another filter; it can only compose to zero, which is a legible
-answer rather than a broken screen. Composing to zero is still worth saying out loud, so
-the popover reports the resulting record count on the row before it is picked.
+answer rather than a broken screen.
+
+Each row does carry a record count, but note what it counts: the records behind that
+thing **corpus-wide**, which is also the number the ranking broke its ties on. It is
+not the count composed with whatever filter is already active — that would need a
+query per candidate per keystroke, which is exactly what an in-memory index exists to
+avoid. So a row reading 148 can still apply to zero. The zero itself is shown (the
+pane's count goes to "0 specimens" and no dot is highlighted); what is not shown is
+*which* two dimensions combined to empty it. See the consequences.
 
 ### Names resolve as you type; numbers still resolve on submit
 
@@ -212,3 +219,27 @@ a visible tap target beats a keyboard convention.
 
 **Search on the static pages is still a named gap.** Nothing here changes
 `searchEnabled`, and the `/index.html?q=…` alternative ADR 0021 filed stays filed.
+
+**A genus must earn the weight of its species.** Records are identified to species,
+so *Bombus* the genus has almost no occurrences of its own and would rank below every
+individual bumblebee for the query `bombus` — backwards from what someone typing a
+genus name is asking for. `rollUpTaxonCounts` walks `lineage_path` to fix this, with
+a guard the equivalent walk in `buildTaxonOptions` does not need: that one feeds a
+Set, where a repeated or self-inclusive segment is absorbed, whereas here it would
+silently inflate a weight.
+
+**A person needs a published page map, exactly as taxa do.** A collector page exists
+only for the entries in `collectors.json` — 124 logins against the 158 that appear on
+occurrences — so `/collectors/<login>/` derived from the DB would 404 for 22% of
+people. `collector_pages` is emitted by the site build alongside `taxon_pages`, for
+the same reason and with the same optionality.
+
+**A search that moves the camera pushes one history entry.** `_replaceUrlState`
+clears the viewport session, so the `moveend` that follows the fit takes the
+`pushState` branch. That is left as it is, deliberately: it makes a search undoable
+by Back, which the ADR 0020 filter yield never managed.
+
+**Composing to zero is legible but unexplained.** A search that lands on zero records
+shows "0 specimens" and an unhighlighted map, and correctly does not move the camera —
+but which two filters combined to empty it is only visible once the filter panel is
+opened. Acceptable, and worth revisiting if it bites in use.
