@@ -136,6 +136,18 @@ reopen, and the section above is the list of what it will cost.
 the web manifest both point there. A redirect suffices, and the window can be short
 because the population is one.
 
+> **Closed 2026-08-04.** Two on-device reports showed a single registration at
+> `https://beeatlas.net/` and no `/app/` scope, so the old worker was retired and the
+> redirect stub was deleted. `/app/` now 404s. `build-output.data.test.ts` asserts
+> `_site/app` does not exist — not to protect the 404, but because the failure mode of
+> a partial revert is a SECOND working copy of the app at a second URL, which is the
+> split this record closed.
+>
+> `sw-registration.ts` keeps unregistering any `/app/`-scoped registration it finds.
+> It is dead code against the known population and costs one `getRegistrations()` per
+> load; it stays until there is a reason to believe no device anywhere still holds
+> that worker, because the stub that used to be the fallback is now gone.
+
 **The Atom feed link and the PWA metadata merge onto one page** — manifest link, iOS
 meta tags, apple-touch-icon, theme colour.
 

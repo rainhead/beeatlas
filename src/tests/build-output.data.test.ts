@@ -445,14 +445,17 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(existsSync(resolve(ROOT, '_site/index.html'))).toBe(true);
   });
 
-  test('/app/ still answers, as a redirect and not as the app (ADR 0029)', () => {
-    // The stub exists so an installed PWA whose start_url is still /app/index.html
-    // lands somewhere. It must NOT be the app: shipping a second working copy is how
-    // the split this ADR closed would quietly reopen.
-    const html = readFileSync(resolve(ROOT, '_site/app/index.html'), 'utf-8');
-    expect(html).toMatch(/http-equiv="refresh"/);
-    expect(html).not.toContain('<bee-atlas>');
-    expect(html, 'the stub must not load the app bundle').not.toMatch(/assets\/app-entry-/);
+  test('/app/ is gone — the deprecation window closed (ADR 0029)', () => {
+    // The redirect stub existed only until the one installed PWA migrated. Two
+    // on-device reports confirmed a single registration at the root scope and no
+    // /app/, so it was deleted 2026-08-04.
+    //
+    // Asserted rather than merely deleted, because the failure mode of a partial
+    // revert is a SECOND working copy of the app at a second URL — which is the
+    // split this ADR closed, quietly reopening. `_site/app` must not come back by
+    // any route: a template, a passthrough, or a stray asset.
+    expect(existsSync(resolve(ROOT, '_site/app')),
+      '_site/app is back — the two-surface split must not reopen').toBe(false);
   });
 
   test('_site/index.html references a hashed app entry chunk (ROUTE-01)', () => {

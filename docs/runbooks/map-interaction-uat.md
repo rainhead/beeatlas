@@ -16,8 +16,9 @@ each step rather than assuming the tester remembers it.
 ## Before you start
 
 ```bash
-npm run dev            # http://localhost:8080/  — the primary QA surface
-                       # http://localhost:8080/app/ — the PWA (service worker, offline)
+npm run dev            # http://localhost:8080/  — the app, and the primary QA surface
+                       # note: `npm run dev` serves no /sw.js, so the offline half
+                       # needs a built site (see §G for the preview invocation)
 ```
 
 If the sidebar list is empty with `no such column: o.tier`, the local
@@ -129,8 +130,9 @@ At Rainier, `?x=-121.76&y=46.85&z=13`:
 
 ## F. Mobile / installed PWA
 
-Install from Safari → Share → Add to Home Screen at `/app/`. **Do it in the
-installed app** — a browser tab is a separate storage bucket
+Install from Safari → Share → Add to Home Screen at `/` (ADR 0029 moved the app
+there; `/app/` is gone). **Do it in the installed app** — a browser tab is a
+separate storage bucket
 ([ADR 0025](../adr/0025-offline-basemap-is-a-byte-store.md)).
 
 | # | Do | Expect |
@@ -144,7 +146,7 @@ installed app** — a browser tab is a separate storage bucket
 | F7 | Download it | Progress counts up; ends at "✓ Offline maps ready" |
 | F8 | Force-quit → airplane mode → cold start | Basemap, dots **and labels with icons** at z13–14 |
 | F9 | While offline, run through **A** again | Interactions work with no network |
-| F10 | A "Turn On Wi-Fi to Use the Internet" alert appears once at launch | KNOWN, CAUSE CONFIRMED, ACCEPTED (`beeatlas-c8v`). It is the browser's own service-worker update check re-fetching `/app/sw.js`, which no page code initiates and which cannot be precached. The app itself makes zero failed requests. **Do not re-investigate** — the suppression trade-off was considered and declined |
+| F10 | A "Turn On Wi-Fi to Use the Internet" alert appears once at launch | KNOWN, CAUSE CONFIRMED, ACCEPTED (`beeatlas-c8v`). It is the browser's own service-worker update check re-fetching `/sw.js`, which no page code initiates and which cannot be precached. The app itself makes zero failed requests. **Do not re-investigate** — the suppression trade-off was considered and declined |
 | F11 | Account menu → **Diagnostics** | A full state dump: caches, archives, map state, and every request the app made. This is the tool for reporting anything on this list — a screenshot answers most questions outright |
 
 ## Faster loop: the iOS Simulator
@@ -162,7 +164,7 @@ do on a phone.
 ```bash
 xcrun simctl list devices available          # pick one; iOS runtimes ship with Xcode
 xcrun simctl boot <UDID> && xcrun simctl bootstatus <UDID>
-xcrun simctl openurl <UDID> https://beeatlas.net/app/
+xcrun simctl openurl <UDID> https://beeatlas.net/
 xcrun simctl io <UDID> screenshot shot.png   # also: `recordVideo`
 ```
 

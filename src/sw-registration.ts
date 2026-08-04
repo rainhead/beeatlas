@@ -139,8 +139,8 @@ function watchForUpdates(wb: Workbox): void {
  * Two registrations can coexist, and the more specific scope wins: left alone, the
  * old worker keeps answering every `/app/` navigation from its own precache, which
  * includes the OLD app shell and the OLD bundle. It cannot be talked out of that from
- * inside — the redirect stub at `_pages/app/index.html` is on the network side of it
- * and is never reached — so it has to be unregistered from here.
+ * inside: while it lives it answers that navigation itself, so nothing served over
+ * the network can reach the device. It has to be unregistered from here.
  *
  * The build no longer emits `/app/sw.js`, so the browser's own update check for it
  * 404s and drops the registration anyway. This is the deterministic half of that: it

@@ -70,7 +70,6 @@ const SYNTHETIC = [
   'species/Bombus/mixtus/index.html',
   'places/klickitat-trail/index.html',
   'collectors/somebody/index.html',
-  'app/index.html',
 ];
 
 
@@ -174,8 +173,6 @@ describe('the service worker precaches everything the basemap needs to draw', ()
     ]) {
       expect(matched, `the read path must stay online-only: ${rel}`).not.toContain(rel);
     }
-    // …and the deprecated path's redirect stub, which is not a shell.
-    expect(matched).not.toContain('app/index.html');
   });
 
   test('the MapLibre worker is served from inside the service worker scope', () => {

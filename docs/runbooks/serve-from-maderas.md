@@ -199,7 +199,7 @@ not a 404.
 
 ## 9. Basemap tile archive (beeatlas-hvp, beeatlas-8py)
 
-The self-hosted map tiles for `/app/`. **Two** PMTiles archives covering
+The self-hosted map tiles for the app. **Two** PMTiles archives covering
 Washington, sharing this directory, the Alias and one `manifest.json`:
 
 | archive | what | size | source |
@@ -330,7 +330,7 @@ curl -so /dev/null -w '%{size_download}\n' "https://beeatlas.net/data/$DB"
 
 # every .js on the page must say `content-encoding: gzip` (this is what broke)
 curl -sI --compressed https://beeatlas.net/assets/$(
-  curl -s https://beeatlas.net/app/index.html | sed -n 's|.*/assets/\([^"]*\.js\)".*|\1|p' | head -1
+  curl -s https://beeatlas.net/ | sed -n 's|.*/assets/\([^"]*\.js\)".*|\1|p' | head -1
 ) | grep -Ei 'HTTP|content-type|content-encoding|vary'
 ```
 
