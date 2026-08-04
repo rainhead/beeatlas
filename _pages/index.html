@@ -9,14 +9,15 @@
     <!-- The PWA shell lives HERE now, not at /app/ (ADR 0029). The BROWSER — not
          the app — fetches these when it launches a standalone install, which is why
          they are precached (scripts/sw-precache-globs.ts) even though no code
-         requests them. -->
-    <link rel="manifest" href="/manifest.webmanifest" />
+         requests them. Under /pwa/ rather than at the root because Ubuntu Apache
+         aliases /icons/ to its own mod_autoindex directory — see eleventy.config.js. -->
+    <link rel="manifest" href="/pwa/manifest.webmanifest" />
     <!-- iOS standalone + status bar -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="BeeAtlas" />
     <!-- iOS home-screen icon: 180x180, opaque -->
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" />
+    <link rel="apple-touch-icon" href="/pwa/icons/apple-touch-icon-180.png" />
     <!-- theme color for browser chrome (belt-and-suspenders; Android Chrome reads manifest) -->
     <meta name="theme-color" content="#080d26" />
     {% viteAssets "src/index.css" %}

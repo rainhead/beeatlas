@@ -568,8 +568,8 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
   // Phase 151 — PWA manifest assertions (PWA-01, D-01..D-06, D-13)
 
   test('emits _site/manifest.webmanifest with required keys (PWA-01, D-13)', () => {
-    const manifestPath = resolve(ROOT, '_site/manifest.webmanifest');
-    expect(existsSync(manifestPath), '_site/manifest.webmanifest missing').toBe(true);
+    const manifestPath = resolve(ROOT, '_site/pwa/manifest.webmanifest');
+    expect(existsSync(manifestPath), '_site/pwa/manifest.webmanifest missing').toBe(true);
     const m = JSON.parse(readFileSync(manifestPath, 'utf-8'));
     expect(m.name).toBe('Washington Bee Atlas');
     expect(m.short_name).toBe('BeeAtlas');
@@ -599,7 +599,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
 
   test('_site/index.html links the manifest and apple-touch-icon (PWA-01, D-04)', () => {
     const html = readFileSync(resolve(ROOT, '_site/index.html'), 'utf-8');
-    expect(html).toMatch(/<link[^>]+rel="manifest"[^>]+href="\/manifest\.webmanifest"/);
+    expect(html).toMatch(/<link[^>]+rel="manifest"[^>]+href="\/pwa\/manifest\.webmanifest"/);
     expect(html).toMatch(/apple-mobile-web-app-capable/);
     expect(html).toMatch(/rel="apple-touch-icon"/);
   });

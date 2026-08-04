@@ -9,13 +9,14 @@
 # Requires: rsvg-convert (librsvg)
 #   Install via: brew install librsvg
 #
-# The four output PNGs are committed static assets in public/icons/.
-# Eleventy passthrough-copies them to /icons/ at runtime (ADR 0029 moved them out
-# from under /app/ along with the app itself).
+# The four output PNGs are committed static assets in public/pwa/icons/.
+# Eleventy passthrough-copies them to /pwa/icons/ at runtime (ADR 0029 moved them
+# out from under /app/ along with the app itself; /pwa/ rather than /icons/ because
+# Ubuntu Apache aliases /icons/ to its own mod_autoindex directory).
 set -euo pipefail
 
-SRC="public/icons/icon.svg"
-OUT="public/icons"
+SRC="public/pwa/icons/icon.svg"
+OUT="public/pwa/icons"
 
 command -v rsvg-convert >/dev/null || {
   echo "Error: rsvg-convert not found. Install with: brew install librsvg"

@@ -17,7 +17,12 @@
 // It runs off a synthesized _site layout rather than a real one: `npm test` must
 // not require a completed build, and the layout is derivable — Eleventy copies
 // public/basemap verbatim, plus the bundled MapLibre worker and the PWA shell
-// files (webmanifest + icons), all at the site root since ADR 0029.
+// files (webmanifest + icons, under /pwa/) since ADR 0029.
+//
+// What it CANNOT check is whether the server returns those paths, and that is a real
+// gap rather than a theoretical one: `/icons/` globbed and precached perfectly and
+// 404'd in production, because Ubuntu's Apache aliases it (see the reserved-prefix
+// test below). scripts/offline-uat.mjs closes that half against a running server.
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { globSync } from 'glob';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -86,10 +91,11 @@ beforeAll(() => {
   // …and the bundled MapLibre worker to _site/basemap/maplibre/ — inside the
   // service worker's scope, which is what makes it reachable offline.
   touch('basemap/maplibre/maplibre-gl-worker.mjs');
-  // The PWA shell files the BROWSER requests (linked from index.html).
-  touch('manifest.webmanifest');
+  // The PWA shell files the BROWSER requests (linked from index.html). Under /pwa/
+  // because Ubuntu Apache aliases /icons/ over the document root — see eleventy.config.js.
+  touch('pwa/manifest.webmanifest');
   for (const i of ['apple-touch-icon-180.png','icon-192.png','icon-512.png','icon-maskable-512.png'])
-    touch(`icons/${i}`);
+    touch(`pwa/icons/${i}`);
   for (const rel of SYNTHETIC) touch(rel);
 
   // The exact call workbox-build makes, per pattern, with the ignores applied.
@@ -237,11 +243,36 @@ describe('the service worker precaches everything the basemap needs to draw', ()
     // offline, and iOS answers each failure with a system network alert over a
     // map that is otherwise working. No fetch instrumentation can find them,
     // which is why they survived every other probe.
-    expect(matched).toContain('manifest.webmanifest');
-    expect(matched).toContain('icons/apple-touch-icon-180.png');
+    expect(matched).toContain('pwa/manifest.webmanifest');
+    expect(matched).toContain('pwa/icons/apple-touch-icon-180.png');
     // …plus the three the webmanifest itself names.
     for (const f of ['icon-192.png', 'icon-512.png', 'icon-maskable-512.png']) {
-      expect(matched, `webmanifest icon not precached: ${f}`).toContain(`icons/${f}`);
+      expect(matched, `webmanifest icon not precached: ${f}`).toContain(`pwa/icons/${f}`);
+    }
+  });
+
+  test('nothing is precached from a path the server reserves', () => {
+    // THE OTHER ONE THAT ACTUALLY SHIPPED BROKEN, and the more alarming of the two:
+    // it takes the whole service worker down rather than one asset.
+    //
+    // `/icons/` was the obvious home for the PWA icons and is unreachable on this
+    // server. Ubuntu's Apache ships `Alias /icons/ "/usr/share/apache2/icons/"` in
+    // mods-enabled/alias.conf for mod_autoindex, and an Alias beats the document
+    // root — so the files published correctly into htdocs and 404'd anyway.
+    //
+    // Because they are PRECACHED, that is not a missing icon. Every one 404s during
+    // the SW's install, install fails, and with no older worker the registration is
+    // DISCARDED: no service worker at all, no console error, nothing in the build
+    // log, and every offline feature simply absent.
+    //
+    // Listed rather than derived because the authority is the server's config, which
+    // is not in this repo. Add to it whenever a deploy turns up another.
+    const SERVER_RESERVED = ['icons/'];   // Ubuntu Apache, mod_autoindex
+    for (const prefix of SERVER_RESERVED) {
+      for (const p of matched) {
+        expect(p, `precached under a path the server aliases away: /${p}`)
+          .not.toMatch(new RegExp(`^${prefix}`));
+      }
     }
   });
 
@@ -249,7 +280,7 @@ describe('the service worker precaches everything the basemap needs to draw', ()
     // ADR 0029 moved start_url and scope from /app/ to /. A webmanifest whose
     // start_url no longer resolves is not an error anyone sees at build time: an
     // installed PWA simply launches on a 404, and only on the device.
-    const manifest = JSON.parse(readFileSync(resolve(ROOT, 'public/manifest.webmanifest'), 'utf8'));
+    const manifest = JSON.parse(readFileSync(resolve(ROOT, 'public/pwa/manifest.webmanifest'), 'utf8'));
     const registration = readFileSync(resolve(ROOT, 'src/sw-registration.ts'), 'utf8');
     const scope = registration.match(/const SW_SCOPE = '([^']+)'/)?.[1];
 

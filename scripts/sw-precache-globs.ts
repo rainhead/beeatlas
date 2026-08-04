@@ -26,8 +26,8 @@ export const globPatterns = [
   // with the system "Turn On Wi-Fi to Use the Internet" alert — a modal over a
   // map that is otherwise working perfectly. The webmanifest also names three of
   // the icons itself, so it is not enough to ship it alone.
-  'manifest.webmanifest',
-  'icons/**/*.png',
+  'pwa/manifest.webmanifest',
+  'pwa/icons/**/*.png',
   // `.wasm` is load-bearing for offline cold-start: the wa-sqlite engine binary
   // (assets/wa-sqlite-<hash>.wasm) must be precached or the SQL worker can't
   // initialize offline → tablesReady never resolves → the "Loading…" curtain
