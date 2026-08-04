@@ -42,23 +42,64 @@ def test_occurrences_parquet_exists():
     not (SANDBOX / "occurrences.parquet").exists(),
     reason="run `bash data/dbt/run.sh build` first to produce sandbox outputs",
 )
-def test_occurrences_has_rows_and_zero_null_county_or_eco():
-    """occurrences.parquet has rows; county and ecoregion_l3 are fully populated.
+def test_occurrences_region_coverage():
+    """Rows exist, and a NULL county means "not in Washington" — never a gap.
 
-    Mirrors export.py:266-277 invariants (PORT-02 smoke).
+    This test used to assert county and ecoregion_l3 were NEVER null, which held
+    only because the nearest-region fallback had no distance ceiling and would
+    happily name a county 168 km away in another state (beeatlas-8pz). That is to
+    say: the invariant was true because of the bug, so it asserted the bug.
+
+    The honest invariant is a shape, not a zero. A NULL is now allowed and is the
+    correct answer for a point outside Washington — but it must be RARE, and it
+    must never be a coverage failure for a point that really is in the state.
     """
     parquet_path = str(SANDBOX / "occurrences.parquet")
-    row = duckdb.execute(f"""
-        SELECT
-            COUNT(*) AS total,
-            SUM(CASE WHEN county IS NULL THEN 1 ELSE 0 END) AS null_county,
-            SUM(CASE WHEN ecoregion_l3 IS NULL THEN 1 ELSE 0 END) AS null_eco
+    total, null_county, null_eco = duckdb.execute(f"""
+        SELECT COUNT(*),
+               SUM(CASE WHEN county IS NULL THEN 1 ELSE 0 END),
+               SUM(CASE WHEN ecoregion_l3 IS NULL THEN 1 ELSE 0 END)
         FROM read_parquet('{parquet_path}')
     """).fetchone()
-    total, null_county, null_eco = row
+
     assert total >= 2, f"occurrences.parquet should have at least 2 rows, got {total}"
-    assert null_county == 0, f"occurrences.parquet has {null_county} rows with null county"
-    assert null_eco == 0, f"occurrences.parquet has {null_eco} rows with null ecoregion_l3"
+
+    # Rare. A handful of out-of-state coordinates is expected; a percent of them is
+    # a broken spatial join wearing the same face, which is the regression this
+    # bound exists to catch.
+    assert null_county / total < 0.001, (
+        f"{null_county} of {total} rows ({100 * null_county / total:.2f}%) have a null "
+        "county — that is too many to be out-of-state records; suspect the spatial join"
+    )
+
+    # Every null county must be genuinely outside the state, not merely unmatched.
+    # WA's bbox plus a degree of slack: the point-in-polygon and its bounded snap
+    # both work off real geometry, so anything comfortably inside the box that came
+    # out NULL is a join failure rather than an out-of-state record.
+    inside_box_but_null = duckdb.execute(f"""
+        SELECT COUNT(*) FROM read_parquet('{parquet_path}')
+        WHERE county IS NULL
+          AND lon BETWEEN -123.9 AND -117.8
+          AND lat BETWEEN  46.5 AND  48.0
+    """).fetchone()[0]
+    assert inside_box_but_null == 0, (
+        f"{inside_box_but_null} rows well inside Washington have a null county — "
+        "the spatial join is failing, not declining"
+    )
+
+    # A null ecoregion implies a null county. Ecoregions are physiographic and
+    # extend past the state line, so they cover strictly more ground than the
+    # counties do; a point outside every ecoregion is necessarily outside every
+    # county. An eco-only null means the two fallbacks have drifted apart.
+    eco_null_county_set = duckdb.execute(f"""
+        SELECT COUNT(*) FROM read_parquet('{parquet_path}')
+        WHERE ecoregion_l3 IS NULL AND county IS NOT NULL
+    """).fetchone()[0]
+    assert eco_null_county_set == 0, (
+        f"{eco_null_county_set} rows have a null ecoregion but a non-null county; "
+        "ecoregions cover more ground than counties, so this cannot happen"
+    )
+    assert null_eco <= null_county, f"null_eco {null_eco} exceeds null_county {null_county}"
 
 
 # ---------------------------------------------------------------------------

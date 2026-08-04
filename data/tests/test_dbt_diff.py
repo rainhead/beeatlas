@@ -318,7 +318,12 @@ def test_occurrences_county_spatial_diff():
             """
         ).fetchall()
         raise AssertionError(
-            f"County diff count is {n}, expected 0 (post-#14 CB 5m clean topology).\n"
+            f"County diff count is {n}, expected 0.\n"
+            "A NON-ZERO COUNT IS EXPECTED EXACTLY ONCE, on the first run after the\n"
+            "geographies tables are reloaded (beeatlas-0yv): the published parquet was\n"
+            "built from ~15x coarser county geometry, so every record near a boundary\n"
+            "legitimately moves. That run needs SKIP_INTEGRATION_GATE=1; the next one\n"
+            "compares like with like and must be 0 again.\n"
             f"Sample divergent rows (ecdysis_id, sandbox_county, public_county):\n"
             f"{sample}"
         )
@@ -341,7 +346,11 @@ def test_occurrences_ecoregion_spatial_diff():
         WHERE s.ecoregion_l3 != p.ecoregion_l3
         """
     ).fetchone()[0]
-    assert n == 0, f"{n} rows differ in ecoregion_l3 (expected 0)"
+    assert n == 0, (
+        f"{n} rows differ in ecoregion_l3 (expected 0). Like the county diff above, a\n"
+        "non-zero count is expected exactly once, on the first run after the\n"
+        "geographies reload (beeatlas-0yv), and needs SKIP_INTEGRATION_GATE=1."
+    )
 
 
 @pytest.mark.skipif(
