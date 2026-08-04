@@ -32,3 +32,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0026](0026-self-hosted-basemap.md) | The basemap is ours — MapLibre over a self-hosted Protomaps extract | Accepted |
 | [0027](0027-identity-survives-going-offline.md) | Identity survives going offline, and an unverified identity is still an identity | Accepted |
 | [0028](0028-a-search-result-is-a-record-or-a-view.md) | A search result names a record or a view — a record is selected, a view is filtered | Accepted |
+| [0029](0029-one-origin-two-surfaces.md) | The app moves to the root, and the SW serves each surface by what it is | Proposed |
