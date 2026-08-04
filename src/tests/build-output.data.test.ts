@@ -598,38 +598,33 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(html).not.toMatch(/rel="manifest"/);
   });
 
-  // Phase 154 — Mapbox basemap performance cache assertions (TILE-01, TILE-02)
+  // Phase 154 pinned a Mapbox performance cache in the BUILT service worker: the
+  // api.mapbox.com route, its mapbox-basemap cacheName, the /map-sessions/ billing
+  // exclusion, and a maxAgeSeconds inside the 30-day ToS ceiling. Every one of those
+  // was a licensing obligation under Mapbox's Product Terms §2.8.1 (docs/adr/0001).
+  //
+  // We do not serve Mapbox tiles any more (beeatlas-q73 / ADR 0026), so none of it
+  // governs anything — and asserting it kept the DEAD ROUTE ALIVE: these tests were
+  // the reason to think twice about deleting it. Replaced with the current contract,
+  // still asserted against the BUILT worker, because the built worker is what ships
+  // and minification is exactly where a source-level assertion stops being evidence.
 
-  test('154-01-01: _site/app/sw.js registers StaleWhileRevalidate route for api.mapbox.com with mapbox-basemap cacheName (TILE-01)', () => {
+  test('_site/app/sw.js has no Mapbox route left (beeatlas-mas)', () => {
     const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
-    // Rollup preserves string literals (cache name + hostname predicate) through minification
-    expect(sw).toContain('mapbox-basemap');
-    expect(sw).toContain('api.mapbox.com');
-  });
-
-  test('154-01-02: _site/app/sw.js does NOT intercept events.mapbox.com telemetry or /map-sessions/ billing path (TILE-01)', () => {
-    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
-    // Telemetry host must never appear in the SW — it is excluded by hostname strict equality
+    expect(sw).not.toContain('api.mapbox.com');
     expect(sw).not.toContain('events.mapbox.com');
-    // The /map-sessions/ exclusion predicate string must be present in the compiled SW,
-    // proving the route explicitly excludes the billing path (D-07 / RESEARCH Open Q2)
-    expect(sw).toContain('/map-sessions/');
+    expect(sw).not.toContain('/map-sessions/');
   });
 
-  test('154-01-03: _site/app/sw.js maxAgeSeconds <= 30-day ceiling; access_token retained (TILE-01)', () => {
+  test('_site/app/sw.js deletes the orphaned mapbox-basemap cache on activate (beeatlas-mas)', () => {
     const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
-    // Parse every maxAgeSeconds numeric value in the compiled SW; at least one must be
-    // within (0, 2_592_000] — the 30-day ToS ceiling from §2.8.1
-    const maxAgeValues = [...sw.matchAll(/maxAgeSeconds[^\d]*(\d+)/g)].map(m => parseInt(m[1]!, 10));
-    expect(
-      maxAgeValues.some(v => v > 0 && v <= 2_592_000),
-      `expected a maxAgeSeconds value in (0, 2_592_000] but got: ${maxAgeValues.join(', ')}`
-    ).toBe(true);
-    // Token-retention rule: verify src/sw.ts does not add a CacheKeyWillBeUsed plugin
-    // (checked in source, not compiled output — Workbox bundles 'cacheKeyWillBeUsed' internally
-    // as a plugin lifecycle callback name; checking the source is the correct proxy for D-04).
-    const swSrc = readFileSync(resolve(ROOT, 'src/sw.ts'), 'utf-8');
-    expect(swSrc).not.toContain('cacheKeyWillBeUsed');
+    // A device that used the app before 2026-08-01 still holds up to 150 tile
+    // responses in a cache no route will ever read again. The ONLY surviving mention
+    // of that name must be the delete — anything else is a route come back to life.
+    expect(sw).toContain('mapbox-basemap');
+    expect(sw.match(/mapbox-basemap/g)).toHaveLength(1);
+    expect(sw).toMatch(/addEventListener\(`activate`/);
+    expect(sw).toMatch(/caches\.delete\(`mapbox-basemap`\)/);
   });
 
   test('154-01-04: the map keeps its attribution control, and both sources supply a notice (TILE-01, D-08)', () => {
