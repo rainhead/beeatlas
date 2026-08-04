@@ -345,7 +345,7 @@ describe('bee-notes: author view', () => {
   });
 });
 
-describe('bee-notes: curator controls (D-01/D-02/D-03)', () => {
+describe('bee-notes: curator controls', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     document.body.innerHTML = '';

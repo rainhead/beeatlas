@@ -175,7 +175,7 @@ describe('legacy taxon URL: no strand, no unfiltered flash', () => {
     const el = await makeAtlas();
     window.history.replaceState({}, '', '?taxon=Habropoda%20miserabilis&taxonRank=species');
 
-    // Phase 1: pending — _filterResolving = true, no taxonId yet
+    // pending — _filterResolving = true, no taxonId yet
     el._filterResolving = true;
     el._filterState = { ...DEFAULT_FILTER };
     expect(el.intendedFilterActive).toBe(true); // true because _filterResolving
@@ -183,7 +183,7 @@ describe('legacy taxon URL: no strand, no unfiltered flash', () => {
     el._replaceUrlState();
     expect(window.location.search).toContain('taxon=Habropoda');
 
-    // Phase 2: resolved to taxonId — _filterResolving cleared, taxonId now set
+    // resolved to taxonId — _filterResolving cleared, taxonId now set
     el._filterResolving = false;
     el._filterState = { ...DEFAULT_FILTER, taxonId: 307633 };
     // intendedFilterActive is still true (isFilterActive(taxonId=307633) is true),
@@ -194,7 +194,7 @@ describe('legacy taxon URL: no strand, no unfiltered flash', () => {
     el._replaceUrlState();
     expect(window.location.search).toContain('taxon=307633');
 
-    // Phase 3: stale bookmark (no taxonId found) — _filterResolving cleared, no filter
+    // stale bookmark (no taxonId found) — _filterResolving cleared, no filter
     el._filterResolving = false;
     el._filterState = { ...DEFAULT_FILTER }; // stale — no taxon matched
     expect(el.intendedFilterActive).toBe(false); // false: no filter, no resolving

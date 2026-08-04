@@ -306,7 +306,7 @@ def _create_taxa_indexes(dst_db: Path) -> None:
         idx_con.execute(
             "CREATE INDEX IF NOT EXISTS idx_taxa_is_anthophila ON taxa(is_anthophila)"
         )
-        # Phase 160: membership lookups go place_slug -> occ_id (frontend EXISTS clause
+        # membership lookups go place_slug -> occ_id (frontend EXISTS clause
         # filters by selected place). Index AFTER DETACH (WR-04) via the stdlib handle.
         idx_con.execute(
             "CREATE INDEX IF NOT EXISTS idx_occ_places "
@@ -435,7 +435,7 @@ def generate_sqlite(
         con.execute(
             f"CREATE TABLE out.occurrences AS SELECT * FROM read_parquet('{src_parquet}')"
         )
-        # Phase 160: ship the many-to-many occurrence_places bridge as a second table.
+        # ship the many-to-many occurrence_places bridge as a second table.
         # The bridge parquet is a sibling of occurrences.parquet in the same directory
         # (run.py copies both into EXPORT_DIR; main() locates occurrences in _DBT_SANDBOX).
         bridge_parquet = src_parquet.parent / "occurrence_places.parquet"
@@ -473,11 +473,11 @@ def generate_sqlite(
     #                year, tier, checklist_id]
     # Phase 131 NORM-02: dropped scientificName, genus, family (~4 MB transfer-weight win).
     # source moved from index 9 → 6; features.ts _buildGeoJSONFromRaw decode updated in same commit.
-    # Phase 137: checklist_id appended at index 7; features.ts updated in same commit (positional coupling).
-    # Phase 170 (D-04): source decomposed → tier rides index 6 (drives symbology, D-08). ONLY the
+    # checklist_id appended at index 7; features.ts updated in same commit (positional coupling).
+    # source decomposed → tier rides index 6 (drives symbology). ONLY the
     # tier facet is carried on the geo_blob (page-weight budget); the per-arm record-type facet
     # reaches the detail card via the full wa-sqlite row query, NOT map feature properties. THIS
-    # index-6 swap is positionally coupled to features.ts row[6] (Plan 02) — ships S3-then-deploy
+    # index-6 swap is positionally coupled to features.ts row[6] — ships S3-then-deploy
     # in lockstep with the features.ts reader.
     _GEO_COLS = [
         "lat", "lon", "ecdysis_id", "observation_id", "specimen_observation_id",

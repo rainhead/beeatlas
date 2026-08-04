@@ -1,6 +1,6 @@
-// Phase 169 Wave 0 — RED contract for _data/collectors.js (PAGE-01, D-09). Mirrors data-places.test.ts.
+// Phase 169 Wave 0 — RED contract for _data/collectors.js. Mirrors data-places.test.ts.
 // Phase 171 Wave 0 — STREAM-01/02/03 event-feed artifact-shape assertions (RED until Task 2 generates artifacts).
-// Phase 171 Plan 02 — loader-contract assertion: collectorEventPages Array (STREAM-03).
+// Phase 171 Plan 02 — loader-contract assertion: collectorEventPages Array.
 
 import { describe, test, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -11,7 +11,7 @@ import collectors from '../../_data/collectors.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
-describe('_data/collectors.js (PAGE-01, D-09)', () => {
+describe('_data/collectors.js', () => {
   test('default export has a collectorsArray property that is an Array', () => {
     expect(Array.isArray((collectors as any).collectorsArray)).toBe(true);
   });
@@ -30,7 +30,7 @@ describe('_data/collectors.js (PAGE-01, D-09)', () => {
     }
   });
 
-  test('status_identified + status_awaiting === status_denominator for every record (PAGE-03)', () => {
+  test('status_identified + status_awaiting === status_denominator for every record', () => {
     for (const c of (collectors as any).collectorsArray) {
       expect(
         c.status_identified + c.status_awaiting,
@@ -51,7 +51,7 @@ describe('_data/collectors.js (PAGE-01, D-09)', () => {
 // Array-ness only (not non-empty — that lives in the artifact-shape block below).
 // ---------------------------------------------------------------------------
 
-describe('_data/collectors.js loader contract — Phase 171 (STREAM-03)', () => {
+describe('_data/collectors.js loader contract — Phase 171', () => {
   test('default export has a collectorEventPages property that is an Array', () => {
     expect(Array.isArray((collectors as any).collectorEventPages)).toBe(true);
   });
@@ -67,7 +67,7 @@ describe('_data/collectors.js loader contract — Phase 171 (STREAM-03)', () => 
 //
 // Reads committed artifacts DIRECTLY (readFileSync), NOT via _data/collectors.js,
 // so these assertions are not affected by the dev-mode ELEVENTY_ENV guard that
-// makes collectorEventPages return [] in Plan 02's extended loader (STREAM-03).
+// makes collectorEventPages return [] in Plan 02's extended loader.
 //
 // RED state: collector_event_pages.json does not exist until Task 2 runs the export.
 // beforeAll will throw → all tests in this block are RED until the artifact is committed.
@@ -79,7 +79,7 @@ describe('Phase 171 — event feed (STREAM-01/02/03)', () => {
 
   beforeAll(() => {
     // Read committed fixtures (not public/data/) so npm test passes on a clean checkout
-    // with zero S3 access (D-05/D-06). Fixtures carry the full Phase 171 extended shape.
+    // with zero S3 access. Fixtures carry the full Phase 171 extended shape.
     collectorsRaw = JSON.parse(
       readFileSync(resolve(ROOT, 'src/tests/fixtures/collectors.fixture.json'), 'utf-8'),
     );
@@ -88,8 +88,8 @@ describe('Phase 171 — event feed (STREAM-01/02/03)', () => {
     );
   });
 
-  // STREAM-01: each collectorsArray entry carries event-feed pagination metadata
-  test('collectorsArray entries have first_page_events array and pagination counts (STREAM-01)', () => {
+  // each collectorsArray entry carries event-feed pagination metadata
+  test('collectorsArray entries have first_page_events array and pagination counts', () => {
     for (const c of collectorsRaw) {
       expect(
         Array.isArray(c.first_page_events),
@@ -100,8 +100,8 @@ describe('Phase 171 — event feed (STREAM-01/02/03)', () => {
     }
   });
 
-  // STREAM-01: event items in first_page_events have the required shape
-  test('first_page_events items have required event shape (STREAM-01)', () => {
+  // event items in first_page_events have the required shape
+  test('first_page_events items have required event shape', () => {
     for (const c of collectorsRaw) {
       for (const ev of c.first_page_events as any[]) {
         expect(
@@ -144,7 +144,7 @@ describe('Phase 171 — event feed (STREAM-01/02/03)', () => {
     }
   });
 
-  // Phase 171 iNat-fallback: inat_url is string or null/undefined on every event item.
+  // iNat-fallback: inat_url is string or null/undefined on every event item.
   test('first_page_events items have inat_url as string or null (Part 2 iNat fallback)', () => {
     for (const c of collectorsRaw) {
       for (const ev of c.first_page_events as any[]) {
@@ -156,7 +156,7 @@ describe('Phase 171 — event feed (STREAM-01/02/03)', () => {
     }
   });
 
-  // Phase 171 iNat-fallback: species_slug and inat_url are mutually exclusive.
+  // iNat-fallback: species_slug and inat_url are mutually exclusive.
   test('species_slug and inat_url are mutually exclusive; at least one event has inat_url (Part 2)', () => {
     let foundInatUrl = false;
     for (const c of collectorsRaw) {
@@ -183,14 +183,14 @@ describe('Phase 171 — event feed (STREAM-01/02/03)', () => {
     ).toBe(true);
   });
 
-  // STREAM-03: collector_event_pages.json is a non-empty array (pagination fires in production)
-  test('collector_event_pages.json is a non-empty array (STREAM-03)', () => {
+  // collector_event_pages.json is a non-empty array (pagination fires in production)
+  test('collector_event_pages.json is a non-empty array', () => {
     expect(Array.isArray(collectorEventPagesRaw)).toBe(true);
     expect(collectorEventPagesRaw.length).toBeGreaterThan(0);
   });
 
-  // STREAM-03: every sub-page entry has the required descriptor shape
-  test('every collectorEventPages entry has required fields (STREAM-03)', () => {
+  // every sub-page entry has the required descriptor shape
+  test('every collectorEventPages entry has required fields', () => {
     for (const page of collectorEventPagesRaw) {
       expect(typeof page.login).toBe('string');
       expect(typeof page.page_num).toBe('number');

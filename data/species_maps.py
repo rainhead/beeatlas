@@ -306,7 +306,7 @@ def _generate_group_maps(
     order within each group — Phase 94's Eleventy template must use the same
     sort key for HTML swatch ordering so colors match the SVG dots.
 
-    Subfamily maps (D-06): colored by GENUS (one color per genus), not by
+    Subfamily maps: colored by GENUS (one color per genus), not by
     species — uses _group_colors over the sorted unique-genus list so colors
     match the genus-level swatches on the subfamily HTML page (Pitfall 2).
     """
@@ -333,7 +333,7 @@ def _generate_group_maps(
     subgenus_members: dict[tuple[str, str], list[str]] = defaultdict(list)
     tribe_members: dict[str, list[str]] = defaultdict(list)
     subfamily_members: dict[str, list[str]] = defaultdict(list)
-    genus_of: dict[str, str] = {}  # canonical_name -> genus (for subfamily coloring, D-06)
+    genus_of: dict[str, str] = {}  # canonical_name -> genus (for subfamily coloring)
     # subgenus_of: canonical_name -> cleaned subgenus or None (for genus-by-subgenus coloring).
     subgenus_of: dict[str, str | None] = {}
     # mapped: canonical_names that put DOTS on a group map, and therefore earn a hue.
@@ -388,7 +388,7 @@ def _generate_group_maps(
     # palette. The per-subgenus <h2> section headings on the genus page act as the
     # legend. Genera with 0 or 1 distinct subgenus keep per-species coloring
     # (coloring a single-subgenus genus by subgenus would make every dot one color).
-    # This mirrors the subfamily->genus pattern (D-06), one rank down. The same
+    # This mirrors the subfamily->genus pattern, one rank down. The same
     # bucketing rule + member set is applied in _data/species.js (swatch<->dot parity).
     genus_dir = maps_dir / "genus"
     for genus_name in sorted(genus_members.keys()):

@@ -1,8 +1,8 @@
-"""Add nullable reason column to note_revisions (D-09).
+"""Add nullable reason column to note_revisions.
 
 A curator's takedown/restore accepts an optional free-text reason
 (empty allowed) — stored directly on the note_revisions row alongside the
-existing action/editor_id/revised_at columns (D-08/D-10). No backfill is
+existing action/editor_id/revised_at columns. No backfill is
 needed: existing rows simply get reason=NULL, which is a valid, permanent
 state (not a transitional one, unlike 0003's body_html).
 

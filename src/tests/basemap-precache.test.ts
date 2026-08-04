@@ -250,17 +250,8 @@ describe('the service worker precaches everything the basemap needs to draw', ()
 
   test('nothing is precached from a path the server reserves', () => {
     // THE OTHER ONE THAT ACTUALLY SHIPPED BROKEN, and the more alarming of the two:
-    // it takes the whole service worker down rather than one asset.
-    //
-    // `/icons/` was the obvious home for the PWA icons and is unreachable on this
-    // server. Ubuntu's Apache ships `Alias /icons/ "/usr/share/apache2/icons/"` in
-    // mods-enabled/alias.conf for mod_autoindex, and an Alias beats the document
-    // root — so the files published correctly into htdocs and 404'd anyway.
-    //
-    // Because they are PRECACHED, that is not a missing icon. Every one 404s during
-    // the SW's install, install fails, and with no older worker the registration is
-    // DISCARDED: no service worker at all, no console error, nothing in the build
-    // log, and every offline feature simply absent.
+    // a precached URL the server aliases away fails SW install, which discards the
+    // registration — no service worker at all, silently. See ADR 0029.
     //
     // Listed rather than derived because the authority is the server's config, which
     // is not in this repo. Add to it whenever a deploy turns up another.

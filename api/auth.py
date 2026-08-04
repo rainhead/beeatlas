@@ -1,5 +1,5 @@
 """Write authorization gate: session verification, allowlist recheck, Origin
-CSRF gate, and the WRITE-04 launch gate (D-05/D-07/D-09).
+CSRF gate, and the WRITE-04 launch gate.
 
 `require_session` verifies the app session cookie (api/session.py) and
 exposes the server-derived identity on `flask.g.identity`.
@@ -16,7 +16,7 @@ exposes the server-derived identity on `flask.g.identity`.
 
 Author identity is always derived from `flask.g.identity` (the verified
 session), never from request body/query data -- a client-supplied
-`author_id` is simply never consulted (D-07, T-178-09).
+`author_id` is simply never consulted.
 """
 
 import tomllib
@@ -92,7 +92,7 @@ def _is_author_fresh(login: str) -> bool:
 
 
 def _is_curator_fresh(login: str) -> bool:
-    """Curator-only fresh recheck (D-04/D-05) — mirrors `_is_author_fresh`
+    """Curator-only fresh recheck — mirrors `_is_author_fresh`
     exactly but with a strict `== "curator"` equality, not the "author OR
     curator" union that `_is_author_fresh` uses. Never reuse
     `notes_store.roles.is_curator()`: it reads the import-time-cached

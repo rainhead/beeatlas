@@ -39,7 +39,7 @@ def load_host_plant_lineage(db_path: str | None = None) -> None:
 
     The seed set (~915 distinct host plant taxa) replaces the Anthophila
     Anthophila ancestry filter from taxa_pipeline — keeping the walk bounded and
-    the result relevant to the floral-host provenance feature (Phase 175).
+    the result relevant to the floral-host provenance feature.
 
     Anti-patterns avoided:
     - active = 'true' (string), not active = true (bool)

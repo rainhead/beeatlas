@@ -1,4 +1,4 @@
-"""Diff assertions comparing dbt sandbox outputs against public/data outputs (Phase 84).
+"""Diff assertions comparing dbt sandbox outputs against public/data outputs.
 
 Scope: occurrences.parquet (row count, schema, ecdysis_id key set, spatial assignment),
        GeoJSON files (feature counts, property-name equality), and the published

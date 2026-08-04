@@ -81,7 +81,7 @@ def _csv_safe(value: object) -> object:
 
 
 def check_resolution_gate() -> None:
-    """Fail fast if any bee canonical_name is unresolved before dbt build (D-02).
+    """Fail fast if any bee canonical_name is unresolved before dbt build.
 
     Reads lineage_unresolved.csv (written by the resolve-taxon-ids step).
     Any row whose canonical_name is NOT in KNOWN_NON_BEES is a blocking bee name:
@@ -117,10 +117,10 @@ def generate_inactive_remaps() -> None:
       no columns= so DuckDB auto-infers active as BOOLEAN — Pitfall 2).
     - For each inactive taxon: GET /v1/taxa/{id} for current_synonymous_taxon_ids.
     - Exactly 1 successor: lookup name in taxa.csv.gz; write row to auto_synonyms.csv
-      + UPSERT bridge (D-10); absent successor -> triage reason=successor_not_in_taxa_csv.
+      + UPSERT bridge; absent successor -> triage reason=successor_not_in_taxa_csv.
     - 0 successors -> triage reason=no_successor.
     - >=2 successors -> triage reason=split.
-    - Always writes auto_synonyms.csv with at least a header row (D-04).
+    - Always writes auto_synonyms.csv with at least a header row.
     - Always overwrites inactive_unresolved.csv (stale empty file cannot mask new rows).
     """
     import datetime as _dt
@@ -305,11 +305,11 @@ def check_inactive_gate() -> None:
     """Fail fast if any inactive bridge taxon has no auto-resolution (D-05/ITR-02).
 
     Reads inactive_unresolved.csv (written by the inactive-remap step).
-    The gate blocks ONLY on the three sanctioned blocking reasons (D-06):
+    The gate blocks ONLY on the three sanctioned blocking reasons:
     no_successor, split, successor_not_in_taxa_csv. There is no KNOWN_NON_BEES-style
-    exclusion set (D-07): every such row is a genuine taxonomic dead-end that a human
+    exclusion set: every such row is a genuine taxonomic dead-end that a human
     must resolve by adding an entry to occurrence_synonyms.csv (the only sanctioned
-    exit). Transient API failures (CR-01) are never written to this file — they are
+    exit). Transient API failures are never written to this file — they are
     surfaced as warnings by inactive-remap and re-attempted next run — so they cannot
     couple pipeline liveness to iNat API uptime. Any unexpected reason value is treated
     as blocking (fail-closed) so a future producer bug cannot silently bypass the gate.
@@ -319,7 +319,7 @@ def check_inactive_gate() -> None:
 
     # D-06: every reason inactive-remap writes to this file is a genuine taxonomic
     # dead-end (no_successor / split / successor_not_in_taxa_csv) — transient API
-    # failures are NOT written here (CR-01), so every present row is blocking.
+    # failures are NOT written here, so every present row is blocking.
     rows = list(csv.DictReader(INACTIVE_UNRESOLVED_CSV.open(newline="")))
     if rows:
         names = ", ".join(r["canonical_name"] for r in rows)

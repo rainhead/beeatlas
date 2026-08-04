@@ -77,7 +77,7 @@ def test_dissolve_excludes_jackman_creek():
     result = dissolve_to_wkt(_FEATURES, 0.0002)
     wla_names = [wla for wla, _ in result]
     assert "Jackman Creek" not in wla_names, (
-        "Jackman Creek must be excluded (D-01)"
+        "Jackman Creek must be excluded"
     )
 
 

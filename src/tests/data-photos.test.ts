@@ -10,7 +10,7 @@ import photos from '../../_data/photos.js';
 // @ts-expect-error -- lib/*.js is plain ESM; no .d.ts
 import { deriveSrcset } from '../../lib/inat-srcset.js';
 
-describe('_data/photos.js (PAGE-03)', () => {
+describe('_data/photos.js', () => {
   test('exports Record<scientificName, { description: string, photos: any[] }>', () => {
     for (const [, entry] of Object.entries(photos as Record<string, any>)) {
       expect(typeof entry.description).toBe('string');

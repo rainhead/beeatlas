@@ -1,11 +1,11 @@
-"""The ONE shared markdown -> sanitized HTML renderer for BeeAtlas notes (D-04/D-06).
+"""The ONE shared markdown -> sanitized HTML renderer for BeeAtlas notes.
 
 ``render_note_markdown(body_md)`` is the single server-side entrypoint that both
 the write API (``api/main.py``, Phase 179-02) and the nightly harvest
 (``data/notes_harvest.py``, Phase 179-03) import — never duplicate this logic.
 No markdown-rendering or HTML-sanitization library is ever shipped to the
 browser: the client only ever receives (and injects) the resulting trusted
-HTML string (D-04).
+HTML string.
 
 Two-stage pipeline, both server-side only:
   1. ``markdown_it.MarkdownIt("zero")`` with an explicit rule allowlist
@@ -16,7 +16,7 @@ Two-stage pipeline, both server-side only:
      by the renderer itself.
   2. ``nh3.clean(...)`` (Ammonia's Rust binding) re-sanitizes the rendered HTML
      against an explicit tag/attribute/URL-scheme allowlist. This is
-     deliberate defense-in-depth (D-06): the renderer alone already can't emit
+     deliberate defense-in-depth: the renderer alone already can't emit
      disallowed markup, but a future markdown-it-py plugin or rule change
      should not silently become a stored-XSS hole — nh3 is the independent
      backstop that doesn't depend on the renderer continuing to behave.
@@ -49,7 +49,7 @@ _md = MarkdownIt("zero").enable(
     ]
 )
 
-# Explicit tag/attribute/URL-scheme allowlist for the sanitize stage (D-06).
+# Explicit tag/attribute/URL-scheme allowlist for the sanitize stage.
 _ALLOWED_TAGS = {"p", "em", "strong", "a", "ul", "ol", "li"}
 _ALLOWED_ATTRS = {"a": {"href"}}
 _ALLOWED_URL_SCHEMES = {"http", "https"}

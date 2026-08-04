@@ -1,7 +1,7 @@
 """Role loader for the BeeAtlas notes store.
 
 Loads the committed allowlist at import time (config.py pattern).
-Git history is the audit trail — no ``roles`` table exists in this phase (D-07).
+Git history is the audit trail — no ``roles`` table exists in this phase.
 
 Roles:
   reader  — everyone not in the allowlist; read-only.

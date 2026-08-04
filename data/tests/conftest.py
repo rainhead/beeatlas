@@ -653,7 +653,7 @@ def export_dir(tmp_path):
 # ---------------------------------------------------------------------------
 # Known skip-reason substrings that identify asset-driven skips (built outputs
 # absent, not platform limits). Non-@integration tests that skip for these
-# reasons are a defect — the fix is either a committed fixture (D-01) or
+# reasons are a defect — the fix is either a committed fixture or
 # tagging the test @pytest.mark.integration so it is deselected, not skipped.
 _ASSET_SKIP_SIGNATURES = (
     "data/dbt/run.sh build",  # stem matches plain and --select higher_taxa / --select species variants
@@ -690,7 +690,7 @@ def pytest_runtest_makereport(item, call):
         report.outcome = "failed"
         report.longrepr = (
             "[D-05 GUARD] Asset-driven skip in fast tier (non-@integration test). "
-            "Fix: add a committed fixture (D-01) or tag @pytest.mark.integration.\n"
+            "Fix: add a committed fixture or tag @pytest.mark.integration.\n"
             f"Original skip reason: {reason}"
         )
 

@@ -15,7 +15,7 @@ it carries no evidence breakdown at all, and it covers 5,328 of the 5,594
 (taxon, county) pairs because a pair needs a parseable month to appear. Presence is
 a different question from phenology and deserves its own, smaller answer.
 
-EVIDENCE (D-01). Each pair carries a bitmask, so the badges the taxa pane shows
+EVIDENCE. Each pair carries a bitmask, so the badges the taxa pane shows
 survive onto the static page:
     1 = specimen        (catalogued or photographed: specimen, waba_specimen)
     2 = community       (observed: inat_expert, provisional_sample)
@@ -25,13 +25,13 @@ A taxon that is checklist-only in King County reads 4; specimen-backed reads 1 o
 src/taxa-tree.ts — keep the two orderings in step.
 
 CHECKLIST ROWS ARE INCLUDED HERE, deliberately, and this is the one surface where
-that is unambiguously correct (D-03). A checklist record's coordinate is a
+that is unambiguously correct. A checklist record's coordinate is a
 county-level placeholder — 620 of them sit on a single point in downtown Seattle —
 so it is meaningless for a drawn box or a named place, but the COUNTY it asserts is
 exactly what the published checklist is for. Ecoregions are coarse enough to inherit
 the same argument.
 
-NO ELEVATION (D-02). Elevation is not expressible at county granularity and must not
+NO ELEVATION. Elevation is not expressible at county granularity and must not
 be faked here; /species/ offers no elevation control. Anything richer than
 county/ecoregion deep-links into the atlas with the filter in the URL.
 

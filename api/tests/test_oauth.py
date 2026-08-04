@@ -1,4 +1,4 @@
-"""Tests for the server-side iNaturalist OAuth2 PKCE exchange (WRITE-02, D-01/D-02).
+"""Tests for the server-side iNaturalist OAuth2 PKCE exchange.
 
 All HTTP is mocked at the `requests` boundary ("Pattern D", see
 data/tests/test_ecdysis_auth.py) — no live iNat calls. Covers:
@@ -72,8 +72,7 @@ def test_authorize_url_contains_required_params():
 
 
 def test_authorize_url_pins_exact_redirect_uri_constant():
-    """authorize_url() must carry the exact pinned production redirect URI
-    (D-12/D-13). The import-time config.REDIRECT_URI legitimately varies with
+    """authorize_url() must carry the exact pinned production redirect URI. The import-time config.REDIRECT_URI legitimately varies with
     the developer's gitignored secrets.toml (localhost in the dev loop), so
     assert the pin via the resolution logic, not the machine snapshot."""
     prod_uri, dev = config.resolve_redirect_uri(None)

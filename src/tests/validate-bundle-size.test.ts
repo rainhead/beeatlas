@@ -50,7 +50,7 @@ describe('validateBundleSize (PERF-01)', () => {
     expect(() => validateBundleSize(missingDir)).toThrow(/run eleventy first/i);
   });
 
-  test('throws when zero species chunk files match (D-05)', () => {
+  test('throws when zero species chunk files match', () => {
     mkdirSync(TEST_ASSETS_DIR, { recursive: true });
     // Write a non-matching file at the assets-dir root and ensure no species/ subdir exists
     writeFileSync(join(TEST_ASSETS_DIR, 'index-abc.js'), 'x');
@@ -92,7 +92,7 @@ describe('validate-bundle-size npm script wiring', () => {
     expect(pkg.scripts['validate-bundle-size']).toBe('node scripts/validate-bundle-size.mjs');
   });
 
-  test('package.json build chain ends with validate-bundle-size (D-04)', () => {
+  test('package.json build chain ends with validate-bundle-size', () => {
     const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
     expect(pkg.scripts.build).toContain('validate-bundle-size');
     // validate-bundle-size must come after eleventy

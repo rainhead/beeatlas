@@ -34,7 +34,7 @@ def _seed_counties(con: duckdb.DuckDBPyConnection) -> None:
 def _write_test_occurrences_parquet(path: Path) -> None:
     """Write minimal occurrences + occurrence_places bridge fixtures.
 
-    Phase 160 (D-02/D-05): places_maps derives an Option-B ``occ_id`` from the
+    Phase 160: places_maps derives an Option-B ``occ_id`` from the
     identity columns and JOINs the ``occurrence_places`` bridge (no scalar
     ``place_slug`` column). Three occurrences (occ_id ``inat:1/2/3``); the bridge
     maps inat:1 → rattlesnake-ledge and inat:2 → tiger-mountain, and leaves inat:3

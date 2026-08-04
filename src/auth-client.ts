@@ -156,7 +156,7 @@ export function forgetIdentity(): void {
   }
 }
 
-// Phase 179-05: note CRUD client. The shape mirrors the nightly harvest's
+// note CRUD client. The shape mirrors the nightly harvest's
 // baked notes.json records (data/notes_harvest.py) — since st-vjd deleted
 // the live read endpoint, the baked handoff is the ONLY note source.
 //
@@ -224,14 +224,14 @@ export async function deleteNote(id: number): Promise<NoteMutationResult> {
 }
 
 /**
- * POST /api/notes/<id>/takedown -- curator-only override (D-01/D-04). Sends
+ * POST /api/notes/<id>/takedown -- curator-only override. Sends
  * no reason (v1 UI excludes the reason field per UI-SPEC; the server
  * normalizes an absent reason to NULL). A 403 means the caller's curator
- * role was revoked mid-session (fresh allowlist re-read, D-05) -- surfaced
+ * role was revoked mid-session (fresh allowlist re-read) -- surfaced
  * distinctly so the UI can show the revoked-permission copy.
  *
  * NOTE: there is deliberately no `restoreNote` export -- restore is
- * curl-only, operator-triggered (D-07), never wired to any UI.
+ * curl-only, operator-triggered, never wired to any UI.
  */
 export async function takedownNote(id: number): Promise<NoteMutationResult> {
   return _postJson(`${API_BASE}/api/notes/${id}/takedown`, 'POST', {});
@@ -308,7 +308,7 @@ export async function fetchWhoami(): Promise<AuthState> {
       isAuthor: body.is_author ?? false,
       iconUrl: body.icon_url ?? null,
       iconData: body.icon_data ?? null,
-      // Curator-only signal (D-03): the server already echoes the fresh
+      // Curator-only signal: the server already echoes the fresh
       // `role` (re-read from the allowlist per request); this is a
       // UX-affordance derivation only -- authz is always re-checked
       // server-side on the takedown/restore routes, never client-trusted.

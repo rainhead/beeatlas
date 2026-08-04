@@ -118,7 +118,7 @@ const DAY_MS = 86_400_000;
 
 /**
  * Parse `generated_at` from the manifest. Returns `null` for the dev sentinel
- * `"local"` or any unparseable string (D-12).
+ * `"local"` or any unparseable string.
  */
 export function parseGeneratedAt(generatedAt: string): Date | null {
   const d = new Date(generatedAt);
@@ -173,7 +173,7 @@ export function formatFreshness(
 
 /**
  * Convenience: load the manifest and return the formatted freshness label.
- * Returns null if the manifest fails to load or generated_at is unparseable (D-11).
+ * Returns null if the manifest fails to load or generated_at is unparseable.
  */
 export async function loadFreshnessLabel(): Promise<string | null> {
   try {

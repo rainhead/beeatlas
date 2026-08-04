@@ -11,11 +11,11 @@ Covers:
     test_waba_specimen_is_pending: waba_specimen yields Collected/is_pending=True, NO
         Identified event (STREAM-02, D-EVENT-02).
     test_chunk_bound: no page (first_page_events or any sub-page events list) exceeds
-        EVENT_CHUNK_SIZE (STREAM-03).
+        EVENT_CHUNK_SIZE.
     test_slug_resolution: species-tier → slug='Genus/epithet'; genus-tier superseded
         determination → slug='Genus'; unmatched canonical_name → slug=None (D-CARD-02).
     test_collector_event_pages_json_shape: collector_event_pages.json is a JSON array
-        whose entries each carry login, page_num>=2, total_pages, events (STREAM-03).
+        whose entries each carry login, page_num>=2, total_pages, events.
 """
 
 import importlib
@@ -266,7 +266,7 @@ def _gather_all_events(records: list, sub_pages: list, login: str) -> list:
 
 def test_collectors_json_extended_keys(tmp_path, monkeypatch):
     """collectors.json gains first_page_events, total_event_pages, total_event_count
-    while PRESERVING every existing key unchanged (STREAM-01)."""
+    while PRESERVING every existing key unchanged."""
     mod = _setup_env(tmp_path, monkeypatch)
     mod.export_collectors_events_step()
 
@@ -395,7 +395,7 @@ def test_waba_specimen_is_pending(tmp_path, monkeypatch):
 
 
 def test_chunk_bound(tmp_path, monkeypatch):
-    """No page (first_page_events or any sub-page events list) exceeds EVENT_CHUNK_SIZE (STREAM-03)."""
+    """No page (first_page_events or any sub-page events list) exceeds EVENT_CHUNK_SIZE."""
     mod = _setup_env(tmp_path, monkeypatch)
     mod.export_collectors_events_step()
 
@@ -459,8 +459,7 @@ def test_slug_resolution(tmp_path, monkeypatch):
 
 
 def test_collector_event_pages_json_shape(tmp_path, monkeypatch):
-    """collector_event_pages.json is a JSON array; entries have login/page_num>=2/total_pages/events
-    (STREAM-03)."""
+    """collector_event_pages.json is a JSON array; entries have login/page_num>=2/total_pages/events."""
     mod = _setup_env(tmp_path, monkeypatch)
     mod.export_collectors_events_step()
 

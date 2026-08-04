@@ -16,9 +16,9 @@
 // display:contents + summary hidden) and forcing the wrapper <details> open, so
 // the genera/species nested inside render directly under the family. We never use
 // the `hidden` attribute (display:none) to skip a rank — that would bury the whole
-// subtree, hiding the genera/species too. (CR-01)
+// subtree, hiding the genera/species too.
 
-// D-04: one localStorage key for the "Show all ranks" boolean, shared across both
+// one localStorage key for the "Show all ranks" boolean, shared across both
 // surfaces so the preference follows the reader. Value is the string "1" (ON) or
 // "0" / absent (OFF). Never eval'd or JSON.parse'd.
 export const STORAGE_KEY = 'beeatlas.speciesTree.showAllRanks';

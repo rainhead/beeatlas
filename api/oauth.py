@@ -1,4 +1,4 @@
-"""Server-side iNaturalist OAuth2 authorization-code exchange, WITH PKCE (D-01/D-02).
+"""Server-side iNaturalist OAuth2 authorization-code exchange, WITH PKCE.
 
 The browser only ever carries the one-time `code` back to `/auth/callback`
 (wired in 178-06); this module holds the pure, unit-testable functions that
@@ -12,7 +12,7 @@ do the actual exchange:
                        /users/api_token JWT, then calls /v1/users/me to get
                        the iNat identity ({id, login, ...}).
 
-PKCE-with-confidential-client rationale (D-01/D-02): iNat's OAuth app is
+PKCE-with-confidential-client rationale: iNat's OAuth app is
 registered as a normal confidential client (client_secret issued), but PKCE
 is added as defense-in-depth per OAuth 2.1's recommendation — nothing in
 Doorkeeper's PKCE support requires the client to be non-confidential. If
@@ -47,7 +47,7 @@ def _raise_for_status_logged(resp: requests.Response, what: str) -> None:
 
     Surfaces WHY iNat rejected an OAuth exchange (e.g. an `invalid_token` /
     `expired` reason) instead of an opaque 500. Logs only the response body —
-    never a token (D-03): access_token/JWT are request-side, never in the
+    never a token: access_token/JWT are request-side, never in the
     error body, which carries iNat's machine-readable error reason.
     """
     if not resp.ok:
@@ -101,7 +101,7 @@ def exchange_code(
             "code": code,
             "redirect_uri": redirect_uri,  # must exactly match the /oauth/authorize call
             "grant_type": "authorization_code",
-            "code_verifier": verifier,  # PKCE defense-in-depth (D-02)
+            "code_verifier": verifier,  # PKCE defense-in-depth
         },
         timeout=REQUEST_TIMEOUT,
     )
@@ -118,7 +118,7 @@ def fetch_identity(access_token: str) -> dict:
          the official `inaturalistjs` client (`headers.Authorization = apiToken`).
 
     Returns the identity dict from `results[0]` (`{id, login, ...}`). Neither
-    the access_token nor the JWT is returned, stored, or logged (D-03) — they
+    the access_token nor the JWT is returned, stored, or logged — they
     exist only as local variables in this function's frame.
     """
     jwt_resp = requests.get(

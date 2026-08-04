@@ -157,7 +157,7 @@ def test_absent_origin_on_post_is_403(client, monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Launch gate (WRITE-04)
+# Launch gate
 # ---------------------------------------------------------------------------
 
 
@@ -174,7 +174,7 @@ def test_launch_gate_off_is_503(client, monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Forged-author rejection (D-07)
+# Forged-author rejection
 # ---------------------------------------------------------------------------
 
 
@@ -217,7 +217,7 @@ def test_is_curator_fresh_false_for_author(monkeypatch, tmp_path):
 
 
 def test_curator_recheck_reflects_disk_change_not_cookie_role(monkeypatch, tmp_path):
-    """A demoted curator loses takedown/restore power on the very next check (D-05)."""
+    """A demoted curator loses takedown/restore power on the very next check."""
     allowlist_path = _allowlist_toml(tmp_path, {"curator_login": "curator"})
     monkeypatch.setattr(auth.roles_module, "_ALLOWLIST", allowlist_path)
     assert auth._is_curator_fresh("curator_login") is True

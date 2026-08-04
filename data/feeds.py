@@ -195,15 +195,15 @@ def write_variant_feed(
 ) -> dict:
     """Write a single variant Atom feed file and return its index entry dict.
 
-    Always writes a file even when rows is empty (D-01). Uses run_time as the
-    feed-level <updated> timestamp when rows is empty (D-02). Produces valid Atom
-    with zero <entry> children when rows is empty (D-03).
+    Always writes a file even when rows is empty. Uses run_time as the
+    feed-level <updated> timestamp when rows is empty. Produces valid Atom
+    with zero <entry> children when rows is empty.
     """
     filename = f'{variant_type}-{slug}.xml'
     feed_id = f'https://beeatlas.org/data/feeds/{filename}'
     title_str = _TITLE_TEMPLATES[variant_type].format(value=filter_value)
 
-    # Feed-level updated: most recent entry timestamp if rows exist, else run_time (D-02)
+    # Feed-level updated: most recent entry timestamp if rows exist, else run_time
     if rows:
         updated_ts = rows[0][0].astimezone(_UTC).isoformat()
     else:
@@ -307,7 +307,7 @@ def write_index_json(out_dir: Path, entries: list) -> None:
 
 
 def _run_time() -> datetime.datetime:
-    """The feed-level fallback <updated> for empty feeds (D-02).
+    """The feed-level fallback <updated> for empty feeds.
 
     Honors ``SOURCE_DATE_EPOCH`` (the reproducible-builds convention) when set, so
     a caller that pins a snapshot-derived epoch — stelis's content-addressed build

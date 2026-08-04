@@ -3,7 +3,7 @@
  * One-shot helper: populate content/species-photos.toml with iNat top-voted
  * research-grade photos for every species in public/data/species.json.
  *
- * Fill-only (D-01): never modifies an existing [species."<name>"] table.
+ * Fill-only: never modifies an existing [species."<name>"] table.
  * Rate-limited to <=1 req/sec (PHOTO-07). NOT in CI — invoke manually:
  *
  *   node scripts/seed-species-photos.mjs [--limit N] [--dry-run]

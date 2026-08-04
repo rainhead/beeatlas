@@ -8,11 +8,11 @@
 // names is that a BROKEN worker now takes the whole site down for that user rather
 // than only /app/ — smaller than caching the read path would have been, but not zero.
 //
-// D-04: NO top-level skipWaiting, NO claiming of clients. The no-skipWaiting invariant
-// is now satisfied STRUCTURALLY via the SKIP_WAITING gate (D-16): skipWaiting()
+// NO top-level skipWaiting, NO claiming of clients. The no-skipWaiting invariant
+// is now satisfied STRUCTURALLY via the SKIP_WAITING gate: skipWaiting()
 // fires ONLY in response to wb.messageSkipWaiting() from the user-clicked update banner.
 // The new SW waits until all app tabs are closed before activating.
-// This preserves the prompt-to-reload lifecycle (OFF-03) and prevents
+// This preserves the prompt-to-reload lifecycle and prevents
 // app-code ↔ DB version skew (Phase 149+).
 //
 // Imported ONLY via the vite-plugin-pwa plugin build step;
@@ -59,15 +59,15 @@ const navigationRoute = new NavigationRoute(handler, {
 });
 registerRoute(navigationRoute);
 
-// D-01/D-04: DB runtime cache — CacheFirst with 1-entry cap.
+// DB runtime cache — CacheFirst with 1-entry cap.
 // maxEntries: 1 collapses hash-churn: each nightly pipeline produces a new
 // occurrences_<hash>.db URL; without a cap, old hashes accumulate toward
 // the iOS ~50 MB quota. With maxEntries: 1, Workbox evicts the previous DB
 // entry whenever a new one is cached — steady-state usage stays ~23 MB.
 // purgeOnQuotaError: true cleans up the entire data-artifacts cache on
 // genuine-full-disk quota failures (D-04 backstop).
-// Note: does NOT intercept manifest.json (.json extension, not .db);
-// Phase 150 will add a separate NetworkFirst route for manifest.json.
+// Note: does NOT intercept manifest.json (.json extension, not .db) — that has
+// its own NetworkFirst route below.
 registerRoute(
   ({ url }) => url.pathname.startsWith('/data/') && url.pathname.endsWith('.db'),
   new CacheFirst({
@@ -79,7 +79,7 @@ registerRoute(
   })
 );
 
-// D-02/D-06: GeoJSON runtime cache — CacheFirst, no entry cap.
+// GeoJSON runtime cache — CacheFirst, no entry cap.
 // counties/ecoregions/places GeoJSON use stable URLs that overwrite in place
 // each nightly pipeline run; three files total, <5 MB combined.
 // No ExpirationPlugin — sharing maxEntries: 1 with the DB route would cause
@@ -96,7 +96,7 @@ registerRoute(
   })
 );
 
-// D-08: manifest.json NetworkFirst route — separate from data-artifacts per cache-isolation rationale.
+// manifest.json NetworkFirst route — separate from data-artifacts per cache-isolation rationale.
 // networkTimeoutSeconds: 3 falls back to cache on slow/offline; CacheableResponsePlugin restricts
 // caching to status 200 so error responses are not poisoned into the cache.
 // Cache name 'data-manifest' is intentionally separate from 'data-artifacts' to keep storage-estimate
@@ -142,7 +142,7 @@ self.addEventListener('activate', () => {
   void caches.delete('mapbox-basemap');
 });
 
-// D-16: skipWaiting fires ONLY in response to wb.messageSkipWaiting() from the user-clicked update banner.
+// skipWaiting fires ONLY in response to wb.messageSkipWaiting() from the user-clicked update banner.
 // No top-level skipWaiting call — the no-skipWaiting invariant from 147/148/149 is satisfied
 // structurally: this handler is the only path, and it requires an explicit SKIP_WAITING message.
 self.addEventListener('message', (event) => {

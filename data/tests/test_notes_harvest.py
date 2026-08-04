@@ -7,7 +7,7 @@ real database or network.
 
 Covers:
   - approved-only, newest-first (created_at desc), D-13 Note shape
-  - byline reuses collectors.json (D-11/D-12); @login/None fallback for a
+  - byline reuses collectors.json; @login/None fallback for a
     login absent from collectors.json
   - species with zero approved notes do not appear as keys
   - empty store -> empty Record ({})
@@ -172,7 +172,7 @@ def test_harvest_approved_only_newest_first_with_byline(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# test_harvest_excludes_hidden — MOD-04 (Phase 180)
+# test_harvest_excludes_hidden — MOD-04
 # ---------------------------------------------------------------------------
 
 
@@ -181,7 +181,7 @@ def test_harvest_excludes_hidden(tmp_path):
 
     Mirrors the pending/removed exclusion already covered by
     test_harvest_approved_only_newest_first_with_byline -- `hidden` (Phase 180's
-    curator-takedown status, distinct from author self-delete `removed`, D-06) is
+    curator-takedown status, distinct from author self-delete `removed`) is
     a third non-approved value, excluded by the same pre-existing
     `Note.status == "approved"` filter with zero new harvest code (MOD-04 by
     construction, verification only -- data/notes_harvest.py is unchanged).

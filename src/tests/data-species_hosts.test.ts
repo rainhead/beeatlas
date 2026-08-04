@@ -6,7 +6,7 @@ import { describe, test, expect } from 'vitest';
 // @ts-expect-error -- _data/*.js is plain ESM consumed by Eleventy; no .d.ts
 import speciesHosts from '../../_data/species_hosts.js';
 
-describe('_data/species_hosts.js (Phase 175)', () => {
+describe('_data/species_hosts.js', () => {
   test('default export is an object (not null, not array)', () => {
     expect(speciesHosts).toBeDefined();
     expect(typeof speciesHosts).toBe('object');

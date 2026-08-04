@@ -86,7 +86,7 @@ export class BeePane extends LitElement {
   // Taxon cache (threaded from bee-atlas for name resolution in bee-occurrence-detail)
   @property({ attribute: false }) taxonCache: Map<number, TaxonCacheEntry> | null = null;
 
-  // D-04: per-occurrence member-place names, resolved by the state owner
+  // per-occurrence member-place names, resolved by the state owner
   // (<bee-atlas>) and passed straight through to <bee-occurrence-detail>.
   // bee-pane is a pure presenter — it only forwards this map, never queries.
   @property({ attribute: false }) placeNames: Map<string, string[]> | null = null;
@@ -1142,7 +1142,7 @@ export class BeePane extends LitElement {
   }
 
   private _renderTiers() {
-    // Phase 170 (PROV-02, D-01/D-08): the 5 source checkboxes collapse into 2 social-tier
+    // Phase 170 (PROV-02): the 5 source checkboxes collapse into 2 social-tier
     // toggles. "Atlas work" = the community's own specimens + provisional samples (recency-
     // graded on the map); "Other records" = expert iNat observations + published literature
     // (muted on the map).

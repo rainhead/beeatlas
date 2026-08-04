@@ -427,7 +427,7 @@ def test_candidate_csv_written(tmp_path, monkeypatch):
         _row(pair_key="1|100", checklist_ObjectID=1, ecdysis_id=100,
              canonical_name="bombus mixtus", distance_m=420.0,
              checklist_collector="J Smith", ecdysis_collector="John Smith"),
-        # Non-matching collectors (A Jones vs B Jones) → dropped (D-05).
+        # Non-matching collectors (A Jones vs B Jones) → dropped.
         _row(pair_key="2|200", checklist_ObjectID=2, ecdysis_id=200,
              canonical_name="andrena nivalis", distance_m=310.0,
              checklist_collector="A Jones", ecdysis_collector="B Jones"),

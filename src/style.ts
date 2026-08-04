@@ -114,7 +114,7 @@ export function clusterCountLayerSpec(colors: RecencyColors): SymbolLayerSpecifi
 
 function _occurrencePointPaint(colors: RecencyColors): CircleLayerSpecification['paint'] {
   return {
-    // Phase 170 (D-08): tier drives the color family. `other` (expert observations
+    // tier drives the color family. `other` (expert observations
     // and literature) renders a muted desaturated grey-blue so external records
     // recede; `atlas` (community work) takes the recency palette.
     //
@@ -193,7 +193,7 @@ export function boundaryLineLayerSpec(source: string, id: string, visibility: Vi
   };
 }
 
-// D-06: place boundaries use warm amber to distinguish from blue boundary layers
+// place boundaries use warm amber to distinguish from blue boundary layers
 export function placeFillLayerSpec(visibility: Visibility): FillLayerSpecification {
   return {
     id: 'place-fill',

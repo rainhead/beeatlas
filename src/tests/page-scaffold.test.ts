@@ -8,14 +8,14 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
-describe('_pages/species.njk (Phase 96 — index page, PAGE-01)', () => {
-  test('declares layout: default.njk and permalink: /species/index.html (PAGE-01)', () => {
+describe('_pages/species.njk (Phase 96 — index page)', () => {
+  test('declares layout: default.njk and permalink: /species/index.html', () => {
     const src = readFileSync(resolve(ROOT, '_pages/species.njk'), 'utf-8');
     expect(src).toMatch(/^---[\s\S]*layout:\s*default\.njk[\s\S]*---/);
     expect(src).toMatch(/permalink:\s*\/species\/index\.html/);
   });
 
-  test('references the species-index entry script (Phase 96)', () => {
+  test('references the species-index entry script', () => {
     const src = readFileSync(resolve(ROOT, '_pages/species.njk'), 'utf-8');
     // beeatlas-d3y: the raw <script src="/src/…"> became a viteAssets shortcode —
     // Eleventy now emits the hashed tag from the Vite manifest. Same claim, new spelling.
@@ -23,7 +23,7 @@ describe('_pages/species.njk (Phase 96 — index page, PAGE-01)', () => {
   });
 });
 
-describe('_pages/collector-events-page.njk (Phase 171 — sub-page template, STREAM-03)', () => {
+describe('_pages/collector-events-page.njk (Phase 171 — sub-page template)', () => {
   const src = readFileSync(resolve(ROOT, '_pages/collector-events-page.njk'), 'utf-8');
   const detailSrc = readFileSync(resolve(ROOT, '_pages/collector-detail.njk'), 'utf-8');
 
@@ -40,7 +40,7 @@ describe('_pages/collector-events-page.njk (Phase 171 — sub-page template, STR
     expect(src).toMatch(/\/collectors\/\{\{ evpage\.login \| urlencode \}\}\/page\/\{\{ evpage\.page_num \}\}\/index\.html/);
   });
 
-  test('collector-detail.njk renders <table class="event-feed"> with <thead> (table conversion, STREAM-01)', () => {
+  test('collector-detail.njk renders <table class="event-feed"> with <thead> (table conversion)', () => {
     expect(detailSrc).toMatch(/<table\s+class="event-feed"/);
     expect(detailSrc).toMatch(/<thead>/);
     expect(detailSrc).toMatch(/<th\s+scope="col">/);

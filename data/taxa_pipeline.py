@@ -91,7 +91,7 @@ def load_taxon_lineage_extended(db_path: str | None = None) -> None:
     pivots the result into one column per rank:
       (taxon_id, family, subfamily, tribe, genus, subgenus)
 
-    Produces the same table contract as the retired live enricher (Phase 110).
+    Produces the same table contract as the retired live enricher.
     Taxon scope is all active Anthophila (not just
     observed taxa) so Phase 111 (Checklist) can look up lineage for species with
     no WABA records yet.

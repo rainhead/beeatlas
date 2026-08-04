@@ -53,7 +53,7 @@ describe('auth-client: fetchWhoami', () => {
     expect((await fetchWhoami()).iconData).toBe(data);
   });
 
-  test('role: curator => isCurator true (D-03)', async () => {
+  test('role: curator => isCurator true', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ authenticated: true, login: 'curator1', role: 'curator', is_author: true }),
@@ -66,7 +66,7 @@ describe('auth-client: fetchWhoami', () => {
     expect(state.isCurator).toBe(true);
   });
 
-  test('role: author => isCurator false (D-03)', async () => {
+  test('role: author => isCurator false', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ authenticated: true, login: 'author1', role: 'author', is_author: true }),
@@ -79,7 +79,7 @@ describe('auth-client: fetchWhoami', () => {
     expect(state.isCurator).toBe(false);
   });
 
-  test('unauthenticated => isCurator falsy (D-03)', async () => {
+  test('unauthenticated => isCurator falsy', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ authenticated: false }),

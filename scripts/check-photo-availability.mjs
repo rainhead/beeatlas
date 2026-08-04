@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * PERF-04 (D-10): HEAD every photo URL in content/species-photos.toml,
+ * PERF-04: HEAD every photo URL in content/species-photos.toml,
  * write failures to data/manifest_drift_report.json. Informational only —
  * exits 0 even when failures exist. NOT in any build chain (mirrors the
  * PHOTO-07 isolation invariant from Phase 79).
  *
  * Pacing: <=1 req/sec (matches scripts/seed-species-photos.mjs).
- * Retry: single retry on HTTP >=500 with 2s backoff (D-10).
+ * Retry: single retry on HTTP >=500 with 2s backoff.
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -19,7 +19,7 @@ const repoRoot = join(here, '..');
 const TOML_PATH = join(repoRoot, 'content/species-photos.toml');
 const REPORT_PATH = join(repoRoot, 'data/manifest_drift_report.json');
 
-// D-10: <=1 req/sec, single 5xx retry with 2s backoff.
+// <=1 req/sec, single 5xx retry with 2s backoff.
 const RATE_MS = 1000;
 const RETRY_BACKOFF_MS = 2000;
 
@@ -36,7 +36,7 @@ async function headOnce(url) {
 
 async function checkUrl(url) {
   let result = await headOnce(url);
-  // D-10: single retry on HTTP >=500 with 2s backoff. Network errors also retried once.
+  // single retry on HTTP >=500 with 2s backoff. Network errors also retried once.
   const shouldRetry = !result.ok && (result.status === null || result.status >= 500);
   if (shouldRetry) {
     await sleep(RETRY_BACKOFF_MS);
@@ -91,7 +91,7 @@ async function main() {
   if (!existsSync(reportDir)) mkdirSync(reportDir, { recursive: true });
   writeFileSync(REPORT_PATH, JSON.stringify(report, null, 2) + '\n');
   console.log(`Wrote ${REPORT_PATH}: ${failures.length}/${photos.length} failures`);
-  // D-10: report-only. Exit 0 even when failures exist.
+  // report-only. Exit 0 even when failures exist.
   process.exit(0);
 }
 

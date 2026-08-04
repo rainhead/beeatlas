@@ -3,10 +3,10 @@
 // _pages/index.html -> src/bee-atlas.ts never imports this file,
 // guaranteeing / has no PWA install affordance (structural, not runtime).
 //
-// Phase 151-03 (D-09, D-10): captures beforeinstallprompt early (module scope, not
+// captures beforeinstallprompt early (module scope, not
 // connectedCallback — RESEARCH Pitfall 4), suppresses the mini-infobar via preventDefault,
 // dispatches pwa-installable to signal <bee-atlas>. On appinstalled (or after prompt()
-// resolves), dispatches pwa-installed to clear the install button (D-10).
+// resolves), dispatches pwa-installed to clear the install button.
 
 // lib.dom does not ship BeforeInstallPromptEvent — declare the local interface here.
 interface BeforeInstallPromptEvent extends Event {
@@ -19,14 +19,14 @@ interface BeforeInstallPromptEvent extends Event {
 // can fire before any component mounts, so connectedCallback capture would miss it).
 let _stashed: BeforeInstallPromptEvent | null = null;
 
-// D-09: capture beforeinstallprompt, prevent the mini-infobar, stash for later prompt().
+// capture beforeinstallprompt, prevent the mini-infobar, stash for later prompt().
 window.addEventListener('beforeinstallprompt', (e: Event) => {
   e.preventDefault();
   _stashed = e as BeforeInstallPromptEvent;
   window.dispatchEvent(new CustomEvent('pwa-installable'));
 });
 
-// D-10: appinstalled fires when the PWA is installed via any means (native dialog, Safari
+// appinstalled fires when the PWA is installed via any means (native dialog, Safari
 // A2HS). Clear stash and dispatch pwa-installed to clear the Install button.
 window.addEventListener('appinstalled', () => {
   _stashed = null;

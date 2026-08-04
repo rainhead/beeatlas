@@ -10,7 +10,7 @@ Source:
 The GIS layer contains 34 distinct WLA_Name values; "Jackman Creek" is present
 in the authoritative GIS data but absent from the public WDFW wildlife-areas
 list at https://wdfw.wa.gov/places-to-go/wildlife-areas and is therefore
-excluded (D-01).
+excluded.
 
 Phase 160 made place membership many-to-many (occurrence_places bridge), so
 overlapping place polygons load cleanly — no overlap check is performed here.
@@ -31,7 +31,7 @@ WDFW_URL = (
     "MapServices/WildlifeAreas/MapServer/0/query"
 )
 TOML_PATH = Path(__file__).parent.parent / "content" / "places.toml"
-TOL = 0.0005  # ST_SimplifyPreserveTopology tolerance in degrees (~55 m); chosen to keep total places.geojson ≤ ~1 MB (D-05)
+TOL = 0.0005  # ST_SimplifyPreserveTopology tolerance in degrees (~55 m); chosen to keep total places.geojson ≤ ~1 MB
 LAND_OWNER = "Washington Department of Fish & Wildlife"
 EXCLUDE = frozenset({"Jackman Creek"})
 
@@ -69,7 +69,7 @@ def dissolve_to_wkt(features: list[dict], tol: float) -> list[tuple[str, str]]:
     """Dissolve unit features by WLA_Name into one MULTIPOLYGON WKT per wildlife area.
 
     Features whose WLA_Name is in EXCLUDE (i.e. "Jackman Creek") are skipped before
-    insertion, so they never appear in the output (D-01).
+    insertion, so they never appear in the output.
 
     Returns a list of (wla_name, wkt) tuples sorted by wla_name, where every wkt
     is a valid MULTIPOLYGON string (single-unit areas are wrapped via ST_Multi).

@@ -370,7 +370,7 @@ def _download_zip(dataset_id: int) -> bytes:
         )
         _assert_zip_response(response)
     except Exception as e:  # login / download / guard / network failure
-        # Degrade gracefully (D-3): reuse a valid cached ZIP rather than zeroing out
+        # Degrade gracefully: reuse a valid cached ZIP rather than zeroing out
         # the nightly. The exception `e` carries no credentials (login/guard never
         # interpolate the password), so it is safe to print.
         if _is_valid_cached_zip(cache_path):

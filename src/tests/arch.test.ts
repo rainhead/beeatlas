@@ -3,7 +3,7 @@
 //   (a) ARCH-04 / PAGE-08: no src/species/**.ts file (seasonality-viz.ts)
 //       may import the SPA's maplibre-gl / wa-sqlite /
 //       sqlite / filter / bee-map / bee-atlas modules (static OR dynamic).
-//   (b) IDX-02 (Phase 96): src/entries/species-index.ts is restricted to
+//   (b) IDX-02: src/entries/species-index.ts is restricted to
 //       CSS side-effects + bee-header — no SPA modules allowed.
 
 import { describe, test, expect } from 'vitest';
@@ -64,7 +64,7 @@ function extractImports(src: string, re: RegExp): string[] {
   return [...stripped.matchAll(localRe)].map(m => m[1]).filter((s): s is string => s !== undefined);
 }
 
-describe('ARCH-04: src/species boundary (PAGE-08)', () => {
+describe('ARCH-04: src/species boundary', () => {
   const files = listTsFiles(SPECIES_DIR);
 
   // After Model Y, src/species/ contains only seasonality-viz.ts (the runtime
@@ -95,13 +95,13 @@ describe('ARCH-04: src/species boundary (PAGE-08)', () => {
 // Phase 96 IDX-02 — species-index.ts entry allowlist.
 // The new species index entry must only import CSS side-effects and bee-header;
 // it must not pull in any SPA modules or old monolith components.
-describe('src/entries/species-index.ts allowlist (IDX-02, Phase 96)', () => {
+describe('src/entries/species-index.ts allowlist', () => {
   const ENTRY_FILE_INDEX = resolve(ROOT, 'src/entries/species-index.ts');
   const ALLOWED_INDEX = new Set([
     '../index.css',
     '../styles/taxon-pages.css',
     '../bee-header.ts', '../bee-header',
-    // Phase 133 gap closure: tree behavior extracted to a pure DOM module
+    // gap closure: tree behavior extracted to a pure DOM module
     // (no SPA/heavy imports) so it is unit-testable under happy-dom.
     '../species-tree.ts', '../species-tree',
     // beeatlas-0of.2: county/ecoregion presence filtering. Both additions are

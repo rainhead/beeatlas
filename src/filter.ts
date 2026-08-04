@@ -24,7 +24,7 @@ export interface FilterState {
   selectedCollectors: CollectorEntry[];
   elevMin: number | null;
   elevMax: number | null;
-  selectedPlace: string | null;     // D-07 — singular; multi-place is deferred PRICH-02
+  selectedPlace: string | null;     // singular; multi-place is deferred PRICH-02
   bounds: { west: number; south: number; east: number; north: number } | null; // D-01 (phase 999.8): spatial bounding box as first-class filter field
   hiddenTiers: Set<TierKey>; // empty Set = no tier filter (show all) — Phase 170 (PROV-02)
 }
@@ -59,7 +59,7 @@ export function emptyFilterState(): FilterState {
 export interface OccurrenceProperties {
   occId: string;
   recencyTier: 'thisYear' | 'lastYear' | 'earlier';
-  tier: string; // Phase 170: drives map symbology (atlas/other, D-08); was `source`
+  tier: string; // drives map symbology (atlas/other); was `source`
 }
 
 function _recencyTier(year: number): OccurrenceProperties['recencyTier'] {
@@ -102,7 +102,7 @@ export interface OccurrenceRow {
   sample_host: string | null;
   // Phase 137 (PRO-04): checklist rows carry checklist_id (= ObjectID); null for all other sources.
   checklist_id: number | null;
-  // Phase 138 (D-10): checklist detail fields; null for all other sources.
+  // checklist detail fields; null for all other sources.
   verbatim_name: string | null;
   locality: string | null;
   collapsed_count: number | null;
@@ -162,7 +162,7 @@ const PAGE_SIZE = 100;
 // three so the bridge join keys line up. Change all three together.
 // Exported (Phase 170, PROV-03) so the occ_id-coupling Vitest assertion can import it and
 // compare its CASE-branch priority order against occIdFromRow (occurrence.ts) and
-// occurrence_places.sql — all three MUST stay `ecdysis → inat → inat_obs → checklist` (D-07).
+// occurrence_places.sql — all three MUST stay `ecdysis → inat → inat_obs → checklist`.
 // The branch order below is byte-unchanged from before the export.
 export const OCC_ID_SQL_CASE =
   "CASE " +
@@ -328,7 +328,7 @@ export function isFilterActive(f: FilterState): boolean {
 // in its FROM clause (`FROM occurrences o` or `FROM occurrences o LEFT JOIN taxa t …`).
 // `taxon_id` exists in BOTH occurrences and taxa, so an unqualified reference is
 // ambiguous once `taxa` is joined for display_name resolution.
-// Phase 160 robustness: occurrence_places is a newer table. Under the service worker's
+// occurrence_places is a newer table. Under the service worker's
 // CacheFirst route on /data/*.db, a stale cached occurrences.db can be
 // loaded by newer JS during a data-update skew window — querying the bridge then
 // throws "no such table". Probe once per session (the worker loads the DB once into
@@ -401,7 +401,7 @@ export function buildFilterSQL(
   const occurrenceClauses: string[] = [];
 
   // Taxon filter — descendant subquery against taxa.lineage_path (MFILT-01)
-  // taxonId is a TypeScript number; interpolated as a bare integer — no string escaping needed (T-130-01)
+  // taxonId is a TypeScript number; interpolated as a bare integer — no string escaping needed
   // The clause matches the taxon itself (o.taxon_id = N) plus all descendants (instr materialized-path).
   // Outer taxon_id is qualified `o.` (occurrences); the inner subquery's taxon_id is scoped to taxa.
   if (f.taxonId !== null) {
@@ -439,7 +439,7 @@ export function buildFilterSQL(
     occurrenceClauses.push(`ecoregion_l3 IN (${ecors})`);
   }
 
-  // Place filter — singular value (D-08); multi-place is deferred PRICH-02.
+  // Place filter — singular value; multi-place is deferred PRICH-02.
   // Phase 160 (SC-4/D-02): place_slug is no longer a scalar occurrences column;
   // membership lives in the occurrence_places bridge. Resolve by an EXISTS test
   // against (occ_id, place_slug) so a point inside overlapping places X∩Y is
@@ -502,7 +502,7 @@ export function buildFilterSQL(
     occurrenceClauses.push(`${ELEV} <= ${f.elevMax}`);
   }
 
-  // Spatial bounds filter — bounding box from shift-drag or near-me gesture (D-01, phase 999.8)
+  // Spatial bounds filter — bounding box from shift-drag or near-me gesture (phase 999.8)
   // Values are numeric floats validated upstream in url-state.ts parseParams (range-checked)
   // and produced as numbers by the bounds gesture — no string concatenation of unvalidated input.
   if (f.bounds !== null) {
@@ -532,7 +532,7 @@ export function buildFilterSQL(
   }
 
   // Tier filter (Phase 170, PROV-02) — restrict to user-visible tiers; empty visible set =
-  // honest zero (D-05, phase 164 pattern carried to the tier facet).
+  // honest zero (phase 164 pattern carried to the tier facet).
   // Security (T-170B-01/T-164-SQL): values come from the hardcoded VALID_TIERS local array, NOT
   // from user input. The visible complement is computed from the allowlist, so every interpolated
   // token is a compile-time-known literal. o.-alias invariant: qualify as o.tier.
@@ -540,7 +540,7 @@ export function buildFilterSQL(
     const VALID_TIERS: TierKey[] = ['atlas', 'other'];
     const visibleTiers = VALID_TIERS.filter(t => !f.hiddenTiers.has(t));
     if (visibleTiers.length === 0) {
-      // All tiers hidden — force a false clause (no rows can match, D-05).
+      // All tiers hidden — force a false clause (no rows can match).
       occurrenceClauses.push('1 = 0');
     } else {
       const list = visibleTiers.map(t => `'${t}'`).join(',');
@@ -554,7 +554,7 @@ export function buildFilterSQL(
 
 // --- Taxa pane (beeatlas-0of.1) --------------------------------------------
 
-// record_type → evidence bucket (D-01). The five spellings are fixed by the mart
+// record_type → evidence bucket. The five spellings are fixed by the mart
 // contract (170-01) and asserted by an accepted_values dbt test, so this mapping is
 // total: every row lands in exactly one bucket.
 const SPECIMEN_TYPES = "'specimen','waba_specimen'";
@@ -669,7 +669,7 @@ export async function queryVisibleGeoJSON(
   ids: Set<string>;
   rowCount: number;
 } | null> {
-  // Bounds is now part of FilterState.bounds (D-01, phase 999.8) — isFilterActive(f) returns
+  // Bounds is now part of FilterState.bounds (phase 999.8) — isFilterActive(f) returns
   // true when bounds is set, so a bounds-only filter correctly runs the map query.
   if (!isFilterActive(f)) return null;
   const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false, await demElevationAvailable());
@@ -755,7 +755,7 @@ export async function queryListPage(
   selectedChecklistIds: number[] = []
 ): Promise<{ rows: OccurrenceRow[]; total: number }> {
   const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false, await demElevationAvailable());
-  // occurrenceWhere already includes the bounds clause when f.bounds is set (D-01, phase 999.8).
+  // occurrenceWhere already includes the bounds clause when f.bounds is set (phase 999.8).
 
   // Selection constraint: IDs (from cluster click) filter rows by identity
   const selParts: string[] = [];
@@ -818,14 +818,14 @@ export async function queryOccurrencesByBounds(
   return rows;
 }
 
-// D-04: resolve the set of place slugs a single occurrence belongs to, keyed on
+// resolve the set of place slugs a single occurrence belongs to, keyed on
 // the synthetic occ_id (ecdysis:N / inat:N / inat_obs:N / checklist:N). Returns
 // a sorted, de-duplicated slug array (determinism — Pitfall 4). Membership lives
 // in the occurrence_places bridge table (shipped inside occurrences.db by 160-02).
 // occ_id is machine-derived, but the single-quote escaping is retained for
 // defense-in-depth (the exec path interpolates rather than binds).
 export async function getOccurrencePlaceSlugs(occId: string): Promise<string[]> {
-  // Phase 160 robustness: degrade to "no memberships" when the bridge table is
+  // Degrade to "no memberships" when the bridge table is
   // absent (stale cached DB under the SW) instead of throwing an uncaught
   // "no such table: occurrence_places". See occurrencePlacesAvailable().
   if (!(await occurrencePlacesAvailable())) return [];

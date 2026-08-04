@@ -2,14 +2,14 @@
 
 This is BeeAtlas's first authoritative (non-reproducible) store — data here has
 no upstream from which it can be rebuilt. Schema evolves forward-only via Alembic;
-no downgrade path exists (D-03). Schema shaped for moderation and attribution from
-day one so Phase 180 is not a retrofit (D-05, D-08).
+no downgrade path exists. Schema shaped for moderation and attribution from
+day one so Phase 180 is not a retrofit.
 
 Tables:
-  notes          — expert species natural-history notes; multiple per canonical_name (D-06)
-  note_revisions — append-only audit ledger for edits and soft-deletes (D-05)
+  notes          — expert species natural-history notes; multiple per canonical_name
+  note_revisions — append-only audit ledger for edits and soft-deletes
   users          — BeeAtlas-internal identity; internal id is the durable authorship
-                   key, iNat login/numeric id are mutable properties (D-07/D-08)
+                   key, iNat login/numeric id are mutable properties
 
 D-07: No ``roles`` table — roles live in a committed allowlist TOML (plan 177-05).
 
@@ -36,7 +36,7 @@ class Note(Base):
     There is NO unique constraint on ``canonical_name``; only an index for fast lookup.
 
     ``status`` values: 'approved' (default), 'pending', 'removed' (author
-    soft-delete, D-08), 'hidden' (curator takedown, Phase 180/D-06).
+    soft-delete), 'hidden' (curator takedown, Phase 180/D-06).
     """
 
     __tablename__ = "notes"
@@ -76,12 +76,12 @@ class NoteRevision(Base):
 class User(Base):
     """BeeAtlas-internal identity record.
 
-    ``id`` is BeeAtlas's own durable authorship key (D-07) — ``notes.author_id``
-    references it via an integer FK, wired in migration 0003 (Phase 179).
+    ``id`` is BeeAtlas's own durable authorship key — ``notes.author_id``
+    references it via an integer FK, wired in migration 0003.
     The iNat login and iNat numeric id are stored as *mutable properties* of the
     user, not as the key: a renamed iNat login does not orphan prior authorship.
 
-    ``inat_login`` is unique (D-09) — the committed allowlist authorizes by iNat
+    ``inat_login`` is unique — the committed allowlist authorizes by iNat
     login (human-readable, matches the existing ``collector_inat_login`` /
     ``host_inat_login`` convention) before the internal id exists at first login.
     ``inat_user_id`` (the iNat numeric id) is also captured for robustness.

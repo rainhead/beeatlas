@@ -48,13 +48,13 @@ def _query_counts(
 ) -> dict[str, dict[str, int]]:
     """Return per-slug specimen_count and sample_count via the occurrence_places bridge.
 
-    Phase 160 (D-02/D-05): place_slug is no longer a scalar column on the
+    Phase 160: place_slug is no longer a scalar column on the
     occurrences mart. Membership lives in the occurrence_places bridge keyed by
     the synthetic occ_id. We rebuild the Option-B occ_id over occurrences.parquet
     (the same CASE priority as occIdFromRow in src/occurrence.ts:23-30 — positionally
     coupled), JOIN the bridge on occ_id, and GROUP BY place_slug. Because an
     occurrence in A∩B has two bridge rows, it is counted under BOTH place_slugs —
-    the intended double-count (D-05); per-place totals may exceed the global count.
+    the intended double-count; per-place totals may exceed the global count.
 
     Both parquets are read from ASSETS_DIR (the copies made by _run_dbt_build),
     NOT from DBT_SANDBOX_DIR (Pitfall 5 — reading from sandbox risks stale data).

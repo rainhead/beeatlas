@@ -435,7 +435,7 @@ def test_takedown_launch_gate_off_is_503(client, monkeypatch, tmp_path, tmp_engi
 
 
 def test_takedown_appends_ledger(client, monkeypatch, tmp_path, tmp_engine):
-    """Reason supplied -> stored verbatim; reason omitted -> NULL, never '' (D-09)."""
+    """Reason supplied -> stored verbatim; reason omitted -> NULL, never ''."""
     owner_uid = _make_user(tmp_engine, login="owner")
     note_with_reason = _make_note(tmp_engine, author_id=owner_uid, body_md="reasoned")
     note_without_reason = _make_note(tmp_engine, author_id=owner_uid, body_md="unreasoned")
@@ -471,7 +471,7 @@ def test_takedown_appends_ledger(client, monkeypatch, tmp_path, tmp_engine):
 
 def test_takedown_removed_note_is_409(client, monkeypatch, tmp_path, tmp_engine):
     """CR-01: takedown must not reclassify an author-deleted note ('removed'),
-    which would collapse the author-delete vs curator-takedown distinction (D-06)."""
+    which would collapse the author-delete vs curator-takedown distinction."""
     owner_uid = _make_user(tmp_engine, login="owner")
     note_id = _make_note(tmp_engine, author_id=owner_uid, status="removed")
 

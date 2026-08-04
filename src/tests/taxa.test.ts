@@ -4,7 +4,7 @@ import type { TaxonOption } from '../filter.ts';
 
 // ---- D-03 label builder tests ----
 
-describe('buildTaxonLabel (D-03)', () => {
+describe('buildTaxonLabel', () => {
   test('family rank: returns plain name', () => {
     expect(buildTaxonLabel('Apidae', 'family')).toBe('Apidae');
   });

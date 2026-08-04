@@ -176,7 +176,7 @@ describe('PANE-05: list state filter controls + occurrence detail', () => {
     const listContentBody = src.match(/_renderListContent\s*\([^)]*\)[^{]*\{[\s\S]*?\n\s{0,4}\}/);
     expect(listContentBody).not.toBeNull();
     const body = listContentBody![0];
-    // Plan 03: occurrences prop replaced by listRows
+    // occurrences prop replaced by listRows
     expect(body).toMatch(/<bee-occurrence-detail[\s\S]*?\.occurrences=\$\{this\.listRows\}/);
     // Guard: shows hint when listRows is empty
     const hasGuard = /listRows\.length\s*===\s*0/.test(body) || /listRows\s*\?/.test(body);
@@ -233,7 +233,7 @@ describe('PANE-05: list state filter controls + occurrence detail', () => {
     expect(src).not.toMatch(/List content \(Plan 02 fills in/);
   });
 
-  test('bee-pane.ts passes filterState to bee-occurrence-detail (Phase 159)', () => {
+  test('bee-pane.ts passes filterState to bee-occurrence-detail', () => {
     expect(src).toMatch(/\.filterState=\$\{this\.filterState\}[\s\S]*?bee-occurrence-detail|bee-occurrence-detail[\s\S]*?\.filterState=\$\{this\.filterState\}/s);
   });
 });
@@ -266,7 +266,7 @@ describe('PANE-V2: bee-pane v2 collapsed button and selection banner', () => {
 });
 
 describe('PROV-02: tier toggles in filter panel (Phase 170 — 5 sources collapsed to 2 tiers)', () => {
-  // Phase 170 (D-01/D-08): the 5 source checkboxes collapse into 2 social-tier toggles
+  // the 5 source checkboxes collapse into 2 social-tier toggles
   // ("Atlas work" / "Other records"), routed through _onTierToggle/hiddenTiers.
   test('bee-pane.ts renders "Atlas work" tier toggle label', () => {
     expect(src).toMatch(/Atlas work/);

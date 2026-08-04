@@ -14,11 +14,11 @@ function _recencyTier(year: number): OccurrenceProperties['recencyTier'] {
 // Column layout: [lat, lon, ecdysis_id, observation_id, specimen_observation_id,
 //                 year, tier, checklist_id]
 // Phase 131 NORM-02: dropped scientificName/genus/family; source moved from index 9 → 6.
-// Phase 137: checklist_id appended at index 7; sqlite_export.py _GEO_COLS updated in the same commit (positional coupling).
+// checklist_id appended at index 7; sqlite_export.py _GEO_COLS updated in the same commit (positional coupling).
 // Phase 170 (PROV-01/02): index 6 is now `tier` (atlas/other), not `source` — sqlite_export.py
 // _GEO_COLS swapped `source`→`tier` at index 6 in the data leg (170-01); this decode ships in
 // lockstep (S3-then-deploy). Only `tier` rides the geo_blob; the detail card reads `record_type`
-// from the full wa-sqlite row query, not from map feature properties (page-weight budget, D-08).
+// from the full wa-sqlite row query, not from map feature properties (page-weight budget).
 export function _buildGeoJSONFromRaw(rows: unknown[][]): {
   geojson: FeatureCollection<Point, OccurrenceProperties>;
 } {

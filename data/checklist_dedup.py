@@ -48,7 +48,7 @@ def _csv_safe(value: object) -> object:
 
 
 def _normalize_collector(name: str | None) -> frozenset[str]:
-    """Normalize a collector string to a frozenset of lowercased tokens (D-05).
+    """Normalize a collector string to a frozenset of lowercased tokens.
 
     Rules:
     - None / empty string → empty frozenset (NULL collector rows are not collapsed
@@ -69,7 +69,7 @@ def _normalize_collector(name: str | None) -> frozenset[str]:
 
 
 def _collectors_match(a: str | None, b: str | None) -> bool:
-    """Return True if collector strings a and b are a plausible match (D-05).
+    """Return True if collector strings a and b are a plausible match.
 
     Algorithm (exact token-set + initials awareness, NO fuzzy scoring per D-05):
     1. If either argument is None → False (D-08: NULL ineligible).
@@ -86,7 +86,7 @@ def _collectors_match(a: str | None, b: str | None) -> bool:
       _collectors_match('Smith, J.', 'J. Smith') → True  (token-set equality after
                                                            punctuation strip)
       _collectors_match('A Jones', 'B Jones')   → False (a ≠ initial of b…)
-      _collectors_match(None, 'John Smith')     → False (D-08)
+      _collectors_match(None, 'John Smith')     → False
     """
     if a is None or b is None:
         return False

@@ -297,7 +297,7 @@ describe('isFilterActive — elevation', () => {
   });
 });
 
-describe('isFilterActive — bounds (D-01)', () => {
+describe('isFilterActive — bounds', () => {
   test('bounds set: returns true', () => {
     expect(isFilterActive({ ...emptyFilter(), bounds: { west: -122, south: 47, east: -121, north: 48 } })).toBe(true);
   });
@@ -409,7 +409,7 @@ describe('OCCURRENCE_COLUMNS', () => {
   });
 });
 
-describe('buildFilterSQL — bounds (D-01)', () => {
+describe('buildFilterSQL — bounds', () => {
   test('bounds set: occurrenceWhere contains lat BETWEEN and lon BETWEEN', () => {
     const f = { ...emptyFilter(), bounds: { west: -122, south: 47, east: -121, north: 48 } };
     const { occurrenceWhere } = buildFilterSQL(f);
@@ -432,7 +432,7 @@ describe('buildFilterSQL — bounds (D-01)', () => {
   });
 });
 
-describe('isFilterActive — hiddenTiers (Phase 170)', () => {
+describe('isFilterActive — hiddenTiers', () => {
   test('one tier hidden: returns true', () => {
     expect(isFilterActive({ ...emptyFilter(), hiddenTiers: new Set(['other'] as const) })).toBe(true);
   });
@@ -441,7 +441,7 @@ describe('isFilterActive — hiddenTiers (Phase 170)', () => {
   });
 });
 
-describe('buildFilterSQL — tier filter (Phase 170 PROV-02, D-08)', () => {
+describe('buildFilterSQL — tier filter (Phase 170 PROV-02)', () => {
   test("hiddenTiers={other}: occurrenceWhere contains o.tier IN ('atlas')", () => {
     const f = { ...emptyFilter(), hiddenTiers: new Set(['other'] as const) };
     const { occurrenceWhere } = buildFilterSQL(f);

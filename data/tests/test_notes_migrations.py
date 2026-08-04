@@ -9,7 +9,7 @@ Tests:
   test_no_downgrade           — downgrade() on 0001 raises NotImplementedError (Pitfall 4)
   test_run_py_never_migrates  — run.py text contains no notes_store/alembic/notes.db
                                  references and no STEPS entry name contains 'migrat'
-                                 (D-03, STORE-02). The single sanctioned exception is
+                                 (STORE-02). The single sanctioned exception is
                                  the exact "notes-harvest" step name (Phase 179 D-09):
                                  a READ-ONLY build-time harvest that opens the store
                                  via notes_store.db.make_engine (WAL) and never writes
@@ -18,10 +18,10 @@ Tests:
                                  or "notes-migrate") is still banned.
   test_migration_0003_backfills_body_html — 0003 backfills body_html for pre-existing
                                  rows through render_note_markdown and recasts
-                                 author_id to an int FK -> users.id (D-05/D-08)
+                                 author_id to an int FK -> users.id
   test_no_downgrade_0003      — downgrade() on 0003 raises NotImplementedError
   test_migration_0004_adds_reason_nullable — 0004 adds a nullable reason column
-                                 to note_revisions (D-09)
+                                 to note_revisions
   test_no_downgrade_0004      — downgrade() on 0004 raises NotImplementedError
 """
 
@@ -157,7 +157,7 @@ def test_pipeline_never_migrates():
            backup_notes.py  — WAL-safe read-only snapshot to the backup bucket
          Every other top-level module must contain none of the banned strings.
       2. The sanctioned modules must never reference alembic — reading the store
-         is their job; MIGRATING it is forever the operator's (D-03, STORE-02).
+         is their job; MIGRATING it is forever the operator's (STORE-02).
 
     (Which of these modules actually runs, and in what order, is the Stelis
     graph's contract — cross-repo verification is st-whm.)
@@ -177,14 +177,14 @@ def test_pipeline_never_migrates():
         if mod.name in sanctioned:
             assert "alembic" not in text, (
                 f"{mod.name} references alembic — pipeline modules read the "
-                "authoritative notes store, they never migrate it (D-03, STORE-02)."
+                "authoritative notes store, they never migrate it (STORE-02)."
             )
             continue
         for term in banned:
             assert term not in text, (
                 f"{mod.name} contains {term!r} — only {sorted(sanctioned)} may "
                 "touch the authoritative notes store, read-only "
-                "(D-03, STORE-02)."
+                "(STORE-02)."
             )
 
 

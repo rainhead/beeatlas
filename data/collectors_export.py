@@ -49,7 +49,7 @@ _QUERY = """
         -- Use the MOST RECENT recordedBy (arg_max by year), not MIN: a person's recorded
         -- name can change over time (marriage, spelling) — show their latest. The FILTER
         -- skips NULL-recordedBy rows (e.g. waba_sample) so a single nameless row can't win
-        -- and mask the real name (CR-01); COALESCE the aggregate, not per-row.
+        -- and mask the real name; COALESCE the aggregate, not per-row.
         COALESCE(
             arg_max(o.recordedBy, o.year) FILTER (WHERE o.recordedBy IS NOT NULL),
             '@' || MIN(o.collector_inat_login)
@@ -73,7 +73,7 @@ _QUERY = """
         SUM(CASE WHEN (o.ecdysis_id IS NOT NULL OR o.record_type = 'waba_specimen')
                  THEN 1 ELSE 0 END)                                    AS status_denominator,
         -- D-06: "identified" = species-rank determination (specific_epithet IS NOT NULL)
-        --       NOT keyed on id_date (D-07)
+        --       NOT keyed on id_date
         SUM(CASE WHEN (o.ecdysis_id IS NOT NULL OR o.record_type = 'waba_specimen')
                       AND sp.specific_epithet IS NOT NULL
                  THEN 1 ELSE 0 END)                                    AS status_identified,
@@ -243,7 +243,7 @@ def export_collectors(con: duckdb.DuckDBPyConnection | None = None) -> None:
         # Run _SPECIES_QUERY with the same parquet parameters, then group:
         #   login → genus → list of {name (cased scientificName), slug, count}
         # SQL ORDER BY login, genus, scientificName ensures insertion order is correct;
-        # sorted() on genus_dict makes genera alphabetical (D-04).
+        # sorted() on genus_dict makes genera alphabetical.
         # count = the collector's atlas records of that species; rendered "N specimens".
         species_rows = con.execute(
             _SPECIES_QUERY,

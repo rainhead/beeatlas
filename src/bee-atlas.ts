@@ -87,7 +87,7 @@ function isStandalone(): boolean {
 //     where iPad lies and says it's macOS — RESEARCH §iOS Detection, Pitfall 5).
 //  2. UA contains 'Safari' (excludes non-WebKit browsers in theory, but real gate is step 3).
 //  3. UA does NOT contain CriOS|FxiOS|EdgiOS|GSA|FBAN|FBAV|Instagram|Line (browser-in-app
-//     exclusions — share-sheet not available in those contexts, D-12).
+//     exclusions — share-sheet not available in those contexts).
 //
 // NOTE: Do NOT parse iOS version numbers — navigator.userAgent is frozen at iOS 26+ for WKWebView.
 //
@@ -131,7 +131,7 @@ function locationDeniedMessage(): string {
 }
 
 // ---------------------------------------------------------------------------
-// D-02: near-me ±10 km bounding box helper
+// near-me ±10 km bounding box helper
 // ---------------------------------------------------------------------------
 // Pure function — no class dependency. Exported so tests can call it directly.
 // Returns null when any edge is non-finite (polar cos→0, NaN inputs — T-153-07).
@@ -182,7 +182,7 @@ export class BeeAtlas extends LitElement {
   @state() private _listRowCount = 0;
   @state() private _listPage = 1;
   @state() private _listLoading = false;
-  // D-04: member-place names per displayed occurrence, keyed on occId. Resolved
+  // member-place names per displayed occurrence, keyed on occId. Resolved
   // HERE (the state owner) from the occurrence_places bridge (getOccurrencePlaceSlugs)
   // and the places_meta slug→name source, then passed DOWN through <bee-pane> to
   // <bee-occurrence-detail> as a property — presenters never query wa-sqlite
@@ -293,9 +293,9 @@ export class BeeAtlas extends LitElement {
   @state() private _basemapState: BasemapOfflineState | null = null;
   @state() private _basemapProgress: { received: number; total: number } | null = null;
   private _whoamiTimer: number | null = null;
-  // D-09/D-10: true when beforeinstallprompt was captured and app is not yet standalone.
+  // true when beforeinstallprompt was captured and app is not yet standalone.
   @state() private _installable: boolean = false;
-  // D-11/D-12: true on iOS Safari (not standalone); computed once at construction time.
+  // true on iOS Safari (not standalone); computed once at construction time.
   @state() private _iosInstructable: boolean = isIosSafari() && !isStandalone();
   // 178-07 gap fix: server-derived identity for the map-page <bee-header>, fetched by
   // this component (the state owner — bee-header stays a pure presenter). Mirrors the
@@ -316,14 +316,14 @@ export class BeeAtlas extends LitElement {
   // Non-reactive private fields
   // _taxonCache is NOT @state — only _taxaOptions (the sorted option array) drives re-renders.
   private _taxonCache: Map<number, TaxonCacheEntry> = new Map();
-  // D-10: MediaQueryList for display-mode: standalone, used to clear install state
+  // MediaQueryList for display-mode: standalone, used to clear install state
   // when the app transitions to standalone mode after mount.
   private _standaloneQuery = matchMedia('(display-mode: standalone)');
   private _isRestoringFromHistory = false;
-  // Session-coalescing (D-01/D-02): once the first settled viewport move of an
+  // Session-coalescing: once the first settled viewport move of an
   // exploration session fires a pushState, subsequent moves replaceState onto it.
-  // Resets to false on any non-viewport _replaceUrlState() call (D-03) and after
-  // a popstate navigation (D-07), so the next pan/zoom starts a fresh entry.
+  // Resets to false on any non-viewport _replaceUrlState() call and after
+  // a popstate navigation, so the next pan/zoom starts a fresh entry.
   private _viewportSessionActive = false;
   // D-07 / NEAR: true while a near-me geolocation request is in flight.
   // Set true by _onNearMeRequested; cleared in _onUserLocationChanged on both
@@ -353,7 +353,7 @@ export class BeeAtlas extends LitElement {
    * and the _replaceUrlState/_writeViewportHistory URL-write suppression read this getter.
    */
   get intendedFilterActive(): boolean {
-    // isFilterActive covers f.bounds !== null (Phase 999.8-03), so bounds-only state
+    // isFilterActive covers f.bounds !== null, so bounds-only state
     // correctly trips the hide-all gate (style-cache bypass — CLAUDE.md invariant).
     return isFilterActive(this._filterState) || this._filterResolving;
   }
@@ -391,7 +391,7 @@ bee-map {
   position: relative;
   z-index: 0;
 }
-/* Map toolbar (Phase 157): a top-right flex row holding the region control
+/* Map toolbar: a top-right flex row holding the region control
    (relocated from <bee-map>) and — when the pane is collapsed — the filter
    toggle button, separated by a 0.5rem gap. The toolbar paints above the pane:
    z-index 2 > <bee-pane>'s :host z-index 1 > <bee-map>'s z-index 0 (the
@@ -844,7 +844,7 @@ bee-map {
     }
 
     // Hide-all when intendedFilterActive is true is now carried structurally by passing
-    // .intendedFilterActive=${this.intendedFilterActive} to <bee-map> (Plan 144-02).
+    // .intendedFilterActive=${this.intendedFilterActive} to <bee-map>.
     // <bee-map> renders filteredGeoJSON ?? empty when intendedFilterActive=true, so no
     // empty-collection pre-seed is needed here. The flash is prevented by construction.
 
@@ -920,16 +920,16 @@ bee-map {
     this._refreshBasemapState();
     this.addEventListener('cache-popover-toggle', this._onPopoverToggle);
     this.addEventListener('cache-update-acted', this._onBannerTap);
-    // D-09/D-10: install affordance listeners
+    // install affordance listeners
     window.addEventListener('pwa-installable', this._onPwaInstallable);
     window.addEventListener('pwa-installed', this._onPwaInstalled);
     this.addEventListener('install-prompt', this._onInstallPrompt);
-    // D-10: clear install button if display-mode flips to standalone after mount
+    // clear install button if display-mode flips to standalone after mount
     this._standaloneQuery.addEventListener('change', this._onStandaloneChange);
     // Initial freshness fetch + refresh cadence (PATTERNS.md Pitfall 6)
     void this._refreshFreshness();
     window.addEventListener('focus', this._refreshFreshness);
-    // Phase 157: close the relocated region menu on outside click.
+    // close the relocated region menu on outside click.
     document.addEventListener('click', this._onDocumentClick);
     // beeatlas-1dc: seed the header from the last identity the server confirmed
     // on this device. Synchronous, network-free, and immediate — which is what
@@ -972,7 +972,7 @@ bee-map {
     window.removeEventListener('sw-update-available', this._onSwUpdateAvailable);
     this.removeEventListener('cache-popover-toggle', this._onPopoverToggle);
     this.removeEventListener('cache-update-acted', this._onBannerTap);
-    // D-09/D-10: install affordance cleanup
+    // install affordance cleanup
     window.removeEventListener('pwa-installable', this._onPwaInstallable);
     window.removeEventListener('pwa-installed', this._onPwaInstalled);
     this.removeEventListener('install-prompt', this._onInstallPrompt);
@@ -1543,13 +1543,13 @@ bee-map {
     this._listRowCount = guarded.result.total;
     this._selectionCount = guarded.result.selectionCount;
     this._listLoading = false;
-    // D-04: resolve member-place names for the freshly loaded rows. Fire-and-forget;
+    // resolve member-place names for the freshly loaded rows. Fire-and-forget;
     // the await chain assigns _placeNamesByOccId (a @state field) which re-renders
     // the detail pane once membership resolves.
     void this._resolvePlaceNames(this._listRows);
   }
 
-  // D-04: the slug→name map, for the member-place names that flow DOWN to
+  // the slug→name map, for the member-place names that flow DOWN to
   // <bee-occurrence-detail>. Shares the one places.json fetch with the option lists
   // (beeatlas-7nx.3) rather than issuing its own.
   private async _ensurePlaceNameBySlug(): Promise<Map<string, string>> {
@@ -1557,7 +1557,7 @@ bee-map {
     return this._placeNameBySlug;
   }
 
-  // D-04: for each displayed occurrence, query the occurrence_places bridge
+  // for each displayed occurrence, query the occurrence_places bridge
   // (getOccurrencePlaceSlugs — the wa-sqlite call lives HERE, not in a presenter)
   // and map slugs to display names, sorted/deduped for determinism.
   private async _resolvePlaceNames(rows: OccurrenceRow[]): Promise<void> {
@@ -1600,7 +1600,7 @@ bee-map {
     // the taxon cache loads and resolves it (Step 3c).
     if (this._filterResolving) return;
     // Every non-viewport state change (filter/selection/boundary/pane/source) ends the
-    // current exploration session (D-03) so the next viewport move starts a fresh entry.
+    // current exploration session so the next viewport move starts a fresh entry.
     this._viewportSessionActive = false;
     const params = this._buildCurrentParams();
     window.history.replaceState({}, '', '?' + params.toString());
@@ -1608,12 +1608,12 @@ bee-map {
 
   private _writeViewportHistory() {
     // Called only from _onViewMoved (settled moveend path). Implements session-coalescing
-    // (D-01/D-02): the first settled move of an exploration session pushes one history entry
+    //: the first settled move of an exploration session pushes one history entry
     // and marks the session active; subsequent moves in the same session replaceState onto
     // it (keeping the URL live without adding entries).
     // IMPORTANT: writes replaceState DIRECTLY (not via _replaceUrlState()) to avoid
     // resetting _viewportSessionActive on every live-URL update (D-03 exclusion).
-    if (this._filterResolving) return; // D-05: suppress during legacy-taxon resolution
+    if (this._filterResolving) return; // suppress during legacy-taxon resolution
     const url = '?' + this._buildCurrentParams().toString();
     if (!this._viewportSessionActive) {
       window.history.pushState({}, '', url);
@@ -1712,7 +1712,7 @@ bee-map {
     })();
   };
 
-  // --- Phase 151 install affordance handlers (D-09/D-10/D-11) ---
+  // --- Phase 151 install affordance handlers ---
 
   // pwa-installable: dispatched by install-prompt.ts after capturing beforeinstallprompt.
   // Only set _installable = true if not already standalone (D-10 gate).
@@ -1722,7 +1722,7 @@ bee-map {
   private _onPwaInstalled = () => { this._installable = false; };
 
   // install-prompt: upward CustomEvent from <bee-header> when Android Install button is clicked.
-  // Calls window.__pwaPrompt?() which triggers the native install dialog (D-09).
+  // Calls window.__pwaPrompt?() which triggers the native install dialog.
   private _onInstallPrompt = () => {
     void (window as Window & { __pwaPrompt?: () => Promise<void> }).__pwaPrompt?.();
   };
@@ -1841,8 +1841,8 @@ bee-map {
     if ('error' in e.detail) {
       this._locationError = true;
       this._locationErrorKind = e.detail.error.code === 1 ? 'denied' : 'unavailable';
-      this._userLocation = null; // clear stale position on revocation (T-152-04)
-      this._nearMePending = false; // D-08: denial clears pending flag; no bounds applied
+      this._userLocation = null; // clear stale position on revocation
+      this._nearMePending = false; // denial clears pending flag; no bounds applied
     } else {
       // Validate accuracy is a finite non-negative number before storing (RESEARCH V5)
       const { lat, lon, accuracy } = e.detail;
@@ -1855,7 +1855,7 @@ bee-map {
       this._userLocation = { lat, lon, accuracy };
       this._locationError = false;
       // NEAR-01 / D-02: if a near-me request is pending, compute the ±10 km box and
-      // apply it via the shared bounds-selection path (same as shift-drag, D-01).
+      // apply it via the shared bounds-selection path (same as shift-drag).
       if (this._nearMePending) {
         this._nearMePending = false;
         const box = boundsFromLocation({ lat, lon });
@@ -1879,8 +1879,8 @@ bee-map {
   };
 
   // NEAR-01 / D-07: handler for near-me-cleared from <bee-pane> ✕ button.
-  // The ONLY path that clears _filterState.bounds (D-07).
-  // D-04: does NOT touch _paneState. D-05: does NOT null record selection.
+  // The ONLY path that clears _filterState.bounds.
+  // does NOT touch _paneState. D-05: does NOT null record selection.
   private _onNearMeCleared = () => {
     this._nearMePending = false;
     this._filterState = { ...this._filterState, bounds: null };
@@ -1918,7 +1918,7 @@ bee-map {
 
   private _onPopState = () => {
     this._isRestoringFromHistory = true;
-    // D-07: reset session so the next user pan/zoom starts a new history entry.
+    // reset session so the next user pan/zoom starts a new history entry.
     this._viewportSessionActive = false;
     const parsed = parseParams(window.location.search);
     const lon = parsed.view?.lon ?? DEFAULT_LON;
@@ -1992,7 +1992,7 @@ bee-map {
 
     // Run filter query for restored state.
     // Clear stale filtered data before the query resolves; hide-all is now carried
-    // structurally by intendedFilterActive=true flowing to <bee-map> (Plan 144-02) —
+    // structurally by intendedFilterActive=true flowing to <bee-map> —
     // bee-map renders filteredGeoJSON ?? empty, so null here → empty render → no flash.
     if (isFilterActive(this._filterState)) {
       this._visibleIds = null;
@@ -2012,7 +2012,7 @@ bee-map {
     if (!this._isRestoringFromHistory) {
       this._writeViewportHistory();
     } else {
-      // Reset the flag after bee-map reports the view has settled (D-06)
+      // Reset the flag after bee-map reports the view has settled
       this._isRestoringFromHistory = false;
     }
   }
@@ -2232,16 +2232,16 @@ bee-map {
   private _openSidebarForFilter(_filterState: FilterState): void {
     this._selectedOccIds = null;
     this._selectedCluster = null;
-    // D-05: bounds is a filter; do NOT clear it when opening the sidebar for a filter change
+    // bounds is a filter; do NOT clear it when opening the sidebar for a filter change
     this._paneState = 'list';
     this._listPage = 1;
     this._runListQuery();
   }
 
   // Shared bounds-filter state transition — called by BOTH _onSelectionDrawn (shift-drag)
-  // and the near-me success path. Guarantees byte-identical _filterState.bounds (D-01).
-  // D-04: does NOT touch _paneState (bounds is "just another filter" — no pane force-open).
-  // D-05: does NOT null _selectedOccIds or _selectedCluster (bounds + record selection coexist).
+  // and the near-me success path. Guarantees byte-identical _filterState.bounds.
+  // does NOT touch _paneState (bounds is "just another filter" — no pane force-open).
+  // does NOT null _selectedOccIds or _selectedCluster (bounds + record selection coexist).
   private _applyBoundsFilter(bounds: { west: number; south: number; east: number; north: number }): void {
     this._filterState = { ...this._filterState, bounds };
     this._listPage = 1;
@@ -2375,7 +2375,7 @@ bee-map {
       elevMin: detail.elevMin ?? null,
       elevMax: detail.elevMax ?? null,
       selectedPlace: detail.selectedPlace ?? null,
-      // D-05: FilterChangedEvent carries no bounds — preserve active bounds explicitly
+      // FilterChangedEvent carries no bounds — preserve active bounds explicitly
       bounds: this._filterState.bounds,
       // FilterChangedEvent carries no hiddenTiers — preserve active tier filter explicitly (Pitfall 1)
       hiddenTiers: this._filterState.hiddenTiers,
@@ -2433,7 +2433,7 @@ bee-map {
   private _onClearSelection() {
     this._selectedOccIds = null;
     this._selectedCluster = null;
-    // D-05: clearing per-record selection leaves bounds filter active
+    // clearing per-record selection leaves bounds filter active
     this._selectionCount = null;
     this._listPage = 1;
     this._runListQuery();
@@ -2484,7 +2484,7 @@ bee-map {
   private _onPaneCollapse() {
     this._selectedOccIds = null;
     this._selectedCluster = null;
-    // D-07: pane collapse does NOT clear bounds filter (only near-me-cleared does)
+    // pane collapse does NOT clear bounds filter (only near-me-cleared does)
     this._paneState = 'collapsed';
     this._replaceUrlState();
   }

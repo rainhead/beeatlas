@@ -122,7 +122,7 @@ describe('_pages/species.njk (Phase 133 — tree index, TREE-01/02/04)', () => {
     expect(src).not.toContain('aria-label="Filter genera and species"');
   });
 
-  test('does not contain <bee-species-page> or <bee-species-card> (URL-05)', () => {
+  test('does not contain <bee-species-page> or <bee-species-card>', () => {
     const src = readFileSync(resolve(ROOT, '_pages/species.njk'), 'utf-8');
     expect(src).not.toContain('bee-species-page');
     expect(src).not.toContain('bee-species-card');
@@ -178,7 +178,7 @@ describe('src/species-tree.ts (security invariants — source guards)', () => {
   const src = readFileSync(resolve(ROOT, 'src/species-tree.ts'), 'utf-8');
   // The rank model (and with it the localStorage read) moved to rank-toggle.ts so
   // the map app could share it without dragging this module into the SPA's chunk
-  // graph (IDX-02). The INVARIANT is unchanged and still guarded — it just lives
+  // graph. The INVARIANT is unchanged and still guarded — it just lives
   // where the code now does; both files are checked so neither can reintroduce a
   // permissive read.
   const rankSrc = readFileSync(resolve(ROOT, 'src/rank-toggle.ts'), 'utf-8');
@@ -255,7 +255,7 @@ function buildTree(): HTMLElement {
 const byName = (root: ParentNode, name: string) =>
   root.querySelector<HTMLElement>(`[data-name="${name}"]`)!;
 
-describe('species-tree — rank toggle (D-03, CR-01)', () => {
+describe('species-tree — rank toggle', () => {
   let root: HTMLElement;
   beforeEach(() => {
     root = buildTree();
@@ -289,7 +289,7 @@ describe('species-tree — rank toggle (D-03, CR-01)', () => {
   });
 });
 
-describe('species-tree — filter + auto-expand (D-09 / TREE-03, CR-02)', () => {
+describe('species-tree — filter + auto-expand (D-09 / TREE-03)', () => {
   let root: HTMLElement;
   beforeEach(() => {
     root = buildTree();
@@ -365,7 +365,7 @@ describe('species-tree — empty state + toggle-respecting filter (D-09 lean)', 
   });
 });
 
-describe('species-tree — localStorage persistence (D-04, T-133-08/09)', () => {
+describe('species-tree — localStorage persistence (T-133-08/09)', () => {
   function fakeStorage(initial: Record<string, string> = {}): Storage {
     const map = new Map(Object.entries(initial));
     return {
@@ -407,7 +407,7 @@ describe('species-tree — localStorage persistence (D-04, T-133-08/09)', () => 
   });
 });
 
-describe('species-tree — initSpeciesTree wiring + XSS guard (T-133-07)', () => {
+describe('species-tree — initSpeciesTree wiring + XSS guard', () => {
   beforeEach(() => {
     localStorage.clear();
   });

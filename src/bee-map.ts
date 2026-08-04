@@ -222,7 +222,7 @@ export class BeeMap extends LitElement {
     { layerId: 'unclustered-point', handle: f => void this._handlePointClick(f) },
     { layerId: 'county-fill',       handle: (f, e) => this._handleRegionClick(f, 'NAME', e) },
     { layerId: 'ecoregion-fill',    handle: (f, e) => this._handleRegionClick(f, 'NA_L3NAME', e) },
-    // D-03: emits 'place-selected' with { slug }.
+    // emits 'place-selected' with { slug }.
     { layerId: 'place-fill',        handle: f => this._handlePlaceClick(f) },
   ];
 
@@ -495,7 +495,7 @@ export class BeeMap extends LitElement {
    * Load occurrence data (boots the SQLite worker, builds the GeoJSON) and emit
    * `data-loaded` so <bee-atlas> clears the loading curtain and renders the table.
    * Deliberately NOT gated on the map's 'load' event — nor on the basemap
-   * manifest. The cached data must render even when no basemap can (Phase 151),
+   * manifest. The cached data must render even when no basemap can,
    * and this is kicked off before anything is awaited so the two never queue.
    */
   private async _loadOccurrenceData(): Promise<void> {
@@ -622,7 +622,7 @@ export class BeeMap extends LitElement {
       this._emit('user-location-changed', { error: { code: e.code, message: e.message } });
     });
 
-    // D-03: auto-trigger only if geolocation permission is already granted.
+    // auto-trigger only if geolocation permission is already granted.
     // Deferred into a resolved .then() because the control's `_setup` flag is set
     // asynchronously, in the continuation of its own checkGeolocationSupport()
     // permissions query; a synchronous trigger() finds _setup===false and no-ops.
@@ -1082,7 +1082,7 @@ export class BeeMap extends LitElement {
         }
       }
     } else if (this.boundaryMode === 'places') {
-      // D-05: highlight matching polygon when mode=places and filter active
+      // highlight matching polygon when mode=places and filter active
       for (const [id, slug] of this._placeIdMap.entries()) {
         if (this.filterState.selectedPlace === slug) {
           this._map.setFeatureState({ source: 'places', id }, { selected: true });

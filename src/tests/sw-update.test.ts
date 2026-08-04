@@ -1,5 +1,5 @@
 // sw-update.test.ts — Wave 0 unit coverage for the workbox-window migration in
-// src/sw-registration.ts (Plan 150-02, D-13).
+// src/sw-registration.ts.
 //
 // Pattern S5 (mocked-globals dynamic-import harness) — modelled on cache-probe.test.ts.
 // Each test must:
@@ -57,7 +57,7 @@ vi.mock('workbox-window', () => {
 
 // ---------------------------------------------------------------------------
 
-describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => {
+describe('sw-registration.ts — workbox-window migration', () => {
   // Helper: flush pending microtasks so the async registerServiceWorker chain completes
   const flushMicrotasks = () => new Promise<void>(r => setTimeout(r, 0));
 

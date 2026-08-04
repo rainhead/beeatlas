@@ -6,7 +6,7 @@ Covers:
   - both geography dimensions, keyed by taxon_id as strings
   - NULL county / NULL taxon_id rows are dropped, not crashed on
   - taxa are not split across synonym spellings (grouping is by id, not name)
-  - the payload carries no elevation dimension (D-02)
+  - the payload carries no elevation dimension
 """
 
 import json

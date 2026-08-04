@@ -49,7 +49,7 @@ function findSpeciesChunks(dir) {
 export function validateBundleSize(assetsDir = ASSETS_DIR) {
   const chunks = findSpeciesChunks(assetsDir);
   if (chunks.length === 0) {
-    // D-05: catch Vite output-naming drift.
+    // catch Vite output-naming drift.
     throw new Error(
       `No files matched _site/assets/${SPECIES_SUBDIR}/*${CHUNK_SUFFIX} or _site/assets/${SPECIES_SUBDIR}-*${CHUNK_SUFFIX} — Vite output naming may have drifted (PERF-01 / D-05)`
     );

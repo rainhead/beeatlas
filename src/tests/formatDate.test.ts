@@ -1,6 +1,6 @@
 // Phase 179 Plan 04 — Task 1: formatDate filter contract tests.
 // Shared by the Eleventy `formatDate` filter (eleventy.config.js) and the
-// bee-notes island (Phase 179-05), so this test file is the single source
+// bee-notes island, so this test file is the single source
 // of truth for the "Jul 4, 2026" format contract.
 
 import { describe, test, expect } from 'vitest';

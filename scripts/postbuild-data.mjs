@@ -23,7 +23,7 @@
  * generated_at: the data dir's `generated_at` stamp (epoch seconds, written by
  * scripts/fetch-data.sh on a full pipeline run) as ISO-8601; absent = the dev
  * sentinel "local", which the client's freshness label treats as unparseable
- * and hides (D-12). Deliberately NOT this build's clock — see the note at the
+ * and hides. Deliberately NOT this build's clock — see the note at the
  * assignment (beeatlas-923).
  *
  * A missing source artifact is a hard error: publishing a site whose manifest

@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
 
-describe('MAP-02: checklist county fill layer removed (Plan 138-03)', () => {
-  // County-fill layer and its plumbing removed; checklist now flows through hiddenTiers (Phase 170).
+describe('MAP-02: checklist county fill layer removed', () => {
+  // County-fill layer and its plumbing removed; checklist now flows through hiddenTiers.
   test('bee-map.ts does NOT declare showChecklist @property (retired)', () => {
     expect(src).not.toMatch(/showChecklist/);
   });
@@ -25,7 +25,7 @@ describe('MAP-02: checklist county fill layer removed (Plan 138-03)', () => {
   });
 });
 
-// SC-3/SC-4: occurrence source render decision as pure function of inputs (Plan 144-02)
+// SC-3/SC-4: occurrence source render decision as pure function of inputs
 describe('144-02: intendedFilterActive @property + render decision (SC-3, SC-4)', () => {
   // Structural: intendedFilterActive is an input @property, never assigned internally
   test('bee-map.ts declares intendedFilterActive as @property input', () => {
@@ -100,12 +100,12 @@ describe('144-02: intendedFilterActive @property + render decision (SC-3, SC-4)'
   });
 });
 
-describe('OFF-04: bee-map blank-basemap overlay (Plan 149-03)', () => {
-  test('bee-map.ts declares offline as @property input (OFF-04)', () => {
+describe('OFF-04: bee-map blank-basemap overlay', () => {
+  test('bee-map.ts declares offline as @property input', () => {
     expect(src).toMatch(/@property\(\{\s*attribute:\s*false\s*\}\)\s*offline\s*=\s*false/);
   });
 
-  test('bee-map.ts contains .offline-basemap-label CSS rule (OFF-04)', () => {
+  test('bee-map.ts contains .offline-basemap-label CSS rule', () => {
     expect(src).toMatch(/\.offline-basemap-label\s*\{/);
   });
 
@@ -127,17 +127,17 @@ describe('OFF-04: bee-map blank-basemap overlay (Plan 149-03)', () => {
     expect(src).not.toMatch(/Pan here while online/);
   });
 
-  test('bee-map.ts offline @property is input-only: no internal assignment to this.offline (OFF-04)', () => {
+  test('bee-map.ts offline @property is input-only: no internal assignment to this.offline', () => {
     // Disallow assignment to the instance property in method bodies
     expect(src).not.toMatch(/this\.offline\s*=/);
   });
 
-  test('bee-map.ts DOES NOT register online/offline event listeners (pure presenter invariant, OFF-04)', () => {
+  test('bee-map.ts DOES NOT register online/offline event listeners (pure presenter invariant)', () => {
     expect(src).not.toMatch(/addEventListener\s*\(\s*['"]online['"]/);
     expect(src).not.toMatch(/addEventListener\s*\(\s*['"]offline['"]/);
   });
 
-  test('bee-map.ts DOES NOT declare _offline @state (state owned by bee-atlas, OFF-04)', () => {
+  test('bee-map.ts DOES NOT declare _offline @state (state owned by bee-atlas)', () => {
     expect(src).not.toMatch(/@state[\s\S]{0,20}_offline/);
     expect(src).not.toMatch(/private\s+_offline/);
   });

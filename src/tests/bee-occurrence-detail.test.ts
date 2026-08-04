@@ -55,7 +55,7 @@ describe('formatRomanDate', () => {
     expect(formatRomanDate('2019')).toBe('2019');
   });
 
-  test('month-precision string (length 7) returns roman-month year format (D-08)', () => {
+  test('month-precision string (length 7) returns roman-month year format', () => {
     // '2019-06' — year + month precision; no day available
     // After Plan 04: returns 'VI 2019'
     expect(formatRomanDate('2019-06')).toBe('VI 2019');
@@ -78,13 +78,13 @@ describe('bee-occurrence-detail.ts source structure', () => {
     expect(src).toMatch(/composed:\s*true/);
   });
 
-  test('FilterChangedEvent detail carries the exact record taxon (D-05)', () => {
+  test('FilterChangedEvent detail carries the exact record taxon', () => {
     // The filter action (now a menu button) calls _onTaxonClick with the record's
     // resolved taxon id — verifies exact taxon, no roll-up.
     expect(src).toMatch(/\._onTaxonClick\(filterTaxon\.taxonId/);
   });
 
-  test('FilterChangedEvent detail preserves filterState dimensions (D-07)', () => {
+  test('FilterChangedEvent detail preserves filterState dimensions', () => {
     expect(src).toMatch(/yearFrom:\s*this\.filterState/);
     expect(src).toMatch(/selectedCounties:\s*this\.filterState/);
     expect(src).toMatch(/selectedCollectors:\s*this\.filterState/);
@@ -132,7 +132,7 @@ describe('bee-occurrence-detail D-04 member-place rendering', () => {
     expect(src).not.toMatch(/getOccurrencePlaceSlugs|getDB|sqlite3\.exec|tablesReady/);
   });
 
-  test('multi-place occurrence lists ALL member place names (D-04)', async () => {
+  test('multi-place occurrence lists ALL member place names', async () => {
     await import('../bee-occurrence-detail.ts');
     document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
     const el = document.querySelector('bee-occurrence-detail') as any;
@@ -145,7 +145,7 @@ describe('bee-occurrence-detail D-04 member-place rendering', () => {
     expect(names.length).toBe(2);
   });
 
-  test('occurrence in no place renders no member-place list (D-04)', async () => {
+  test('occurrence in no place renders no member-place list', async () => {
     await import('../bee-occurrence-detail.ts');
     document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
     const el = document.querySelector('bee-occurrence-detail') as any;
@@ -156,7 +156,7 @@ describe('bee-occurrence-detail D-04 member-place rendering', () => {
     expect(el.shadowRoot.querySelectorAll('.member-place').length).toBe(0);
   });
 
-  test('single-place occurrence lists exactly that one name (D-04)', async () => {
+  test('single-place occurrence lists exactly that one name', async () => {
     await import('../bee-occurrence-detail.ts');
     document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
     const el = document.querySelector('bee-occurrence-detail') as any;

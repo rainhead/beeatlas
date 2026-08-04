@@ -79,10 +79,10 @@ afterEach(() => {
 });
 
 // ---------------------------------------------------------------------------
-// <bee-header> cache surfaces (Phase 150)
+// <bee-header> cache surfaces
 // ---------------------------------------------------------------------------
 
-describe('bee-header cache surfaces (Phase 150)', () => {
+describe('bee-header cache surfaces', () => {
   let el: HTMLElement & {
     offline: boolean;
     cacheState: { ready: boolean; cached: string[]; missing: string[] } | null;
@@ -265,7 +265,7 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     expect(el.shadowRoot!.querySelector('.account-popover')!.textContent).toMatch(/Today/);
   });
 
-  test('no freshness row when freshnessLabel is null (D-11/D-12)', async () => {
+  test('no freshness row when freshnessLabel is null', async () => {
     (el as any).freshnessLabel = null;
     await (el as any).updateComplete;
     await openMenu();
@@ -373,7 +373,7 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     expect(popover!.textContent).not.toMatch(/available/);
   });
 
-  test('popover quota sub-line visible when quotaMB < 200 (D-18)', async () => {
+  test('popover quota sub-line visible when quotaMB < 200', async () => {
     (el as any).cacheState = { ready: true, cached: ['url1'], missing: [] };
     (el as any).storageEstimate = { usageMB: '23.4', quotaMB: '47' };
     await (el as any).updateComplete;
@@ -417,10 +417,10 @@ describe('bee-header cache surfaces (Phase 150)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// <bee-atlas> update banner + popover lazy storage estimate (Phase 150)
+// <bee-atlas> update banner + popover lazy storage estimate
 // ---------------------------------------------------------------------------
 
-describe('bee-atlas update banner + popover lazy storage estimate (Phase 150)', () => {
+describe('bee-atlas update banner + popover lazy storage estimate', () => {
   let el: HTMLElement & {
     updateComplete: Promise<boolean>;
     shadowRoot: ShadowRoot;
@@ -720,7 +720,7 @@ describe('bee-atlas update banner + popover lazy storage estimate (Phase 150)', 
     });
   });
 
-  test('navigator.storage.estimate undefined → _storageEstimate stays null (D-19)', async () => {
+  test('navigator.storage.estimate undefined → _storageEstimate stays null', async () => {
     Object.defineProperty(navigator, 'storage', {
       value: {},
       configurable: true,

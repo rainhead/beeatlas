@@ -22,7 +22,7 @@ const SKIP_BUILD = process.env.VITEST_SKIP_BUILD === '1';
 // then publishing a second build nothing looked at.
 const PREBUILT = process.env.BEEATLAS_SITE_PREBUILT === '1';
 
-describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
+describe.skipIf(SKIP_BUILD)('build output', () => {
   beforeAll(() => {
     if (PREBUILT) {
       // Verify the caller's claim before trusting it. Without this, an absent or
@@ -39,24 +39,24 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     execSync('npm run build', { cwd: ROOT, stdio: 'pipe' });
   }, 180_000);
 
-  test('emits _site/species/index.html as a tree with family nodes (IDX-01, URL-05)', () => {
+  test('emits _site/species/index.html as a tree with family nodes', () => {
     const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
     expect(html).toMatch(/class="tree-node tree-node--family"/);
     expect(html).toMatch(/data-rank="family"/);
     expect(html).not.toContain('<bee-species-page');
   });
 
-  test('index page has #species-filter input (IDX-02)', () => {
+  test('index page has #species-filter input', () => {
     const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
     expect(html).toMatch(/id="species-filter"/);
   });
 
-  test('index page has genus links to /species/{Genus}/index.html (IDX-03)', () => {
+  test('index page has genus links to /species/{Genus}/index.html', () => {
     const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
     expect(html).toMatch(/href="\/species\/Agapostemon\/index\.html"/);
   });
 
-  test('index page has species links to /species/{Genus}/{epithet}/index.html (IDX-04)', () => {
+  test('index page has species links to /species/{Genus}/{epithet}/index.html', () => {
     const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
     expect(html).toMatch(/href="\/species\/Agapostemon\/femoratus\/index\.html"/);
   });
@@ -89,11 +89,11 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     return undefined;
   }
 
-  test('emits a species-index chunk distinct from the main / SPA entry (Phase 96, IDX-02)', () => {
+  test('emits a species-index chunk distinct from the main / SPA entry', () => {
     const speciesChunk = findSpeciesChunk();
     expect(speciesChunk, 'no species-index chunk emitted under _site/assets/').toBeDefined();
     // The main `/` SPA entry chunk must be built and referenced by _site/index.html.
-    // Phase 147 added the /app MPA entry, which renamed the root entry chunk from
+    // added the /app MPA entry, which renamed the root entry chunk from
     // `index-*.js` to `bee-atlas-*.js` (per-page entries are now `species/index-*.js`,
     // `app/index-*.js`, and root → `bee-atlas-*.js`). Anchor on what index.html actually
     // references rather than a hard-coded chunk name, and confirm each chunk exists.
@@ -108,7 +108,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(entryRefs.includes(speciesFile ?? '__none__'), 'species chunk should be code-split, not a / entry chunk').toBe(false);
   });
 
-  test('species-index chunk does NOT contain mapboxgl symbol (Phase 96)', () => {
+  test('species-index chunk does NOT contain mapboxgl symbol', () => {
     const speciesChunk = findSpeciesChunk();
     expect(speciesChunk).toBeDefined();
     const src = readFileSync(speciesChunk!, 'utf-8');
@@ -419,18 +419,18 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(existsSync(resolve(ROOT, '_site/places/rattlesnake-ledge/index.html'))).toBe(false);
   });
 
-  // Phase 113 — checklist-only species page tests (SPEC-01, SPEC-03, SPEC-04, SPEC-05, D-06, D-08, D-14, D-15)
+  // Phase 113 — checklist-only species page tests (SPEC-01, SPEC-03, SPEC-04, SPEC-05, D-06, D-08, D-14)
 
   // Andrena/aculeata is the alphabetically-first confirmed checklist-only species
   // (occurrence_count === 0 && on_checklist === true in species.json from the pipeline).
   // Previously Agapostemon/texanus; replaced by Phase 123 synonymy (texanus → subtilior).
   const KNOWN_CHECKLIST_ONLY_SLUG = 'Andrena/aculeata';
 
-  test('emits page for a known checklist-only species with no atlas link (D-15, SPEC-01)', () => {
+  test('emits page for a known checklist-only species with no atlas link (SPEC-01)', () => {
     const html = readFileSync(resolve(ROOT, `_site/species/${KNOWN_CHECKLIST_ONLY_SLUG}/index.html`), 'utf-8');
-    expect(html).not.toMatch(/View \d+ occurrences on the atlas/);  // D-15: hidden for zero-occ species
-    expect(html).toContain('Bartholomew et al. 2024');              // D-08: attribution line shown
-    expect(html).toMatch(/src="\/data\/species-maps\//);            // D-06: SVG map shown
+    expect(html).not.toMatch(/View \d+ occurrences on the atlas/);  // hidden for zero-occ species
+    expect(html).toContain('Bartholomew et al. 2024');              // attribution line shown
+    expect(html).toMatch(/src="\/data\/species-maps\//);            // SVG map shown
   });
 
   // D-14's "checklist only" index badge was dropped in the Phase 133 tree
@@ -438,10 +438,10 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
   // Map link, with no checklist badge. The checklist-only signal survives on
   // the species detail page (covered by the D-15 test above).
 
-  // Phase 147 — app build output (ROUTE-01). The app moved from /app/ to / in
+  // Phase 147 — app build output. The app moved from /app/ to / in
   // ADR 0029; `/app/` is now a redirect stub in its deprecation window.
 
-  test('emits _site/index.html (ROUTE-01)', () => {
+  test('emits _site/index.html', () => {
     expect(existsSync(resolve(ROOT, '_site/index.html'))).toBe(true);
   });
 
@@ -458,7 +458,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
       '_site/app is back — the two-surface split must not reopen').toBe(false);
   });
 
-  test('_site/index.html references a hashed app entry chunk (ROUTE-01)', () => {
+  test('_site/index.html references a hashed app entry chunk', () => {
     const html = readFileSync(resolve(ROOT, '_site/index.html'), 'utf-8');
     // beeatlas-d3y: Eleventy now emits this tag itself from the Vite manifest (the
     // viteAssets shortcode), so the chunk is named after the ENTRY MODULE
@@ -478,11 +478,11 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     ).toBe(true);
   });
 
-  test('_site/sw.js exists at unhashed stable URL (D-04)', () => {
+  test('_site/sw.js exists at unhashed stable URL', () => {
     expect(existsSync(resolve(ROOT, '_site/sw.js'))).toBe(true);
   });
 
-  // Phase 148 — precache manifest verification (OFF-01)
+  // Phase 148 — precache manifest verification
 
   test('_site/sw.js contains an injected precache manifest (OFF-01, criterion 1)', () => {
     const sw = readFileSync(resolve(ROOT, '_site/sw.js'), 'utf-8');
@@ -505,7 +505,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
   });
 
   test('precache manifest includes the wa-sqlite .wasm engine binary (PWA-03 offline cold-start regression)', () => {
-    // Phase 151 real-device UAT: the SQL worker cannot initialize offline unless
+    // real-device UAT: the SQL worker cannot initialize offline unless
     // the wa-sqlite WebAssembly binary is precached. Without it, tablesReady never
     // resolves and the "Loading…" curtain hangs forever on offline cold-start.
     // The precache glob in vite.sw.config.ts must keep `wasm` in its extension list.
@@ -527,9 +527,9 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(value).toBeGreaterThanOrEqual(30_000_000);
   });
 
-  // Phase 149 — runtime cache assertions (OFF-02, OFF-03, CACHE-05)
+  // Phase 149 — runtime cache assertions
 
-  test('_site/sw.js registers a runtime CacheFirst route for /data/ (OFF-02)', () => {
+  test('_site/sw.js registers a runtime CacheFirst route for /data/', () => {
     const sw = readFileSync(resolve(ROOT, '_site/sw.js'), 'utf-8');
     // Rollup preserves string literals like cache names through minification
     expect(sw).toContain('data-artifacts');
@@ -539,7 +539,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(sw).toMatch(/\.geojson/);
   });
 
-  test('_site/sw.js calls skipWaiting only inside a message handler (D-16)', () => {
+  test('_site/sw.js calls skipWaiting only inside a message handler', () => {
     const sw = readFileSync(resolve(ROOT, '_site/sw.js'), 'utf-8');
     const skipMatches = [...sw.matchAll(/skipWaiting/g)];
     expect(skipMatches.length).toBeGreaterThan(0);
@@ -547,7 +547,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(sw).not.toContain('clients.claim');
   });
 
-  test('workbox-strategies, workbox-expiration, workbox-cacheable-response in package.json (OFF-02)', () => {
+  test('workbox-strategies, workbox-expiration, workbox-cacheable-response in package.json', () => {
     const pkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8'));
     const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
     expect(allDeps['workbox-strategies']).toBeDefined();
@@ -555,22 +555,22 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(allDeps['workbox-cacheable-response']).toBeDefined();
   });
 
-  test('_site/sw.js registers NetworkFirst route for /data/manifest.json (D-08)', () => {
+  test('_site/sw.js registers NetworkFirst route for /data/manifest.json', () => {
     const sw = readFileSync(resolve(ROOT, '_site/sw.js'), 'utf-8');
     expect(sw).toContain('data-manifest');
     expect(sw).toMatch(/manifest\.json/);
     expect(sw).toMatch(/NetworkFirst|networkTimeout/);
   });
 
-  test('workbox-window is a runtime dependency (D-13)', () => {
+  test('workbox-window is a runtime dependency', () => {
     const pkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8'));
     expect(pkg.dependencies['workbox-window']).toBeDefined();
     expect(pkg.devDependencies?.['workbox-window']).toBeUndefined();
   });
 
-  // Phase 151 — PWA manifest assertions (PWA-01, D-01..D-06, D-13)
+  // Phase 151 — PWA manifest assertions (PWA-01, D-01..D-06)
 
-  test('emits _site/manifest.webmanifest with required keys (PWA-01, D-13)', () => {
+  test('emits _site/manifest.webmanifest with required keys', () => {
     const manifestPath = resolve(ROOT, '_site/pwa/manifest.webmanifest');
     expect(existsSync(manifestPath), '_site/pwa/manifest.webmanifest missing').toBe(true);
     const m = JSON.parse(readFileSync(manifestPath, 'utf-8'));
@@ -591,7 +591,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
       m.icons.some((i: { purpose?: string }) => (i.purpose ?? '').includes('maskable')),
       'no maskable icon declared'
     ).toBe(true);
-    // Verify every icon file actually exists on disk (D-06/D-07)
+    // Verify every icon file actually exists on disk
     for (const icon of m.icons) {
       expect(
         existsSync(resolve(ROOT, '_site' + icon.src)),
@@ -600,7 +600,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     }
   });
 
-  test('_site/index.html links the manifest and apple-touch-icon (PWA-01, D-04)', () => {
+  test('_site/index.html links the manifest and apple-touch-icon', () => {
     const html = readFileSync(resolve(ROOT, '_site/index.html'), 'utf-8');
     expect(html).toMatch(/<link[^>]+rel="manifest"[^>]+href="\/pwa\/manifest\.webmanifest"/);
     expect(html).toMatch(/apple-mobile-web-app-capable/);
@@ -636,7 +636,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(registrars[0]).toMatch(/^app-entry-/);
   });
 
-  // Phase 154 pinned a Mapbox performance cache in the BUILT service worker: the
+  // pinned a Mapbox performance cache in the BUILT service worker: the
   // api.mapbox.com route, its mapbox-basemap cacheName, the /map-sessions/ billing
   // exclusion, and a maxAgeSeconds inside the 30-day ToS ceiling. Every one of those
   // was a licensing obligation under Mapbox's Product Terms §2.8.1 (docs/adr/0001).
@@ -665,7 +665,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(sw).toMatch(/caches\.delete\(`mapbox-basemap`\)/);
   });
 
-  test('154-01-04: the map keeps its attribution control, and both sources supply a notice (TILE-01, D-08)', () => {
+  test('154-01-04: the map keeps its attribution control, and both sources supply a notice', () => {
     // Read the source (not the build output) — attributionControl is a constructor
     // option, not a runtime string literal that survives bundling.
     //
@@ -689,7 +689,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(style).toMatch(/attribution:\s*entry\.attribution/);
   });
 
-  test('154-02-01: docs/adr/0001-mapbox-basemap-cache.md exists and contains ToS analysis (TILE-02)', () => {
+  test('154-02-01: docs/adr/0001-mapbox-basemap-cache.md exists and contains ToS analysis', () => {
     const adrPath = resolve(ROOT, 'docs/adr/0001-mapbox-basemap-cache.md');
     expect(existsSync(adrPath)).toBe(true);
     const adr = readFileSync(adrPath, 'utf-8');
@@ -699,9 +699,15 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(adr).toContain('StaleWhileRevalidate');
   });
 
-  test('154-02-02: CLAUDE.md Known State has pointer to mapbox-basemap cache and ADR (TILE-02)', () => {
-    const claude = readFileSync(resolve(ROOT, 'CLAUDE.md'), 'utf-8');
-    expect(claude).toContain('mapbox-basemap');
-    expect(claude).toContain('docs/adr/0001-mapbox-basemap-cache.md');
-  });
+  // A test requiring CLAUDE.md to name `mapbox-basemap` and link ADR 0001 lived here.
+  // It dated from the era when we SERVED Mapbox tiles and the ADR carried the ToS
+  // compliance analysis that made the cache lawful; CLAUDE.md pointing at it was part
+  // of the obligation. We serve no Mapbox tiles (ADR 0026 supersedes 0001), so the
+  // obligation is gone and the assertion only forced a line into the one file that is
+  // loaded into context on every session.
+  //
+  // Nothing it protected is unguarded: the orphaned-cache delete is asserted against
+  // the BUILT worker just above, ADR 0001's retention is asserted in the test before
+  // that, and "mark superseded records, don't delete them" is a standing convention in
+  // CLAUDE.md's Product Memory rather than something to re-pin per record.
 });

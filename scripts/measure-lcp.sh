@@ -6,7 +6,7 @@
 # Re-runnable per SC #2 wording: "documented command in data/README.md
 # or scripts/". See data/README.md "Performance" section.
 #
-# Canary URL derivation (D-07): in the v3.2 ship shape there is one
+# Canary URL derivation: in the v3.2 ship shape there is one
 # species page (/species/index.html) that renders ALL species cards —
 # the worst case for LCP. If per-species pages are added in a future
 # phase, re-derive the canary slug with:

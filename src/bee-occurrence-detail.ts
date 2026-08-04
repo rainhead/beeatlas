@@ -69,7 +69,7 @@ export class BeeOccurrenceDetail extends LitElement {
   @property({ attribute: false }) occurrences: OccurrenceRow[] = [];
   @property({ attribute: false }) taxonCache: Map<number, TaxonCacheEntry> | null = null;
   @property({ attribute: false }) filterState: FilterState | null = null;
-  // D-04: per-occurrence member-place names, resolved by the state owner
+  // per-occurrence member-place names, resolved by the state owner
   // (<bee-atlas>) from the occurrence_places bridge and passed DOWN as a
   // property. Keyed on the synthetic occId (occIdFromRow). This presenter
   // ONLY reads this map — it never queries wa-sqlite itself (state-ownership
@@ -545,7 +545,7 @@ export class BeeOccurrenceDetail extends LitElement {
     `;
   }
 
-  // D-04: render the list of places this occurrence belongs to. Names come from
+  // render the list of places this occurrence belongs to. Names come from
   // the passed-down placeNames map (state-owner-resolved); renders nothing when
   // the occurrence has no membership (zero rows → no sentinel).
   private _renderPlaceNames(row: OccurrenceRow) {
@@ -561,7 +561,7 @@ export class BeeOccurrenceDetail extends LitElement {
   render() {
     const specimenBacked = this.occurrences.filter(isSpecimenBacked);
     // nonSpecimen includes BOTH sample-only and provisional rows (!isSpecimenBacked, not the narrower predicate).
-    // Null-safe: checklist rows with date_quality='none' carry date=null (Phase 138).
+    // Null-safe: checklist rows with date_quality='none' carry date=null.
     // localeCompare on a null would throw and blank the whole card; null dates sort last.
     const nonSpecimen = this.occurrences.filter(r => !isSpecimenBacked(r))
       .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
@@ -571,10 +571,10 @@ export class BeeOccurrenceDetail extends LitElement {
       ${dateGroups.length > 0 && nonSpecimen.length > 0
         ? html`<hr class="separator">` : ''}
       ${nonSpecimen.map(row =>
-        // Phase 170 (D-09/D-10): the card is record_type-driven (orthogonal to tier — a 2-value
+        // the card is record_type-driven (orthogonal to tier — a 2-value
         // tier cannot pick the 5 card variants). isProvisional fires first (true for the
         // provisional_sample record_type). The `inat_obs` arm's record_type value is now
-        // `inat_expert` (D-06); the occ_id prefix `inat_obs:` is unchanged (D-07).
+        // `inat_expert`; the occ_id prefix `inat_obs:` is unchanged.
         isProvisional(row)
           ? this._renderProvisional(row)
           : row.record_type === 'checklist'

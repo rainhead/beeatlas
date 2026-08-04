@@ -12,7 +12,7 @@ describe('NEAR-01/D-06: <bee-map> exposes a public GeolocateControl trigger seam
     expect(beeMapSrc).toMatch(/public requestUserLocation\(\)/);
   });
 
-  test('bee-map.ts stores the GeolocateControl on a _geolocate instance field (D-06)', () => {
+  test('bee-map.ts stores the GeolocateControl on a _geolocate instance field', () => {
     expect(beeMapSrc).toMatch(/this\._geolocate/);
   });
 

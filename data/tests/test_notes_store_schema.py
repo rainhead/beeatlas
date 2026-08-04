@@ -11,7 +11,7 @@ Covers:
   - NOTES-02/D-07: soft-delete keeps the note row + revision history
     (append-only note_revisions ledger)
 
-Phase 179 (D-08) recast notes.author_id from a free-text String to an integer
+Phase 179 recast notes.author_id from a free-text String to an integer
 FK -> users.id, and added the NOT NULL notes.body_html column — every Note
 insert below first creates a real users row and supplies body_html.
 """
@@ -40,7 +40,7 @@ def _make_db(tmp_path, name="notes.db"):
 
 
 def _make_user(session, inat_login, inat_user_id, now):
-    """Insert and return a User row (author_id FK target, D-08)."""
+    """Insert and return a User row (author_id FK target)."""
     user = User(
         inat_user_id=inat_user_id,
         inat_login=inat_login,
@@ -113,12 +113,12 @@ def test_schema_notes(tmp_path):
 
 
 def test_note_revisions_reason_column_nullable(tmp_path):
-    """note_revisions.reason exists and is nullable (D-09, migration 0004).
+    """note_revisions.reason exists and is nullable (migration 0004).
 
     A curator takedown/restore accepts an optional free-text reason (empty
-    allowed, D-09) -- the column must accept NULL so a reason-less action
-    never forces a placeholder value. This is verification only (D-11):
-    migration 0004 (Plan 01) already added the column; nothing here changes
+    allowed) -- the column must accept NULL so a reason-less action
+    never forces a placeholder value. This is verification only:
+    migration 0004 already added the column; nothing here changes
     production code.
     """
     engine = _make_db(tmp_path)
@@ -132,7 +132,7 @@ def test_note_revisions_reason_column_nullable(tmp_path):
             for row in con.execute("PRAGMA table_info(note_revisions)").fetchall()
         }
         assert "reason" in cols, (
-            "note_revisions missing 'reason' column (migration 0004, D-09)"
+            "note_revisions missing 'reason' column (migration 0004)"
         )
         notnull = cols["reason"][3]
         assert notnull == 0, (
@@ -216,7 +216,7 @@ def test_multiple_notes_per_species(tmp_path):
 
     assert count == 2, (
         f"Expected 2 notes for 'apis mellifera', got {count}. "
-        "Check that canonical_name has no UNIQUE constraint (D-06)."
+        "Check that canonical_name has no UNIQUE constraint."
     )
 
 
@@ -340,7 +340,7 @@ def test_soft_delete_keeps_row_and_appends_revision(tmp_path):
         row = con.execute(
             "SELECT status FROM notes WHERE id = ?", (note_id,)
         ).fetchone()
-        assert row is not None, "note row was deleted; expected soft-delete (D-07)"
+        assert row is not None, "note row was deleted; expected soft-delete"
         assert row[0] == "removed", f"Expected status='removed', got {row[0]!r}"
 
         actions = [

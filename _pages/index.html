@@ -6,11 +6,9 @@
     <title>BeeAtlas</title>
     <link rel="icon" href="data:,">
     <link rel="alternate" type="application/atom+xml" title="Washington Bee Atlas — All Recent Determinations" href="/data/feeds/determinations.xml">
-    <!-- The PWA shell lives HERE now, not at /app/ (ADR 0029). The BROWSER — not
-         the app — fetches these when it launches a standalone install, which is why
-         they are precached (scripts/sw-precache-globs.ts) even though no code
-         requests them. Under /pwa/ rather than at the root because Ubuntu Apache
-         aliases /icons/ to its own mod_autoindex directory — see eleventy.config.js. -->
+    <!-- The BROWSER fetches these when it launches a standalone install, which is why
+         they are precached (scripts/sw-precache-globs.ts) even though no code asks for
+         them. Under /pwa/ for a reason — see eleventy.config.js. -->
     <link rel="manifest" href="/pwa/manifest.webmanifest" />
     <!-- iOS standalone + status bar -->
     <meta name="apple-mobile-web-app-capable" content="yes" />

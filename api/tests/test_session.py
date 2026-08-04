@@ -1,4 +1,4 @@
-"""Tests for the itsdangerous-signed app session cookie (WRITE-02, D-04).
+"""Tests for the itsdangerous-signed app session cookie.
 
 Covers:
   - make_serializer / mint_cookie / verify_cookie round-trip.

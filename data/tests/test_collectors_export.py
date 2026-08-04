@@ -6,7 +6,7 @@ Covers:
     test_sample_host_only_has_nonzero_sample_count: waba_sample rows with
         NULL sample_id get their sample counted via observation_id (Research #3)
     test_status_split_invariant: for every record,
-        status_identified + status_awaiting == status_denominator (D-05/D-06)
+        status_identified + status_awaiting == status_denominator
     test_required_keys: every record carries all 10 required keys
 """
 
@@ -142,7 +142,7 @@ def _setup_env(tmp_path: Path, monkeypatch) -> object:
 # ---------------------------------------------------------------------------
 
 def test_collectors_json_is_array(tmp_path, monkeypatch):
-    """collectors.json is a JSON list (PAGE-01)."""
+    """collectors.json is a JSON list."""
     ce_mod = _setup_env(tmp_path, monkeypatch)
     ce_mod.export_collectors_step()
 
@@ -237,7 +237,7 @@ def test_mixed_null_recordedby_keeps_real_name(tmp_path, monkeypatch):
     dave = by_login.get("dave")
     assert dave is not None, "'dave' must be in collectors.json"
     assert dave["display_name"] == "Dave D", (
-        f"Mixed-null recordedBy must resolve to the real name, not '@login' (CR-01). "
+        f"Mixed-null recordedBy must resolve to the real name, not '@login'. "
         f"Got display_name={dave['display_name']!r}"
     )
 
@@ -339,7 +339,7 @@ def test_badge_fields_present_and_typed(tmp_path, monkeypatch):
 
 
 def test_seasons_count_is_distinct_years(tmp_path, monkeypatch):
-    """seasons_count = COUNT(DISTINCT year) over tier='atlas' rows (D-05).
+    """seasons_count = COUNT(DISTINCT year) over tier='atlas' rows.
 
     alice has tier='atlas' years {2020, 2022, 2025}: two ecdysis-backed rows (2020, 2022)
     plus the uncatalogued regression row (2025, ecdysis_id=NULL, tier='atlas').
@@ -354,12 +354,12 @@ def test_seasons_count_is_distinct_years(tmp_path, monkeypatch):
     assert alice["seasons_count"] == 3, (
         f"alice has 3 distinct tier='atlas' years {{2020, 2022, 2025}} — seasons_count "
         f"must be 3 (max-min+1 span would be 6). "
-        f"Got seasons_count={alice['seasons_count']} (D-05)."
+        f"Got seasons_count={alice['seasons_count']}."
     )
 
 
 def test_active_since_is_min_year(tmp_path, monkeypatch):
-    """active_since = MIN(year) over D-01 WABA-contribution rows (D-05).
+    """active_since = MIN(year) over D-01 WABA-contribution rows.
 
     alice's earliest WABA year is 2020.
     """
@@ -370,7 +370,7 @@ def test_active_since_is_min_year(tmp_path, monkeypatch):
     alice = by_login["alice"]
     assert alice["active_since"] == 2020, (
         f"alice's earliest year is 2020; active_since must be 2020. "
-        f"Got active_since={alice['active_since']} (D-05)."
+        f"Got active_since={alice['active_since']}."
     )
 
 

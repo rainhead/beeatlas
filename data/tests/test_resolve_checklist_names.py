@@ -1,6 +1,6 @@
 """Phase 135 Wave 0 — RED test stubs for resolve_checklist_names.py.
 
-These tests are written BEFORE the module they exercise (Plan 135-02).
+These tests are written BEFORE the module they exercise.
 They are designed to FAIL on import/AttributeError until Plan 135-02 lands.
 
 Node IDs (from 135-VALIDATION.md Per-Task Verification Map):
@@ -106,7 +106,7 @@ def checklist_resolver_db(tmp_path, monkeypatch):
         resolve_checklist_names, "GBIF_SEED_CSV",
         tmp_path / "gbif_checklist_synonyms.csv"
     )
-    # Redirect TAXA_PATH to the committed 3-row fixture gz (D-06, D-07):
+    # Redirect TAXA_PATH to the committed 3-row fixture gz:
     #   Agapostemon angelicus (taxon_id=270393, ancestry: .../50086/606634)
     #   Agapostemon texanus   (taxon_id=1581468, ancestry: .../50086/606634/1581466)
     #   Agapostemon (subgenus, taxon_id=606634, for LCA name lookup)
@@ -151,7 +151,7 @@ def checklist_resolver_db(tmp_path, monkeypatch):
                'lasioglossum heterorhinus', 'valid')
     """)
 
-    # Phase 142: seed 19 verbatim names, each paired with a 1-char-variant bridge
+    # seed 19 verbatim names, each paired with a 1-char-variant bridge
     # entry below (the 20th bridge entry pairs with the misspelling row seeded above).
     # These are sampled from data/checklist_unmatched.csv (the real unmatched set).
     # Inlined rather than read from the file because checklist_unmatched.csv is
@@ -185,7 +185,7 @@ def checklist_resolver_db(tmp_path, monkeypatch):
             ('Lasioglossum sequoiae',     'lasioglossum sequoiae',     'valid')
     """)
 
-    # Phase 142: create inaturalist_data schema + canonical_to_taxon_id bridge.
+    # create inaturalist_data schema + canonical_to_taxon_id bridge.
     # Seeded with 20 near-match entries (1-char variations of unmatched canonicals).
     # Bridge entries are NOT exact matches of the unmatched canonical forms — they
     # differ by exactly one character — so they bypass Tier 2 (exact) and reach
@@ -238,7 +238,7 @@ def test_noop_without_refresh(checklist_resolver_db, monkeypatch):
     """RCN-03: resolve_checklist_names(refresh=False) must make zero GBIF calls.
 
     This is the nightly path — no network calls allowed when refresh=False.
-    FAILS until resolve_checklist_names module exists (Plan 135-02).
+    FAILS until resolve_checklist_names module exists.
     """
     tmp_path, mod = checklist_resolver_db
     import pygbif  # noqa: PLC0415
@@ -262,7 +262,7 @@ def test_audit_csv_covers_all_names(checklist_resolver_db, monkeypatch):
     and a numeric confidence in [0, 1].
 
     Locked source vocabulary: exact | synonym_seed | gbif | fuzzy | slash_lca | unresolved.
-    FAILS until resolve_checklist_names module exists (Plan 135-02).
+    FAILS until resolve_checklist_names module exists.
     """
     tmp_path, mod = checklist_resolver_db
 
@@ -319,7 +319,7 @@ def test_fuzzy_candidates_written(checklist_resolver_db, monkeypatch):
     """RCN-04: after refresh, FUZZY_REVIEW_CSV must exist with the 5 locked columns:
     verbatim_name, canonical_name, fuzzy_candidate, fuzzy_score, fuzzy_candidate_taxon_id.
 
-    FAILS until resolve_checklist_names module exists (Plan 135-02).
+    FAILS until resolve_checklist_names module exists.
     """
     tmp_path, mod = checklist_resolver_db
 
@@ -386,7 +386,7 @@ def test_fuzzy_review_gate(checklist_resolver_db, monkeypatch):
 
     Since the fuzzy path writes only to FUZZY_REVIEW_CSV (never to any seed),
     this gate asserts that the GBIF seed CSV does not contain source='fuzzy:*'.
-    FAILS until resolve_checklist_names module exists (Plan 135-02).
+    FAILS until resolve_checklist_names module exists.
     """
     tmp_path, mod = checklist_resolver_db
 
@@ -428,7 +428,7 @@ def test_slash_lca():
     must return 606634 (subgenus Agapostemon), NOT 50086 (genus Agapostemon).
 
     Uses verified ancestry strings from RESEARCH.md §RCN-05 inline — no file I/O.
-    FAILS until resolve_checklist_names module exists (Plan 135-02).
+    FAILS until resolve_checklist_names module exists.
     """
     from resolve_checklist_names import compute_lca  # noqa: PLC0415
 
@@ -464,7 +464,7 @@ def test_slash_verbatim_retained(checklist_resolver_db, monkeypatch):
     the audit CSV row keeps the raw slash verbatim_name while resolved_taxon_id is
     the LCA taxon_id (606634 for texanus/angelicus).
 
-    FAILS until resolve_checklist_names module exists (Plan 135-02).
+    FAILS until resolve_checklist_names module exists.
     """
     tmp_path, mod = checklist_resolver_db
 

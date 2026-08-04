@@ -1,11 +1,11 @@
 """Unit and integration tests for species_export.py slug format (PIPE-03) and
-slug-collision gate (PAGE-03, D-07).
+slug-collision gate.
 
 Tests assert the new Genus/specificEpithet slug format for species rows:
   - test_slug_hierarchical: every row with specific_epithet has slug == f"{genus}/{epithet}"
   - test_no_old_slug_format: no slug contains the old lowercase-dash flat format
 
-Collision gate tests (D-07):
+Collision gate tests:
   - test_check_slug_collisions_raises_on_collision: synthetic collision hard-fails
   - test_check_slug_collisions_bombus_no_false_alarm: genus/subgenus Bombus is NOT a collision
   - test_check_slug_collisions_clean_real_data: fixture-based pass on distilled data
@@ -211,11 +211,11 @@ def test_taxon_id(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# Slug-collision gate tests (D-07, PAGE-03)
+# Slug-collision gate tests
 # ---------------------------------------------------------------------------
 
 def test_check_slug_collisions_raises_on_collision():
-    """_check_slug_collisions raises AssertionError when two distinct taxa share a URL (D-07)."""
+    """_check_slug_collisions raises AssertionError when two distinct taxa share a URL."""
     # Two distinct genera with the same name produce the same URL — synthetic collision
     higher_taxa_rows = [
         {'taxon_id': 1001, 'rank': 'genus', 'name': 'Apis', 'genus': None, 'subfamily': None, 'tribe': None},
@@ -243,7 +243,7 @@ def test_check_slug_collisions_bombus_no_false_alarm():
 
 
 def test_check_slug_collisions_clean_real_data(tmp_path, monkeypatch, sandbox_parquet):
-    """_check_slug_collisions passes on fixture data — no collision in distilled fixture (D-07).
+    """_check_slug_collisions passes on fixture data — no collision in distilled fixture.
 
     Species rows are filtered to specific_epithet IS NOT NULL — genus-only records do not
     generate pages and are excluded from URL collision checking (mirrors speciesList filter
@@ -274,12 +274,12 @@ def test_check_slug_collisions_clean_real_data(tmp_path, monkeypatch, sandbox_pa
 
 
 # ---------------------------------------------------------------------------
-# _build_higher_taxa + retirement tests (D-03, PAGE-01)
+# _build_higher_taxa + retirement tests
 # ---------------------------------------------------------------------------
 
 @pytest.mark.integration
 def test_higher_taxa_json_written_and_12_subfamilies(tmp_path, monkeypatch):
-    """higher_taxa.json is written, non-empty, and contains exactly 12 subfamily rows (D-08).
+    """higher_taxa.json is written, non-empty, and contains exactly 12 subfamily rows.
 
     [integration] The == 12 count is a real-dataset property — the committed fixture
     intentionally has only 2 subfamilies. Requires the full dbt sandbox (species.parquet,

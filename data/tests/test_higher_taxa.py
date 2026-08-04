@@ -1,4 +1,4 @@
-"""Tests for the higher_taxa dbt rollup model (PAGE-01, PAGE-04, D-08).
+"""Tests for the higher_taxa dbt rollup model.
 
 All sandbox-gated tests skip when `target/sandbox/higher_taxa.parquet` is absent
 (RED state until Task 2 materializes the mart).
@@ -95,7 +95,7 @@ def _rollup_counts(rank: str, name: str) -> tuple:
 @_SPECIES_GUARD
 @pytest.mark.parametrize("name", GENUS_SPOT_CHECK)
 def test_genus_rollup_matches_string_group(name):
-    """Genus rollup (specimen, inat_obs) == per-species string-group SUM (PAGE-01)."""
+    """Genus rollup (specimen, inat_obs) == per-species string-group SUM."""
     row = _rollup_counts("genus", name)
     assert row is not None, f"Genus '{name}' not found in higher_taxa"
     assert tuple(row) == _string_group_sum("genus", name), (
@@ -107,7 +107,7 @@ def test_genus_rollup_matches_string_group(name):
 @_SPECIES_GUARD
 @pytest.mark.parametrize("name", TRIBE_SPOT_CHECK)
 def test_tribe_rollup_matches_string_group(name):
-    """Tribe rollup (specimen, inat_obs) == per-species string-group SUM (PAGE-01)."""
+    """Tribe rollup (specimen, inat_obs) == per-species string-group SUM."""
     row = _rollup_counts("tribe", name)
     assert row is not None, f"Tribe '{name}' not found in higher_taxa"
     assert tuple(row) == _string_group_sum("tribe", name), (
@@ -119,7 +119,7 @@ def test_tribe_rollup_matches_string_group(name):
 @_SPECIES_GUARD
 @pytest.mark.parametrize("name", SUBGENUS_SPOT_CHECK)
 def test_subgenus_rollup_matches_string_group(name):
-    """Subgenus rollup (specimen, inat_obs) == per-species string-group SUM (PAGE-01)."""
+    """Subgenus rollup (specimen, inat_obs) == per-species string-group SUM."""
     row = _rollup_counts("subgenus", name)
     assert row is not None, f"Subgenus '{name}' not found in higher_taxa"
     assert tuple(row) == _string_group_sum("subgenus", name), (
@@ -133,7 +133,7 @@ def test_subgenus_rollup_matches_string_group(name):
 
 @_SANDBOX_GUARD
 def test_exactly_12_subfamilies():
-    """Exactly 12 bee subfamily rows appear in higher_taxa (D-08)."""
+    """Exactly 12 bee subfamily rows appear in higher_taxa."""
     con = duckdb.connect()
     count = con.execute(
         f"SELECT COUNT(*) FROM read_parquet('{HIGHER_TAXA_PARQUET}') WHERE rank = 'subfamily'"
@@ -152,7 +152,7 @@ def test_eumeninae_absent():
         WHERE rank = 'subfamily' AND name = 'Eumeninae'
         """,
     ).fetchone()[0]
-    assert count == 0, "Eumeninae found in higher_taxa — wasp bycatch must be excluded (D-08)"
+    assert count == 0, "Eumeninae found in higher_taxa — wasp bycatch must be excluded"
 
 
 # ---------------------------------------------------------------------------
@@ -166,7 +166,7 @@ def test_genus_rollup_equals_species_sum():
     Covers specimen_count, inat_obs_count, and occurrence_count for all genera
     (not just the named spot-checks). Validates no fan-out from the name-match
     JOIN (RESEARCH.md Pitfall 1) AND that the hierarchy rollup reproduces the
-    pre-normalization string-grouping (PAGE-01). Requires species.parquet.
+    pre-normalization string-grouping. Requires species.parquet.
     """
     if not SPECIES_PARQUET.exists():
         pytest.skip(
@@ -208,13 +208,13 @@ def test_genus_rollup_equals_species_sum():
 
 
 # ---------------------------------------------------------------------------
-# Checklist-only species are in genus membership (PAGE-04)
+# Checklist-only species are in genus membership
 # ---------------------------------------------------------------------------
 
 @_SANDBOX_GUARD
 def test_checklist_only_species_in_membership():
     """At least one checklist-only species (occurrence_count=0, on_checklist=True)
-    is present as a member of some genus in the member_taxon_ids column (PAGE-04).
+    is present as a member of some genus in the member_taxon_ids column.
 
     Validates that D-04/D-09 checklist-only species are included in rollup membership.
     """

@@ -1,8 +1,8 @@
-"""BeeAtlas auth + write API — Flask (WSGI) app (D-15).
+"""BeeAtlas auth + write API — Flask (WSGI) app.
 
 This is BeeAtlas's app-level auth + write service, relocated from the
 Phase-177 `data/notes_app/main.py` skeleton per D-15. On maderas the app is
-served by Waitress (a persistent, pure-Python WSGI server, D-17) behind
+served by Waitress (a persistent, pure-Python WSGI server) behind
 Apache `mod_proxy_http` at `api.beeatlas.net` (Waitress serve entrypoint in
 `api/serve.py`).
 
@@ -20,7 +20,7 @@ already-tested `api/oauth.py`, `api/session.py`, `api/auth.py`, and
                             authz/CSRF test target Phase 179's note CRUD
                             reuses).
 
-Also applies `ProxyFix` (D-17, trusts exactly one Apache reverse-proxy hop),
+Also applies `ProxyFix` (trusts exactly one Apache reverse-proxy hop),
 `flask-cors` (scoped to beeatlas.net, credentials enabled, never
 wildcard+credentials), and a generic error handler so no unhandled
 exception ever leaks a traceback (Pitfall 3 restated for Waitress —
@@ -61,7 +61,7 @@ app = Flask(__name__)
 
 # D-17: trust exactly ONE reverse-proxy hop (Apache mod_proxy_http) so the
 # app reads the real client IP + https scheme from X-Forwarded-*. Never
-# trust more hops than the actual proxy chain (T-178-25) — a forged
+# trust more hops than the actual proxy chain — a forged
 # X-Forwarded-* header from the internet must not be trusted, which is why
 # this is 1, not some larger/unbounded number.
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
@@ -145,7 +145,7 @@ def _return_to_allowed(url: str) -> bool:
 
 
 def _fresh_role(login: str) -> str | None:
-    """Re-read the committed allowlist fresh (D-05) rather than the
+    """Re-read the committed allowlist fresh rather than the
     import-time-cached `notes_store.roles.ROLES` snapshot, so whoami/login
     reflect the current allowlist without requiring an app restart."""
     with roles_module._ALLOWLIST.open("rb") as fh:
@@ -170,7 +170,7 @@ def health() -> dict:
 
 @app.get("/auth/login")
 def auth_login():
-    """Start the PKCE authorization-code flow (D-01/D-02).
+    """Start the PKCE authorization-code flow.
 
     Mints a fresh `state` + PKCE pair, stashes {state, verifier, return_to}
     in the short-lived signed flow cookie, and 302s to iNat's authorize URL.
@@ -325,7 +325,7 @@ def write_check():
     """WRITE-03 test target: a real `@require_author`-guarded no-op.
 
     Returns the server-derived identity only — any client-supplied author
-    field in the request body is never consulted (D-07); `require_author`
+    field in the request body is never consulted; `require_author`
     (api/auth.py) has already verified the session, re-read the allowlist
     fresh, checked Origin, and checked the WRITE-04 launch gate.
 
@@ -345,7 +345,7 @@ def write_check():
 #
 # author_id is ALWAYS g.identity["uid"] (the server-derived session identity)
 # -- a client-supplied author_id/author field in the request body is never
-# consulted (D-08, T-179-AUTHZ). Ownership on PATCH/DELETE is a plain
+# consulted (T-179-AUTHZ). Ownership on PATCH/DELETE is a plain
 # `note.author_id != g.identity["uid"]` comparison -- the one genuinely new
 # authz check this phase adds on top of the already-hardened
 # `require_author` (session verify + fresh allowlist recheck + Origin check
@@ -504,7 +504,7 @@ def create_note():
     """POST /api/notes: an allowlisted author creates a note (NOTES-01).
 
     Stores both the raw markdown (`body`, for future editing) and the
-    server-rendered+sanitized HTML (`body_html`, D-04/D-06) -- rendered
+    server-rendered+sanitized HTML (`body_html`) -- rendered
     exactly once, here, via the shared `render_note_markdown`. Appends a
     `note_revisions` row (`action='create'`, D-07's audit ledger).
     """
@@ -605,9 +605,9 @@ def edit_note(note_id):
 def delete_note(note_id):
     """DELETE /api/notes/<id>: the note's owner soft-deletes it (NOTES-02).
 
-    Soft-delete (D-07): sets `status='removed'` and appends a
+    Soft-delete: sets `status='removed'` and appends a
     `note_revisions` row (`action='remove'`) -- the note row and its full
-    history survive. Harvest/read scoping (D-10) excludes non-'approved'
+    history survive. Harvest/read scoping excludes non-'approved'
     notes, so a removed note simply disappears from every read surface
     without destroying the audit trail. Same ownership-then-load-first
     shape as edit_note (T-179-IDOR).
@@ -665,7 +665,7 @@ def takedown_note(note_id):
     a `note_revisions` row with `action='takedown'` and `editor_id` = the
     CURATOR's uid (D-08 -- the ledger must show a curator acted, not the
     author). Attribution lives ONLY in this ledger row -- no
-    `moderated_by`/`moderated_at` column is added to `notes` (D-10).
+    `moderated_by`/`moderated_at` column is added to `notes`.
     `hidden` is a new non-'approved' value, so `list_notes_for_species`
     below and the nightly harvest already exclude it with zero new code
     (MOD-04, by construction).
@@ -724,7 +724,7 @@ def takedown_note(note_id):
 def restore_note(note_id):
     """POST /api/notes/<id>/restore: a curator un-hides a note (MOD-02/D-07).
 
-    Curl-only -- deliberately NOT wired to any UI (D-07): the read endpoint
+    Curl-only -- deliberately NOT wired to any UI: the read endpoint
     below must never return non-approved content, so there is no inline
     surface from which a curator could discover a hidden note to restore
     it. Structurally identical to `takedown_note` above (same

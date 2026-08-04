@@ -2,14 +2,14 @@
  * prime-orchestrator.ts — Page-side cache prime engine + ready probe + online re-prime
  *
  * Responsibilities (CONTEXT D-02 / D-03 / D-04 / D-06):
- *   D-02: Page-side orchestrator — iterates 4 known asset URLs, fetches each via
+ *   Page-side orchestrator — iterates 4 known asset URLs, fetches each via
  *         Response.body.getReader(), emits byte-progress CustomEvents on window.
  *         SW's CacheFirst handler caches the clone in its own waitUntil(); page
  *         reads and discards the original stream (no cloning needed on this side).
- *   D-03: Prime denominator = occurrences_db + counties + ecoregions + places (4 assets).
- *   D-04: Total discovered from Content-Length; fallback to per-asset constants if absent.
+ *   Prime denominator = occurrences_db + counties + ecoregions + places (4 assets).
+ *   Total discovered from Content-Length; fallback to per-asset constants if absent.
  *         Reconciled total persisted to localStorage['beeatlas-prime-total-bytes'].
- *   D-06: Ready is computed by probing caches.match() — cache is the source of truth.
+ *   Ready is computed by probing caches.match() — cache is the source of truth.
  *
  * Emits (RESEARCH Patterns 1 + 5, §Composite event payload):
  *   window 'cache-prime-progress' (CachePrimeProgressDetail) — during streaming
@@ -179,7 +179,7 @@ async function primeAll(): Promise<void> {
   _primePromise = (async () => {
     // Bail if Cache Storage is unavailable (non-SW browsers)
     if (!('caches' in window)) return;
-    // Bail if offline — 'online' listener will re-trigger (D-07)
+    // Bail if offline — 'online' listener will re-trigger
     if (!navigator.onLine) return;
 
     // Resolve all 4 asset URLs upfront
@@ -189,7 +189,7 @@ async function primeAll(): Promise<void> {
       if (url) entries.push([key, url]);
     }
 
-    // Seed total: recover persisted total from localStorage (D-04)
+    // Seed total: recover persisted total from localStorage
     const sumFallbacks = ASSET_KEYS.reduce((s, k) => s + FALLBACK_BYTES[k], 0);
     const stored = localStorage.getItem(STORAGE_KEY);
     const recoveredTotal = stored ? Number(stored) : NaN;
@@ -229,7 +229,7 @@ async function primeAll(): Promise<void> {
     // After all assets: reconcile total to max(received, sumFallbacks)
     runState.total = Math.max(runState.received, sumFallbacks);
 
-    // Persist the reconciled total (D-04)
+    // Persist the reconciled total
     localStorage.setItem(STORAGE_KEY, String(runState.total));
 
     // Final progress event with assetInFlight: null (idle)

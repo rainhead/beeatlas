@@ -1,8 +1,8 @@
 """Initial schema: notes + note_revisions tables.
 
 Creates the authoritative notes store schema:
-  - notes: expert species natural-history notes, multiple per canonical_name (D-06)
-  - note_revisions: append-only audit ledger for edits and soft-deletes (D-05)
+  - notes: expert species natural-history notes, multiple per canonical_name
+  - note_revisions: append-only audit ledger for edits and soft-deletes
 
 This migration has no downgrade path — the authoritative store has no upstream
 from which it can be rebuilt (Pitfall 4). downgrade() raises NotImplementedError.
@@ -26,8 +26,8 @@ depends_on = None
 def upgrade() -> None:
     """Create notes and note_revisions tables matching notes_store/models.py."""
     # notes — expert species natural-history notes
-    # Multiple rows per canonical_name (D-06); NOT unique — only indexed for lookup.
-    # status values (D-08): 'approved' (default), 'pending', 'removed'
+    # Multiple rows per canonical_name; NOT unique — only indexed for lookup.
+    # status values: 'approved' (default), 'pending', 'removed'
     op.create_table(
         "notes",
         sa.Column("id", sa.Integer, primary_key=True),

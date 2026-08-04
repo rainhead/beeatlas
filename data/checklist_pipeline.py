@@ -12,7 +12,7 @@ reconciliation flow with checklist_unmatched.csv writeback.
 
 Phase 135 Plan 03:
   - Added canonical_name VARCHAR to checklist_records_full (RCN-01).
-  - Slash-compound rows get LCA canonical name; verbatim_name unchanged (D-05).
+  - Slash-compound rows get LCA canonical name; verbatim_name unchanged.
   - reconcile() retired per D-07; synonym path constants removed (RCN-06).
 """
 
@@ -204,7 +204,7 @@ def _slash_canonical_name(verbatim_name: str) -> str | None:
     return None
 
 
-# Tight WA bounding box (D-01): no padding for border records.
+# Tight WA bounding box: no padding for border records.
 _WA_LAT_MIN = 45.5
 _WA_LAT_MAX = 49.0
 _WA_LON_MIN = -124.85
@@ -217,21 +217,20 @@ def _parse_checklist_date(raw: str) -> tuple[int | None, int | None, int | None,
     Returns (year, month, day, date_quality) where date_quality is one of:
       'full'      — parsed to year, month, day (43,602 ISO datetimes + 64 ISO dates +
                     291 M/D/YYYY in the current file)
-      'year_only' — parsed to year only (0 rows in current file; kept for robustness,
-                    D-07)
-      'none'      — empty/whitespace/unparseable (6,689 empty in current file, D-07)
+      'year_only' — parsed to year only (0 rows in current file; kept for robustness)
+      'none'      — empty/whitespace/unparseable (6,689 empty in current file)
 
-    Parsing strategy (D-09, stdlib-first; dateparser retained only as documented
+    Parsing strategy (stdlib-first; dateparser retained only as documented
     fallback tier — the current file is 100% handled by stdlib):
-      1. ISO datetime via datetime.datetime.fromisoformat() — drops time component (D-05)
+      1. ISO datetime via datetime.datetime.fromisoformat() — drops time component
       2. ISO date via datetime.date.fromisoformat()
-      3. M/D/YYYY via strptime('%m/%d/%Y') — US month-first, deterministic (D-08)
-      4. Pure-year integer branch — 'year_only' quality (D-07)
-      5. Empty/unparseable — all-None + 'none' quality (D-07)
+      3. M/D/YYYY via strptime('%m/%d/%Y') — US month-first, deterministic
+      4. Pure-year integer branch — 'year_only' quality
+      5. Empty/unparseable — all-None + 'none' quality
 
     NOTE: datetime.date/datetime.datetime handle pre-1900 dates correctly (e.g.
     date(1812, 6, 18) is valid). The 1900 floor only applies to strftime, not to
-    fromisoformat or the date/datetime constructors themselves (D-09).
+    fromisoformat or the date/datetime constructors themselves.
     """
     stripped = (raw or "").strip()
     if not stripped:
@@ -253,7 +252,7 @@ def _parse_checklist_date(raw: str) -> tuple[int | None, int | None, int | None,
         except ValueError:
             pass
 
-    # 3. M/D/YYYY — US month-first (291 rows like 6/14/1905) — deterministic (D-08)
+    # 3. M/D/YYYY — US month-first (291 rows like 6/14/1905) — deterministic
     if "/" in stripped:
         try:
             d = datetime.datetime.strptime(stripped, "%m/%d/%Y")
@@ -277,10 +276,10 @@ def _coord_flag(lat: float | None, lon: float | None) -> str:
     """Classify a coordinate pair from the checklist CSV.
 
     Returns one of:
-      'null_coord'   — either lat or lon is None (empty source cell, D-03)
+      'null_coord'   — either lat or lon is None (empty source cell)
       'zero_coord'   — both lat == 0 and lon == 0 (Gulf-of-Guinea guard, PITFALLS #3)
-      'valid'        — falls within the tight WA bounding box (D-01)
-      'out_of_bbox'  — non-null, non-zero, but outside the tight WA bbox (D-01)
+      'valid'        — falls within the tight WA bounding box
+      'out_of_bbox'  — non-null, non-zero, but outside the tight WA bbox
 
     Order matters: null check FIRST, then zero check, THEN bbox membership (PITFALLS
     #3: a (0, 0) point passes the bbox test if zero_coord check is skipped).
@@ -293,7 +292,7 @@ def _coord_flag(lat: float | None, lon: float | None) -> str:
     if lat == 0 and lon == 0:
         return "zero_coord"
 
-    # 3. Tight WA bbox membership (inclusive bounds, D-01)
+    # 3. Tight WA bbox membership (inclusive bounds)
     if _WA_LAT_MIN <= lat <= _WA_LAT_MAX and _WA_LON_MIN <= lon <= _WA_LON_MAX:
         return "valid"
 
@@ -301,7 +300,7 @@ def _coord_flag(lat: float | None, lon: float | None) -> str:
 
 
 def _update_occurrences_canonical_name(con: duckdb.DuckDBPyConnection) -> None:
-    """Materialize canonical_name on ecdysis_data.occurrences (D-04).
+    """Materialize canonical_name on ecdysis_data.occurrences.
 
     The ecdysis pipeline uses write_disposition='replace', so this column is
     dropped and re-added on every nightly run. The IF NOT EXISTS guard keeps
@@ -419,20 +418,20 @@ def _load_checklist_records_full(con: duckdb.DuckDBPyConnection) -> None:
     into checklist_data.checklist_records_full.
 
     All 50,646 rows are kept — invalid coordinates are tagged via coord_flag
-    (valid/null_coord/zero_coord/out_of_bbox), never dropped (D-03).
+    (valid/null_coord/zero_coord/out_of_bbox), never dropped.
     Dates are normalized into (year, month, day, date_quality) via
-    _parse_checklist_date() (D-05/D-07/D-08/D-09).
+    _parse_checklist_date().
 
     Reads Latitude/Longitude source columns ONLY; x/y redundant columns are
-    ignored (D-02). verbatim_name = raw 'Scientific Name' with authority,
-    stored unmodified — do NOT call normalize_scientific_name() on it (D-12).
+    ignored. verbatim_name = raw 'Scientific Name' with authority,
+    stored unmodified — do NOT call normalize_scientific_name() on it.
 
     Phase 135: canonical_name column added (RCN-01). Slash-compound rows
-    carry the LCA's accepted canonical name; verbatim_name unchanged (D-05).
+    carry the LCA's accepted canonical name; verbatim_name unchanged.
     Column is included in CREATE OR REPLACE TABLE (avoids ALTER-ADD-COLUMN
     re-run failure — RESEARCH Pitfall 5).
 
-    Logs: one summary count line + one per-reason coord exclusion breakdown (D-04).
+    Logs: one summary count line + one per-reason coord exclusion breakdown.
     """
     raw_rows: list[tuple] = []
     verbatim_names: list[str | None] = []
@@ -463,7 +462,7 @@ def _load_checklist_records_full(con: duckdb.DuckDBPyConnection) -> None:
             raw_date = row.get("Date") or ""
             year, month, day, date_quality = _parse_checklist_date(raw_date)
 
-            # Coord flag: classify coordinate quality (D-03, PITFALLS #3)
+            # Coord flag: classify coordinate quality (PITFALLS #3)
             cf = _coord_flag(lat, lon)
 
             raw_rows.append((
@@ -549,7 +548,7 @@ def _load_checklist_records_full(con: duckdb.DuckDBPyConnection) -> None:
     ).fetchone()[0]
     print(f"checklist_records_full: {count} full-fidelity occurrence records loaded")  # noqa: T201
 
-    # Per-reason coord exclusion breakdown (D-04)
+    # Per-reason coord exclusion breakdown
     # coord_flag is at index 13 in the new 14-column tuple.
     null_c = sum(1 for r in records if r[13] == "null_coord")
     zero_c = sum(1 for r in records if r[13] == "zero_coord")
@@ -567,7 +566,7 @@ def load_checklist(con: "duckdb.DuckDBPyConnection | None" = None) -> None:
 
     When called with no arguments (the nightly path), creates and closes its
     own DB_PATH connection. Pass an existing connection via ``con`` to inject
-    a shared in-memory connection for testing (D-05).
+    a shared in-memory connection for testing.
     """
     _owns_connection = con is None
     if _owns_connection:
@@ -600,10 +599,10 @@ def load_checklist(con: "duckdb.DuckDBPyConnection | None" = None) -> None:
                 genus,                      # genus
                 None,                       # subgenus
                 specific_epithet,           # specific_epithet
-                "verified",                 # status (D-02)
+                "verified",                 # status
                 SOURCE_CITATION,            # source_citation
                 None,                       # notes
-                normalize_scientific_name(sci),          # canonical_name (D-04)
+                normalize_scientific_name(sci),          # canonical_name
             ))
 
         con.execute("""

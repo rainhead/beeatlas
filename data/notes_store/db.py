@@ -7,7 +7,7 @@ that propagates failures loudly (no try/except around engine creation).
 Pattern 2 (RESEARCH.md): WAL mode + foreign_keys + synchronous=NORMAL
 are set on every connection via an event hook. WAL mode enables the
 Phase-179 nightly harvest to open the DB read-only while the app writes
-concurrently (D-16). synchronous=NORMAL is safer than OFF and faster than
+concurrently. synchronous=NORMAL is safer than OFF and faster than
 FULL for this workload.
 
 The DB is NOT opened or migrated at import time — import this module freely.

@@ -75,13 +75,13 @@ permits = [{{issuing_authority = "DNR", type = "project-level"}}]
 def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
     """Write a small occurrences.parquet keyed by IDENTITY columns (no place_slug).
 
-    Phase 160 (D-02): place_slug is no longer a column on the occurrences mart;
+    Phase 160: place_slug is no longer a column on the occurrences mart;
     membership lives in the occurrence_places bridge. This fixture carries the
     four identity columns the bridge keys on, plus the count-driving columns.
 
     Three occurrences:
         ecdysis:42 — Ecdysis-backed, sample_id=10 → member of BOTH place-a & place-b
-                     (the overlap occurrence — double-counted, D-05)
+                     (the overlap occurrence — double-counted)
         inat:99    — sample-only iNat (ecdysis_id=None), sample_id=10 → place-a only
         ecdysis:7  — Ecdysis-backed, sample_id=None → place-b only
     """

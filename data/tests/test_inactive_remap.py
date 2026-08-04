@@ -162,7 +162,7 @@ def test_single_successor_writes_auto_synonyms(inactive_remap_db):
 
 
 def test_zero_inactive_writes_header_only(tmp_path, monkeypatch):
-    """Bridge with no inactive taxa -> auto_synonyms.csv with header only (D-04)."""
+    """Bridge with no inactive taxa -> auto_synonyms.csv with header only."""
     db_path = str(tmp_path / "empty.duckdb")
     monkeypatch.setenv("DB_PATH", db_path)
 
@@ -251,7 +251,7 @@ def test_zero_successors_writes_triage(inactive_remap_db):
     assert rows[0]["canonical_name"] == "bombus oldspecies"
     assert rows[0]["reason"] == "no_successor"
 
-    # auto_synonyms.csv must be header-only (D-04)
+    # auto_synonyms.csv must be header-only
     auto_csv = tmp_path / "auto_synonyms.csv"
     assert auto_csv.exists()
     content = auto_csv.read_text()
@@ -385,7 +385,7 @@ def _http_error_response(status_code: int = 500) -> MagicMock:
 
 def test_transient_api_error_does_not_block(inactive_remap_db, capsys):
     """A sustained 5xx (HTTPError after retry budget) must NOT write a blocking
-    triage row (CR-01). The inactive bridge row is left untouched so it is
+    triage row. The inactive bridge row is left untouched so it is
     re-attempted next run; inactive_unresolved.csv stays empty so the gate passes.
     """
     tmp_path, mod = inactive_remap_db
@@ -428,7 +428,7 @@ def test_transient_api_error_does_not_block(inactive_remap_db, capsys):
 
 def test_empty_results_does_not_block(inactive_remap_db, capsys):
     """An empty results array means iNat did not return the taxon detail this run;
-    treated as transient (CR-01) — no blocking row, bridge untouched.
+    treated as transient — no blocking row, bridge untouched.
     """
     tmp_path, mod = inactive_remap_db
     response = MagicMock()

@@ -5,7 +5,7 @@
 // no module-level mutable state. No imports other than the OccurrenceRow
 // type from filter.ts.
 //
-// Plan 02 (Wave 2) migrates all call sites to use these functions.
+// Plan 02 migrates all call sites to use these functions.
 // See also: src/url-state.ts for the analogous URL-domain pure-function module.
 
 import type { OccurrenceRow } from './filter.ts';

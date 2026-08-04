@@ -1,9 +1,9 @@
-"""Add users table: BeeAtlas-internal identity (D-07/D-08).
+"""Add users table: BeeAtlas-internal identity.
 
 Creates the users table:
   - users: BeeAtlas mints its own internal integer id as the durable authorship
     key; iNat login and iNat numeric id are stored as mutable properties of the
-    user, not the key (D-07). ``inat_login`` is unique (D-09 — the committed
+    user, not the key. ``inat_login`` is unique (D-09 — the committed
     allowlist authorizes by iNat login).
 
 This migration has no downgrade path — the authoritative store has no upstream
@@ -29,7 +29,7 @@ depends_on = None
 
 def upgrade() -> None:
     """Create the users table matching notes_store/models.py."""
-    # users — BeeAtlas-internal identity (D-07/D-08)
+    # users — BeeAtlas-internal identity
     # internal id is the durable authorship key; iNat login/numeric id are
     # mutable properties. inat_login is unique (D-09 — allowlist keys on login).
     op.create_table(

@@ -1,5 +1,5 @@
 // Client behavior for the /species browse tree (see _pages/species.njk):
-//   - "Show all ranks" toggle (D-03), persisted in one localStorage key (D-04)
+//   - "Show all ranks" toggle, persisted in one localStorage key
 //   - type-to-filter across the currently-displayed rank set, with ancestor
 //     auto-expand (D-09 / TREE-03)
 //
@@ -19,7 +19,7 @@ export { STORAGE_KEY, applyRankToggle, loadToggleState, saveToggleState } from '
 
 
 // Open AND un-hide every [data-rank] ancestor so a deep filter match is actually
-// revealed. Setting .open alone (CR-02) leaves an ancestor that an earlier filter
+// revealed. Setting .open alone leaves an ancestor that an earlier filter
 // pass hid at display:none, so the match never shows.
 export function openAncestors(el: HTMLElement): void {
   let parent = el.parentElement;

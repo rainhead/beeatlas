@@ -56,7 +56,7 @@ describe('readGeneratedAt', () => {
 describe('the sentinel reaches the UI as "no label"', () => {
   test('formatFreshness hides an unknown stamp rather than inventing a date', () => {
     // Pins the handoff between the two halves: lib/ emits NO_STAMP, and the client
-    // (D-12) must render nothing for it. A sentinel the UI happened to parse would put
+    // must render nothing for it. A sentinel the UI happened to parse would put
     // a wrong date on screen, which is worse than an absent label.
     expect(formatFreshness(readGeneratedAt(dir))).toBeNull();
   });

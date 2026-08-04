@@ -25,7 +25,7 @@ export interface TaxonAgg {
   checklist_count: number;
 }
 
-/** What kind of evidence backs a taxon IN THE CURRENT GEOGRAPHY (D-01). */
+/** What kind of evidence backs a taxon IN THE CURRENT GEOGRAPHY. */
 export type Evidence = 'specimen' | 'community' | 'checklist-only';
 
 export interface TaxonNode {

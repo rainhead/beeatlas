@@ -1,12 +1,12 @@
 """Build-time notes.json harvest — the notes-store analog of species_export.py.
 
 Reads the authoritative notes store (SQLite, WAL — Phase 177) READ-ONLY via
-`notes_store.db.make_engine` (D-16, RESEARCH.md Pitfall 5 — never a raw,
+`notes_store.db.make_engine` (RESEARCH.md Pitfall 5 — never a raw,
 hand-rolled sqlite connection) and emits ASSETS_DIR/notes.json: a
-`Record<canonical_name, Note[]>` of `status='approved'` notes only (D-10),
+`Record<canonical_name, Note[]>` of `status='approved'` notes only,
 ordered newest-first (`created_at` desc).
 
-Byline resolution (D-11/D-12) reuses the ALREADY-WRITTEN `collectors.json`
+Byline resolution reuses the ALREADY-WRITTEN `collectors.json`
 (produced earlier in the same run.py invocation, since collectors-export and
 collectors-events-export both run before this "notes-harvest" step) rather
 than re-deriving `display_name` a second time from raw parquet — this

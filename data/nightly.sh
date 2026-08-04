@@ -80,7 +80,7 @@ export STELIS_STATE_DIR="${STELIS_STATE_DIR:-$VAR_DIR/stelis}"
 DB_PATH="${DB_PATH:-$VAR_DIR/beeatlas.duckdb}"
 EXPORT_DIR="${EXPORT_DIR:-$VAR_DIR/export}"
 BASELINE_DIR="${BASELINE_DIR:-$VAR_DIR/baseline}"
-# Notes store (Phase 179): the notes-harvest step reads the SAME authoritative
+# Notes store: the notes-harvest step reads the SAME authoritative
 # SQLite store the write API (systemd beeatlas-api) writes to. Must match the
 # API's NOTES_DB_PATH (~/.config/systemd/user/beeatlas-api.service) and the
 # go-live runbook (docs/runbooks/notes-write-launch-gate.md §A4), NOT the code

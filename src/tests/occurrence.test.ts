@@ -81,7 +81,7 @@ describe('occIdFromRow', () => {
     expect(occIdFromRow({ ...BASE_ROW, checklist_id: 1234, tier: 'other', record_type: 'checklist' })).toBe('checklist:1234');
   });
 
-  // D-03/D-11: category-3 provisional sample rows now carry the host/plant observation_id
+  // category-3 provisional sample rows now carry the host/plant observation_id
   // and resolve to inat:N, NOT null. The legacy provisionalRow() fixture (observation_id null →
   // null) remains valid for old-shape rows, but the corrected ARM 2 shape has observation_id set.
   test('returns inat:N for a provisional sample row that has observation_id (new category-3 ARM 2 shape)', () => {
@@ -194,14 +194,14 @@ describe('isSpecimenId', () => {
   });
 });
 
-// PROV-03 (Phase 170, D-07/D-11): the synthetic occ_id is reconstructed in THREE coupled
+// PROV-03: the synthetic occ_id is reconstructed in THREE coupled
 // sites — occIdFromRow (src/occurrence.ts), OCC_ID_SQL_CASE (src/filter.ts, the wa-sqlite
 // query path), and the CASE in data/dbt/models/marts/occurrence_places.sql (the bridge join
 // key). Their branch PRIORITY ORDER must stay identical (ecdysis → inat → inat_obs →
 // checklist) or the place-membership join silently fails to match. This assertion pins the
 // coupling WITHOUT changing any CASE — the occ_id prefix `inat_obs:` is unchanged by the
 // 170 source→tier/record_type decomposition (only the record_type VALUE inat_obs→inat_expert
-// moved; the prefix is independent, D-07).
+// moved; the prefix is independent).
 describe('occ_id CASE coupling (PROV-03)', () => {
   // Canonical priority order — mirrors the occIdFromRow branch order in src/occurrence.ts.
   const TS_ORDER = ['ecdysis', 'inat', 'inat_obs', 'checklist'];

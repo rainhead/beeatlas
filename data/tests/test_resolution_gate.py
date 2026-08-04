@@ -1,4 +1,4 @@
-"""Wave-0 resolution-gate failure-path tests (D-02, D-09).
+"""Wave-0 resolution-gate failure-path tests.
 
 Tests pin the behavior of check_resolution_gate() and KNOWN_NON_BEES defined in
 resolve_taxon_ids.py (added by Task 2). Both tests are RED until Task 2 lands
@@ -26,7 +26,7 @@ def _write_csv(tmp_path, rows):
 
 
 def test_gate_blocks_unresolved_bee(tmp_path, monkeypatch):
-    """Case A: a CSV row with a real bee name NOT in KNOWN_NON_BEES causes SystemExit (D-02).
+    """Case A: a CSV row with a real bee name NOT in KNOWN_NON_BEES causes SystemExit.
 
     The offending canonical_name must appear in the SystemExit message so the
     nightly cron log surfaces the actionable name.
@@ -45,7 +45,7 @@ def test_gate_blocks_unresolved_bee(tmp_path, monkeypatch):
 
 
 def test_gate_allows_known_non_bees_only(tmp_path, monkeypatch, capsys):
-    """Case B: a CSV containing only KNOWN_NON_BEES names does NOT raise (D-09).
+    """Case B: a CSV containing only KNOWN_NON_BEES names does NOT raise.
 
     The gate must REPORT the excluded count (not silently drop them),
     so stdout must contain 'resolution-gate: OK' and reference the excluded count.

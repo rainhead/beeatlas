@@ -1,4 +1,4 @@
-"""Scaffold assertions for the dbt-duckdb spike (Phase 83).
+"""Scaffold assertions for the dbt-duckdb spike.
 
 These tests run against the real data/beeatlas.duckdb and the post-build
 data/dbt/target/sandbox/ artifacts produced by `bash data/dbt/run.sh build`.
@@ -234,7 +234,7 @@ def test_checklist_source_constant():
     assert val == "checklist", f"expected source='checklist', got '{val}'"
 
 
-# Retired v4.7 (Phase 137): checklist records now intentionally enter int_combined as
+# Retired v4.7: checklist records now intentionally enter int_combined as
 # source='checklist'; the Phase 111 isolation invariant (checklist exclusion) was
 # deliberately reversed once coordinates were confirmed present. See STATE.md §Decisions.
 # This function body has been re-baselined: ceiling raised to absorb ~20K checklist rows
@@ -251,7 +251,7 @@ def test_occurrences_row_count_not_inflated_by_checklist():
     Ceiling set generously to 160,000 to absorb natural data growth while still catching
     accidental row explosions (e.g., a runaway JOIN in int_combined).
 
-    Retired v4.7 (Phase 137): the old assertion "Checklist records MUST NOT enter
+    Retired v4.7: the old assertion "Checklist records MUST NOT enter
     int_combined" has been reversed. Checklist records now intentionally enter as
     record_type='checklist'. See STATE.md §Decisions for the v4.7 reversal rationale.
     (Phase 170: the `source` column was replaced by `tier`+`record_type`.)
@@ -265,7 +265,7 @@ def test_occurrences_row_count_not_inflated_by_checklist():
         "verify no runaway JOIN occurred in int_combined"
     )
     # Positive assertion: record_type='checklist' rows must exist in occurrences.parquet (PRO-03).
-    # Retired v4.7 (Phase 137): checklist records now intentionally promoted from
+    # Retired v4.7: checklist records now intentionally promoted from
     # int_checklist_dedup_status as ARM 4 of int_combined.
     checklist_count = duckdb.execute(
         f"SELECT COUNT(*) FROM read_parquet('{parquet_path}') WHERE record_type='checklist'"
@@ -402,7 +402,7 @@ def test_occurrences_taxon_id_non_null():
     """occurrences.parquet: zero rows with null taxon_id for EVERY named row (TID-02, re-scoped Phase 128).
 
     A "named row" is any row carrying a canonical_name (single-token genus OR two-token species).
-    Phase 128 (D-04) re-scopes TID-02 from "species-level only" to "every identified row": under
+    Phase 128 re-scopes TID-02 from "species-level only" to "every identified row": under
     the Animalia genus rule every single-token genus name now resolves to its genus self-row
     taxon_id (bees AND non-bee aculeates like bembix), so the named-row NULL count must be 0.
 
@@ -430,9 +430,9 @@ def test_occurrences_taxon_id_non_null():
 @_OCCURRENCES_GUARD
 @_SPECIES_GUARD
 def test_taxon_id_consistency():
-    """occurrences.taxon_id == species.taxon_id for matching species-level canonical_names (D-03/D-06).
+    """occurrences.taxon_id == species.taxon_id for matching species-level canonical_names.
 
-    Phase 128 (D-06): scoped to species-level (two-token) occurrences. Genus-level rows now carry a
+    Phase 128: scoped to species-level (two-token) occurrences. Genus-level rows now carry a
     genus self-row taxon_id which is NOT a species mart row, so an unscoped USING(canonical_name)
     join could create false mismatches. The `LIKE '% %'` guard restricts the invariant to the
     species-level rows it was designed for.
@@ -442,7 +442,7 @@ def test_taxon_id_consistency():
     n = duckdb.execute(f"""
         SELECT COUNT(*) FROM read_parquet('{occ_path}') o
         JOIN read_parquet('{sp_path}') s USING (canonical_name)
-        WHERE o.canonical_name LIKE '% %'      -- species-level only (D-06)
+        WHERE o.canonical_name LIKE '% %'      -- species-level only
           AND o.taxon_id != s.taxon_id
     """).fetchone()[0]
     assert n == 0, f"Expected 0 taxon_id mismatches between occurrences and species, got {n}"

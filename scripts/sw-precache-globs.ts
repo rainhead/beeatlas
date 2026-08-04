@@ -31,7 +31,7 @@ export const globPatterns = [
   // `.wasm` is load-bearing for offline cold-start: the wa-sqlite engine binary
   // (assets/wa-sqlite-<hash>.wasm) must be precached or the SQL worker can't
   // initialize offline → tablesReady never resolves → the "Loading…" curtain
-  // hangs forever (Phase 151 real-device UAT, PWA-03).
+  // hangs forever (Phase 151 real-device UAT).
   'assets/**/*.{js,css,wasm}',
 
   // --- The basemap RENDERER (beeatlas-6rs). Not the map data; these are the

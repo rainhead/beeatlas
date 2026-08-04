@@ -13,7 +13,7 @@
 // what that component's static styles cannot apply) — this component's
 // classes are unprefixed precisely so they match the baked markup.
 //
-// Auth gating (D-01, RESEARCH Pattern 5): this component calls
+// Auth gating (RESEARCH Pattern 5): this component calls
 // fetchWhoami() itself in connectedCallback — it NEVER reads <bee-header>'s
 // DOM/state (separate Vite entry chunks, no shared module-level mutable
 // state; coupling would race). For a guest/non-author/no-JS/offline
@@ -29,7 +29,7 @@
 // instead — the baked list is knowingly stale until the next rebuild.
 // No optimistic update, ever.
 //
-// No client markdown / no client sanitizer (D-04): note bodies render via
+// No client markdown / no client sanitizer: note bodies render via
 // Lit's unsafeHTML on the trusted server-produced `html` field only.
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
@@ -72,7 +72,7 @@ export class BeeNotes extends LitElement {
   @state() private _deleteErrorNoteId: number | null = null;
   @state() private _deleteError: string | null = null;
 
-  // Curator take-down state (D-01/D-02) -- kept independent of the owner's
+  // Curator take-down state -- kept independent of the owner's
   // delete-confirm slices above: a curator viewing their own note could in
   // principle have both an owner-delete-confirm row and a curator-takedown
   // -confirm row open at once.
@@ -116,7 +116,7 @@ export class BeeNotes extends LitElement {
       && this._authState?.isAuthor === true;
   }
 
-  // Curator-only signal (D-03): a UX affordance only -- the takedown POST is
+  // Curator-only signal: a UX affordance only -- the takedown POST is
   // always independently re-authorized server-side (a forged/stale client
   // flag yields a 403, surfaced via CURATOR_LOST_COPY + refetch).
   private get _isCurator(): boolean {
@@ -152,7 +152,7 @@ export class BeeNotes extends LitElement {
   }
 
   // Server truth wins on a 403 (role revoked mid-session — the allowlist is
-  // re-read per request, D-05): re-fetch whoami so _isAuthor/_isCurator/
+  // re-read per request): re-fetch whoami so _isAuthor/_isCurator/
   // _canEdit re-derive and the stale controls drop on the next render. If
   // authorship itself was revoked this island goes inert, so restore the
   // baked #notes section it hid on mount — the reader view must not vanish.

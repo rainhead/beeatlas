@@ -1,5 +1,5 @@
 """Unit tests for species_maps.py subdirectory write behavior (PIPE-03)
-and color-assignment helper (D-01), and group-map generation (PIPE-02).
+and color-assignment helper, and group-map generation (PIPE-02).
 
 Tests assert that _write_species_svg creates the parent Genus/ subdirectory
 before writing the SVG file, that _group_colors is pure, deterministic, and
@@ -36,7 +36,7 @@ def test_write_species_svg_creates_subdir(tmp_path):
 
 
 def test_group_colors_determinism():
-    """_group_colors returns identical output regardless of input order (D-01)."""
+    """_group_colors returns identical output regardless of input order."""
     names = ['Andrena milwaukeensis', 'Andrena prunorum', 'Andrena vicina']
     shuffled = ['Andrena vicina', 'Andrena milwaukeensis', 'Andrena prunorum']
     result_a = _group_colors(names)
@@ -47,7 +47,7 @@ def test_group_colors_determinism():
 
 
 def test_group_colors_sort_order_independence():
-    """Hue assignment is keyed on alphabetical position, not input order (D-01).
+    """Hue assignment is keyed on alphabetical position, not input order.
 
     The alphabetically-first name always maps to the same color regardless of
     the order names are supplied.
@@ -67,7 +67,7 @@ def test_group_colors_sort_order_independence():
 
 
 def test_group_colors_hex_format():
-    """All returned values are valid lowercase 7-char hex strings (D-01)."""
+    """All returned values are valid lowercase 7-char hex strings."""
     names = ['Bombus mixtus', 'Bombus flavidus', 'Bombus rufocinctus', 'Bombus sitkensis', 'Bombus vandykei']
     result = _group_colors(names)
     assert len(result) == 5
@@ -84,7 +84,7 @@ def test_group_colors_empty():
 
 
 def test_group_colors_single_species():
-    """A single-name input yields a 1-entry dict with a valid hex string (D-01)."""
+    """A single-name input yields a 1-entry dict with a valid hex string."""
     result = _group_colors(['Bombus mixtus'])
     assert len(result) == 1
     assert 'Bombus mixtus' in result
@@ -329,7 +329,7 @@ def test_generate_group_maps_deterministic(tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Subfamily-map tests (Plan 03 / D-06 / D-08)
+# Subfamily-map tests
 # ---------------------------------------------------------------------------
 
 @pytest.mark.integration
@@ -506,7 +506,7 @@ def test_generate_group_maps_genus_subgenus_coloring(tmp_path, monkeypatch):
     """A genus with >=2 distinct subgenera colors its genus SVG by SUBGENUS.
 
     Two species in subgenus 'Alpha' share one fill; two species in 'Beta' share a
-    different fill. Mirrors the subfamily->genus coloring assertion (D-06), one rank down.
+    different fill. Mirrors the subfamily->genus coloring assertion, one rank down.
     A single-subgenus genus ('Singlegenus') stays in SPECIES mode (its two species get
     DIFFERENT fills) — proving the >=2 threshold gate.
     """

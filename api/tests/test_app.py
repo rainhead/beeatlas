@@ -1,5 +1,5 @@
 """Tests for the auth + write API's Flask (WSGI) skeleton (relocated from
-data/notes_app in Phase 178, D-15)."""
+data/notes_app in Phase 178)."""
 
 
 def test_health_direct():

@@ -36,119 +36,118 @@ Config the engineering skills (`to-issues`, `to-prd`, `grill-with-docs`, `improv
 
 ## Constraints
 
-- Static hosting only — no server runtime at any layer, with ONE deliberate, isolated exception: the v8.0 authoritative write side. The store is SQLite on maderas (Phase 177 D-01) and the auth + write API is a small Flask/WSGI service on maderas served by Waitress (pure-Python WSGI server) behind Apache `mod_proxy_http` at `api.beeatlas.net` (Phase 178 D-17, code in `api/`). NOTE: `flup6`/`mod_fcgid` was the original 178 plan but was rejected 2026-07-03 — flup6 is unmaintained since 2015; do not reintroduce it. The read path (species pages) stays 100% static. See memories `project_store_tech_sqlite_on_maderas` and `project_write_layer_is_app_api`.
-- Python 3.14+ (data/pyproject.toml)
-- AWS via CDK in `infra/` — since the st-vjd teardown (2026-07-19) only DNS, the beeatlas.com→.net redirect, and the two backup buckets. Serving is maderas/Apache; code deploys are `git push maderas main` (+ `data/publish-code.sh` or the nightly). The GitHub OIDC deployer, site bucket, and site CloudFront distribution are gone.
+- **Static hosting only**, with ONE deliberate exception: the auth + write side. The
+  store is SQLite on maderas; the API is a small Flask/WSGI service served by Waitress
+  behind Apache `mod_proxy_http` at `api.beeatlas.net` (code in `api/`). The read path
+  stays 100% static. `flup6`/`mod_fcgid` was considered and rejected (unmaintained
+  since 2015) — do not reintroduce it.
+- Python 3.14+ (`data/pyproject.toml`).
+- AWS via CDK in `infra/` is now only DNS, the beeatlas.com→.net redirect, and two
+  backup buckets. Serving is maderas/Apache; code deploys are `git push maderas main`
+  then `data/publish-code.sh` (or the nightly). **`api/` changes also need
+  `systemctl --user restart beeatlas-api`** — publish-code.sh does not do it.
 
 ## Running Locally
 
 ```bash
-# Dev server (Eleventy + Vite middleware, hot-reload)
-npm run dev
+npm run dev      # Eleventy + Vite middleware. Serves no /sw.js, so offline needs a build.
+npm test         # Vitest. NOTE: excludes *.data.test.ts — see below.
+npm run test:data  # …which the deploy gate runs. Run it before pushing anything in src/.
+cd data && uv run pytest
 
-# Tests (Vitest)
-npm test
-
-# Production build. Order is load-bearing (beeatlas-d3y, Vite backend integration):
-#   validate -> tsc --noEmit -> vite build (app only; stashes the Vite manifest at
-#      .cache/beeatlas-vite/, OUTSIDE _site so it survives between runs and outside
-#      node_modules so npm ci cannot destroy it)
-#   -> eleventy (reads the manifest, emits the hashed <script>/<link> tags itself)
-#   -> vite build -c vite.sw.config.ts (service worker; its precache glob needs
-#      index.html, which Eleventy writes) -> validate-bundle-size -> postbuild
-# No HTML passes through Vite. Adding a module a template references means adding it
-# to build.rollupOptions.input in vite.config.ts.
+# Production build. Order is load-bearing (ADR 0016, Vite backend integration):
+#   validate -> tsc -> vite build (app only, stashes the manifest OUTSIDE _site)
+#   -> eleventy (reads it, emits the hashed tags) -> vite build -c vite.sw.config.ts
+#   -> validate-bundle-size -> postbuild
+# No HTML passes through Vite. A template referencing a new module means adding it to
+# build.rollupOptions.input in vite.config.ts, or the build fails naming the entry.
 npm run build
 
-# The note-publish render (beeatlas-4oa, ADR 0017): validate -> eleventy -> postbuild-data,
-# scoped by BEEATLAS_RENDER_KEYS (newline-separated canonical_names; PRESENCE selects a
-# scoped render, so set-but-empty means zero species, not all of them). Writes ADDITIVELY
-# over the last full build's _site, so it is only sound when scripts/build-receipt.mjs
-# --check passes — data/publish-notes.sh owns that gate and falls back to a full build.
-# Never add build:app here: its emptyOutDir deletes _site.
+# Note-publish render (ADR 0017): writes ADDITIVELY over the last full build's _site,
+# so it is only sound when `scripts/build-receipt.mjs --check` passes —
+# data/publish-notes.sh owns that gate. Never add build:app here (emptyOutDir).
 BEEATLAS_RENDER_KEYS='agapostemon virescens' npm run build:content
 
-# Data pipeline (orchestrated by Stelis — github.com/rainhead/stelis)
+# Data pipeline (Stelis — github.com/rainhead/stelis)
 ( cd ~/dev/stelis && BEEATLAS_DIR=~/dev/beeatlas \
     racket src/main.rkt --build --all --export-dir /tmp/beeatlas-export )
-
-# Data pipeline tests (pytest)
-cd data && uv run pytest
 ```
 
 ## Known State
 
-- Pipeline runs as `data/nightly.sh` on maderas (nightly cron) — the sole execution path. `data/nightly.sh` is the single repo entry point for the nightly pipeline: it owns NVM activation, `git pull`, `npm ci`, `uv sync`, the integration gate + its local baseline, the site build, the merge-swap publish into the Apache root, and the offsite DuckDB backup trap. The crontab knows only host-specific bits (repo location, log path, schedule) — change deployment behavior in `nightly.sh`, not the crontab. **Stelis** ([github.com/rainhead/stelis](https://github.com/rainhead/stelis)) is the DATA engine (ADR 0007 Amendment, Model Y) — a content-addressed dependency graph over the `data/` scripts, env-driven via `DB_PATH` + `EXPORT_DIR` + `NOTES_DB_PATH` — invoked through `npm run fetch-data`; it knows nothing about S3, git, or the site render. It replaced `run.py` (the imperative STEPS loop) at the 2026-07-17 cutover; recover run.py from git history if a rollback is ever needed. Local dev runs `npm run fetch-data` (or `--run <task>` from the Stelis checkout for one step) and bypasses the wrapper; `npm run pull-published` downloads the live data instead. The dormant Lambda surface (DockerImageFunction + EventBridge schedulers + Function URL) was retired 2026-05-14 (quick task `260514-fcq`).
-- The dbt contract on `marts/occurrences` (**40 columns** as of beeatlas-sn8 — counted from `data/dbt/models/marts/schema.yml`, which is the only authority; the long-standing "36 as of Phase 160" figure had silently drifted as later phases added columns, so re-count rather than incrementing the number you find here) is enforced at every `bash data/dbt/run.sh build`; there is no separate JS schema validator. (Phase 131 dropped the 4 denormalized rank-string columns — `scientificName`, `genus`, `family`, `specimen_inat_taxon_name`; `canonical_name` is retained. Phase 160 dropped the scalar `place_slug`: place membership is now many-to-many via the separately-contracted `marts/occurrence_places` bridge — an occurrence belongs to every place it falls within. See the `project_place_model_many_to_many` memory. beeatlas-sn8 added `elevation_dem_m` — DEM-**derived** elevation, deliberately a separate column from the **recorded** `elevation_m` and never COALESCEd into it; checklist rows never get one. See [ADR 0015](docs/adr/0015-dem-derived-elevation.md).)
-- **Basemap: self-hosted, MapLibre (beeatlas-4mk).** mapbox-gl is gone from the
-  tree as of beeatlas-q73; the renderer is maplibre-gl and there is no map API key
-  anywhere. The ~227 MB WA PMTiles archive (quarterly) lives at
-  `$BASE_DIR/basemap` on maderas — a third sibling of the htdocs+var convention —
-  served via an Apache `Alias` at `/basemap/tiles` so no publish path can reach or
-  prune it; built/shipped by `data/build-basemap.sh` + `data/publish-basemap.sh`
-  (staging under `var/basemap-staging`, never web-reachable). Glyphs and sprites
-  ship WITH the code from `public/basemap`. `src/basemap-style.ts` builds the
-  field style; `<bee-map>` fetches `/basemap/tiles/manifest.json` to learn the
-  current (date-stamped) archive name, and falls back to a blank style on any
-  failure so the occurrence layers still render. Local dev proxies
-  `/basemap/tiles` to beeatlas.net (`vite.config.ts`) — the archive is never
-  checked in. Recorded in [ADR 0026](docs/adr/0026-self-hosted-basemap.md), which
-  supersedes ADR 0001.
-  - **Offline (beeatlas-6rs, [ADR 0025](docs/adr/0025-offline-basemap-is-a-byte-store.md)).**
-    The archives are primed into Cache Storage as opaque blobs and read back with
-    `Blob.slice` behind a PMTiles `Source` — the SW never serves tiles, because
-    Cache Storage has no range semantics. No custom MapLibre protocol: the
-    reader's `getKey()` IS the URL the style names, so `Protocol.add()` takes over
-    that archive; if the two spellings ever drift nothing throws, it silently
-    reverts to the network. One definition, `basemapArchiveUrl()`, serves both.
-    The ~288 MB download is OPT-IN (a row in the account menu, not the automatic
-    data prime) and INSTALLED-ONLY — an installed iOS PWA has its own storage
-    bucket, so bytes fetched in a Safari tab are invisible to it and unprotected.
-    `localStorage['beeatlas-basemap-offline']='off'` reverts to online-only and
-    disables reading too. `src/basemap-cache.ts` + `src/basemap-prime.ts`.
-    The RENDERER (MapLibre worker + 9 glyph ranges + 4 sprite files) is precached
-    by the SW instead, from `scripts/sw-precache-globs.ts` — a single list, run
-    through workbox's own globber by `src/tests/basemap-precache.test.ts`. That
-    works only because MapLibre v6 expands `{fontstack}` on the MAIN thread.
-    The WORKER is bundled into ONE self-contained file by
-    `scripts/build-maplibre-worker.mjs` and served from `/basemap/maplibre/`,
-    which must stay INSIDE the SW scope: a dedicated worker is its own SW client
-    matched on its OWN url, so both its script load and its runtime
-    `import './maplibre-gl-shared.mjs'` were unreachable offline — the worker died
-    before running a line and every silent offline symptom followed. (It sat under
-    `/app/basemap/` until ADR 0029 widened the scope to the origin;
-    `basemap-precache.test.ts` re-derives the containment from `SW_SCOPE` in
-    `src/sw-registration.ts` rather than from a spelled path.)
-    Both manifests are CACHE-FIRST with a deferred
-    revalidation, not `navigator.onLine`-guarded: on a real iPhone onLine still
-    read true at 110ms. On-device debugging: account menu → **Diagnostics**
-    (`src/diagnostics.ts`); automated offline cold start:
-    `node scripts/offline-uat.mjs`. Verified on a real iPhone 2026-08-03.
-  - **Hillshade (beeatlas-8py).** A SECOND archive, `wa-terrain-*.pmtiles`
-    (~61 MB, `data/build-terrain-basemap.sh` + `data/terrain_tiles.py`), lives
-    beside the vector one and publishes independently through the same
-    `publish-basemap.sh` — which therefore MERGES `manifest.json` instead of
-    rewriting it and scopes its prune by kind (`wa-*.pmtiles` also matches
-    `wa-terrain-*.pmtiles`). Its manifest entry is `regions.wa.terrain` and is
-    OPTIONAL: no entry means no hillshade layer and an otherwise untouched
-    basemap, which is what lets the data ship before the code. Two numbers are
-    paired and must move together — `DEFAULT_MAXZOOM` (11) in `terrain_tiles.py`
-    and `TERRAIN_FADE_END` (15.0) in `src/basemap-style.ts`; the fade is what
-    makes a cheap z11 DEM sufficient, because nothing renders above it. The
-    layer sits under the `water` fill, NOT under the first symbol layer: the
-    Protomaps theme interleaves fills and lines, so "under the labels" would
-    wash every trail and stream with terrain shading.
-  - **MapLibre's worker cannot be bundled.** It finds itself by deriving a sibling
-    URL from its own `import.meta.url`, so once bundled it 404s — and reports
-    nothing: tiles hang in `loading`, `load` never fires, the map is blank with a
-    clean console. Eleventy copies it out of node_modules to
-    `/basemap/maplibre/`, and `<bee-map>` passes that path to `setWorkerUrl`.
-    Pinned by `src/tests/maplibre-worker.test.ts`. Do not "simplify" it into an
-    import.
-- **The app is at `/`, and offline stops at the map (beeatlas-3xx, [ADR 0029](docs/adr/0029-one-origin-two-surfaces.md)).** `/` IS the PWA — `_pages/index.html` mounts `src/app-entry.ts`, carries the webmanifest link and the iOS metadata, and is the only template that does. The service worker is `/sw.js` at scope `/`, its shell answers `/` **and nothing else** (the `allowlist` in `src/sw.ts` admits a query string, since the app's whole state travels in one), and the webmanifest + icons moved out from under `/app/` with it — to **`/pwa/`, not `/icons/`**, because Ubuntu's Apache aliases `/icons/` to mod_autoindex's own directory and an Alias beats the document root. That collision 404s a PRECACHED url, which fails SW install, which discards the registration: no service worker at all, silently. `basemap-precache.test.ts` pins the reserved prefix and `offline-uat.mjs` enumerates unreachable precache URLs whenever no worker takes control. **Only the app registers**, and that is now LOAD-BEARING rather than incidental: `sw-registration.ts` and `prime-orchestrator.ts` are imported by `app-entry.ts` alone, which is what keeps a 3.3 MB precache and a ~34.8 MB prime off a species page that loads 18 KB of JS. Species/place/collector pages are **deliberately not cached** — 18 cross-origin iNat photos per page are opaque, quota-padded responses, and both CacheFirst and StaleWhileRevalidate break `bee-notes.ts`'s write-then-`location.reload()`, showing the author their note as absent. `/app/` is **gone** — the deprecation-window stub was deleted 2026-08-04 once two on-device reports showed a single root-scope registration, and `build-output.data.test.ts` asserts `_site/app` never comes back (the failure mode is a second working copy of the app at a second URL). `sw-registration.ts` still unregisters any `/app/` scope it finds; dropping `/app/sw.js` from the build was the other half of that retirement. **Update discovery:** `register()` checks once per page load, and an installed PWA is not reloaded like a tab — so `sw-registration.ts` also checks on `visibilitychange`→visible and on `online`, throttled to 15 min and NEVER offline (`/sw.js` is deliberately unprecached, so an offline check is a doomed request and an iOS "Turn On Wi-Fi" modal). A found update still only WAITS — no `clientsClaim`, no unsolicited `skipWaiting` — so the banner appears and the reload stays the user's.
-- **Identity survives going offline (beeatlas-1dc, [ADR 0027](docs/adr/0027-identity-survives-going-offline.md)).** `AuthState.verified` is REQUIRED and says whether the server confirmed this session; `(authenticated, verified)` names three states, and only the server saying `authenticated:false` produces a verified signed-out — a 5xx or a dead network replays the last known identity as `{true,false}`. That cached identity (`localStorage['beeatlas.auth.lastKnown']`, no credential in it) is for DISPLAY and LOCAL FILTERING only: **write affordances require `verified`**, which is why `<bee-notes>` gates its author/curator getters on it and why the header's REMOTE avatar (`iconUrl`) renders only when verified. The avatar itself is no longer remote-only: `api/avatar.py` inlines it server-side and whoami returns it as `icon_data`, a `data:` URL stored with the rest of the identity — it had to be the server because static.inaturalist.org sends no CORS, so a page-side fetch gets an opaque response it cannot read. See the 2026-08-04 amendment in ADR 0027. Both auth controllers seed synchronously from `loadLastKnownIdentity()` at mount — that seed, not the deferred whoami, is what puts an identity on an offline cold start, since the `offline` event cancels the timer. Sign-out erases locally first and persists a pending-logout flag so an offline sign-out is not undone on reconnect.
-- Nothing in the tree touches Mapbox any more (beeatlas-mas, 2026-08-03). The dead `api.mapbox.com` SW route is gone, and `src/sw.ts` deletes the `mapbox-basemap` Cache Storage bucket on activate so pre-swap devices reclaim the space. `docs/adr/0001-mapbox-basemap-cache.md` is superseded by [ADR 0026](docs/adr/0026-self-hosted-basemap.md); keep 0001 for its record of why offline basemap serving was never licensable under Mapbox.
-- `data/artifacts.toml` (+ tested `data/artifacts.py`) is the declarative contract for the data pipeline's artifacts — each carries a `derived`|`authoritative` provenance and the two schema-evolution regimes are machine-enforced (`authoritative` ⇒ never a dbt model, `baseline_diff=false`, forward-only migrations; rebuild/bypass forbidden). See `docs/adr/0002-derived-vs-authoritative-artifacts.md`. Since Model Y the *published* runtime manifest is owned by the site build instead (`lib/runtime-artifacts.js` + `scripts/postbuild-data.mjs`, the slim manifest); artifacts.toml's operational surface is the integration-gate baseline set (`baseline-files`) and the `pull-published` dev pull.
+Each entry is the part you could break without noticing. The reasoning is in the
+linked ADR — read it before changing anything an entry calls load-bearing.
+
+- **Pipeline.** `data/nightly.sh` on maderas (cron) is the single repo entry point and
+  owns everything from `git pull` to the merge-swap publish; the crontab knows only
+  where the repo is. Change deployment behaviour there, not in the crontab.
+  **Stelis** is the data engine (ADR 0007 Amendment) — a content-addressed graph over
+  `data/`, env-driven by `DB_PATH`/`EXPORT_DIR`/`NOTES_DB_PATH`, invoked via
+  `npm run fetch-data`. It knows nothing about S3, git, or the site render. It replaced
+  `run.py`, recoverable from git history if ever needed.
+- **dbt contract** on `marts/occurrences` is enforced at every `data/dbt/run.sh build`;
+  there is no separate JS validator. **Count the columns from
+  `data/dbt/models/marts/schema.yml` — it is the only authority.** A number written
+  here drifts (the previous one silently did). `elevation_dem_m` is DEM-*derived* and
+  deliberately never COALESCEd into the *recorded* `elevation_m` (ADR 0015). Place
+  membership is many-to-many via the `marts/occurrence_places` bridge, not a scalar.
+- **Basemap: self-hosted MapLibre** ([ADR 0026](docs/adr/0026-self-hosted-basemap.md),
+  supersedes 0001). No map API key anywhere; mapbox-gl is gone from the tree. The
+  PMTiles archives live at `$BASE_DIR/basemap` on maderas, served by an Apache `Alias`
+  at `/basemap/tiles` **so no publish path can reach or prune them**; built by
+  `data/build-basemap.sh` + `publish-basemap.sh`. Glyphs and sprites ship WITH the code
+  from `public/basemap`. `<bee-map>` reads `/basemap/tiles/manifest.json` for the
+  date-stamped archive name and falls back to a blank style on any failure, so the
+  occurrence layers still render. Local dev proxies `/basemap/tiles` to beeatlas.net.
+  - **Offline** ([ADR 0025](docs/adr/0025-offline-basemap-is-a-byte-store.md)). Archives
+    are primed into Cache Storage as blobs and read with `Blob.slice` — the SW never
+    serves tiles, because Cache Storage has no range semantics. The ~288 MB download is
+    OPT-IN and INSTALLED-ONLY (an installed iOS PWA has its own storage bucket, so a
+    tab's bytes are invisible to it). `localStorage['beeatlas-basemap-offline']='off'`
+    reverts to online-only. Manifests are CACHE-FIRST with deferred revalidation, never
+    `navigator.onLine`-guarded — on a real iPhone onLine still read true at 110 ms.
+    **Debugging this area:** on-device, account menu → **Diagnostics**
+    (`src/diagnostics.ts`) — an installed PWA has no console. Automated cold start:
+    `node scripts/offline-uat.mjs` (defaults to the LIVE site; see
+    `docs/runbooks/map-interaction-uat.md` §G to run it against a local build).
+  - **MapLibre's worker: do not bundle it, and do not move it.** It locates itself from
+    its own `import.meta.url`, so bundling 404s it — silently: tiles hang in `loading`,
+    `load` never fires, blank map, clean console. And it must stay INSIDE the SW scope,
+    because a dedicated worker is its own SW client matched on its OWN url; outside it,
+    precaching is a no-op that looks correct in every test. `basemap-precache.test.ts`
+    derives that containment from `SW_SCOPE` rather than a spelled path.
+  - **Hillshade.** `DEFAULT_MAXZOOM` (11) in `terrain_tiles.py` and `TERRAIN_FADE_END`
+    (15.0) in `basemap-style.ts` are paired and must move together — the fade is what
+    makes a cheap z11 DEM sufficient. The layer sits under the `water` fill, NOT under
+    the first symbol layer: the Protomaps theme interleaves fills and lines, so "under
+    the labels" washes every trail and stream with terrain shading.
+- **The app is at `/`; offline stops at the map**
+  ([ADR 0029](docs/adr/0029-one-origin-two-surfaces.md)). `_pages/index.html` is the app
+  and the only template that mounts `src/app-entry.ts`. SW is `/sw.js` at scope `/`, and
+  its shell answers `/` **and nothing else**. **Only the app registers**, and that is
+  load-bearing: `sw-registration.ts` and `prime-orchestrator.ts` are imported by
+  `app-entry.ts` alone, keeping a 3.3 MB precache and ~34.8 MB prime off a species page
+  that loads 18 KB. Species/place/collector pages are **deliberately never cached** —
+  every caching strategy breaks `bee-notes.ts`'s write-then-reload. The PWA shell is at
+  **`/pwa/`, never `/icons/`**: Ubuntu's Apache aliases that path, and a 404 on a
+  *precached* URL fails SW install, which discards the registration — no service worker
+  at all, silently. `basemap-precache.test.ts` pins the reserved prefix.
+- **Identity survives going offline**
+  ([ADR 0027](docs/adr/0027-identity-survives-going-offline.md)). `AuthState.verified`
+  is REQUIRED: only the server saying `authenticated:false` is a real signed-out; a 5xx
+  or dead network replays the last known identity as `{true,false}`. That cached
+  identity is for DISPLAY and LOCAL FILTERING only — **write affordances require
+  `verified`**. Both controllers seed synchronously from `loadLastKnownIdentity()` at
+  mount; that seed, not the deferred whoami, is what puts an identity on an offline cold
+  start. Sign-out erases locally first and persists a pending flag, so an offline
+  sign-out is not undone on reconnect. The avatar is inlined by `api/avatar.py` as a
+  `data:` URL — it had to be the server, because static.inaturalist.org sends no CORS.
+- **`data/artifacts.toml`** (+ tested `data/artifacts.py`) is the declarative contract
+  for pipeline artifacts: each carries `derived`|`authoritative` provenance, and the two
+  schema-evolution regimes are machine-enforced (ADR 0002). The *published* runtime
+  manifest is owned by the site build instead (`lib/runtime-artifacts.js` +
+  `scripts/postbuild-data.mjs`); artifacts.toml's operational surface is the
+  integration-gate baseline and the `pull-published` dev pull.
 
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:7510c1e2 -->

@@ -2,7 +2,7 @@
 
 Covers:
     PLC-03: slug format, duplicate slugs, WKT validity, WGS84 coordinate bounds
-    Phase 160 (D-03): overlapping polygons now LOAD (the ST_Overlaps rejection
+    Phase 160: overlapping polygons now LOAD (the ST_Overlaps rejection
     was removed in favor of the many-to-many occurrence_places membership model).
 """
 

@@ -80,9 +80,9 @@ export class BeeHeader extends LitElement {
   // header do not get a control nothing handles; <bee-atlas> turns it on.
   @property({ attribute: false }) diagnosticsEnabled = false;
   @property({ attribute: false }) updateAvailable: boolean = false;
-  // D-09/D-10: true when Android beforeinstallprompt available and not yet installed.
+  // true when Android beforeinstallprompt available and not yet installed.
   @property({ attribute: false }) installable = false;
-  // D-11/D-12: true on iOS Safari (not standalone). Triggers A2HS popover instead of prompt().
+  // true on iOS Safari (not standalone). Triggers A2HS popover instead of prompt().
   @property({ attribute: false }) iosInstructable = false;
   // D-10 (178-07): server-derived identity, fetched by the mounting controller
   // (entry or app root) — bee-header stays a pure presenter, no fetch here.
@@ -213,7 +213,7 @@ export class BeeHeader extends LitElement {
       color: var(--accent);
     }
 
-    /* The iOS "Add to Home Screen" steps, expanded under their menu row (D-11).
+    /* The iOS "Add to Home Screen" steps, expanded under their menu row.
        Indented to the row's text so it reads as belonging to the row above. */
     .menu-steps {
       padding: 4px 0 8px 32px;
@@ -838,7 +838,7 @@ export class BeeHeader extends LitElement {
     }));
   };
 
-  // D-09: Android Install button click — dispatch install-prompt upward to <bee-atlas>.
+  // Android Install button click — dispatch install-prompt upward to <bee-atlas>.
   private _onInstallClick = (e: Event) => {
     e.stopPropagation();
     this.dispatchEvent(new CustomEvent('install-prompt', {
@@ -868,7 +868,7 @@ export class BeeHeader extends LitElement {
     }));
   };
 
-  // D-11: expand/collapse the iOS A2HS steps inside the account menu.
+  // expand/collapse the iOS A2HS steps inside the account menu.
   private _toggleIosSteps = (e: Event) => {
     e.stopPropagation();
     this._iosStepsOpen = !this._iosStepsOpen;
@@ -1239,7 +1239,7 @@ export class BeeHeader extends LitElement {
   private _renderInstallRow(): TemplateResult | typeof nothing {
     // Install glyph: downward arrow into a tray. Deliberately NOT the cloud
     // download used by the offline-maps row below it — the two sit adjacent now,
-    // and they are different acts (D-09).
+    // and they are different acts.
     const glyph = html`
       <svg class="menu-row__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v11m0 0-3-3m3 3 3-3"/>

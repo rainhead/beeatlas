@@ -1,4 +1,4 @@
-"""Secrets loader for BeeAtlas's auth + write API (D-14).
+"""Secrets loader for BeeAtlas's auth + write API.
 
 Reads the gitignored `api/secrets.toml` (client_id/secret, redirect_uri,
 session signing key) via tomllib, mirroring the `data/config.py` +
@@ -34,7 +34,7 @@ INAT_CLIENT_ID: str = _OAUTH.get("client_id", "")
 INAT_CLIENT_SECRET: str = _OAUTH.get("client_secret", _PLACEHOLDER)
 SESSION_SIGNING_KEY: str = _SESSION.get("signing_key", _PLACEHOLDER)
 
-# Exact-match pin (D-12/D-13) — the iNat app's registered redirect URI.
+# Exact-match pin — the iNat app's registered redirect URI.
 # This is the authoritative production value regardless of what secrets.toml
 # carries; we assert the toml agrees rather than trusting the file's copy.
 #
@@ -52,7 +52,7 @@ def resolve_redirect_uri(toml_value: str | None) -> tuple[str, bool]:
 
     - absent → the production pin, dev_mode False
     - a localhost/127.0.0.1 ``/auth/callback`` URI → that URI, dev_mode True
-    - anything else MUST equal the production pin exactly (D-12/D-13),
+    - anything else MUST equal the production pin exactly,
       otherwise AssertionError at import.
     """
     if toml_value is None:
@@ -108,7 +108,7 @@ else:
     NOTE_PUBLISH_ENABLED = bool(_LAUNCH.get("note_publish_enabled", False))
 
 # Loopback port Waitress binds (api/serve.py); Apache mod_proxy_http reverse-
-# proxies https://api.beeatlas.net -> 127.0.0.1:<port> (D-17). Sourced from
+# proxies https://api.beeatlas.net -> 127.0.0.1:<port>. Sourced from
 # the `[serve] port` key in api/secrets.toml, default 8080 if absent; a
 # SERVE_PORT env var override takes precedence, mirroring WRITES_ENABLED.
 def resolve_serve_port(env_value: str | None, toml_value: int | None) -> int:

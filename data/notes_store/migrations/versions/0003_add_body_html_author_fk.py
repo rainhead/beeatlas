@@ -1,8 +1,8 @@
-"""Add body_html column + author_id integer FK to users.id (D-05/D-08).
+"""Add body_html column + author_id integer FK to users.id.
 
-Alters the already-populated ``notes`` table (Phase 179):
+Alters the already-populated ``notes`` table:
   - body_html: pre-sanitized HTML rendered by
-    ``notes_store.render.render_note_markdown`` (D-04/D-06). Added nullable
+    ``notes_store.render.render_note_markdown``. Added nullable
     first, backfilled for any pre-existing rows, then tightened to NOT NULL
     (three-step batch pattern — SQLite/Alembic batch mode recreates the whole
     table via INSERT...SELECT, so a NOT NULL column with no default fails on
@@ -62,7 +62,7 @@ def upgrade() -> None:
 
     # author_id -> users.id FK: notes.author_id predates the users table
     # (0001) and is currently a String. Writes only opened 2026-07-04
-    # (WRITE-04), so pre-existing rows are expected to be ~0 and this recast
+    #, so pre-existing rows are expected to be ~0 and this recast
     # is trivially safe, but the migration does not assume a specific row
     # count — SQLite's batch-mode ALTER will itself reject the table
     # recreation (IntegrityError) if any existing author_id value doesn't

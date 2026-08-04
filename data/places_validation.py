@@ -11,7 +11,7 @@ Checks performed in order:
     4. WKT geometry validity via DuckDB ST_GeomFromText
     5. WGS84 coordinate-range bounds (lon -180..180, lat -90..90)
 
-Phase 160 (D-03): the former pairwise ST_Overlaps overlap-rejection check was
+Phase 160: the former pairwise ST_Overlaps overlap-rejection check was
 removed. Overlapping place polygons are now legal — membership is many-to-many
 (see data/dbt/models/marts/occurrence_places.sql).
 """

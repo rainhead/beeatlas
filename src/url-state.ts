@@ -36,12 +36,12 @@ export type SourceKey = 'ecdysis' | 'waba_sample' | 'waba_specimen' | 'inat_obs'
 
 const VALID_SOURCES = new Set<SourceKey>(['ecdysis', 'waba_sample', 'waba_specimen', 'inat_obs', 'checklist']);
 
-// Phase 170 (PROV-01/02): the reified social-provenance tier facet (D-01/D-02).
+// Phase 170 (PROV-01/02): the reified social-provenance tier facet.
 export type TierKey = 'atlas' | 'other';
 
 const VALID_TIERS = new Set<TierKey>(['atlas', 'other']);
 
-// Legacy source → tier fold (D-02): the three Atlas-work arms map to `atlas`;
+// Legacy source → tier fold: the three Atlas-work arms map to `atlas`;
 // the expert-obs + literature arms map to `other`. Used only by the `src=`
 // back-compat parse. The mapping is lossy by design (5→2).
 const TIER_OF: Record<SourceKey, TierKey> = {
@@ -67,7 +67,7 @@ export interface AppState {
 
 /**
  * Extended return type for parseParams — includes an optional pending-legacy
- * taxon record for two-phase URL back-compat resolution (D-06).
+ * taxon record for two-phase URL back-compat resolution.
  * When `taxon=` is a non-integer (legacy name format), `pendingLegacyTaxon` is
  * populated for async resolution after the taxon cache loads in bee-atlas.ts.
  * The raw name string is NEVER interpolated into SQL (threat T-130-LU).
@@ -88,7 +88,7 @@ export function buildParams(
   params.set('z', view.zoom.toFixed(2));
   if (filter.taxonId !== null) {
     params.set('taxon', String(filter.taxonId));
-    // taxonRank param intentionally dropped (D-06); rank is derivable from the taxa cache
+    // taxonRank param intentionally dropped; rank is derivable from the taxa cache
   }
   if (filter.yearFrom !== null) params.set('yr0', String(filter.yearFrom));
   if (filter.yearTo   !== null) params.set('yr1', String(filter.yearTo));
@@ -113,7 +113,7 @@ export function buildParams(
   if (ui.paneState !== 'collapsed') params.set('pane', ui.paneState);
   if (ui.hiddenTiers && ui.hiddenTiers.size > 0) {
     const visibleTiers = [...VALID_TIERS].filter(t => !ui.hiddenTiers!.has(t)).sort();
-    // WR-01 (D-05) / Phase 170: when every tier is hidden, emit the explicit `tier=none`
+    // WR-01 / Phase 170: when every tier is hidden, emit the explicit `tier=none`
     // sentinel so the honest-empty all-off state survives a URL round-trip/share instead of
     // silently reverting to "show all" (absent tier= = no tier filter). We no longer emit the
     // legacy `src=` — it is parse-only back-compat now.
@@ -153,7 +153,7 @@ export function parseParams(search: string): ParsedParams {
   }
 
   // Filter state — build when any filter param is present
-  // D-06: new format encodes taxon= as integer taxon_id; legacy format encodes name+taxonRank
+  // new format encodes taxon= as integer taxon_id; legacy format encodes name+taxonRank
   const taxonRaw = p.get('taxon') ?? null;
   const taxonRankRaw = p.get('taxonRank') ?? null;
   let resolvedTaxonId: number | null = null;
@@ -208,7 +208,7 @@ export function parseParams(search: string): ParsedParams {
       })
     : [];
 
-  // Bounds filter — bbox=west,south,east,north (canonical post-999.8 format, D-02)
+  // Bounds filter — bbox=west,south,east,north (canonical post-999.8 format)
   let boundsResult: { west: number; south: number; east: number; north: number } | null = null;
   const bboxRaw = p.get('bbox') ?? '';
   if (bboxRaw) {
@@ -257,13 +257,13 @@ export function parseParams(search: string): ParsedParams {
   // Tier filter (Phase 170, PROV-02) — parse tier= before hasFilter so hiddenTiers is in scope
   // for both the filter result and the UI result. tier= tokens are validated against VALID_TIERS
   // (T-170B-01: bogus values are dropped on parse, never reaching SQL). When tier= is absent we
-  // fall back to a legacy src= back-compat parse (5→2 fold, D-02). tier= takes precedence over
+  // fall back to a legacy src= back-compat parse (5→2 fold). tier= takes precedence over
   // src= when both are present.
   const tierRaw = p.get('tier');
   const srcRaw = p.get('src');
   let hiddenTiers: Set<TierKey> | undefined;
   if (tierRaw === 'none') {
-    // Phase 170: explicit all-hidden sentinel. Distinct from absent tier= (no tier filter),
+    // explicit all-hidden sentinel. Distinct from absent tier= (no tier filter),
     // so a shared "filtered to nothing" link reproduces the honest-empty state.
     hiddenTiers = new Set<TierKey>(VALID_TIERS);
   } else if (tierRaw) {
@@ -279,7 +279,7 @@ export function parseParams(search: string): ParsedParams {
     // Legacy src=none — both tiers hidden (5→2 fold of the all-hidden sentinel).
     hiddenTiers = new Set<TierKey>(VALID_TIERS);
   } else if (srcRaw) {
-    // Legacy src= back-compat (D-02, lossy 5→2): map each visible legacy source token through
+    // Legacy src= back-compat (lossy 5→2): map each visible legacy source token through
     // TIER_OF, then hiddenTiers = {atlas,other} \ visibleTiers. Garbage tokens (visible=∅) →
     // no filter (anti-blank guard, mirrors tier= above). A link showing both tiers' arms →
     // visibleTiers = {atlas,other} → hiddenTiers = ∅ → no filter.
@@ -340,7 +340,7 @@ export function parseParams(search: string): ParsedParams {
 
   // UI state
   const bmRaw = p.get('bm') ?? '';
-  // D-01/D-09: any non-empty place= forces boundaryMode='places', overriding bm=
+  // any non-empty place= forces boundaryMode='places', overriding bm=
   const placeImplied = selectedPlace !== null && selectedPlace !== '';
   const boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' | 'wilderness' = placeImplied
     ? 'places'

@@ -1,8 +1,8 @@
-"""upsert_user against the 178-02 users table (D-07/D-08/D-09).
+"""upsert_user against the 178-02 users table.
 
 `upsert_user` mints BeeAtlas's own internal integer id on first login and
 returns the same internal id on every subsequent login, keyed on iNat
-login (D-09) — the committed allowlist authorizes by login before the
+login — the committed allowlist authorizes by login before the
 internal id exists. The iNat numeric id is captured/refreshed alongside for
 robustness against a login rename.
 

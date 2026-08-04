@@ -62,7 +62,7 @@ const flushMicrotasks = () => new Promise<void>(r => setTimeout(r, 0));
 /**
  * Stub CacheStorage with the given `match` behavior. Always includes a
  * put-capable `open` — primeAsset writes each fetched response into Cache
- * Storage directly (Phase 151), so a match-only stub makes that path throw
+ * Storage directly, so a match-only stub makes that path throw
  * and spray '[prime-orchestrator] direct cache put failed' over the logs of
  * green runs (beeatlas-556).
  */
@@ -185,7 +185,7 @@ describe('prime-orchestrator', () => {
     const last = progressEvents[progressEvents.length - 1]!;
     expect(last.received).toBeGreaterThan(0);
 
-    // Phase 151 direct-put: the fetched asset landed in Cache Storage
+    // direct-put: the fetched asset landed in Cache Storage
     expect(put).toHaveBeenCalledWith(URLS.occurrences_db, expect.any(Response));
   });
 

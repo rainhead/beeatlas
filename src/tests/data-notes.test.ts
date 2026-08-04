@@ -1,13 +1,13 @@
 // Phase 179 Plan 03 — Task 1 loader contract tests.
 // Asserts _data/notes.js exports a Record<canonical_name, Note[]> and
-// tolerates absence of public/data/notes.json (D-13, exact mirror of
+// tolerates absence of public/data/notes.json (exact mirror of
 // src/tests/data-species_hosts.test.ts).
 
 import { describe, test, expect } from 'vitest';
 // @ts-expect-error -- _data/*.js is plain ESM consumed by Eleventy; no .d.ts
 import notes from '../../_data/notes.js';
 
-describe('_data/notes.js (Phase 179)', () => {
+describe('_data/notes.js', () => {
   test('default export is an object (not null, not array)', () => {
     expect(notes).toBeDefined();
     expect(typeof notes).toBe('object');

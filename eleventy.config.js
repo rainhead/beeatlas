@@ -75,25 +75,14 @@ export default async function (eleventyConfig) {
 
   // The PWA shell's static files — the webmanifest and the icons — at their runtime
   // URLs. Named by `_pages/index.html` and, for three of the icons, by the webmanifest
-  // itself. They were under `/app/` while the app was a prototype at that path; ADR
-  // 0029 brought the app to the root and nothing may live under `/app/` now that it is
-  // a redirect stub in its deprecation window.
+  // itself.
   //
-  // UNDER `/pwa/`, NOT `/icons/` AND `/manifest.webmanifest` AT THE ROOT. The obvious
-  // root layout was tried and deployed, and `/icons/` is unreachable on this server:
-  // Ubuntu's Apache ships `Alias /icons/ "/usr/share/apache2/icons/"` in
-  // mods-enabled/alias.conf for mod_autoindex, and an Alias beats the document root.
-  // The files publish correctly and 404 anyway.
-  //
-  // That is worse than it sounds, because these are precached. Every icon 404s during
-  // the service worker's install, install fails, the registration is DISCARDED, and
-  // the result is a site with no service worker at all — no console error, nothing in
-  // the build log, and every offline feature simply absent. `scripts/offline-uat.mjs`
-  // now names the failing URLs when it cannot find a controlling worker, because the
-  // symptom points nowhere near the cause.
-  //
-  // The general rule, since the next collision will not be `/icons/`: a path that
-  // resolves in `_site` is not the same as a path the SERVER will return.
+  // UNDER `/pwa/`, NOT `/icons/`. Ubuntu's Apache aliases `/icons/` to mod_autoindex's
+  // own directory, so these publish correctly into the document root and 404 anyway —
+  // and because they are PRECACHED, that 404 fails the service worker's install and
+  // discards the registration: no service worker at all, silently. Full account in
+  // ADR 0029 ("The PWA shell went to /pwa/"); the reusable rule is in
+  // docs/lessons-learned.md. Do not move these to the root.
   //
   // `public/data` is deliberately NOT passed through. scripts/postbuild-data.mjs owns
   // _site/data wholesale — it rm -rf's the directory and rebuilds it from the build

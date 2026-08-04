@@ -11,7 +11,7 @@ import {
 } from '../filter.ts';
 import type { FilterState } from '../filter.ts';
 
-// Regression coverage for the "ambiguous column name: taxon_id" bug (Phase 131).
+// Regression coverage for the "ambiguous column name: taxon_id" bug.
 //
 // filter.test.ts mocks sqlite3 and only inspects the generated SQL *string*, so it
 // cannot detect a query that is syntactically present but invalid against the real

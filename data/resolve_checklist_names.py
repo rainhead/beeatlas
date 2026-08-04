@@ -655,7 +655,7 @@ def resolve_checklist_names(refresh: bool = False) -> None:
 # ---------------------------------------------------------------------------
 
 def check_checklist_resolution_gate() -> None:
-    """Fail fast if any checklist name is unresolved (D-04).
+    """Fail fast if any checklist name is unresolved.
 
     Reads checklist_name_resolution_audit.csv. Hard-fails only on
     source='unresolved' rows (no-match-anywhere). GBIF and fuzzy hits

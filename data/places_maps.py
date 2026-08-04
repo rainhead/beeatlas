@@ -62,12 +62,12 @@ def generate_place_maps(con: duckdb.DuckDBPyConnection | None = None) -> None:
         county_geojsons = _load_county_geojsons(con)
         backdrop = _build_county_backdrop(county_geojsons)
 
-        # Phase 160 (D-02/D-05): place membership lives in the occurrence_places
+        # place membership lives in the occurrence_places
         # bridge (no scalar place_slug column). Rebuild the Option-B occ_id over
         # occurrences.parquet (same CASE priority as occIdFromRow,
         # src/occurrence.ts:23-30 — positionally coupled), JOIN the bridge, and
         # group points per place_slug. A point whose occurrence is in two places
-        # has two bridge rows, so it lands in both by_slug lists → both SVGs (D-05).
+        # has two bridge rows, so it lands in both by_slug lists → both SVGs.
         rows = con.execute(
             """
             WITH occ AS (

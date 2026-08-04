@@ -35,7 +35,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const isMapped = (sp: any) =>
   sp.occurrence_count > 0 || sp.inat_obs_count > 0 || sp.checklist_count > 0;
 
-describe('_data/species.js (PAGE-02)', () => {
+describe('_data/species.js', () => {
   test('exports { flat, byScientificName, fullTree }', () => {
     expect(Array.isArray((species as any).flat)).toBe(true);
     expect((species as any).flat.length).toBeGreaterThan(0);
@@ -43,7 +43,7 @@ describe('_data/species.js (PAGE-02)', () => {
     expect(Array.isArray((species as any).fullTree)).toBe(true);
   });
 
-  test('flat is sorted alphabetically by scientificName (D-01)', () => {
+  test('flat is sorted alphabetically by scientificName', () => {
     const names = (species as any).flat.map((s: any) => s.scientificName);
     const sorted = [...names].sort((a: string, b: string) => a.localeCompare(b));
     expect(names).toEqual(sorted);
@@ -239,7 +239,7 @@ describe('_data/species.js (PAGE-02)', () => {
     }
   });
 
-  test('genusList contains at least one species with occurrence_count === 0 and on_checklist (D-03)', () => {
+  test('genusList contains at least one species with occurrence_count === 0 and on_checklist', () => {
     const list = (species as any).genusList;
     const allSpecies = list.flatMap((g: any) => g.species);
     const checklistOnly = allSpecies.filter((sp: any) =>
@@ -394,7 +394,7 @@ describe('_data/species.js (PAGE-02)', () => {
     expect(andrenini.family).toBe('Andrenidae');
   });
 
-  // Phase 132 Plan 04 — rewire + subfamilyList tests (PAGE-01, PAGE-02, D-03..D-06, D-08)
+  // Phase 132 Plan 04 — rewire + subfamilyList tests (PAGE-01, PAGE-02, D-03..D-06)
 
   test('species.js does NOT reference higher_rank_taxon_ids (D-03 retirement)', () => {
     const src = readFileSync(resolve(ROOT, '_data/species.js'), 'utf-8');
@@ -417,7 +417,7 @@ describe('_data/species.js (PAGE-02)', () => {
     }
   });
 
-  test('exports subfamilyList with exactly 12 entries (D-08)', () => {
+  test('exports subfamilyList with exactly 12 entries', () => {
     const list = (species as any).subfamilyList;
     expect(Array.isArray(list)).toBe(true);
     expect(list.length).toBe(12);
@@ -428,7 +428,7 @@ describe('_data/species.js (PAGE-02)', () => {
     expect(list.find((s: any) => s.subfamily === 'Eumeninae')).toBeUndefined();
   });
 
-  test('every subfamilyList entry has a non-null integer taxon_id (PAGE-02)', () => {
+  test('every subfamilyList entry has a non-null integer taxon_id', () => {
     const list = (species as any).subfamilyList;
     for (const s of list) {
       expect(s.taxon_id).not.toBeNull();
@@ -437,7 +437,7 @@ describe('_data/species.js (PAGE-02)', () => {
     }
   });
 
-  test('subfamilyList Apinae has nested tribes[] each with genera[] (D-04)', () => {
+  test('subfamilyList Apinae has nested tribes[] each with genera[]', () => {
     const list = (species as any).subfamilyList;
     const apinae = list.find((s: any) => s.subfamily === 'Apinae');
     expect(apinae).toBeDefined();
@@ -451,7 +451,7 @@ describe('_data/species.js (PAGE-02)', () => {
     }
   });
 
-  test('subfamilyList Colletinae has empty tribes[] and flat genera[] (D-05)', () => {
+  test('subfamilyList Colletinae has empty tribes[] and flat genera[]', () => {
     const list = (species as any).subfamilyList;
     const colletinae = list.find((s: any) => s.subfamily === 'Colletinae');
     expect(colletinae).toBeDefined();
@@ -461,7 +461,7 @@ describe('_data/species.js (PAGE-02)', () => {
     expect(colletinae.genera.length).toBeGreaterThan(0);
   });
 
-  test('subfamilyList each genus entry carries a hexColor (D-06)', () => {
+  test('subfamilyList each genus entry carries a hexColor', () => {
     const list = (species as any).subfamilyList;
     for (const s of list) {
       // Check genera in tribes (multi-tribe subfamilies)
@@ -611,7 +611,7 @@ describe('_data/species.js (PAGE-02)', () => {
     }
   });
 
-  // Phase 174 Plan 02 — trait threading + host-bee resolver (D-05/D-06/D-07)
+  // Phase 174 Plan 02 — trait threading + host-bee resolver
 
   test('genusList species entries carry resolvedHostBees via { ...sp } spread (Phase 174 D-05/D-07)', () => {
     // The genusList builder uses { ...sp, hexColor } — all flat-row fields including
@@ -628,7 +628,7 @@ describe('_data/species.js (PAGE-02)', () => {
   });
 
   test('every species.flat row has a resolvedHostBees key (null or typed-entry array) (Phase 174 D-05)', () => {
-    // resolveHostBees() is called on every flat row at module load time (Phase 174).
+    // resolveHostBees() is called on every flat row at module load time.
     // Result is null when host_bees is absent, or an array of typed link targets otherwise.
     const flat = (species as any).flat;
     expect(flat.length).toBeGreaterThan(0);
@@ -648,8 +648,8 @@ describe('_data/species.js (PAGE-02)', () => {
 });
 
 // Phase 133 Plan 01 — Wave 0 RED contract for TREE-01/02/04.
-// Asserts species.fullTree shape: six-rank skeleton, descendant-rolled counts (D-08),
-// D-05 graceful degradation, bee-only sourcing (TREE-04), subgenus genusName contract (D-06).
+// Asserts species.fullTree shape: six-rank skeleton, descendant-rolled counts,
+// D-05 graceful degradation, bee-only sourcing (TREE-04), subgenus genusName contract.
 
 // Small recursive walker: flatten all nodes in the tree by rank.
 function walkNodes(nodes: any[]): any[] {
@@ -766,7 +766,7 @@ describe('_data/species.js fullTree (TREE-01/02/04)', () => {
     }
   });
 
-  test('count rollup — Bombus genus specimen_count is at least the sum of its direct species descendants (D-08)', () => {
+  test('count rollup — Bombus genus specimen_count is at least the sum of its direct species descendants', () => {
     // Derive expected value from the data itself — data-driven, not magic total.
     const allNodes = walkNodes(fullTree);
     const bombus = allNodes.find((n: any) => n.name === 'Bombus' && n.rank === 'genus');
@@ -774,7 +774,7 @@ describe('_data/species.js fullTree (TREE-01/02/04)', () => {
     // Walk all descendants (not just direct children) to find species leaves.
     const bDescendantSpecies = walkNodes(bombus.children).filter((n: any) => n.rank === 'species');
     const sumFromLeaves = bDescendantSpecies.reduce((acc: number, sp: any) => acc + sp.specimen_count, 0);
-    // The genus node specimen_count comes from higher_taxa.json rollup (D-08).
+    // The genus node specimen_count comes from higher_taxa.json rollup.
     expect(bombus.specimen_count).toBeGreaterThan(0);
     expect(bombus.inat_obs_count).toBeGreaterThanOrEqual(0);
     // The rollup is >= the sum of species-leaf descendants, NOT strictly equal:
@@ -812,7 +812,7 @@ describe('_data/species.js fullTree (TREE-01/02/04)', () => {
     }
   });
 
-  test('subgenus genusName equals row.genus (genus parent name) from higher_taxa.json — not the subgenus name (D-06)', () => {
+  test('subgenus genusName equals row.genus (genus parent name) from higher_taxa.json — not the subgenus name', () => {
     // Load higher_taxa.json independently to verify the contract.
     const higherTaxa: any[] = JSON.parse(
       readFileSync(resolve(ROOT, 'public/data/higher_taxa.json'), 'utf8')
@@ -843,7 +843,7 @@ describe('_data/species.js fullTree (TREE-01/02/04)', () => {
     expect(verifiedAtLeastOne).toBe(true);
   });
 
-  test('no non-subgenus node carries genusName (D-06)', () => {
+  test('no non-subgenus node carries genusName', () => {
     const allNodes = walkNodes(fullTree);
     const nonSubgenus = allNodes.filter((n: any) => n.rank !== 'subgenus');
     for (const node of nonSubgenus) {
@@ -851,7 +851,7 @@ describe('_data/species.js fullTree (TREE-01/02/04)', () => {
     }
   });
 
-  test('graceful degradation (D-05): no node has null or empty name, no "Other" or "null" named node', () => {
+  test('graceful degradation: no node has null or empty name, no "Other" or "null" named node', () => {
     const allNodes = walkNodes(fullTree);
     for (const node of allNodes) {
       expect(node.name, 'node name should not be null').not.toBeNull();

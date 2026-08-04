@@ -9,7 +9,7 @@ adds slug via domain.slugify, emits seven artifacts:
   - higher_taxa.json             (dbt rollup: all higher-rank taxa with counts + membership — D-03)
   - species_hosts.json           (per-bee family/genus floral hosts from sample data — Phase 175)
 
-higher_rank_taxon_ids.json is retired (D-03). higher_taxa.json supersedes it.
+higher_rank_taxon_ids.json is retired. higher_taxa.json supersedes it.
 
 Run AFTER ``bash data/dbt/run.sh build`` (which writes
 DBT_SANDBOX_DIR/species.parquet and DBT_SANDBOX_DIR/occurrences.parquet).
@@ -99,7 +99,7 @@ def _jsonify_rows(rows: list[dict]) -> list[dict]:
 
 
 def _check_slug_collisions(higher_taxa_rows: list[dict], species_rows: list[dict]) -> None:
-    """Hard-fail if any two distinct taxa produce the same public URL (D-07).
+    """Hard-fail if any two distinct taxa produce the same public URL.
 
     Called in export_species_parquet() after all taxon names and species slugs
     are resolved. Enumerates every taxon's public URL across ALL ranks and raises
@@ -196,12 +196,12 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
       - seasonality.json            (json.dumps sort_keys=True, separators=(',', ':'))
       - photos.json                 (CC-licensed iNat obs photos, keyed by canonical_name)
       - species_hosts.json          (per-bee floral host families/genera from sample data, Phase 175)
-      - higher_taxa.json            (dbt rollup: all higher-rank taxa with counts + membership, D-03)
+      - higher_taxa.json            (dbt rollup: all higher-rank taxa with counts + membership)
 
-    ``higher_rank_taxon_ids.json`` is retired (D-03) — use ``higher_taxa.json`` instead.
+    ``higher_rank_taxon_ids.json`` is retired — use ``higher_taxa.json`` instead.
 
     Runs ``_check_slug_collisions`` after slug computation to hard-fail on any
-    duplicate public URL across all ranks (D-07, PAGE-03).
+    duplicate public URL across all ranks.
 
     The write path (ASSETS_DIR) is controlled by the EXPORT_DIR env var.
     The read path (DBT_SANDBOX_DIR) defaults to data/dbt/target/sandbox and
@@ -459,7 +459,7 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
     # ---- D-03: higher_taxa.json (replaces higher_rank_taxon_ids.json) -------
     # Reads DBT_SANDBOX_DIR/higher_taxa.parquet produced by the new dbt rollup.
     # Carries taxon_ids + counts + membership for all higher ranks. Runs the
-    # slug-collision hard-fail gate (D-07) after all slugs are known.
+    # slug-collision hard-fail gate after all slugs are known.
     higher_taxa_rows = _build_higher_taxa(con)
     _check_slug_collisions(higher_taxa_rows, species_rows)
 

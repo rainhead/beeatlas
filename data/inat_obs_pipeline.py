@@ -3,7 +3,7 @@
 Reads the committed iNat CSV export (data/raw/inat_expert_obs.csv), applies
 D-04 canonicalization to scientific_name, deduplicates against WABA-linked
 specimen_observation_ids, and loads the result into the DuckDB staging table
-inat_obs_data.observations for downstream use by int_combined (Phase 118).
+inat_obs_data.observations for downstream use by int_combined.
 
 Phase 117 / PIPE-01..04.
 """

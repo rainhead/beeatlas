@@ -1,15 +1,15 @@
-"""BeeAtlas app session cookie: itsdangerous signed cookie mint/verify (D-04).
+"""BeeAtlas app session cookie: itsdangerous signed cookie mint/verify.
 
 One long-lived, stateless signed cookie replaces a server-side session store
 (originally motivated by mod_fcgid's ephemeral workers; still the right call
 under Waitress — no per-process session affinity, trivially restartable, see
 D-17). Revocation is handled by re-reading the committed allowlist on every
-write request (D-05, see api/auth.py), NOT by cookie age or a server-side
+write request (see api/auth.py), NOT by cookie age or a server-side
 session table.
 
 Uses `itsdangerous.URLSafeTimedSerializer`, never PyJWT — a single fixed HMAC
 scheme with no algorithm-negotiation surface, so there is no `alg:none` /
-algorithm-confusion attack class to defend against (T-178-10).
+algorithm-confusion attack class to defend against.
 
 The signing key is always passed in by the caller (never read from
 api.config here) so tests can inject a throwaway key without touching real
@@ -30,7 +30,7 @@ COOKIE_NAME = "beeatlas_session"
 COOKIE_MAX_AGE = 60 * 60 * 24 * 30
 
 # Cookie flags for Set-Cookie (Flask's response.set_cookie(**COOKIE_KWARGS)):
-# HttpOnly (no JS read access, mitigates XSS token theft, T-178-13),
+# HttpOnly (no JS read access, mitigates XSS token theft),
 # Secure (HTTPS only), SameSite=Strict (defense-in-depth CSRF mitigation,
 # viable because beeatlas.net -> api.beeatlas.net is same-site), and
 # deliberately NO "domain" key so the cookie is host-only (defaults to the

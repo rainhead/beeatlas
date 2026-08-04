@@ -1,4 +1,4 @@
-"""Tests for the species_hosts.json sidecar producer in species_export.py (Phase 175).
+"""Tests for the species_hosts.json sidecar producer in species_export.py.
 
 Covers:
   - test_families_ordered_by_sample_count_desc: families sorted by sample_count desc

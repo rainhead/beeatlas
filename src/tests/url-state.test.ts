@@ -137,7 +137,7 @@ describe('buildParams -> parseParams round-trip', () => {
     expect(result.filter?.selectedEcoregions).toEqual(new Set(['Cascades']));
   });
 
-  test('inat: prefixed single ID round-trips (D-05)', () => {
+  test('inat: prefixed single ID round-trips', () => {
     const selection: SelectionState = { type: 'ids', ids: ['inat:5678'] };
     const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
     expect(params.get('o')).toBe('inat:5678');
@@ -153,7 +153,7 @@ describe('buildParams -> parseParams round-trip', () => {
     expect(result.selection).toEqual({ type: 'ids', ids: ['inat_obs:13098974'] });
   });
 
-  test('mixed ecdysis+inat IDs round-trip (D-05)', () => {
+  test('mixed ecdysis+inat IDs round-trip', () => {
     const selection: SelectionState = { type: 'ids', ids: ['ecdysis:123', 'inat:456'] };
     const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
     expect(params.get('o')).toBe('ecdysis:123,inat:456');
@@ -161,7 +161,7 @@ describe('buildParams -> parseParams round-trip', () => {
     expect(result.selection).toEqual({ type: 'ids', ids: ['ecdysis:123', 'inat:456'] });
   });
 
-  test('cluster centroid encodes as @lon,lat,r (D-06)', () => {
+  test('cluster centroid encodes as @lon,lat,r', () => {
     const selection: SelectionState = { type: 'cluster', lon: -120.5123, lat: 47.4567, radiusM: 312 };
     const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
     expect(params.get('o')).toBe('@-120.5123,47.4567,312');
@@ -169,7 +169,7 @@ describe('buildParams -> parseParams round-trip', () => {
     expect(result.selection).toEqual({ type: 'cluster', lon: -120.5123, lat: 47.4567, radiusM: 312 });
   });
 
-  test('cluster with fractional radiusM rounds up (D-06)', () => {
+  test('cluster with fractional radiusM rounds up', () => {
     const selection: SelectionState = { type: 'cluster', lon: -120.0, lat: 47.0, radiusM: 100.7 };
     const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
     expect(params.get('o')).toBe('@-120.0000,47.0000,101');
@@ -372,7 +372,7 @@ describe('place filter param', () => {
     expect(params.has('place')).toBe(false);
   });
 
-  test('parseParams with place= sets selectedPlace and forces boundaryMode=places (D-01)', () => {
+  test('parseParams with place= sets selectedPlace and forces boundaryMode=places', () => {
     const result = parseParams('place=ebeys-landing');
     expect(result.filter?.selectedPlace).toBe('ebeys-landing');
     expect(result.ui?.boundaryMode).toBe('places');
@@ -449,7 +449,7 @@ describe('PROV-02: tier filter URL param (tier=)', () => {
     expect(result.filter).toBeUndefined();
   });
 
-  // Phase 170: the all-tiers-hidden state must survive a URL round-trip via the explicit
+  // the all-tiers-hidden state must survive a URL round-trip via the explicit
   // `tier=none` sentinel — not silently revert to "show all" on reload/share.
   test('both tiers hidden: buildParams emits tier=none', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -518,8 +518,8 @@ describe('PROV-02: legacy src= back-compat fold (5→2 → tier, lossy by design
   });
 });
 
-describe('bounds filter (D-01/D-02/D-03)', () => {
-  // --- buildParams: bbox= write (D-02) ---
+describe('bounds filter', () => {
+  // --- buildParams: bbox= write ---
 
   test('bbox write: filter.bounds set emits bbox=west,south,east,north with toFixed(4)', () => {
     const filter = { ...emptyFilter(), bounds: { west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 } };
@@ -551,7 +551,7 @@ describe('bounds filter (D-01/D-02/D-03)', () => {
     expect(params.has('o')).toBe(false);
   });
 
-  // --- parseParams: bbox= read (D-02) ---
+  // --- parseParams: bbox= read ---
 
   test('bbox read: parseParams sets filter.bounds from bbox= param', () => {
     const result = parseParams('bbox=-122.3456,47.1234,-122.1234,47.5678');
@@ -595,7 +595,7 @@ describe('bounds filter (D-01/D-02/D-03)', () => {
     expect(result.filter?.bounds).toEqual({ west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 });
   });
 
-  // --- Legacy sel= back-compat (D-03) ---
+  // --- Legacy sel= back-compat ---
 
   test('legacy sel= read: parseParams maps sel= into filter.bounds (not into selection)', () => {
     const result = parseParams('sel=-122.3456,47.1234,-122.1234,47.5678');
@@ -627,7 +627,7 @@ describe('bounds filter (D-01/D-02/D-03)', () => {
     expect(result.filter?.bounds).toEqual({ west: -122.0, south: 47.0, east: -121.0, north: 48.0 });
   });
 
-  // --- Coexistence: bbox= + o= (D-05) ---
+  // --- Coexistence: bbox= + o= ---
 
   test('coexistence: bbox= + o=ids yields filter.bounds AND selection.type===ids', () => {
     const result = parseParams('bbox=-122.3,47.1,-122.1,47.5&o=ecdysis:1,inat:2');
@@ -635,7 +635,7 @@ describe('bounds filter (D-01/D-02/D-03)', () => {
     expect(result.selection).toEqual({ type: 'ids', ids: ['ecdysis:1', 'inat:2'] });
   });
 
-  test('combined round-trip: bounds filter + taxon filter coexist (D-02/D-03)', () => {
+  test('combined round-trip: bounds filter + taxon filter coexist', () => {
     const filter = { ...emptyFilter(), bounds: { west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 }, taxonId: 52775, taxonDisplayName: 'Bombus (genus)' };
     const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
     expect(params.get('bbox')).toBe('-122.3456,47.1234,-122.1234,47.5678');

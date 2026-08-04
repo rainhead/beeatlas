@@ -42,7 +42,7 @@ describe('HDR: bee-header property interface', () => {
     expect(src).not.toMatch(/layer-changed/);
   });
 
-  test('bee-header.ts does NOT contain viewMode, _onViewClick, or view-changed (Plan 109-02)', () => {
+  test('bee-header.ts does NOT contain viewMode, _onViewClick, or view-changed', () => {
     const src = readFileSync(resolve(__dirname, '../bee-header.ts'), 'utf-8');
     expect(src).not.toMatch(/viewMode/);
     expect(src).not.toMatch(/_onViewClick/);
@@ -80,7 +80,7 @@ describe('HDR: bee-header event emission', () => {
   });
 });
 
-describe('OFF-05: bee-header offline pill (Plan 149-03)', () => {
+describe('OFF-05: bee-header offline pill', () => {
   let el: HTMLElement & { offline: boolean; updateComplete: Promise<boolean>; shadowRoot: ShadowRoot };
 
   afterEach(() => {
@@ -89,7 +89,7 @@ describe('OFF-05: bee-header offline pill (Plan 149-03)', () => {
     }
   });
 
-  test('renders an Offline pill when offline=true (OFF-05)', async () => {
+  test('renders an Offline pill when offline=true', async () => {
     await import('../bee-header.ts');
     el = document.createElement('bee-header') as any;
     (el as any).offline = true;
@@ -108,7 +108,7 @@ describe('OFF-05: bee-header offline pill (Plan 149-03)', () => {
     expect(pill!.querySelector('svg')).not.toBeNull();
   });
 
-  test('renders no pill when offline=false (OFF-05)', async () => {
+  test('renders no pill when offline=false', async () => {
     await import('../bee-header.ts');
     el = document.createElement('bee-header') as any;
     (el as any).offline = false;
@@ -210,7 +210,7 @@ describe('bee-header: installing is a row in the account menu, not a header butt
   });
 });
 
-describe('178-07: bee-header sign-in / whoami / sign-out (D-10)', () => {
+describe('178-07: bee-header sign-in / whoami / sign-out', () => {
   let el: HTMLElement & { authState: unknown; updateComplete: Promise<boolean>; shadowRoot: ShadowRoot };
 
   afterEach(() => {

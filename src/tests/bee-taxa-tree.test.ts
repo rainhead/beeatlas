@@ -94,7 +94,7 @@ describe('bee-taxa-tree — markup contract', () => {
   });
 });
 
-describe('bee-taxa-tree — evidence badges (D-01)', () => {
+describe('bee-taxa-tree — evidence badges', () => {
   test('badges each taxon by its strongest evidence in this filter', async () => {
     const el = await mount({ tree: sampleTree(), speciesCount: 2 });
     const rows = [...el.shadowRoot!.querySelectorAll('li[data-rank="species"]')].map((li) => ({

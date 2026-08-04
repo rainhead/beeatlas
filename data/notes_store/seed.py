@@ -12,11 +12,11 @@ Usage:
 The script assumes the schema already exists (created by Alembic migrations or
 ``Base.metadata.create_all``). It does NOT run migrations.
 
-Phase 179 (D-08): ``notes.author_id`` is now an integer FK -> ``users.id``, not
+Phase 179: ``notes.author_id`` is now an integer FK -> ``users.id``, not
 a free-text login. This script get-or-creates a ``User`` row per sample
 author's iNat login (matching the ``roles_allowlist.toml`` example entries)
 and uses its assigned id. It also renders ``body_html`` once via the shared
-``notes_store.render.render_note_markdown`` (D-04/D-06) — the same helper the
+``notes_store.render.render_note_markdown`` — the same helper the
 write API and harvest use.
 """
 

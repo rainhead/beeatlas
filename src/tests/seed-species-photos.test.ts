@@ -158,7 +158,7 @@ describe('mergeFillOnly (D-01 fill-only)', () => {
     });
   });
 
-  test('NEVER overwrites existing entry (D-01)', () => {
+  test('NEVER overwrites existing entry', () => {
     const before = {
       species: {
         'Osmia lignaria': {

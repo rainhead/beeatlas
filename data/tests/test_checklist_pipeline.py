@@ -1,9 +1,9 @@
-"""Tests for checklist_pipeline.load_checklist (Phase 76 / Plan 03).
+"""Tests for checklist_pipeline.load_checklist.
 
 Loads the WA bee checklist TSV against an isolated DuckDB and asserts:
   - checklist_data.species has the locked 11-column schema (CHECK-03 / D-04)
-  - checklist_data.species_counties preserves per-(species, county) rows (D-01)
-  - status='verified' on every row (D-02)
+  - checklist_data.species_counties preserves per-(species, county) rows
+  - status='verified' on every row
   - canonical_name = normalize_scientific_name(scientificName) on every row, IS NOT NULL
   - CREATE OR REPLACE semantics — re-running is idempotent (CHECK-02)
 
@@ -12,7 +12,7 @@ Phase 134 Plan 02 adds:
   - Integration tests for checklist_data.checklist_records_full table (ING-01)
 
 Phase 140 Plan 02 (TFIXTURE-01):
-  - Fast-tier tests migrated to module-scoped shared in-memory connection (D-03/D-04)
+  - Fast-tier tests migrated to module-scoped shared in-memory connection
   - checklist_sample_db fixture reads the 8-row committed sample via the real
     load_checklist(con=con) path instead of the 50,646-row full CSV
   - The two @pytest.mark.integration tests keep the original checklist_db fixture
@@ -35,7 +35,7 @@ def checklist_db(tmp_path, monkeypatch):
 
     Bootstraps a minimal ecdysis_data.occurrences table because Plan 05's
     extension to load_checklist() materializes canonical_name on it; in
-    production run.py STEPS guarantees ecdysis runs before checklist (T-76-04).
+    production run.py STEPS guarantees ecdysis runs before checklist.
 
     Phase 135 Plan 03: SYNONYMS_PATH / UNMATCHED_PATH patches removed —
     reconcile() was retired per D-07 (RCN-06); those constants no longer exist.
@@ -126,7 +126,7 @@ def checklist_sample_db(request):
     con.execute("CREATE SCHEMA ecdysis_data")
     con.execute("CREATE TABLE ecdysis_data.occurrences (scientific_name VARCHAR)")
 
-    # Load the 8-row sample through the real CSV→DuckDB path (D-01).
+    # Load the 8-row sample through the real CSV→DuckDB path.
     mod.load_checklist(con=con)
 
     def teardown():
@@ -179,8 +179,8 @@ def test_load_checklist_populates_species_rows(checklist_sample_db):
     # fixture). Pinned to exact count (WR-02 / D-09): 6 distinct species in sample.
     # The structural/quality invariants (n_null == 0, n_status == 0) are preserved.
     assert n == 6, f"expected exactly 6 distinct species in sample fixture, got {n}"
-    assert n_null == 0, "every row must have canonical_name populated (D-04)"
-    assert n_status == 0, "every row must have status='verified' (D-02)"
+    assert n_null == 0, "every row must have canonical_name populated"
+    assert n_status == 0, "every row must have status='verified'"
 
 
 def test_load_checklist_canonical_name_matches_normalize_scientific_name(checklist_sample_db):
@@ -493,7 +493,7 @@ def test_checklist_records_full_coord_flag_valid_in_bbox(checklist_sample_db):
 def test_checklist_records_full_coord_flag_coverage(checklist_sample_db):
     """SC#2: every coord_flag is in the valid enum; null_coord count == 1 in sample.
 
-    Phase 140 Plan 02 (D-09): assertion tightened to exact sample count —
+    Phase 140 Plan 02: assertion tightened to exact sample count —
     `null_coord_count == 1` — the 8-row checklist_sample.csv has exactly 1 null_coord
     row (ObjectID 3). Coverage is preserved: all 4 coord_flag branches are present.
     """
@@ -540,7 +540,7 @@ def test_checklist_records_full_date_parsing_mdy(checklist_sample_db):
 def test_checklist_records_full_null_date_tagged_none(checklist_sample_db):
     """SC#3: every empty/NULL-source-date row must have date_quality='none' and year IS NULL.
 
-    Phase 140 Plan 02 (D-09): assertion tightened to exact sample count — `n_none == 3` —
+    Phase 140 Plan 02: assertion tightened to exact sample count — `n_none == 3` —
     the 8-row checklist_sample.csv has exactly 3 none-date rows:
       ObjectID 17423 (zero_coord), ObjectID 8702 (out_of_bbox), ObjectID 1386 (slash, valid).
     Coverage is preserved: the none branch is tested and n_bad == 0 invariant holds.

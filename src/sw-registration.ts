@@ -9,7 +9,7 @@
 // at `/` — but the navigation fallback in src/sw.ts is narrowed to match, so the app
 // shell still answers `/` and nothing else.
 //
-// Plan 150-02 (D-13): migrated from manual SW registration to
+// migrated from manual SW registration to
 // workbox-window.Workbox so the 'waiting' event drives the SW update prompt.
 
 import { Workbox } from 'workbox-window';
@@ -177,7 +177,7 @@ registerServiceWorker();
 // iOS behavior: navigator.storage.persist() returns false almost always in
 // normal browser sessions; only returns true for home-screen-installed PWAs
 // with notification permission granted. The result is logged for diagnostics
-// only — no behavior is gated on the boolean (D-12).
+// only — no behavior is gated on the boolean.
 const PERSIST_ASKED_KEY = 'beeatlas-persist-asked';
 
 async function requestPersistentStorage(): Promise<void> {
@@ -188,7 +188,7 @@ async function requestPersistentStorage(): Promise<void> {
   // Set the flag BEFORE the await: if persist() throws, we don't retry next visit.
   localStorage.setItem(PERSIST_ASKED_KEY, '1');
   const granted = await navigator.storage.persist();
-  // D-12: log result only — iOS returns false almost always.
+  // log result only — iOS returns false almost always.
   console.log('[storage] navigator.storage.persist() =>', granted);
 }
 

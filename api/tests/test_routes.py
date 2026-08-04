@@ -179,7 +179,7 @@ def test_whoami_valid_cookie_not_allowlisted_reports_authenticated_not_author(
     client, monkeypatch, tmp_path
 ):
     """The cookie's baked role must never be trusted -- whoami re-reads the
-    allowlist fresh (D-05), same as the write-path recheck."""
+    allowlist fresh, same as the write-path recheck."""
     allowlist_path = _allowlist_toml(tmp_path, {})  # revoked on disk
     monkeypatch.setattr(main.roles_module, "_ALLOWLIST", allowlist_path)
 
@@ -258,7 +258,7 @@ def test_write_check_allowlisted_allowed_origin_gate_on_is_200(client, monkeypat
 
 
 def test_write_check_reports_fresh_role_not_cookie_baked_role(client, monkeypatch, tmp_path):
-    """WR-02: the echoed role must come from the fresh allowlist read (D-05),
+    """WR-02: the echoed role must come from the fresh allowlist read,
     never the role baked into the session cookie at login time — a user
     promoted author -> curator after login must be reported as curator."""
     allowlist_path = _allowlist_toml(tmp_path, {"allowed_author": "curator"})  # promoted on disk

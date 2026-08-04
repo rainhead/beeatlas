@@ -2,8 +2,8 @@
 
 Fast-tier (no @pytest.mark.integration) — pure function, no I/O, no database.
 
-Covers the restricted-markdown subset (D-03) and the sanitize-on-render
-defense-in-depth (D-06), including the inert-XSS-payload cases required by
+Covers the restricted-markdown subset and the sanitize-on-render
+defense-in-depth, including the inert-XSS-payload cases required by
 this plan's <behavior> block.
 """
 
@@ -29,7 +29,7 @@ def test_javascript_scheme_link_is_dropped():
     markdown-it-py's link rule rejects the disallowed scheme outright and
     falls back to rendering the source as inert plain text (no <a> at all),
     which already satisfies "no javascript: href survives"; nh3's
-    url_schemes allowlist is the independent backstop (D-06) in case a
+    url_schemes allowlist is the independent backstop in case a
     future renderer change ever let a disallowed scheme through as a real
     href.
     """

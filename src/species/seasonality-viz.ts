@@ -15,7 +15,7 @@
 // Season bands (meteorological NH, VIZ-03):
 //   Winter Dec-Feb, Spring Mar-May, Summer Jun-Aug, Fall Sep-Nov.
 //
-// PAGE-06: this file MUST NOT import bee-species-page.ts.
+// this file MUST NOT import bee-species-page.ts.
 // ARCH-04: this file MUST NOT import maplibre-gl, wa-sqlite, ../sqlite.ts,
 //   ../filter.ts, ../bee-map.ts, ../bee-atlas.ts, ../url-state.ts.
 
@@ -65,14 +65,14 @@ export class SeasonalityViz extends LitElement {
 
     // VIZ-02 fallback branch
     if (total < 5) {
-      // D-13: checklist-only species with all-NULL months have total=0 but records do exist.
+      // checklist-only species with all-NULL months have total=0 but records do exist.
       // Distinguish "truly zero records" from "records exist but months unknown".
       if (total === 0 && this.onChecklist) {
         return html`<p class="viz-fallback">Monthly phenology not recorded</p>`;
       }
       const monthsWithData: string[] = [];
       this.data.forEach((n, i) => { if (n > 0) monthsWithData.push(MONTH_LABELS[i]!); });
-      // D-08 (Phase 82): drop the ambiguous single-letter month suffix when
+      // drop the ambiguous single-letter month suffix when
       // only one month has data ('A' is April or August). Multi-month ranges
       // stay because the dash gives context.
       const range = monthsWithData.length > 1

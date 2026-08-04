@@ -29,7 +29,7 @@ let _geoBuffer: ArrayBuffer | null = null;
   // fetches through the service worker offline, so Emscripten's default fetch of
   // the precached wasm fails on an offline cold-start. caches.match reads Cache
   // Storage directly in a worker (no SW interception needed); ignoreSearch matches
-  // the precache key, which carries a ?__WB_REVISION__ query (Phase 151).
+  // the precache key, which carries a ?__WB_REVISION__ query.
   const module = await SQLiteESMFactory({
     // Override Emscripten's default wasm-path resolution: in an inline (blob:)
     // worker its built-in resolver derives a broken blob: URL and throws
@@ -145,7 +145,7 @@ let _geoBuffer: ArrayBuffer | null = null;
 })().catch((err: unknown) => {
   // Without this, any failure in worker init (wasm, DB, or manifest fetch) is
   // swallowed: tablesReady never resolves and the page hangs on the "Loading…"
-  // curtain with no clue why. Surface it so it's diagnosable (Phase 151).
+  // curtain with no clue why. Surface it so it's diagnosable.
   // Surface name + message explicitly — err.stack alone is minified frames (`d@blob:…`)
   // that say nothing. The message (e.g. a WebAssembly CompileError or a fetch 404 text)
   // is the diagnosable part.

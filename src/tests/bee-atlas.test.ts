@@ -163,7 +163,7 @@ describe('VIEW-02: bee-atlas conditional render and view mode wiring', () => {
     expect(src).not.toMatch(/@state\(\)\s+private\s+_viewMode/);
   });
 
-  test('bee-atlas.ts _onPopState restores _paneState from URL (Phase 106)', () => {
+  test('bee-atlas.ts _onPopState restores _paneState from URL', () => {
     expect(src).toMatch(/this\._paneState\s*=\s*paneState/);
   });
 
@@ -383,7 +383,7 @@ describe('SEL-05: sidebar not opened on empty bounds result', () => {
 describe('SEL-06 + SEL-07 wiring (Phase 91, updated in Phase 999.8)', () => {
   const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
 
-  // --- Guard: _selectionBounds fully removed (Phase 999.8-03) ---
+  // --- Guard: _selectionBounds fully removed ---
 
   test('Phase 999.8-03: bee-atlas.ts contains NO _selectionBounds references', () => {
     // grep -v comment lines, count must be zero
@@ -599,7 +599,7 @@ describe('PMAP-02/04: place filter wiring in bee-atlas', () => {
   });
 
   test('bee-atlas.ts _applyBoundaryMode parameter type includes places', () => {
-    // Phase 157: the boundary-mode side effects moved from the _onBoundaryModeChanged
+    // the boundary-mode side effects moved from the _onBoundaryModeChanged
     // event handler into a shared _applyBoundaryMode method (the relocated region
     // menu calls it directly, no event round-trip through <bee-map>).
     expect(src).toMatch(/_applyBoundaryMode\(newMode:\s*'off'\s*\|\s*'counties'\s*\|\s*'ecoregions'\s*\|\s*'places'\s*\|\s*'wilderness'\)/);
@@ -614,7 +614,7 @@ describe('PMAP-02/04: place filter wiring in bee-atlas', () => {
   });
 });
 
-describe('SM-01: bee-atlas pane state machine (Phase 106)', () => {
+describe('SM-01: bee-atlas pane state machine', () => {
   const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
 
   test('bee-atlas.ts declares _paneState as @state() with three-state type', () => {
@@ -653,12 +653,12 @@ describe('SM-01: bee-atlas pane state machine (Phase 106)', () => {
 
   test('firstUpdated assigns _paneState directly from parsed paneState', () => {
     expect(src).toMatch(/this\._paneState\s*=\s*paneState/);
-    // Phase 105 adapter (this._viewMode = paneState === 'table' ? ...) should not exist
+    // adapter (this._viewMode = paneState === 'table' ? ...) should not exist
     expect(src).not.toMatch(/this\._viewMode\s*=\s*paneState\s*===\s*'table'\s*\?\s*'table'\s*:\s*'map'/);
   });
 });
 
-describe('PANE-01: bee-atlas bee-pane wiring (Phase 108)', () => {
+describe('PANE-01: bee-atlas bee-pane wiring', () => {
   const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
 
   test('bee-atlas.ts side-effect imports bee-pane', () => {
@@ -695,10 +695,10 @@ describe('PANE-01: bee-atlas bee-pane wiring (Phase 108)', () => {
     expect(start).toBeGreaterThan(-1);
     const nextPrivate = src.indexOf('\n  private ', start + 1);
     const body = src.slice(start, nextPrivate > start ? nextPrivate : undefined);
-    // Phase 999.8-03 (D-07): pane collapse clears record selection only; bounds filter is preserved
+    // pane collapse clears record selection only; bounds filter is preserved
     expect(body).toContain('this._selectedOccIds = null');
     expect(body).toContain('this._selectedCluster = null');
-    expect(body).not.toContain('this._selectionBounds = null');  // D-07: bounds left active
+    expect(body).not.toContain('this._selectionBounds = null');  // bounds left active
     expect(body).toContain("this._paneState = 'collapsed'");
   });
 
@@ -865,7 +865,7 @@ describe('MAP-03: checklist taxon filter binding (county-fill removed, Plan 138-
   const atlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
 
   // _checklistVisible, _onChecklistLayerChanged, .checklistTaxon/.checklistTaxonRank bindings
-  // removed in Plan 138-03. Checklist now flows through hiddenTiers (Phase 170).
+  // removed in Plan 138-03. Checklist now flows through hiddenTiers.
   test('bee-atlas.ts does NOT have _checklistVisible @state field (retired)', () => {
     expect(atlasSrc).not.toMatch(/_checklistVisible/);
   });
@@ -878,7 +878,7 @@ describe('MAP-03: checklist taxon filter binding (county-fill removed, Plan 138-
     expect(atlasSrc).toMatch(/_onTierFilterChanged/);
     // New pattern: writes _filterState spread with hiddenTiers: e.detail.hiddenTiers
     expect(atlasSrc).toMatch(/_filterState\s*=\s*\{[^}]*hiddenTiers:\s*e\.detail\.hiddenTiers/s);
-    // Handler must re-run all three query methods (D-01)
+    // Handler must re-run all three query methods
     expect(atlasSrc).toMatch(/_onTierFilterChanged[\s\S]*?_runFilterQuery\(\)[\s\S]*?_runListQuery\(\)[\s\S]*?_runTableQuery\(\)/);
   });
 
@@ -907,7 +907,7 @@ describe('DET-01: _renderInatObs dispatched for record_type=inat_expert (Phase 1
   });
 });
 
-describe('PROV-02: tier-filter-changed event in bee-atlas (Phase 170)', () => {
+describe('PROV-02: tier-filter-changed event in bee-atlas', () => {
   const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
   test('bee-atlas.ts handles tier-filter-changed event', () => {
     expect(src).toMatch(/tier-filter-changed/);
@@ -935,7 +935,7 @@ describe('PROV-02: tier-filter-changed event in bee-atlas (Phase 170)', () => {
   });
 });
 
-// SC-3/SC-4: bee-atlas wires intendedFilterActive and removes empty-collection pre-seeds (Plan 144-02)
+// SC-3/SC-4: bee-atlas wires intendedFilterActive and removes empty-collection pre-seeds
 describe('144-02: bee-atlas wires intendedFilterActive; removes empty-collection hide-all pre-seeds (SC-3, SC-4)', () => {
   const atlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
 
@@ -989,7 +989,7 @@ describe('144-02: bee-atlas wires intendedFilterActive; removes empty-collection
 });
 
 // ---------------------------------------------------------------------------
-// Phase 146: session-coalesced viewport history
+// session-coalesced viewport history
 // ---------------------------------------------------------------------------
 // Behavioral tests: instantiate <bee-atlas>, cast to access private fields/methods,
 // and count pushState / replaceState calls to verify D-01..D-07.
@@ -1035,7 +1035,7 @@ describe('146: session-coalesced viewport history', () => {
     vi.restoreAllMocks();
   });
 
-  // Case 1 (D-01/D-02): N consecutive viewport moves with no intervening non-viewport
+  // Case 1: N consecutive viewport moves with no intervening non-viewport
   // write → exactly 1 pushState and N-1 replaceState calls.
   test('consecutive viewport moves produce exactly one pushState and N-1 replaceState', () => {
     const inst = el as unknown as BeeAtlasPrivate;
@@ -1050,7 +1050,7 @@ describe('146: session-coalesced viewport history', () => {
     expect(replaceSpy).toHaveBeenCalledTimes(N - 1);
   });
 
-  // Case 2 (D-03): an intervening non-viewport _replaceUrlState() call resets the session
+  // Case 2: an intervening non-viewport _replaceUrlState() call resets the session
   // so the second viewport move starts a NEW history entry (second pushState).
   test('non-viewport _replaceUrlState() between two viewport moves triggers a second pushState', () => {
     const inst = el as unknown as BeeAtlasPrivate;
@@ -1068,7 +1068,7 @@ describe('146: session-coalesced viewport history', () => {
     expect(pushSpy).toHaveBeenCalledTimes(2);
   });
 
-  // Case 3 (D-07): after _onPopState, the next viewport move starts a NEW entry.
+  // Case 3: after _onPopState, the next viewport move starts a NEW entry.
   test('viewport move after _onPopState fires a new pushState', () => {
     const inst = el as unknown as BeeAtlasPrivate;
     inst._filterResolving = false;
@@ -1080,23 +1080,23 @@ describe('146: session-coalesced viewport history', () => {
     // Navigate back/forward.
     inst._onPopState();
     // _onPopState sets _isRestoringFromHistory = true; the next _onViewMoved call
-    // clears that flag without writing history (D-06). Simulate the restoration-
+    // clears that flag without writing history. Simulate the restoration-
     // induced settled move that bee-map fires after flyTo completes.
     const replaceBefore = replaceSpy.mock.calls.length;
     fireViewMoved(inst, -120, 47.5, 7);
     // That move must NOT add a pushState (it's the history-restoration settle)...
     expect(pushSpy).toHaveBeenCalledTimes(1);
-    // ...and must NOT write replaceState either — _isRestoringFromHistory (D-06)
+    // ...and must NOT write replaceState either — _isRestoringFromHistory
     // suppresses the write entirely, it does not fall through to a live replace.
     expect(replaceSpy.mock.calls.length).toBe(replaceBefore);
 
-    // Now fire a genuine user pan — must produce a new pushState (push #2, D-07).
+    // Now fire a genuine user pan — must produce a new pushState (push #2).
     fireViewMoved(inst, -119, 48.0, 9);
     expect(pushSpy).toHaveBeenCalledTimes(2);
   });
 
-  // Case 4a (D-05): _replaceUrlState is suppressed while _filterResolving is true.
-  test('_replaceUrlState keeps `if (this._filterResolving) return` guard (D-05, source assertion)', () => {
+  // Case 4a: _replaceUrlState is suppressed while _filterResolving is true.
+  test('_replaceUrlState keeps `if (this._filterResolving) return` guard (source assertion)', () => {
     const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
     const methodStart = src.indexOf('private _replaceUrlState()');
     expect(methodStart).toBeGreaterThan(-1);
@@ -1106,7 +1106,7 @@ describe('146: session-coalesced viewport history', () => {
   });
 
   // Case 4b (D-05 behavioral): _writeViewportHistory is also suppressed while _filterResolving.
-  test('viewport write is suppressed while _filterResolving is true (D-05)', () => {
+  test('viewport write is suppressed while _filterResolving is true', () => {
     const inst = el as unknown as BeeAtlasPrivate;
     inst._filterResolving = true;
 
@@ -1117,8 +1117,8 @@ describe('146: session-coalesced viewport history', () => {
     expect(replaceSpy).not.toHaveBeenCalled();
   });
 
-  // Case 4c (D-06): _onViewMoved guards on _isRestoringFromHistory and writes nothing.
-  test('_onViewMoved writes no history when _isRestoringFromHistory is true (D-06)', () => {
+  // Case 4c: _onViewMoved guards on _isRestoringFromHistory and writes nothing.
+  test('_onViewMoved writes no history when _isRestoringFromHistory is true', () => {
     const inst = el as unknown as BeeAtlasPrivate;
     inst._filterResolving = false;
     inst._isRestoringFromHistory = true;
@@ -1132,7 +1132,7 @@ describe('146: session-coalesced viewport history', () => {
   });
 
   // Case 4d (D-06 source assertion): _onViewMoved references _isRestoringFromHistory.
-  test('_onViewMoved still references _isRestoringFromHistory (D-06, source assertion)', () => {
+  test('_onViewMoved still references _isRestoringFromHistory (source assertion)', () => {
     const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
     const methodStart = src.indexOf('private _onViewMoved(');
     expect(methodStart).toBeGreaterThan(-1);
@@ -1142,7 +1142,7 @@ describe('146: session-coalesced viewport history', () => {
   });
 });
 
-describe('OFF-04/OFF-05: bee-atlas _offline state propagation (Plan 149-03)', () => {
+describe('OFF-04/OFF-05: bee-atlas _offline state propagation', () => {
   // Integration test: window online/offline events flip bee-atlas._offline.
   // Tests use the established pattern (instantiate without DOM attachment) to avoid
   // triggering firstUpdated → maplibregl.Map initialization. Instead we directly invoke
@@ -1161,7 +1161,7 @@ describe('OFF-04/OFF-05: bee-atlas _offline state propagation (Plan 149-03)', ()
     vi.restoreAllMocks();
   });
 
-  test('dispatching window offline event sets _offline=true (OFF-04, OFF-05)', async () => {
+  test('dispatching window offline event sets _offline=true', async () => {
     // Ensure navigator.onLine starts as true so _offline initializes to false
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true, writable: true });
 
@@ -1190,7 +1190,7 @@ describe('OFF-04/OFF-05: bee-atlas _offline state propagation (Plan 149-03)', ()
     }
   });
 
-  test('disconnectedCallback removes online/offline listeners (no state leak after removal, T-149-17)', async () => {
+  test('disconnectedCallback removes online/offline listeners (no state leak after removal)', async () => {
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true, writable: true });
 
     const mod = await import('../bee-atlas.ts');
@@ -1212,7 +1212,7 @@ describe('OFF-04/OFF-05: bee-atlas _offline state propagation (Plan 149-03)', ()
 });
 
 // ---------------------------------------------------------------------------
-// NEAR: near-me bounds reuse (Plan 153-03)
+// NEAR: near-me bounds reuse
 // ---------------------------------------------------------------------------
 // Tests for boundsFromLocation, near-me ≡ shift-drag URL equivalence, denial
 // toast, success box-apply, clear, and plan-checker fixes (W1, W2, W3).
@@ -1273,7 +1273,7 @@ describe('NEAR: near-me bounds reuse', () => {
   });
 
   // -------------------------------------------------------------------------
-  // near-me ≡ shift-drag URL equivalence (D-01/D-02/D-03, Phase 999.8)
+  // near-me ≡ shift-drag URL equivalence
   // Post-999.8: bounds is in FilterState.bounds; bbox= param replaces sel=.
   // -------------------------------------------------------------------------
 
@@ -1315,7 +1315,7 @@ describe('NEAR: near-me bounds reuse', () => {
       const nearMeParams = buildParams(defaultView, nearMeFilter, { type: 'ids' as const, ids: [] }, defaultUi);
       const shiftDragParams = buildParams(defaultView, shiftDragFilter, { type: 'ids' as const, ids: [] }, defaultUi);
 
-      // D-02: bounds serializes as bbox= (not sel=)
+      // bounds serializes as bbox= (not sel=)
       expect(nearMeParams.get('bbox')).not.toBeNull();
       expect(nearMeParams.get('sel')).toBeNull();
       expect(nearMeParams.get('bbox')).toBe(shiftDragParams.get('bbox'));
@@ -1331,7 +1331,7 @@ describe('NEAR: near-me bounds reuse', () => {
       const params = buildParams(defaultView, filter, { type: 'ids' as const, ids: [] }, defaultUi);
       const parsed = parseParams(params.toString());
 
-      // D-02: bbox= is the canonical param, parsed into filter.bounds (not selection.type)
+      // bbox= is the canonical param, parsed into filter.bounds (not selection.type)
       expect(parsed.filter?.bounds).not.toBeNull();
       expect(parsed.selection?.type).not.toBe('bounds');
       expect(parsed.filter?.bounds?.west).toBeCloseTo(box.west, 3);
@@ -1423,7 +1423,7 @@ describe('NEAR: near-me bounds reuse', () => {
     // -----------------------------------------------------------------------
     // Success path: valid fix with _nearMePending applies the box
     // -----------------------------------------------------------------------
-    test('success with _nearMePending=true applies box to _filterState.bounds (D-01)', async () => {
+    test('success with _nearMePending=true applies box to _filterState.bounds', async () => {
       const { boundsFromLocation } = await import('../bee-atlas.ts');
       const lat = 47.5;
       const lon = -120.0;
@@ -1455,7 +1455,7 @@ describe('NEAR: near-me bounds reuse', () => {
     });
 
     // -----------------------------------------------------------------------
-    // Denial path (D-08): error sets toast, clears _nearMePending, no bounds
+    // Denial path: error sets toast, clears _nearMePending, no bounds
     // -----------------------------------------------------------------------
     test('denial (code 1) with _nearMePending sets _locationError, _locationErrorKind=denied, no bounds, clears pending', () => {
       inst._nearMePending = true;
@@ -1485,7 +1485,7 @@ describe('NEAR: near-me bounds reuse', () => {
     });
 
     // -----------------------------------------------------------------------
-    // Clear path (D-07): _onNearMeCleared nulls _filterState.bounds (only path)
+    // Clear path: _onNearMeCleared nulls _filterState.bounds (only path)
     // -----------------------------------------------------------------------
     test('D-07: _onNearMeCleared clears _filterState.bounds (via spread) and writes URL', () => {
       // Set an active bounds via _filterState spread
@@ -1504,12 +1504,12 @@ describe('NEAR: near-me bounds reuse', () => {
       inst._onNearMeCleared();
 
       expect(inst._filterState.bounds).toBeNull();
-      // D-05: record selection is preserved
+      // record selection is preserved
       expect(inst._selectedOccIds).toEqual(['ecdysis:1', 'inat:2']);
     });
 
     // -----------------------------------------------------------------------
-    // W3: "Clear filters" (pane-clear-selection) does NOT clear bounds (D-05)
+    // W3: "Clear filters" (pane-clear-selection) does NOT clear bounds
     // -----------------------------------------------------------------------
     test('D-05: _onClearSelection leaves _filterState.bounds active (bounds is a filter, not a selection)', async () => {
       const mod = await import('../bee-atlas.ts');
@@ -1523,7 +1523,7 @@ describe('NEAR: near-me bounds reuse', () => {
 
       clearInst._onClearSelection();
 
-      // D-05: clearing per-record selection leaves bounds active
+      // clearing per-record selection leaves bounds active
       expect(clearInst._filterState.bounds).not.toBeNull();
     });
   });
@@ -1548,7 +1548,7 @@ describe('NEAR: near-me bounds reuse', () => {
       expect(src).toMatch(/@query\s*\(\s*['"]bee-map['"]\s*\)/);
     });
 
-    test('no haversine, ?near=1, or nearMeCenter in non-comment lines (D-01)', () => {
+    test('no haversine, ?near=1, or nearMeCenter in non-comment lines', () => {
       // Strip single-line comments and check
       const nonCommentLines = src
         .split('\n')
@@ -1588,10 +1588,10 @@ describe('NEAR: near-me bounds reuse', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Toast fix (Task 2): trigger()===false path emits error in bee-map
+  // Toast fix: trigger()===false path emits error in bee-map
   // -------------------------------------------------------------------------
 
-  describe('NEAR toast fix (D-08 / Task 2)', () => {
+  describe('NEAR toast fix', () => {
     // What this test protects is that a DENIED permission reaches the banner.
     // Under Mapbox that needed a synthesised event, because trigger() returned
     // false on a denial and the control fired nothing of its own — so the test
@@ -1626,7 +1626,7 @@ describe('NEAR: near-me bounds reuse', () => {
   });
 });
 
-describe('STACK-01: regions dropdown above pane (Phase 157)', () => {
+describe('STACK-01: regions dropdown above pane', () => {
   const beeAtlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
   const beeMapSrc = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
   const beePaneSrc = readFileSync(resolve(__dirname, '../bee-pane.ts'), 'utf-8');

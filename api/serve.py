@@ -1,4 +1,4 @@
-"""Waitress serve entrypoint for BeeAtlas's auth + write API (D-17/D-18).
+"""Waitress serve entrypoint for BeeAtlas's auth + write API.
 
 D-17: [Waitress](https://docs.pylonsproject.org/projects/waitress/) — a
 maintained, pure-Python WSGI server — serves the app as a persistent
@@ -71,7 +71,7 @@ def main() -> None:
 
     # The loopback literal is HARDCODED here -- never 0.0.0.0, never
     # config-driven -- so this process is unreachable except through
-    # Apache's reverse proxy (D-17 security posture, T-178-25). Only the
+    # Apache's reverse proxy (D-17 security posture). Only the
     # port is config-driven (api.config.SERVE_PORT).
     waitress.serve(app, host="127.0.0.1", port=SERVE_PORT)
 

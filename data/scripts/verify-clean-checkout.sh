@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verify the fast test suite passes on a clean checkout (TPERF-03, D-02).
+# Verify the fast test suite passes on a clean checkout (TPERF-03).
 #
 # Creates a git worktree at HEAD, strips built/un-checked-in assets to simulate
 # a clean checkout, then runs `uv run pytest -m "not integration"` inside the

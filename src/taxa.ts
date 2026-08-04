@@ -3,7 +3,7 @@
 
 import type { TaxonOption } from './filter.ts';
 
-/** D-05: rank order for autocomplete sorting — broader ranks first */
+/** rank order for autocomplete sorting — broader ranks first */
 export const RANK_ORDER: Record<string, number> = {
   family: 0,
   subfamily: 1,
@@ -15,7 +15,7 @@ export const RANK_ORDER: Record<string, number> = {
   species: 7,
 };
 
-/** D-03: label scheme for taxon autocomplete entries */
+/** label scheme for taxon autocomplete entries */
 export function buildTaxonLabel(name: string, rank: string): string {
   if (rank === 'genus') return `${name} (genus)`;
   if (rank === 'subgenus') return `${name} (subgenus)`;

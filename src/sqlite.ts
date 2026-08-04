@@ -59,7 +59,7 @@ function _ensureWorker(): Worker {
       p.reject(new Error(msg.message));
     } else if (msg.kind === 'init-error') {
       // Worker init failed (wasm/DB/manifest). tablesReady stays unresolved by design
-      // (callers await it), but surface the cause so it isn't a silent hang (Phase 151).
+      // (callers await it), but surface the cause so it isn't a silent hang.
       console.error('[sqlite] worker init-error:', msg.message);
     } else if (msg.kind === 'geojson-result') {
       const p = _pending.get(msg.id!);

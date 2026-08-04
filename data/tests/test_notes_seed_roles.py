@@ -1,4 +1,4 @@
-"""Tests for notes_store roles loader (Task 1) and seed script (Task 2).
+"""Tests for notes_store roles loader and seed script.
 
 Roles tests use the committed example entries from data/roles_allowlist.toml
 (``example_author`` / ``example_curator``). These two logins exist solely to
@@ -14,7 +14,7 @@ import datetime
 import pytest
 
 # ---------------------------------------------------------------------------
-# Roles loader tests (Task 1)
+# Roles loader tests
 # ---------------------------------------------------------------------------
 
 
@@ -82,7 +82,7 @@ def test_role_of_curator():
 
 
 # ---------------------------------------------------------------------------
-# Seed script tests (Task 2)
+# Seed script tests
 # ---------------------------------------------------------------------------
 
 
