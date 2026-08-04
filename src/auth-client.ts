@@ -38,6 +38,19 @@ export interface AuthState {
   isCurator?: boolean;
   /** iNaturalist profile-image URL (avatar), or null if the user has none. */
   iconUrl?: string | null;
+  /**
+   * The same avatar as a `data:` URL, inlined by the API (api/avatar.py).
+   *
+   * This is what lets the picture survive going offline. `iconUrl` points at
+   * static.inaturalist.org, so rendering it with no network is a doomed
+   * cross-origin request — and on iOS, in an installed app, a failed request
+   * raises the system "Turn On Wi-Fi" modal. A `data:` URL makes no request at
+   * all, so it renders from the stored identity alone, exactly like `login`.
+   *
+   * Null whenever the server's fetch did not work out; the header falls back to
+   * `iconUrl`, which is fine precisely because that case implies a network.
+   */
+  iconData?: string | null;
 }
 
 /**
@@ -57,6 +70,8 @@ interface StoredIdentity {
   isAuthor?: boolean;
   isCurator?: boolean;
   iconUrl?: string | null;
+  /** The inlined avatar. The only field here with any size to it — see below. */
+  iconData?: string | null;
 }
 
 /**
@@ -91,6 +106,7 @@ export function loadLastKnownIdentity(): AuthState {
       role: stored.role ?? null,
       isAuthor: stored.isAuthor ?? false,
       isCurator: stored.isCurator ?? false,
+      iconData: stored.iconData ?? null,
       iconUrl: stored.iconUrl ?? null,
     };
   } catch {
@@ -107,11 +123,22 @@ function rememberIdentity(state: AuthState): void {
     isAuthor: state.isAuthor ?? false,
     isCurator: state.isCurator ?? false,
     iconUrl: state.iconUrl ?? null,
+    iconData: state.iconData ?? null,
   };
   try {
     localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify(stored));
   } catch {
     // Write failures (private mode / quota) cost the offline identity, nothing else.
+    //
+    // `iconData` is the only field here big enough to cause one — an avatar is a
+    // few KB of base64 against localStorage's ~5 MB — so on failure, retry
+    // without it. Losing the offline picture is a far smaller loss than losing
+    // the offline IDENTITY, which is what an all-or-nothing write would cost.
+    try {
+      localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify({ ...stored, iconData: null }));
+    } catch {
+      // Storage is unavailable rather than full. Nothing to do.
+    }
   }
 }
 
@@ -267,6 +294,7 @@ export async function fetchWhoami(): Promise<AuthState> {
       role?: string | null;
       is_author?: boolean;
       icon_url?: string | null;
+      icon_data?: string | null;
     };
     if (!body.authenticated) {
       forgetIdentity();
@@ -279,6 +307,7 @@ export async function fetchWhoami(): Promise<AuthState> {
       role: body.role ?? null,
       isAuthor: body.is_author ?? false,
       iconUrl: body.icon_url ?? null,
+      iconData: body.icon_data ?? null,
       // Curator-only signal (D-03): the server already echoes the fresh
       // `role` (re-read from the allowlist per request); this is a
       // UX-affordance derivation only -- authz is always re-checked

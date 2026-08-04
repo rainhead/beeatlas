@@ -120,6 +120,96 @@ describe('OFF-05: bee-header offline pill (Plan 149-03)', () => {
   });
 });
 
+// The install control moved out of the header and into the account menu, beside
+// the offline UI it is the precondition for (an installed iOS PWA has its own
+// storage bucket, beeatlas-93t). On a phone the header row is title + 4 nav icons
+// + offline pill + search + account, and this was the sixth control.
+describe('bee-header: installing is a row in the account menu, not a header button', () => {
+  let el: any;
+  afterEach(() => { if (el?.isConnected) el.remove(); });
+
+  const mount = async (props: Record<string, unknown>) => {
+    await import('../bee-header.ts');
+    el = document.createElement('bee-header') as any;
+    Object.assign(el, props);
+    document.body.appendChild(el);
+    await el.updateComplete;
+    return el;
+  };
+  const openMenu = async () => {
+    (el.shadowRoot.querySelector('.account-btn') as HTMLButtonElement).click();
+    await el.updateComplete;
+  };
+  const menuRow = (re: RegExp): HTMLButtonElement =>
+    [...el.shadowRoot.querySelectorAll('.account-popover button')]
+      .find((b: Element) => re.test(b.textContent || '')) as HTMLButtonElement;
+
+  test('an installable app puts no button in the header', async () => {
+    await mount({ installable: true });
+    expect(el.shadowRoot.querySelector('.right-group .install-btn'),
+      'the header must not grow the control back').toBeNull();
+  });
+
+  test('the Install row is in the menu and dispatches install-prompt', async () => {
+    await mount({ installable: true });
+    await openMenu();
+    const row = menuRow(/install app/i);
+    expect(row).toBeTruthy();
+
+    const handler = vi.fn();
+    document.addEventListener('install-prompt', handler);
+    row.click();
+    document.removeEventListener('install-prompt', handler);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    const event = handler.mock.calls[0]?.[0] as CustomEvent;
+    expect(event.composed).toBe(true);
+    expect(event.bubbles).toBe(true);
+  });
+
+  test('the iOS steps expand IN PLACE rather than opening a second popover', async () => {
+    // A popover opened from inside a popover is two outside-click handlers, two
+    // Escape paths and a z-order, for three lines of instructions.
+    await mount({ iosInstructable: true });
+    await openMenu();
+    const row = menuRow(/add to home screen/i);
+    expect(row).toBeTruthy();
+    expect(row.getAttribute('aria-expanded')).toBe('false');
+    expect(el.shadowRoot.querySelector('.menu-steps')).toBeNull();
+
+    row.click();
+    await el.updateComplete;
+
+    expect(row.getAttribute('aria-expanded')).toBe('true');
+    const steps = el.shadowRoot.querySelector('.menu-steps');
+    expect(steps).not.toBeNull();
+    expect(steps!.textContent).toContain('Share');
+    expect(el.shadowRoot.querySelector('.ios-a2hs-popover'),
+      'the separate popover is gone').toBeNull();
+  });
+
+  test('closing the menu collapses the steps', async () => {
+    // Otherwise the next raise of the menu finds them already open, which reads
+    // as the menu having remembered something it has no business remembering.
+    await mount({ iosInstructable: true });
+    await openMenu();
+    menuRow(/add to home screen/i).click();
+    await el.updateComplete;
+    expect(el.shadowRoot.querySelector('.menu-steps')).not.toBeNull();
+
+    (el.shadowRoot.querySelector('.account-btn') as HTMLButtonElement).click();  // close
+    await el.updateComplete;
+    await openMenu();                                                            // reopen
+    expect(el.shadowRoot.querySelector('.menu-steps')).toBeNull();
+  });
+
+  test('neither branch renders a row when the app is already installed', async () => {
+    await mount({ installable: false, iosInstructable: false });
+    await openMenu();
+    expect(menuRow(/install app|add to home screen/i)).toBeUndefined();
+  });
+});
+
 describe('178-07: bee-header sign-in / whoami / sign-out (D-10)', () => {
   let el: HTMLElement & { authState: unknown; updateComplete: Promise<boolean>; shadowRoot: ShadowRoot };
 
@@ -269,6 +359,43 @@ describe('178-07: bee-header sign-in / whoami / sign-out (D-10)', () => {
     (el.shadowRoot!.querySelector('.account-btn') as HTMLButtonElement).click();
     await el.updateComplete;
     expect(el.shadowRoot!.querySelector('.menu-identity__note')).toBeNull();
+  });
+
+  // The inlined avatar (api/avatar.py) is what makes the picture local, so the
+  // rule that hid it offline no longer applies to it.
+  test('an unverified identity DOES render the inlined avatar — a data: URL makes no request', async () => {
+    await import('../bee-header.ts');
+    const data = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
+    el = document.createElement('bee-header') as any;
+    (el as any).authState = {
+      authenticated: true, verified: false, login: 'someuser',
+      role: 'author', isAuthor: true,
+      iconUrl: 'https://static.inaturalist.org/x.jpg',
+      iconData: data,
+    };
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const img = el.shadowRoot!.querySelector('.account-avatar') as HTMLImageElement;
+    expect(img, 'the avatar should survive going offline now').not.toBeNull();
+    // …and specifically from the inlined copy. Rendering iconUrl here would be
+    // the doomed cross-origin request all over again.
+    expect(img.getAttribute('src')).toBe(data);
+  });
+
+  test('a verified identity prefers the inlined avatar over the remote URL', async () => {
+    await import('../bee-header.ts');
+    const data = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
+    el = document.createElement('bee-header') as any;
+    (el as any).authState = {
+      authenticated: true, verified: true, login: 'someuser', role: 'author', isAuthor: true,
+      iconUrl: 'https://static.inaturalist.org/x.jpg', iconData: data,
+    };
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    // Same bytes either way, but one of them costs a request on every load.
+    expect((el.shadowRoot!.querySelector('.account-avatar') as HTMLImageElement).getAttribute('src')).toBe(data);
   });
 
   test('dispatches a composed+bubbling sign-out event from the account popover', async () => {

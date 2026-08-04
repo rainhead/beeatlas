@@ -30,7 +30,7 @@ describe('auth-client: fetchWhoami', () => {
     const [url, opts] = call;
     expect(String(url)).toContain('/auth/whoami');
     expect(opts).toMatchObject({ credentials: 'include' });
-    expect(state).toEqual({ authenticated: true, verified: true, login: 'someuser', role: 'author', isAuthor: true, isCurator: false, iconUrl: null });
+    expect(state).toEqual({ authenticated: true, verified: true, login: 'someuser', role: 'author', isAuthor: true, isCurator: false, iconUrl: null, iconData: null });
   });
 
   test('maps icon_url => iconUrl (avatar)', async () => {
@@ -41,6 +41,16 @@ describe('auth-client: fetchWhoami', () => {
     }));
     const { fetchWhoami } = await import('../auth-client.ts');
     expect((await fetchWhoami()).iconUrl).toBe(icon);
+  });
+
+  test('maps icon_data => iconData (the inlined avatar)', async () => {
+    const data = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ authenticated: true, login: 'someuser', role: 'author', is_author: true, icon_data: data }),
+    }));
+    const { fetchWhoami } = await import('../auth-client.ts');
+    expect((await fetchWhoami()).iconData).toBe(data);
   });
 
   test('role: curator => isCurator true (D-03)', async () => {
@@ -131,7 +141,7 @@ describe('auth-client: identity survives going offline', () => {
 
     expect(state).toEqual({
       authenticated: true, verified: false, login: 'rainhead',
-      role: 'author', isAuthor: true, isCurator: false, iconUrl: null,
+      role: 'author', isAuthor: true, isCurator: false, iconUrl: null, iconData: null,
     });
   });
 
@@ -171,6 +181,62 @@ describe('auth-client: identity survives going offline', () => {
     await fetchWhoami();
 
     expect(loadLastKnownIdentity()).toEqual({ authenticated: false, verified: false });
+  });
+
+  // The avatar was the one part of identity that was NOT local, so it was hidden
+  // whenever `verified` was false — i.e. exactly when offline. api/avatar.py
+  // inlines it as a `data:` URL so it can be stored like everything else.
+  test('the inlined avatar is replayed offline, when the remote URL cannot be', async () => {
+    const data = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        authenticated: true, login: 'rainhead', role: 'author', is_author: true,
+        icon_url: 'https://static.inaturalist.org/attachments/users/icons/1/thumb.jpg',
+        icon_data: data,
+      }),
+    }));
+    const { fetchWhoami } = await import('../auth-client.ts');
+    await fetchWhoami();
+
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
+    const replayed = await fetchWhoami();
+    expect(replayed.verified).toBe(false);
+    expect(replayed.iconData, 'the avatar must survive the network going away').toBe(data);
+  });
+
+  test('a full identity blob still stores when the avatar makes it too big', async () => {
+    // localStorage is ~5 MB and the avatar is the only field with any size to it,
+    // so it is the only one that can push a write over. Losing the picture is a
+    // far smaller loss than losing the IDENTITY, which an all-or-nothing write
+    // would cost — and "signed out" is the wrong thing to show someone offline.
+    // A fake store rather than a spy on Storage.prototype: happy-dom's
+    // localStorage does not necessarily route through that prototype, and a spy
+    // that silently fails to intercept makes this test pass for the wrong reason.
+    const backing = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => backing.get(k) ?? null,
+      removeItem: (k: string) => { backing.delete(k); },
+      setItem: (k: string, v: string) => {
+        if (v.includes('base64')) throw new DOMException('quota', 'QuotaExceededError');
+        backing.set(k, v);
+      },
+    });
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        authenticated: true, login: 'rainhead', role: 'author', is_author: true,
+        icon_data: 'data:image/jpeg;base64,' + 'A'.repeat(64),
+      }),
+    }));
+    const { fetchWhoami, loadLastKnownIdentity, IDENTITY_STORAGE_KEY } = await import('../auth-client.ts');
+    await fetchWhoami();
+
+    expect(backing.get(IDENTITY_STORAGE_KEY), 'the identity must still be there').toBeDefined();
+    const stored = loadLastKnownIdentity();
+    expect(stored.login).toBe('rainhead');
+    expect(stored.iconData, 'the avatar is what gets dropped').toBeNull();
   });
 
   test('loadLastKnownIdentity ignores a corrupt or login-less record', async () => {

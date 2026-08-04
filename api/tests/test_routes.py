@@ -11,12 +11,15 @@ tests are fast-tier: no live network, DB via a tmp-path
 `notes_store.db.make_engine`.
 """
 
+import base64
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 from sqlalchemy.orm import Session
 
 import api.auth as auth
+import api.avatar as avatar
 import api.config as config
 import api.main as main
 import api.session as session
@@ -99,6 +102,7 @@ def test_whoami_valid_cookie_allowlisted_reports_authenticated_and_is_author(
         "role": "author",
         "is_author": True,
         "icon_url": None,  # _mint bakes no icon; whoami echoes None
+        "icon_data": None,  # …and nothing to inline from it
     }
 
 
@@ -113,7 +117,61 @@ def test_whoami_echoes_icon_url_from_cookie(client, monkeypatch, tmp_path):
                                 role="author", icon_url=icon)
     client.set_cookie(session.COOKIE_NAME, token, domain="localhost")
 
-    body = client.get("/auth/whoami").get_json()
+    with patch("api.avatar.requests.get", side_effect=requests.exceptions.Timeout()):
+        body = client.get("/auth/whoami").get_json()
+    assert body["icon_url"] == icon
+
+
+def test_whoami_inlines_the_avatar_as_a_data_url(client, monkeypatch, tmp_path):
+    """The avatar rides back inside whoami so it survives going offline (ADR 0027).
+
+    static.inaturalist.org sends no CORS, so the page can only ever get an opaque
+    response it cannot read; the fetch has to happen server-side. See api/avatar.py.
+    """
+    allowlist_path = _allowlist_toml(tmp_path, {"allowed_author": "author"})
+    monkeypatch.setattr(main.roles_module, "_ALLOWLIST", allowlist_path)
+    avatar._cache.clear()
+
+    icon = "https://static.inaturalist.org/attachments/users/icons/728554/abc-medium.jpeg"
+    serializer = session.make_serializer(TEST_SIGNING_KEY)
+    token = session.mint_cookie(serializer, internal_id=1, inat_login="allowed_author",
+                                role="author", icon_url=icon)
+    client.set_cookie(session.COOKIE_NAME, token, domain="localhost")
+
+    resp = MagicMock()
+    resp.ok, resp.status_code, resp.headers = True, 200, {"Content-Type": "image/jpeg"}
+    resp.raw.read.return_value = b"\xff\xd8\xff bytes"
+    resp.__enter__ = lambda self: self
+    resp.__exit__ = lambda self, *a: False
+
+    with patch("api.avatar.requests.get", return_value=resp):
+        body = client.get("/auth/whoami").get_json()
+
+    assert body["icon_data"] == "data:image/jpeg;base64," + base64.b64encode(b"\xff\xd8\xff bytes").decode()
+    # BOTH are returned — an online client that gets a null icon_data falls back
+    # to the remote URL and renders exactly as it did before this existed.
+    assert body["icon_url"] == icon
+
+
+def test_whoami_still_answers_when_the_avatar_fetch_fails(client, monkeypatch, tmp_path):
+    """A picture must never be able to turn signing in into a 500."""
+    allowlist_path = _allowlist_toml(tmp_path, {"allowed_author": "author"})
+    monkeypatch.setattr(main.roles_module, "_ALLOWLIST", allowlist_path)
+    avatar._cache.clear()
+
+    icon = "https://static.inaturalist.org/attachments/users/icons/728554/abc-medium.jpeg"
+    serializer = session.make_serializer(TEST_SIGNING_KEY)
+    token = session.mint_cookie(serializer, internal_id=1, inat_login="allowed_author",
+                                role="author", icon_url=icon)
+    client.set_cookie(session.COOKIE_NAME, token, domain="localhost")
+
+    with patch("api.avatar.requests.get", side_effect=requests.exceptions.Timeout()):
+        resp = client.get("/auth/whoami")
+
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["authenticated"] is True
+    assert body["icon_data"] is None
     assert body["icon_url"] == icon
 
 

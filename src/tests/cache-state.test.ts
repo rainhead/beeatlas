@@ -649,6 +649,77 @@ describe('bee-atlas update banner + popover lazy storage estimate (Phase 150)', 
     expect(storageEstimate!.quotaMB).toBeNull();
   });
 
+  // The figure used to be read ONCE, when the menu opened — which made the one
+  // moment it is guaranteed to be wrong the one moment someone is watching it:
+  // finish a 288 MB basemap download with the menu still up and it sat at its
+  // pre-download value until the menu was closed and reopened.
+  describe('"N MB stored on this device" keeps up while the menu is open', () => {
+    const openMenu = async (open: boolean) => {
+      el.dispatchEvent(new CustomEvent('cache-popover-toggle', {
+        detail: { open }, bubbles: true, composed: true,
+      }));
+      await (el as any).updateComplete;
+      await Promise.resolve();
+      await (el as any).updateComplete;
+    };
+    const settle = async () => {
+      await Promise.resolve();
+      await (el as any).updateComplete;
+    };
+
+    test('a finished basemap download re-reads it', async () => {
+      const estimate = vi.fn()
+        .mockResolvedValueOnce({ usage: 24_549_376, quota: undefined })   // menu opens
+        .mockResolvedValue({ usage: 326_107_136, quota: undefined });     // …after the download
+      Object.defineProperty(navigator, 'storage', { value: { estimate }, configurable: true });
+
+      await openMenu(true);
+      expect((el as any)._storageEstimate.usageMB).toBe('23.4');
+
+      el.dispatchEvent(new CustomEvent('basemap-state-changed', {
+        detail: { available: true, installed: true, primed: true, downloading: false, totalBytes: 0, primedBytes: 0 },
+        bubbles: true, composed: true,
+      }));
+      await settle();
+
+      expect((el as any)._storageEstimate.usageMB).toBe('311.0');
+    });
+
+    test('nothing is read while the menu is closed — nothing renders it', async () => {
+      const estimate = vi.fn().mockResolvedValue({ usage: 1, quota: undefined });
+      Object.defineProperty(navigator, 'storage', { value: { estimate }, configurable: true });
+
+      await openMenu(false);
+      el.dispatchEvent(new CustomEvent('basemap-state-changed', {
+        detail: { available: true, installed: true, primed: true, downloading: false, totalBytes: 0, primedBytes: 0 },
+        bubbles: true, composed: true,
+      }));
+      await settle();
+
+      expect(estimate).not.toHaveBeenCalled();
+    });
+
+    test('progress events are throttled — estimate() walks real accounting', async () => {
+      const estimate = vi.fn().mockResolvedValue({ usage: 1, quota: undefined });
+      Object.defineProperty(navigator, 'storage', { value: { estimate }, configurable: true });
+
+      await openMenu(true);
+      expect(estimate).toHaveBeenCalledTimes(1);   // the open itself
+
+      for (let i = 0; i < 50; i++) {
+        el.dispatchEvent(new CustomEvent('basemap-progress', {
+          detail: { received: i * 1_000_000, total: 300_000_000 },
+          bubbles: true, composed: true,
+        }));
+      }
+      await settle();
+
+      // A download fires these many times a second for minutes. The floor is
+      // wall-clock, so within one tick the open's read is the only one.
+      expect(estimate).toHaveBeenCalledTimes(1);
+    });
+  });
+
   test('navigator.storage.estimate undefined → _storageEstimate stays null (D-19)', async () => {
     Object.defineProperty(navigator, 'storage', {
       value: {},

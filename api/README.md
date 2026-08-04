@@ -16,6 +16,7 @@ this service except for the optional signed-in header state.
 - [`session.py`](session.py) — itsdangerous-signed session cookie mint/verify
 - [`auth.py`](auth.py) — `require_session` / `require_author` (origin gate + allowlist + WRITE-04 flag)
 - [`users.py`](users.py) — internal-id upsert against the store's `users` table
+- [`avatar.py`](avatar.py) — inlines the iNat profile image as a `data:` URL for whoami, so the avatar survives going offline (allowlisted hosts, size cap, short timeout, in-process cache). See the 2026-08-04 amendment in [ADR 0027](../docs/adr/0027-identity-survives-going-offline.md) for why the SERVER fetches it
 - [`config.py`](config.py) — secrets loader (`secrets.toml`, gitignored), redirect-URI pin, `DEV_MODE`
 - [`serve.py`](serve.py) — Waitress entrypoint (loopback-only)
 

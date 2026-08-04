@@ -46,6 +46,7 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 import api.auth as auth
+import api.avatar as avatar
 import api.config as config
 import api.oauth as oauth
 import api.publish_queue as publish_queue
@@ -289,13 +290,21 @@ def whoami():
 
     login = payload["login"]
     role = _fresh_role(login)
+    icon_url = payload.get("icon_url")
     return jsonify(
         {
             "authenticated": True,
             "login": login,
             "role": role,
             "is_author": role in ("author", "curator"),
-            "icon_url": payload.get("icon_url"),
+            "icon_url": icon_url,
+            # The same picture, inlined, so it survives going offline (ADR 0027).
+            # BOTH are returned: `icon_data` is null whenever the fetch did not
+            # work out, and an online client falls back to `icon_url` and renders
+            # exactly as it did before. See api/avatar.py for why the server is
+            # the one doing this — briefly, static.inaturalist.org sends no CORS,
+            # so the page can only ever get an opaque response it cannot read.
+            "icon_data": avatar.data_url(icon_url),
         }
     )
 

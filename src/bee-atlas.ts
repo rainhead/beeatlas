@@ -49,6 +49,9 @@ const CATALOG_LOOKUP_ZOOM = 12;
 // which is merely the old (broken) behaviour, not something worse.
 const SW_CONTROL_TIMEOUT_MS = 3000;
 
+/** Floor between `navigator.storage.estimate()` reads — see _refreshStorageEstimate. */
+const STORAGE_ESTIMATE_MIN_INTERVAL_MS = 2000;
+
 /**
  * The slice of workbox-window's Workbox that the update banner drives. Structural, not
  * an import: sw-registration.ts owns the real instance and hands it over on `window.__wb`
@@ -281,6 +284,10 @@ export class BeeAtlas extends LitElement {
   // a long-lived tab, the build id cannot change without a reload.
   @state() private _buildId: string | null = null;
   @state() private _storageEstimate: { usageMB: string; quotaMB: string | null } | null = null;
+  /** Whether the account menu is up — the only place the estimate is rendered. */
+  private _accountMenuOpen = false;
+  /** Throttle stamp for _refreshStorageEstimate. Not @state: never rendered. */
+  private _storageEstimateReadAt = 0;
   // Offline basemap (beeatlas-6rs). Separate from _cacheState because the basemap
   // is an opt-in download rather than something primed automatically.
   @state() private _basemapState: BasemapOfflineState | null = null;
@@ -1655,6 +1662,7 @@ bee-map {
       cached: ce.detail.cached,
       missing: ce.detail.missing,
     };
+    this._refreshStorageEstimate();
   };
 
   private _onSwUpdateAvailable = () => { this._updateAvailable = true; };
@@ -1664,10 +1672,17 @@ bee-map {
   private _onBasemapProgress = (e: Event) => {
     const ce = e as CustomEvent<BasemapPrimeProgressDetail>;
     this._basemapProgress = { received: ce.detail.received, total: ce.detail.total };
+    // The throttle inside is what makes this safe to call from a progress event.
+    this._refreshStorageEstimate();
   };
 
   private _onBasemapStateChanged = (e: Event) => {
     this._basemapState = (e as CustomEvent<BasemapOfflineState>).detail;
+    // The download just finished (or was found already done). This is the read
+    // that has to land: the throttled ones during the download are a courtesy,
+    // this one is the difference between a correct figure and a stale one.
+    this._storageEstimateReadAt = 0;
+    this._refreshStorageEstimate();
   };
 
   /**
@@ -1741,9 +1756,32 @@ bee-map {
 
   private _onPopoverToggle = async (e: Event) => {
     const ce = e as CustomEvent<{ open: boolean }>;
+    this._accountMenuOpen = ce.detail.open;
     if (ce.detail.open) {
       this._storageEstimate = await this._readStorageEstimate();
     }
+  };
+
+  /**
+   * Re-read "N MB stored on this device" while the menu is OPEN.
+   *
+   * The estimate used to be read once, when the menu opened, which made the one
+   * moment it is guaranteed to be wrong the one moment someone is watching it:
+   * finish a 288 MB basemap download with the menu still up and the figure sat
+   * at its pre-download value until the menu was closed and reopened.
+   *
+   * Only while open, because nothing renders it otherwise and the open path
+   * already reads it fresh. Throttled, because `navigator.storage.estimate()`
+   * walks real accounting and the caller during a download is a progress event
+   * arriving many times a second — this is a number a person is reading, so a
+   * couple of seconds is as often as it can possibly matter.
+   */
+  private _refreshStorageEstimate = (): void => {
+    if (!this._accountMenuOpen) return;
+    const now = Date.now();
+    if (now - this._storageEstimateReadAt < STORAGE_ESTIMATE_MIN_INTERVAL_MS) return;
+    this._storageEstimateReadAt = now;
+    void this._readStorageEstimate().then((est) => { this._storageEstimate = est; });
   };
 
   /**

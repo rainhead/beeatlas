@@ -107,8 +107,9 @@ export class BeeHeader extends LitElement {
   // button carrying auth, offline-cache status, freshness, source link and build.
   // Replaces the separate cache and account popovers.
   @state() private _menuOpen = false;
-  // Transient iOS A2HS popover open/close — local to presenter, not app state.
-  @state() private _iosPopoverOpen = false;
+  // Whether the iOS "Add to Home Screen" steps are expanded inside the account
+  // menu. Presenter-local and transient; collapses with the menu.
+  @state() private _iosStepsOpen = false;
   // Search popover open/close and its field. Both are presenter-local: the query
   // leaves this component only as `search-query` (asking to be ranked) and the
   // chosen row only as `search-pick`. Neither ranking nor resolving happens here.
@@ -212,11 +213,15 @@ export class BeeHeader extends LitElement {
       color: var(--accent);
     }
 
-    /* Install button (D-09/D-11): reuses .icon-btn chrome. Focus ring only — no fill accent. */
-    .install-btn:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
+    /* The iOS "Add to Home Screen" steps, expanded under their menu row (D-11).
+       Indented to the row's text so it reads as belonging to the row above. */
+    .menu-steps {
+      padding: 4px 0 8px 32px;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      color: var(--text-hint, #767676);
     }
+    .menu-steps__row { padding: 1px 0; }
 
     .cache-popover {
       position: absolute;
@@ -403,6 +408,10 @@ export class BeeHeader extends LitElement {
 
     /* A description belonging to the status line above it, not a peer row. */
     .menu-status .menu-meta { padding: 0; }
+    /* Same idea inside the steps: .menu-steps already carries the indent, so the
+       closing note must not add .menu-meta's own 16px on top and hang further in
+       than the numbered steps it belongs to. */
+    .menu-steps .menu-meta { padding: 2px 0; }
 
     @media (prefers-reduced-motion: reduce) {
       .cache-popover {
@@ -616,9 +625,12 @@ export class BeeHeader extends LitElement {
        beeatlas-j96 the account/status chrome is one button at every width, so
        the only mobile-specific work left is reclaiming horizontal space. */
     @media (max-width: 640px) {
-      /* Safety net: on the very narrowest screens (install + account together)
-         let the trailing group wrap to a second line instead of overflowing.
-         margin-left:auto keeps it right-aligned inline or wrapped. */
+      /* Safety net: let the trailing group wrap to a second line rather than
+         overflow. margin-left:auto keeps it right-aligned inline or wrapped.
+         The install button used to be the control that pushed this over on a
+         phone; it is a row in the account menu now, so this should not fire —
+         it stays because "should not" is not "cannot" (a long build id, a
+         future control), and a wrapped header beats a broken one. */
       :host { flex-wrap: wrap; row-gap: 2px; }
       /* Reclaim horizontal space so title + 4 nav icons + the trailing chrome
          fit one row down to ~360px (the icon padding keeps tap targets). */
@@ -654,6 +666,9 @@ export class BeeHeader extends LitElement {
   // silently break that lazy fetch.
   private _setMenuOpen(open: boolean) {
     this._menuOpen = open;
+    // The steps are a disclosure inside this menu, so they close with it rather
+    // than being found already open the next time it is raised.
+    if (!open) this._iosStepsOpen = false;
     this.dispatchEvent(new CustomEvent('cache-popover-toggle', {
       detail: { open },
       composed: true,
@@ -800,13 +815,8 @@ export class BeeHeader extends LitElement {
         this._setMenuOpen(false);
       }
     }
-    if (this._iosPopoverOpen) {
-      const iosPopover = this.shadowRoot?.querySelector('.ios-a2hs-popover');
-      const installBtn = this.shadowRoot?.querySelector('.install-btn');
-      if (iosPopover && !path.includes(iosPopover) && !path.includes(installBtn as Element)) {
-        this._iosPopoverOpen = false;
-      }
-    }
+    // No separate handler for the iOS steps: they are inside the account menu
+    // now, so the menu's own outside-click closes them with it (_setMenuOpen).
   };
 
   private _onDocumentKeydown = (e: KeyboardEvent) => {
@@ -816,9 +826,9 @@ export class BeeHeader extends LitElement {
     if (e.key === 'Escape' && this._menuOpen) {
       this._setMenuOpen(false);
     }
-    if (e.key === 'Escape' && this._iosPopoverOpen) {
-      this._iosPopoverOpen = false;
-    }
+    // Escape inside the menu closes the MENU, which takes the steps with it —
+    // one dismissal, which is the point of making them a disclosure rather than
+    // a second popover.
   };
 
   private _onUpdateActed = () => {
@@ -858,15 +868,10 @@ export class BeeHeader extends LitElement {
     }));
   };
 
-  // D-11: iOS A2HS popover toggle.
-  private _toggleIosPopover = (e: Event) => {
+  // D-11: expand/collapse the iOS A2HS steps inside the account menu.
+  private _toggleIosSteps = (e: Event) => {
     e.stopPropagation();
-    this._iosPopoverOpen = !this._iosPopoverOpen;
-  };
-
-  private _dismissIosPopover = (e: Event) => {
-    e.stopPropagation();
-    this._iosPopoverOpen = false;
+    this._iosStepsOpen = !this._iosStepsOpen;
   };
 
   private _onAvatarError = () => {
@@ -886,8 +891,9 @@ export class BeeHeader extends LitElement {
    * preference: the beeatlas-93t spike proved on real hardware that an installed
    * iOS PWA has its OWN storage bucket, so bytes downloaded in a browser tab are
    * invisible to the installed app AND unprotected against eviction. So this
-   * explains rather than offers, and points at the install button the header
-   * already carries — no second install control.
+   * explains rather than offers — and the install row it refers to is now the row
+   * directly above it (_renderInstallRow), which is most of why that control moved
+   * out of the header.
    */
   private _renderBasemapRow(): TemplateResult | typeof nothing {
     const bs = this.basemapState;
@@ -910,7 +916,7 @@ export class BeeHeader extends LitElement {
     if (!bs.installed) {
       return html`<div class="menu-status">
         Offline maps ${mb(bs.totalBytes)} MB
-        <div class="menu-meta">Install the app first — maps downloaded in the browser can't be used by the installed app</div>
+        <div class="menu-meta">Install the app first (above) — maps downloaded in the browser can't be used by the installed app</div>
       </div>`;
     }
     if (this.offline) {
@@ -1047,6 +1053,7 @@ export class BeeHeader extends LitElement {
         <hr class="menu-divider">
 
         ${statusContent ? html`<div class="menu-status">${statusContent}</div>` : ''}
+        ${this._renderInstallRow()}
         ${this._renderBasemapRow()}
         ${this.freshnessLabel ? html`<div class="menu-status">${this.freshnessLabel}</div>` : ''}
         ${this.storageEstimate ? html`
@@ -1214,49 +1221,93 @@ export class BeeHeader extends LitElement {
     `;
   }
 
-  // D-11: iOS A2HS popover — cloned from .cache-popover shell (PATTERNS.md §bee-header.ts).
-  // Uses role="dialog" aria-modal="false", 44px ✕ dismiss, Share glyph, 3-step copy.
-  private _renderIosPopover(): TemplateResult {
-    return html`
-      <div class="cache-popover ios-a2hs-popover" role="dialog" aria-modal="false" aria-label="Add to Home Screen instructions">
-        <div class="cache-popover__header">
-          <span>Add to Home Screen</span>
-          <button
-            class="cache-popover__dismiss"
-            @click=${this._dismissIosPopover}
-            aria-label="Close"
-          >✕</button>
-        </div>
-        <div class="cache-popover__row">
-          <!-- iOS Share glyph: rounded-rect with upward arrow rising from top edge -->
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" aria-hidden="true" width="16" height="16" style="vertical-align: middle; margin-right: 4px;">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v10m0-10-3 3m3-3 3 3"/>
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8 8H5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-3"/>
-          </svg>
-          1. Tap the Share button
-        </div>
-        <div class="cache-popover__row">2. Scroll down and tap 'Add to Home Screen'</div>
-        <div class="cache-popover__row">3. Tap 'Add' in the top corner</div>
-        <div class="cache-popover__row cache-popover__row--meta">Works in Safari on iPhone and iPad.</div>
-      </div>
-    `;
+  /**
+   * Installing the app — a row in the account menu, not a button in the header.
+   *
+   * It belongs with the offline UI rather than beside it. Installing is the
+   * PRECONDITION for the offline maps row directly below (an installed iOS PWA
+   * has its own storage bucket, beeatlas-93t), so the two read as one sequence
+   * here, where they read as unrelated when one was a header glyph. It also gets
+   * the header back a control: on a phone that row is the title, four nav icons,
+   * the offline pill, search and the account button, and this was the sixth.
+   *
+   * The iOS branch expands IN PLACE. It used to be a second popover anchored to
+   * the header button; a popover opened from inside a popover is a dismissal
+   * problem (two outside-click handlers, two Escape paths, and a z-order) for
+   * three lines of instructions, so it is a disclosure instead.
+   */
+  private _renderInstallRow(): TemplateResult | typeof nothing {
+    // Install glyph: downward arrow into a tray. Deliberately NOT the cloud
+    // download used by the offline-maps row below it — the two sit adjacent now,
+    // and they are different acts (D-09).
+    const glyph = html`
+      <svg class="menu-row__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v11m0 0-3-3m3 3 3-3"/>
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"/>
+      </svg>`;
+
+    if (this.installable) {
+      return html`
+        <button class="menu-row" @click=${this._onInstallClick}>
+          ${glyph}Install app
+        </button>
+      `;
+    }
+    if (this.iosInstructable) {
+      return html`
+        <button
+          class="menu-row"
+          @click=${this._toggleIosSteps}
+          aria-expanded=${String(this._iosStepsOpen)}
+          aria-controls="ios-a2hs-steps"
+        >
+          ${glyph}Add to Home Screen
+        </button>
+        ${this._iosStepsOpen ? html`
+          <div class="menu-steps" id="ios-a2hs-steps">
+            <div class="menu-steps__row">
+              <!-- iOS Share glyph: rounded-rect with upward arrow rising from top edge -->
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" aria-hidden="true" width="16" height="16" style="vertical-align: middle; margin-right: 4px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v10m0-10-3 3m3-3 3 3"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 8H5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-3"/>
+              </svg>
+              1. Tap the Share button
+            </div>
+            <div class="menu-steps__row">2. Scroll down and tap 'Add to Home Screen'</div>
+            <div class="menu-steps__row">3. Tap 'Add' in the top corner</div>
+            <div class="menu-meta">Works in Safari on iPhone and iPad.</div>
+          </div>
+        ` : nothing}
+      `;
+    }
+    return nothing;
   }
 
   // D-10 (178-07) + beeatlas-j96: the single trailing menu button. Renders in
   // BOTH auth states — avatar when signed in, person glyph when signed out —
-  // because the menu now also carries cache status, freshness, the update
-  // button and the source link, which signed-out visitors still need. Pure
-  // render off `authState`; no fetch, no window.location here.
+  // because the menu also carries cache status, freshness, the update button,
+  // installing, the offline maps and the source link, none of which are
+  // sign-in-specific. Pure render off `authState`; no fetch, no
+  // window.location here.
   private _renderAuth(): TemplateResult {
     const auth = this.authState;
     const signedIn = Boolean(auth?.authenticated);
-    // The avatar is the one part of the identity that is NOT local: it is an
-    // <img> against static.inaturalist.org. An unverified identity is precisely
-    // the case where we just failed to reach the network, so requesting it would
-    // be a second doomed request — and on iOS in an installed app that is what
-    // raises the system "Turn On Wi-Fi" modal the whole offline path exists to
-    // avoid (beeatlas-1dc). The glyph stands in until whoami is confirmed.
-    const showAvatar = signedIn && auth?.verified === true && Boolean(auth?.iconUrl) && !this._avatarError;
+    // The avatar used to be the one part of the identity that was NOT local — an
+    // <img> against static.inaturalist.org — so it was hidden whenever the
+    // identity was unverified. That is precisely the case where we just failed to
+    // reach the network, and requesting it would have been a second doomed
+    // request: on iOS in an installed app, that is what raises the system "Turn
+    // On Wi-Fi" modal the whole offline path exists to avoid (beeatlas-1dc).
+    //
+    // `iconData` removes the reason for the rule rather than the rule. The API
+    // inlines the picture as a `data:` URL (api/avatar.py), it is stored with the
+    // rest of the identity, and a `data:` URL makes NO REQUEST — so when we have
+    // one it renders whatever `verified` says, offline included.
+    //
+    // The remote URL stays gated, and must: it is still a network fetch, and it
+    // is only reachable in the state the gate already allows.
+    const src = auth?.iconData ?? (auth?.verified === true ? auth?.iconUrl : null);
+    const showAvatar = signedIn && Boolean(src) && !this._avatarError;
     return html`
       <button
         class="icon-btn account-btn"
@@ -1267,7 +1318,7 @@ export class BeeHeader extends LitElement {
         title=${signedIn ? 'Account' : 'Account and app status'}
       >
         ${showAvatar
-          ? html`<img class="account-avatar" src=${auth?.iconUrl ?? ''} alt="" @error=${this._onAvatarError}>`
+          ? html`<img class="account-avatar" src=${src ?? ''} alt="" @error=${this._onAvatarError}>`
           : html`
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
@@ -1320,36 +1371,10 @@ export class BeeHeader extends LitElement {
             <span class="offline-pill__label">Offline</span>
           </span>
         ` : ''}
-        ${this.installable ? html`
-          <button
-            class="icon-btn install-btn"
-            @click=${this._onInstallClick}
-            aria-label="Install app"
-            title="Install app"
-          >
-            <!-- Install glyph: downward arrow into a tray — distinct from cloud-download (D-09) -->
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" aria-hidden="true" width="24" height="24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v11m0 0-3-3m3 3 3-3"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"/>
-            </svg>
-          </button>
-        ` : this.iosInstructable ? html`
-          <button
-            class="icon-btn install-btn"
-            @click=${this._toggleIosPopover}
-            aria-label="Add to Home Screen"
-            title="Add to Home Screen"
-            aria-haspopup="dialog"
-            aria-expanded=${String(this._iosPopoverOpen)}
-          >
-            <!-- Install glyph (same as Android — cross-platform parity, D-11) -->
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" aria-hidden="true" width="24" height="24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v11m0 0-3-3m3 3 3-3"/>
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"/>
-            </svg>
-          </button>
-          ${this._iosPopoverOpen ? this._renderIosPopover() : ''}
-        ` : ''}
+        <!-- The install control is NOT here. It lives in the account menu, with the
+             offline UI it belongs to (_renderInstallRow) — on a phone this row is
+             title + 4 nav icons + offline pill + search + account, and a sixth
+             control was the one that made it crowded. -->
         ${this._renderSearch()}
         ${this._renderAuth()}
       </div>

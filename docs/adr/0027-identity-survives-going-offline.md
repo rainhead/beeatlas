@@ -75,11 +75,33 @@ past `WHOAMI_DELAY_MS` because `navigator.onLine` is not trustworthy at page ini
 `offline` event cancels that timer outright — so on an offline cold start the seed
 is the *only* thing that puts an identity on the header.
 
-The avatar is the exception. It is an `<img>` against `static.inaturalist.org` —
-the one part of the identity that is not local — so it renders only for a
+The avatar was the exception. It is an `<img>` against `static.inaturalist.org` —
+the one part of the identity that is not local — so it rendered only for a
 **verified** state. An unverified identity is precisely the case where the network
 just failed; requesting it would be a second doomed request, and on iOS that is
-the system modal this whole path exists to avoid. The person glyph stands in.
+the system modal this whole path exists to avoid. The person glyph stood in.
+
+> **Amended 2026-08-04 (beeatlas-1dc follow-up): the avatar is local now.**
+>
+> The rule above was right about the request and wrong to accept the missing
+> picture as the price. `api/avatar.py` fetches the image SERVER-side and whoami
+> returns it inline as a `data:` URL, so it is persisted with the login and the
+> role and replayed by the same seed. A `data:` URL makes no request at all, so
+> the reason for the gate is removed rather than the gate being relaxed.
+>
+> It had to be the server: `static.inaturalist.org` sends no
+> `Access-Control-Allow-Origin` (its OPTIONS preflight 403s), so a page-side
+> `fetch` can only ever obtain an OPAQUE response whose bytes it cannot read.
+> Caching that opaque response in the service worker was the alternative and is
+> the thing [ADR 0029](0029-one-origin-two-surfaces.md) had just rejected for the
+> read path — unreadable status, a 404 caching as a success, and megabytes of
+> quota padding on a device already carrying a 288 MB basemap.
+>
+> The remote URL is still returned and still gated on `verified`: it is still a
+> network fetch, and it is only reachable in the state the gate already allowed.
+> `icon_data` is null on every failure path, so an online client falls back to it
+> and renders exactly as before. The write rule is untouched — **write
+> affordances still require `verified`**; a picture is not an authorization.
 
 ### 4. A sign-out taken offline is durable
 
