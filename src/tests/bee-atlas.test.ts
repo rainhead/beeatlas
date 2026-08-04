@@ -64,7 +64,12 @@ describe('ARCH-02: bee-map property interface', () => {
     expect(props.has('visibleIds')).toBe(true);
     expect(props.has('boundaryMode')).toBe(true);
     expect(props.has('viewState')).toBe(true);
-    expect(props.has('panTo')).toBe(true);
+    // beeatlas-7nx.1: `panTo` was declared and implemented here but SET BY NOBODY —
+    // row-pan goes through viewState — so this assertion had been guarding a decoy.
+    // The real second camera channel is fitBounds, which carries an extent because
+    // only <bee-map> knows the container size needed to turn one into a camera.
+    expect(props.has('panTo')).toBe(false);
+    expect(props.has('fitBounds')).toBe(true);
     expect(props.has('filterState')).toBe(true);
     expect(props.has('layerMode')).toBe(false);
   });

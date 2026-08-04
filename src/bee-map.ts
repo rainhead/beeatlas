@@ -61,6 +61,13 @@ const DEFAULT_ZOOM = 7;
  */
 const MIN_ZOOM = 5;
 
+// Framing a search result (beeatlas-7nx.1). The cap matters most for the degenerate
+// case: one record is a zero-area box, and an uncapped fitBounds answers it with
+// maximum zoom — a street view of a single pin with no context around it. 12 is the
+// zoom the catalog lookup already picked for landing on one specimen.
+const FIT_MAX_ZOOM = 12;
+const FIT_PADDING_PX = 48;
+
 /**
  * Where MapLibre's worker is served from — copied out of node_modules by an
  * Eleventy passthrough (see eleventy.config.js, which carries the full why).
@@ -128,7 +135,21 @@ export class BeeMap extends LitElement {
   @property({ attribute: false }) countyOptions: string[] = [];
   @property({ attribute: false }) ecoregionOptions: string[] = [];
   @property({ attribute: false }) viewState: { lon: number; lat: number; zoom: number } | null = null;
-  @property({ attribute: false }) panTo: { coordinate: number[]; zoom: number } | null = null;
+  /**
+   * Frame this extent (beeatlas-7nx.1). A one-shot camera COMMAND, distinct from
+   * `viewState`, which is where the camera IS.
+   *
+   * It has to cross the boundary as an extent rather than a resolved centre+zoom
+   * because turning a bbox into a camera depends on the container's pixel size, and
+   * this element is the only thing that knows it.
+   *
+   * Replaces the never-wired `panTo`: that property was declared and implemented
+   * here but set by nobody (row-pan goes through viewState), so keeping both would
+   * leave this presenter with three camera channels, one of them a decoy.
+   */
+  @property({ attribute: false }) fitBounds: {
+    west: number; south: number; east: number; north: number;
+  } | null = null;
   @property({ attribute: false }) filterState: FilterState = emptyFilterState();
 
   @property({ attribute: false }) hiddenTiers: Set<string> = new Set();
@@ -435,12 +456,18 @@ export class BeeMap extends LitElement {
       });
     }
 
-    // Pan-to animation (from table row click)
-    if (changedProperties.has('panTo') && this.panTo && this._map) {
-      this._map.flyTo({
-        center: this.panTo.coordinate as [number, number],
-        zoom: this.panTo.zoom,
-        duration: 300,
+    // Frame a search result's extent (beeatlas-7nx.1, ADR 0028).
+    //
+    // maxZoom is load-bearing: a single-record result is a zero-area box, and
+    // fitBounds on one goes to maximum zoom — a street-level view of one pin, from
+    // which the reader cannot tell where they are. FIT_MAX_ZOOM matches the
+    // catalog lookup's own choice for the same situation.
+    if (changedProperties.has('fitBounds') && this.fitBounds && this._map) {
+      const { west, south, east, north } = this.fitBounds;
+      this._map.fitBounds([[west, south], [east, north]], {
+        padding: FIT_PADDING_PX,
+        maxZoom: FIT_MAX_ZOOM,
+        duration: 400,
       });
     }
 

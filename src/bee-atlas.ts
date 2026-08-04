@@ -196,6 +196,14 @@ export class BeeAtlas extends LitElement {
   // Ranked answers to what is currently typed, handed down to <bee-header>
   // (beeatlas-7nx.4). Recomputed per keystroke; pure and in-memory, so no debounce.
   @state() private _searchCandidates: SearchCandidate[] = [];
+  // The extent handed to <bee-map> to frame (beeatlas-7nx.1). Set only by a search;
+  // the filter panel never moves the camera.
+  @state() private _fitBounds: { west: number; south: number; east: number; north: number } | null = null;
+  // A ONE-SHOT intent, not a mode. _runFilterQuery has ~14 callers — every filter
+  // control, the bounds gesture, popstate, boot — and fitting inside the query would
+  // fly the map on all of them, which is exactly what ADR 0028 forbids. Search sets
+  // this immediately before the query it wants framed.
+  private _pendingFit = false;
   @state() private _searchCandidatesTruncated = false;
   // Record counts behind each searchable thing — the ranking tie-break. Queried once
   // (they change only when the DB reloads) and cached, so _rebuildSearchIndex stays
@@ -625,6 +633,7 @@ bee-map {
             .countyOptions=${this._countyOptions}
             .ecoregionOptions=${this._ecoregionOptions}
             .viewState=${this._viewState}
+            .fitBounds=${this._fitBounds}
             .filterState=${this._filterState}
             .hiddenTiers=${this._filterState.hiddenTiers}
             .offline=${this._offline}
@@ -934,11 +943,58 @@ bee-map {
   // --- Filter query ---
 
   private async _runFilterQuery(): Promise<void> {
+    // Capture the fit intent for THIS call and clear it immediately. Reading the
+    // field after the await would let a superseded query's intent survive the early
+    // return below and fire on somebody else's filter change — the same discipline
+    // the catalog lookup uses with its generation counter.
+    const wantsFit = this._pendingFit;
+    this._pendingFit = false;
+
     const guarded = await this._filterGuard(() => queryVisibleGeoJSON(this._filterState));
-    if (guarded === null) return;
+    if (guarded === null) return; // superseded — its fit is abandoned with it
     this._filteredGeoJSON = guarded.result?.geojson ?? null;
     this._visibleIds = guarded.result?.ids ?? null;
     this._filteredRowCount = guarded.result?.rowCount ?? null;
+
+    if (wantsFit) this._fitToFeatures(guarded.result?.geojson ?? null);
+  }
+
+  /**
+   * Frame what the search just found (beeatlas-7nx.1, ADR 0028).
+   *
+   * The extent comes from the features the filter query already returned, so
+   * framing costs no extra query.
+   *
+   * NOTHING TO SHOW MEANS NO MOVE. A zero-match search has no extent, and jumping
+   * to some default view would cost the reader their place in exchange for nothing.
+   *
+   * What gets framed is what is PLOTTED, checklist placeholders included: their
+   * coordinates are county-level (filter.ts:515), so a taxon attested only by
+   * checklist records frames a spread of county pins. That is honest — the camera
+   * shows the dots the reader is about to see — but it is a deliberate choice, not
+   * an oversight.
+   */
+  private _fitToFeatures(geojson: FeatureCollection<Point, OccurrenceProperties> | null): void {
+    const features = geojson?.features ?? [];
+    if (features.length === 0) { this._fitBounds = null; return; }
+
+    let west = Infinity, south = Infinity, east = -Infinity, north = -Infinity;
+    for (const f of features) {
+      const lon = f.geometry.coordinates[0];
+      const lat = f.geometry.coordinates[1];
+      if (lon === undefined || lat === undefined) continue;
+      if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+      if (lon < west) west = lon;
+      if (lon > east) east = lon;
+      if (lat < south) south = lat;
+      if (lat > north) north = lat;
+    }
+    if (!Number.isFinite(west) || !Number.isFinite(south)) { this._fitBounds = null; return; }
+
+    // A NEW OBJECT EVERY TIME, even for an identical extent: this is a command, and
+    // Lit only notices a changed property. Searching the same thing twice must frame
+    // it twice, or the second search silently leaves a panned-away map where it is.
+    this._fitBounds = { west, south, east, north };
   }
 
   private async _loadSummaryFromSQLite(): Promise<void> {
@@ -2189,6 +2245,12 @@ bee-map {
     if (this._paneState === 'list') { this._listPage = 1; this._runListQuery(); }
 
     this._tablePage = 1;
+    // Frame the answer. Search is a way INTO the data (ADR 0021's words), so unlike
+    // the filter panel it moves the camera — a taxon or a person name carries no
+    // more hint of where its records are than a label number does, and ADR 0020
+    // already recentres for that. Set immediately before the query whose features
+    // supply the extent.
+    this._pendingFit = true;
     this._runFilterQuery().then(() => {
       this._replaceUrlState();
     });

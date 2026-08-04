@@ -46,6 +46,7 @@ vi.mock('../bee-map.ts', async () => {
     countyOptions: string[] = [];
     ecoregionOptions: string[] = [];
     viewState: { lon: number; lat: number; zoom: number } | null = null;
+    fitBounds: { west: number; south: number; east: number; north: number } | null = null;
     filterState: unknown = null;
     requestUserLocation() { /* inert */ }
   }
@@ -55,13 +56,35 @@ vi.mock('../bee-map.ts', async () => {
 // The lookup itself is exercised for real in catalog-lookup.test.ts; here it is a
 // seam, so each case can state exactly what the DB answered.
 const mockLookup = vi.fn<(suffix: string, f: unknown) => Promise<CatalogLookupResult>>();
+// The map query keeps its REAL implementation unless a case opts out. Only the
+// camera-fit cases need to say what is on the map; everything else would rather the
+// default path stayed untouched.
+let geoOverride: (() => Promise<unknown>) | null = null;
 vi.mock('../filter.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../filter.ts')>();
   return {
     ...actual,
     lookupByCatalogSuffix: (suffix: string, f: unknown) => mockLookup(suffix, f),
+    queryVisibleGeoJSON: (f: unknown) =>
+      geoOverride ? geoOverride() : actual.queryVisibleGeoJSON(f as never),
   };
 });
+
+/** A map query answering with points at the given [lon, lat] pairs. */
+function pointsAt(coords: [number, number][]) {
+  return async () => ({
+    geojson: {
+      type: 'FeatureCollection',
+      features: coords.map(([lon, lat], i) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [lon, lat] },
+        properties: { occId: `ecdysis:${i}`, recencyTier: 'earlier', tier: 'atlas' },
+      })),
+    },
+    ids: new Set(coords.map((_, i) => `ecdysis:${i}`)),
+    rowCount: coords.length,
+  });
+}
 
 if (typeof window !== 'undefined' && window.location?.pathname == null) {
   try {
@@ -129,6 +152,7 @@ function map(atlas: AtlasEl) {
     viewState: { lon: number; lat: number; zoom: number } | null;
     filterState: ReturnType<typeof emptyFilterState>;
     boundaryMode: string;
+    fitBounds: { west: number; south: number; east: number; north: number } | null;
   };
 }
 
@@ -172,6 +196,7 @@ async function lookup(atlas: AtlasEl, query: string) {
 
 beforeEach(async () => {
   mockLookup.mockReset();
+  geoOverride = null;
   vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 404 })));
   // <bee-atlas> writes selection + filter into the URL and restores them on mount,
   // so a leftover query string would seed the next case's state. Start each mount
@@ -464,5 +489,80 @@ describe('a search result that names a view filters instead of selecting', () =>
     await lookup(el!, 'Zzzzz');
     expect(header(el!).searchStatus).toEqual({ query: 'Zzzzz', kind: 'miss' });
     expect(pane(el!).filterState.taxonId).toBeNull();
+  });
+});
+
+// --- beeatlas-7nx.1 — framing what the search found --------------------------
+describe('a search frames its answer; the filter panel never does', () => {
+  function seedIndex(atlas: AtlasEl) {
+    (atlas as unknown as { _searchIndex: unknown })._searchIndex = buildSearchIndex({
+      taxa: [{ taxonId: 42, name: 'Bombus', label: 'Bombus (genus)', rank: 'genus', weight: 4182, href: null }],
+      people: [], places: [], counties: [{ name: 'King', weight: 9 }], ecoregions: [],
+    });
+  }
+  beforeEach(() => seedIndex(el!));
+
+  test('the camera is told the extent of what matched', async () => {
+    geoOverride = pointsAt([[-122.3, 47.6], [-120.1, 46.2], [-121.0, 48.9]]);
+    await lookup(el!, 'Bombus');
+    expect(map(el!).fitBounds).toEqual({ west: -122.3, south: 46.2, east: -120.1, north: 48.9 });
+  });
+
+  test('a zero-match search leaves the viewport alone', async () => {
+    // There is nothing to fly to, and a default view would cost the reader their
+    // place in exchange for nothing.
+    geoOverride = pointsAt([]);
+    await lookup(el!, 'Bombus');
+    expect(map(el!).fitBounds).toBeNull();
+  });
+
+  test('the same search twice frames twice', async () => {
+    // fitBounds is a command, and Lit only notices a CHANGED property — an
+    // identical extent must still be a new object or the second search silently
+    // leaves a panned-away map where it is.
+    geoOverride = pointsAt([[-122.3, 47.6]]);
+    await lookup(el!, 'Bombus');
+    const first = map(el!).fitBounds;
+    await lookup(el!, 'Bombus');
+    expect(map(el!).fitBounds).toEqual(first);
+    expect(map(el!).fitBounds).not.toBe(first);
+  });
+
+  test('the FILTER PANEL does not move the camera', async () => {
+    // The whole distinction ADR 0028 draws: search is a way into the data, the
+    // panel refines a view you already have.
+    geoOverride = pointsAt([[-122.3, 47.6], [-120.1, 46.2]]);
+    pane(el!).dispatchEvent(new CustomEvent('filter-changed', {
+      bubbles: true, composed: true,
+      detail: { ...emptyFilterState(), selectedCounties: new Set(['King']) },
+    }));
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+    await el!.updateComplete;
+    expect(map(el!).fitBounds).toBeNull();
+  });
+
+  test('a superseded search abandons its fit with it', async () => {
+    // The intent is captured per-call and cleared at once. Read after the await, a
+    // superseded query's intent would survive its early return and fire on the next
+    // filter change — framing a result nobody asked to see.
+    geoOverride = pointsAt([[-122.3, 47.6]]);
+    await lookup(el!, 'Bombus');
+    const framed = map(el!).fitBounds;
+
+    geoOverride = pointsAt([[-119.0, 45.0], [-118.0, 49.0]]);
+    pane(el!).dispatchEvent(new CustomEvent('filter-changed', {
+      bubbles: true, composed: true,
+      detail: { ...emptyFilterState(), selectedCounties: new Set(['King']) },
+    }));
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+    await el!.updateComplete;
+    expect(map(el!).fitBounds, 'the panel change must not inherit the search fit').toBe(framed);
+  });
+
+  test('a label number still recentres rather than fitting', async () => {
+    // ADR 0020 owns that path; it lands on ONE record and knows its zoom.
+    mockLookup.mockResolvedValue({ rows: [specimenRow()], hiddenByFilter: false });
+    await lookup(el!, '2303966');
+    expect(map(el!).viewState).toEqual({ lat: 47.6, lon: -122.3, zoom: 12 });
   });
 });
