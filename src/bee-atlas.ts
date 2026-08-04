@@ -1,7 +1,7 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js';
 import type { BeeMap } from './bee-map.ts';
-import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, getOccurrencePlaceSlugs, queryTaxaTree, type OccurrenceProperties, emptyFilterState, parseCatalogSuffix, lookupByCatalogSuffix } from './filter.ts';
+import { type FilterState, type CollectorEntry, type PlaceOption, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, getOccurrencePlaceSlugs, queryTaxaTree, type OccurrenceProperties, emptyFilterState, parseCatalogSuffix, lookupByCatalogSuffix } from './filter.ts';
 import type { TaxonNode } from './taxa-tree.ts';
 import { parseOccId, occIdFromRow } from './occurrence.ts';
 import { buildParams, parseParams, type TierKey } from './url-state.ts';
@@ -165,7 +165,6 @@ export class BeeAtlas extends LitElement {
   // <bee-occurrence-detail> as a property — presenters never query wa-sqlite
   // themselves (state-ownership invariant, CLAUDE.md).
   @state() private _placeNamesByOccId: Map<string, string[]> = new Map();
-  private _placeNameBySlug: Map<string, string> | null = null;
   @state() private _selectionCount: number | null = null;
   @state() private _selectedOccIds: string[] | null = null;
   @state() private _selectedCluster: { lon: number; lat: number; radiusM: number } | null = null;
@@ -189,6 +188,14 @@ export class BeeAtlas extends LitElement {
   @state() private _countyOptions: string[] = [];
   @state() private _ecoregionOptions: string[] = [];
   @state() private _collectorOptions: CollectorEntry[] = [];
+  // Named places (beeatlas-7nx.3). Two shapes on purpose — see _loadPlaces.
+  @state() private _placeOptions: PlaceOption[] = [];
+  @state() private _placeNameBySlug: Map<string, string> = new Map();
+  // One in-flight fetch, shared. The boot path and the D-04 detail path both want
+  // places.json and used to fetch it separately (this component lazily for member
+  // -place names, <bee-pane> eagerly-ish for its own options) — two requests for one
+  // immutable, content-hashed artifact.
+  private _placesPromise: Promise<void> | null = null;
   @state() private _loading = true;
   @state() private _error: string | null = null;
   @state() private _viewState: { lon: number; lat: number; zoom: number } | null = null;
@@ -645,6 +652,8 @@ bee-map {
             .countyOptions=${this._countyOptions}
             .ecoregionOptions=${this._ecoregionOptions}
             .collectorOptions=${this._collectorOptions}
+            .placeOptions=${this._placeOptions}
+            .placeNameBySlug=${this._placeNameBySlug}
             .summary=${this._summary}
             .specimenCount=${isFilterActive(this._filterState) ? this._filteredRowCount : null}
             .listRows=${this._listRows}
@@ -1108,6 +1117,64 @@ bee-map {
     }
   }
 
+  /**
+   * Load the named places (beeatlas-7nx.3).
+   *
+   * This used to live in <bee-pane>, which fetched it for itself — the one option
+   * list that did not come down as a property. Hoisting it restores the state
+   * ownership invariant and gives search the corpus it needs without a second fetch.
+   *
+   * TWO SHAPES, DELIBERATELY. The NAME MAP keeps every place, because a chip has to
+   * resolve whatever slug the URL carries, even for a place with no records. The
+   * OPTION LIST keeps only places with records, because both the autocomplete and
+   * search offer a filter, and a place filter that can only ever produce an empty
+   * map punishes being picked. <bee-pane> drew exactly this distinction; it is
+   * preserved rather than reinvented.
+   *
+   * A failed fetch leaves both empty and says nothing: the chip falls back to the
+   * raw slug, which is what it did before. This runs on the boot path, so it must
+   * never throw.
+   */
+  private _loadPlaces(): Promise<void> {
+    if (this._placesPromise !== null) return this._placesPromise;
+    this._placesPromise = (async () => {
+      try {
+        const url = await resolveDataUrl('places_meta');
+        if (!url) return;
+        const resp = await fetch(url);
+        if (!resp.ok) return;
+        const records = await resp.json() as {
+          slug?: string; name?: string; land_owner?: string | null;
+          specimen_count?: number; sample_count?: number;
+        }[];
+        const nameMap = new Map<string, string>();
+        const options: PlaceOption[] = [];
+        for (const r of records) {
+          if (!r.slug || !r.name) continue;
+          nameMap.set(r.slug, r.name);
+          const specimenCount = r.specimen_count ?? 0;
+          const sampleCount = r.sample_count ?? 0;
+          if (specimenCount > 0 || sampleCount > 0) {
+            options.push({
+              slug: r.slug,
+              name: r.name,
+              landOwner: r.land_owner ?? null,
+              specimenCount,
+              sampleCount,
+            });
+          }
+        }
+        this._placeNameBySlug = nameMap;
+        this._placeOptions = options;
+      } catch {
+        // Leave both empty — see above. Memoized either way: a failed fetch is not
+        // retried, which is what the D-04 loader did before and keeps a dead
+        // artifact from being re-requested once per detail card.
+      }
+    })();
+    return this._placesPromise;
+  }
+
   private async _loadCountyEcoregionOptions(): Promise<void> {
     try {
       await tablesReady;
@@ -1229,26 +1296,12 @@ bee-map {
     void this._resolvePlaceNames(this._listRows);
   }
 
-  // D-04: ensure the slug→name map (from places_meta, the static places JSON) is
-  // loaded once. Owned here in the state owner; the resolved names flow DOWN to
-  // <bee-occurrence-detail>.
+  // D-04: the slug→name map, for the member-place names that flow DOWN to
+  // <bee-occurrence-detail>. Shares the one places.json fetch with the option lists
+  // (beeatlas-7nx.3) rather than issuing its own.
   private async _ensurePlaceNameBySlug(): Promise<Map<string, string>> {
-    if (this._placeNameBySlug !== null) return this._placeNameBySlug;
-    const nameMap = new Map<string, string>();
-    try {
-      const url = await resolveDataUrl('places_meta');
-      if (url) {
-        const resp = await fetch(url);
-        const records = await resp.json() as { slug: string; name: string }[];
-        for (const r of records) {
-          if (r.slug && r.name) nameMap.set(r.slug, r.name);
-        }
-      }
-    } catch {
-      // swallow — detail simply renders no member-place names
-    }
-    this._placeNameBySlug = nameMap;
-    return nameMap;
+    await this._loadPlaces();
+    return this._placeNameBySlug;
   }
 
   // D-04: for each displayed occurrence, query the occurrence_places bridge
@@ -2084,6 +2137,11 @@ bee-map {
     const _heapMB = ((performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0) / 1_048_576;
     console.log(`[BENCHMARK] data-loaded (loading screen lifted): ${(performance.now() - this._bootT0).toFixed(0)} ms from boot | main-thread heap: ${_heapMB.toFixed(1)} MB`);
     this._loadCollectorOptions();
+    // Named places (beeatlas-7nx.3). Eager, alongside the other option lists —
+    // <bee-pane> loaded this lazily and only when a place was already SELECTED, so
+    // its place autocomplete was empty on a fresh session and a place could not be
+    // found by typing its name until one had somehow been chosen already.
+    void this._loadPlaces();
     // Load county and ecoregion options from SQLite
     // (previously loaded from region GeoJSON sources, now stubbed for Phase 71)
     this._loadCountyEcoregionOptions();

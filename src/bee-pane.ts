@@ -1,10 +1,9 @@
 import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { isFilterActive } from './filter.ts';
-import type { FilterState, CollectorEntry } from './filter.ts';
+import type { FilterState, CollectorEntry, PlaceOption } from './filter.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
 import type { TaxonCacheEntry } from './taxa.ts';
-import { resolveDataUrl } from './manifest.ts';
 import { quantify } from './lib/quantify.js';
 import './bee-occurrence-detail.ts';
 import './bee-table.ts';
@@ -69,6 +68,11 @@ export class BeePane extends LitElement {
   @property({ attribute: false }) countyOptions: string[] = [];
   @property({ attribute: false }) ecoregionOptions: string[] = [];
   @property({ attribute: false }) collectorOptions: CollectorEntry[] = [];
+  // Named places, owned by <bee-atlas> like every other option list (beeatlas-7nx.3).
+  // `placeOptions` is offerable places (those with records); `placeNameBySlug` covers
+  // EVERY place, because a chip must resolve whatever slug the URL carries.
+  @property({ attribute: false }) placeOptions: PlaceOption[] = [];
+  @property({ attribute: false }) placeNameBySlug: Map<string, string> = new Map();
   @property({ attribute: false }) summary: DataSummary | null = null;
   @property({ attribute: false }) specimenCount: number | null = null;
 
@@ -118,8 +122,6 @@ export class BeePane extends LitElement {
   @state() private _selectedCounties: Set<string> = new Set();
   @state() private _selectedEcoregions: Set<string> = new Set();
   @state() private _selectedPlace: string | null = null;
-  @state() private _placeNameBySlug: Map<string, string> = new Map();
-  private _placeOptions: { slug: string; name: string }[] = [];
 
   // Elevation
   @state() private _elevMin: number | null = null;
@@ -592,7 +594,6 @@ export class BeePane extends LitElement {
     const fsPlace = f.selectedPlace;
     if (localPlace !== fsPlace) {
       this._selectedPlace = fsPlace;
-      if (this._selectedPlace !== null) void this._ensurePlaceNamesLoaded();
     }
 
     // Elevation
@@ -846,7 +847,7 @@ export class BeePane extends LitElement {
         }
       }
       if (this._selectedPlace === null) {
-        for (const opt of this._placeOptions) {
+        for (const opt of this.placeOptions) {
           if (opt.name.toLowerCase().includes(lower)) {
             sugs.push({ kind: 'where', label: opt.name, type: 'place', value: opt.slug });
             if (sugs.length >= 8) break;
@@ -906,31 +907,6 @@ export class BeePane extends LitElement {
     const raw = parseInt((e.target as HTMLInputElement).value, 10);
     this._elevMax = isNaN(raw) ? null : raw;
     this._emitFilter();
-  }
-
-  private async _ensurePlaceNamesLoaded() {
-    if (this._placeNameBySlug.size > 0) return;
-    try {
-      const url = await resolveDataUrl('places_meta');
-      if (!url) return;
-      const resp = await fetch(url);
-      const records = await resp.json() as { slug: string; name: string; specimen_count?: number; sample_count?: number }[];
-      const nameMap = new Map<string, string>();
-      const options: { slug: string; name: string }[] = [];
-      for (const r of records) {
-        if (r.slug && r.name) {
-          nameMap.set(r.slug, r.name);
-          if ((r.specimen_count ?? 0) > 0 || (r.sample_count ?? 0) > 0) {
-            options.push({ slug: r.slug, name: r.name });
-          }
-        }
-      }
-      this._placeNameBySlug = nameMap;
-      this._placeOptions = options;
-      this.requestUpdate();
-    } catch {
-      // silently swallow — chip falls back to the slug
-    }
   }
 
   // --- Section renderers ---
@@ -1063,9 +1039,9 @@ export class BeePane extends LitElement {
               `)}
               ${this._selectedPlace !== null ? html`
                 <span class="chip">
-                  ${this._placeNameBySlug.get(this._selectedPlace) ?? this._selectedPlace}
+                  ${this.placeNameBySlug.get(this._selectedPlace) ?? this._selectedPlace}
                   <button class="chip-remove" @click=${() => this._removePlace()}
-                    aria-label="Remove ${this._placeNameBySlug.get(this._selectedPlace) ?? this._selectedPlace}">&#x2715;</button>
+                    aria-label="Remove ${this.placeNameBySlug.get(this._selectedPlace) ?? this._selectedPlace}">&#x2715;</button>
                 </span>
               ` : nothing}
             </div>

@@ -711,6 +711,25 @@ export interface TaxonOption {
   rank: 'family' | 'subfamily' | 'tribe' | 'subtribe' | 'genus' | 'subgenus' | 'complex' | 'species';
 }
 
+/**
+ * A named place, as published in places.json (`places_meta` in the manifest).
+ *
+ * Unlike every other option type here this one is NOT read out of the occurrences
+ * DB — it comes from a fetched artifact — but it is owned by <bee-atlas> and passed
+ * down like the rest of them (beeatlas-7nx.3).
+ *
+ * The two counts are kept separate rather than pre-summed because they mean
+ * different things (a curated specimen versus a community sample). Callers that
+ * only need "does this place have any records" add them.
+ */
+export interface PlaceOption {
+  slug: string;
+  name: string;
+  landOwner: string | null;
+  specimenCount: number;
+  sampleCount: number;
+}
+
 // Custom event payload
 export interface FilterChangedEvent {
   taxonId: number | null;

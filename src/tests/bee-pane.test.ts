@@ -199,9 +199,17 @@ describe('PANE-05: list state filter controls + occurrence detail', () => {
     expect(src).toMatch(/f\.taxonId\s*!==\s*localTaxonId\s*\|\|\s*incomingTaxonDisplay\s*!==\s*localTaxonDisplay/);
   });
 
-  test('bee-pane.ts contains _ensurePlaceNamesLoaded with resolveDataUrl call', () => {
-    expect(src).toMatch(/_ensurePlaceNamesLoaded/);
-    expect(src).toMatch(/resolveDataUrl\(['"]places_meta['"]\)/);
+  test('bee-pane.ts fetches nothing — places arrive as properties (beeatlas-7nx.3)', () => {
+    // This used to assert the opposite: that the pane called resolveDataUrl for
+    // places_meta itself. That was the one option list a presenter loaded for
+    // itself, against the state-ownership invariant, and it meant places.json was
+    // requested twice — <bee-atlas> already fetched it for the detail card's
+    // member-place names. Both now share one memoized load in the state owner.
+    expect(src).not.toMatch(/_ensurePlaceNamesLoaded/);
+    expect(src).not.toMatch(/resolveDataUrl/);
+    expect(src).not.toMatch(/\bfetch\s*\(/);
+    expect(src).toMatch(/@property\(\{ attribute: false \}\) placeOptions/);
+    expect(src).toMatch(/@property\(\{ attribute: false \}\) placeNameBySlug/);
   });
 
   test('bee-pane.ts FilterChangedEvent detail contains all required fields', () => {
