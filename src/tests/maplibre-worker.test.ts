@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const read = (p: string) => readFileSync(resolve(ROOT, p), 'utf8');
 
-const WORKER_URL = '/app/basemap/maplibre/maplibre-gl-worker.mjs';
+const WORKER_URL = '/basemap/maplibre/maplibre-gl-worker.mjs';
 
 describe('the MapLibre worker is served, and from where bee-map says it is', () => {
   test('bee-map hands MapLibre an explicit worker URL', () => {
@@ -55,11 +55,13 @@ describe('the MapLibre worker is served, and from where bee-map says it is', () 
   test('the shipped worker imports NOTHING at runtime', () => {
     // THE ONE THAT SHIPPED BROKEN. maplibre-gl-worker.mjs as distributed opens
     // with `from "./maplibre-gl-shared.mjs"` — a fetch made BY THE WORKER at
-    // startup. A dedicated worker is its own service-worker client and is not
-    // controlled by the /app/ registration, so offline that import is never
-    // served from the precache: it goes to the network, fails, and the worker
-    // dies before running a line. Tile parsing, GeoJSON clustering and symbol
-    // layout all stop, with no error anywhere.
+    // startup. A dedicated worker is its own service-worker client, so whether
+    // that import is served offline turns on the worker itself being a CONTROLLED
+    // client; it was not, so the import went to the network, failed, and the worker
+    // died before running a line. Tile parsing, GeoJSON clustering and symbol
+    // layout all stop, with no error anywhere. Bundling is what removes the
+    // question — there is no second request left to be right about, and that stays
+    // true under ADR 0029's wider scope.
     //
     // Shipping BOTH files side by side did not fix it and could not. It looked
     // fixed: the precache listed both, and a page-side fetch of either returned

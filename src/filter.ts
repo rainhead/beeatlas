@@ -328,8 +328,8 @@ export function isFilterActive(f: FilterState): boolean {
 // in its FROM clause (`FROM occurrences o` or `FROM occurrences o LEFT JOIN taxa t …`).
 // `taxon_id` exists in BOTH occurrences and taxa, so an unqualified reference is
 // ambiguous once `taxa` is joined for display_name resolution.
-// Phase 160 robustness: occurrence_places is a newer table. Under the v5.0 `/app`
-// service worker (CacheFirst on /data/*.db), a stale cached occurrences.db can be
+// Phase 160 robustness: occurrence_places is a newer table. Under the service worker's
+// CacheFirst route on /data/*.db, a stale cached occurrences.db can be
 // loaded by newer JS during a data-update skew window — querying the bridge then
 // throws "no such table". Probe once per session (the worker loads the DB once into
 // MemoryVFS, so the answer is stable) and degrade gracefully: chips resolve to none
@@ -357,7 +357,7 @@ export async function occurrencePlacesAvailable(): Promise<boolean> {
 export function _resetOccurrencePlacesProbe(): void { _occPlacesAvailable = null; }
 
 // elevation_dem_m is a newer COLUMN (beeatlas-sn8) with exactly the skew exposure
-// described above for occurrence_places: an offline `/app` session holding a
+// described above for occurrence_places: an offline session holding a
 // pre-backfill occurrences.db would throw "no such column" the moment an elevation
 // bound was set. Same probe shape, same graceful degradation — but note what it
 // degrades TO. The SEMANTIC rule never changes (a bound always means "elevation
@@ -826,7 +826,7 @@ export async function queryOccurrencesByBounds(
 // defense-in-depth (the exec path interpolates rather than binds).
 export async function getOccurrencePlaceSlugs(occId: string): Promise<string[]> {
   // Phase 160 robustness: degrade to "no memberships" when the bridge table is
-  // absent (stale cached DB under the /app SW) instead of throwing an uncaught
+  // absent (stale cached DB under the SW) instead of throwing an uncaught
   // "no such table: occurrence_places". See occurrencePlacesAvailable().
   if (!(await occurrencePlacesAvailable())) return [];
   const escaped = occId.replace(/'/g, "''");

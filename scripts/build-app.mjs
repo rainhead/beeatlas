@@ -20,8 +20,8 @@
  *   1. clean _site except assets/ — because merge-swap.sh rsyncs pages with --delete,
  *      which makes _site the authority for the live site. Without this a page dropped
  *      from the data sits in _site, and therefore on the site, forever. Everything
- *      removed here is rebuilt downstream: pages and app/ by Eleventy, app/sw.js by
- *      the service-worker pass, data/ by postbuild-data.
+ *      removed here is rebuilt downstream: pages, icons/ and manifest.webmanifest by
+ *      Eleventy, sw.js by the service-worker pass, data/ by postbuild-data.
  *   2. run Vite ONLY if the bundle's inputs moved.
  *   3. prune anything in assets/ the manifest does not name. This is what actually
  *      kills stale hashed chunks, and it now does so whether or not Vite ran — with

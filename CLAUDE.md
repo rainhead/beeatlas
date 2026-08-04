@@ -55,7 +55,7 @@ npm test
 #      node_modules so npm ci cannot destroy it)
 #   -> eleventy (reads the manifest, emits the hashed <script>/<link> tags itself)
 #   -> vite build -c vite.sw.config.ts (service worker; its precache glob needs
-#      app/index.html, which Eleventy writes) -> validate-bundle-size -> postbuild
+#      index.html, which Eleventy writes) -> validate-bundle-size -> postbuild
 # No HTML passes through Vite. Adding a module a template references means adding it
 # to build.rollupOptions.input in vite.config.ts.
 npm run build
@@ -111,11 +111,15 @@ cd data && uv run pytest
     through workbox's own globber by `src/tests/basemap-precache.test.ts`. That
     works only because MapLibre v6 expands `{fontstack}` on the MAIN thread.
     The WORKER is bundled into ONE self-contained file by
-    `scripts/build-maplibre-worker.mjs` and served from `/app/basemap/maplibre/`:
-    a dedicated worker is its own SW client matched on its OWN url, so both its
-    script load and its runtime `import './maplibre-gl-shared.mjs'` were
-    unreachable offline — the worker died before running a line and every silent
-    offline symptom followed. Both manifests are CACHE-FIRST with a deferred
+    `scripts/build-maplibre-worker.mjs` and served from `/basemap/maplibre/`,
+    which must stay INSIDE the SW scope: a dedicated worker is its own SW client
+    matched on its OWN url, so both its script load and its runtime
+    `import './maplibre-gl-shared.mjs'` were unreachable offline — the worker died
+    before running a line and every silent offline symptom followed. (It sat under
+    `/app/basemap/` until ADR 0029 widened the scope to the origin;
+    `basemap-precache.test.ts` re-derives the containment from `SW_SCOPE` in
+    `src/sw-registration.ts` rather than from a spelled path.)
+    Both manifests are CACHE-FIRST with a deferred
     revalidation, not `navigator.onLine`-guarded: on a real iPhone onLine still
     read true at 110ms. On-device debugging: account menu → **Diagnostics**
     (`src/diagnostics.ts`); automated offline cold start:
@@ -141,6 +145,7 @@ cd data && uv run pytest
     `/basemap/maplibre/`, and `<bee-map>` passes that path to `setWorkerUrl`.
     Pinned by `src/tests/maplibre-worker.test.ts`. Do not "simplify" it into an
     import.
+- **The app is at `/`, and offline stops at the map (beeatlas-3xx, [ADR 0029](docs/adr/0029-one-origin-two-surfaces.md)).** `/` IS the PWA — `_pages/index.html` mounts `src/app-entry.ts`, carries the webmanifest link and the iOS metadata, and is the only template that does. The service worker is `/sw.js` at scope `/`, its shell answers `/` **and nothing else** (the `allowlist` in `src/sw.ts` admits a query string, since the app's whole state travels in one), and `/manifest.webmanifest` + `/icons/` moved out from under `/app/` with it. **Only the app registers**, and that is now LOAD-BEARING rather than incidental: `sw-registration.ts` and `prime-orchestrator.ts` are imported by `app-entry.ts` alone, which is what keeps a 3.3 MB precache and a ~34.8 MB prime off a species page that loads 18 KB of JS. Species/place/collector pages are **deliberately not cached** — 18 cross-origin iNat photos per page are opaque, quota-padded responses, and both CacheFirst and StaleWhileRevalidate break `bee-notes.ts`'s write-then-`location.reload()`, showing the author their note as absent. `_pages/app/index.html` is a redirect stub for a short deprecation window (population: one installed PWA); dropping `/app/sw.js` from the build is what retires the old registration, and `sw-registration.ts` unregisters any `/app/` scope it finds as well.
 - **Identity survives going offline (beeatlas-1dc, [ADR 0027](docs/adr/0027-identity-survives-going-offline.md)).** `AuthState.verified` is REQUIRED and says whether the server confirmed this session; `(authenticated, verified)` names three states, and only the server saying `authenticated:false` produces a verified signed-out — a 5xx or a dead network replays the last known identity as `{true,false}`. That cached identity (`localStorage['beeatlas.auth.lastKnown']`, no credential in it) is for DISPLAY and LOCAL FILTERING only: **write affordances require `verified`**, which is why `<bee-notes>` gates its author/curator getters on it and why the header's remote avatar renders only when verified. Both auth controllers seed synchronously from `loadLastKnownIdentity()` at mount — that seed, not the deferred whoami, is what puts an identity on an offline cold start, since the `offline` event cancels the timer. Sign-out erases locally first and persists a pending-logout flag so an offline sign-out is not undone on reconnect.
 - Nothing in the tree touches Mapbox any more (beeatlas-mas, 2026-08-03). The dead `api.mapbox.com` SW route is gone, and `src/sw.ts` deletes the `mapbox-basemap` Cache Storage bucket on activate so pre-swap devices reclaim the space. `docs/adr/0001-mapbox-basemap-cache.md` is superseded by [ADR 0026](docs/adr/0026-self-hosted-basemap.md); keep 0001 for its record of why offline basemap serving was never licensable under Mapbox.
 - `data/artifacts.toml` (+ tested `data/artifacts.py`) is the declarative contract for the data pipeline's artifacts — each carries a `derived`|`authoritative` provenance and the two schema-evolution regimes are machine-enforced (`authoritative` ⇒ never a dbt model, `baseline_diff=false`, forward-only migrations; rebuild/bypass forbidden). See `docs/adr/0002-derived-vs-authoritative-artifacts.md`. Since Model Y the *published* runtime manifest is owned by the site build instead (`lib/runtime-artifacts.js` + `scripts/postbuild-data.mjs`, the slim manifest); artifacts.toml's operational surface is the integration-gate baseline set (`baseline-files`) and the `pull-published` dev pull.

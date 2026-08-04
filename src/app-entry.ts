@@ -1,7 +1,11 @@
-// Vite entry for the /app route.
-// Imports <bee-atlas> (same component as /) plus SW registration.
-// _pages/index.html references src/bee-atlas.ts directly and MUST NOT
-// import this file — that structural separation is the no-SW-on-/ guarantee.
+// The app's Vite entry, and the ONLY one that registers a service worker or starts
+// the data prime. `_pages/index.html` is the only template that references it.
+//
+// That is LOAD-BEARING as of ADR 0029, not incidental. The static pages mount through
+// src/entries/{bee-header,species-index,taxon-page}.ts, none of which import this file
+// or anything it pulls in — which is what keeps a 3.3 MB precache and a ~34.8 MB prime
+// off a species page that loads 18 KB of JavaScript. Adding an import of this module
+// to a static page's entry hands both to a reader who never opened the map.
 //
 // Prime orchestrator (CACHE-01/02/04 in Phase 150) is imported as a side-effect module —
 // it owns the cold-start cache prime + cache probe + 'online' re-prime listener.

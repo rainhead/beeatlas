@@ -53,7 +53,8 @@ const SW_CONTROL_TIMEOUT_MS = 3000;
  * The slice of workbox-window's Workbox that the update banner drives. Structural, not
  * an import: sw-registration.ts owns the real instance and hands it over on `window.__wb`
  * (see the handoff note there), and bee-atlas must not pull workbox-window into the
- * non-/app bundle — index.html mounts this same component with no service worker at all.
+ * bundle it does not belong in — registration lives in one module, and only one entry
+ * imports it.
  */
 interface WorkboxUpdateHandle {
   messageSkipWaiting(): void;
@@ -1752,7 +1753,7 @@ bee-map {
    * the waiting worker then calls skipWaiting() (src/sw.ts) and must activate and take
    * over this client before a reload is served ITS assets. Reloading on the same tick
    * races that and normally loses — the OLD worker handles the navigation, and since
-   * every /app/ navigation is answered from the precached app shell (the NavigationRoute
+   * an app navigation is answered from the precached app shell (the NavigationRoute
    * in src/sw.ts), the page comes back on the old index.html and the old bundle. That is
    * why tapping again a moment later works: by then the new worker has activated.
    *

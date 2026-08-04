@@ -176,7 +176,13 @@ export default defineConfig({
       // when Eleventy renders it. There is no separate drift-checking script — the
       // render IS the check, because every entry is reached by some page.
       input: [
-        'src/bee-atlas.ts',
+        // src/bee-atlas.ts is NOT an entry. It was, while `/` mounted the map
+        // directly and `/app/` mounted it plus the service worker — the two-entry
+        // split WAS the no-SW-on-/ guarantee. ADR 0029 merged those pages, so the
+        // only way into the app is src/app-entry.ts and bee-atlas is just its
+        // biggest import. Re-adding it here would hand a template a way to mount
+        // the map without registering the worker or priming, which is the one
+        // thing this list should make impossible.
         'src/app-entry.ts',
         'src/entries/bee-header.ts',
         'src/entries/species-index.ts',

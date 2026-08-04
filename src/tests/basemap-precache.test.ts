@@ -17,7 +17,7 @@
 // It runs off a synthesized _site layout rather than a real one: `npm test` must
 // not require a completed build, and the layout is derivable — Eleventy copies
 // public/basemap verbatim, plus the bundled MapLibre worker and the PWA shell
-// files (webmanifest + icons) under app/.
+// files (webmanifest + icons), all at the site root since ADR 0029.
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { globSync } from 'glob';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -46,7 +46,7 @@ function walk(dir: string, base = dir): string[] {
  * globbing is by name.
  */
 const SYNTHETIC = [
-  'app/index.html',
+  'index.html',
   'assets/app/index-abc123.js',
   'assets/app/index-abc123.css',
   'assets/wa-sqlite-def456.wasm',
@@ -57,7 +57,15 @@ const SYNTHETIC = [
   'data/counties-abc.geojson',
   'data/occurrences-abc.parquet',
   'feeds/notes.json',
-  'app/sw.js',
+  'sw.js',
+  // The READING SURFACE (ADR 0029). Sharing an origin with the app is not sharing
+  // its offline story: these must stay out, or `index.html` has quietly become
+  // `**/index.html` and the precache has grown by 101 MB of pages whose photos are
+  // cross-origin and whose note writes depend on a live reload.
+  'species/Bombus/mixtus/index.html',
+  'places/klickitat-trail/index.html',
+  'collectors/somebody/index.html',
+  'app/index.html',
 ];
 
 
@@ -75,13 +83,13 @@ beforeAll(() => {
 
   // Eleventy copies public/basemap verbatim to _site/basemap (eleventy.config.js).
   for (const rel of walk(resolve(ROOT, 'public/basemap'))) touch(`basemap/${rel}`);
-  // …and the bundled MapLibre worker to _site/app/basemap/maplibre/ — inside the
-  // service worker's /app/ scope, which is what makes it reachable offline.
-  touch('app/basemap/maplibre/maplibre-gl-worker.mjs');
-  // The PWA shell files the BROWSER requests (linked from app/index.html).
-  touch('app/manifest.webmanifest');
+  // …and the bundled MapLibre worker to _site/basemap/maplibre/ — inside the
+  // service worker's scope, which is what makes it reachable offline.
+  touch('basemap/maplibre/maplibre-gl-worker.mjs');
+  // The PWA shell files the BROWSER requests (linked from index.html).
+  touch('manifest.webmanifest');
   for (const i of ['apple-touch-icon-180.png','icon-192.png','icon-512.png','icon-maskable-512.png'])
-    touch(`app/icons/${i}`);
+    touch(`icons/${i}`);
   for (const rel of SYNTHETIC) touch(rel);
 
   // The exact call workbox-build makes, per pattern, with the ignores applied.
@@ -103,7 +111,7 @@ describe('the service worker precaches everything the basemap needs to draw', ()
     // offline it went to the network and the worker died before running a line —
     // see the scope test below and scripts/build-maplibre-worker.mjs. The build
     // now bundles it; there is no sibling left to precache.
-    expect(matched).toContain('app/basemap/maplibre/maplibre-gl-worker.mjs');
+    expect(matched).toContain('basemap/maplibre/maplibre-gl-worker.mjs');
     expect([...matched].filter((p) => p.includes('maplibre'))).toHaveLength(1);
   });
 
@@ -140,42 +148,75 @@ describe('the service worker precaches everything the basemap needs to draw', ()
   test('the app shell and the SQLite wasm are still precached', () => {
     // Regression guard on the pre-existing entries, which the beeatlas-6rs edit
     // moved out of vite.sw.config.ts into a shared module.
-    expect(matched).toContain('app/index.html');
+    expect(matched).toContain('index.html');
     expect(matched).toContain('assets/wa-sqlite-def456.wasm');
     expect(matched).toContain('assets/app/index-abc123.js');
     expect(matched).toContain('assets/app/index-abc123.css');
   });
 
+  test('the reading surface is NOT precached', () => {
+    // ADR 0029's line: offline is for the field, online is for the desk. The
+    // failure mode this guards is a one-character edit — `index.html` growing a
+    // globstar — which would silently pull 801 species pages, 180 place pages and
+    // 124 collector pages into the SW install. That is 101 MB, whose photos are
+    // cross-origin opaque responses (padded for quota, broken when 404) and whose
+    // note writes depend on `window.location.reload()` reaching the network.
+    for (const rel of [
+      'species/Bombus/mixtus/index.html',
+      'places/klickitat-trail/index.html',
+      'collectors/somebody/index.html',
+    ]) {
+      expect(matched, `the read path must stay online-only: ${rel}`).not.toContain(rel);
+    }
+    // …and the deprecated path's redirect stub, which is not a shell.
+    expect(matched).not.toContain('app/index.html');
+  });
+
   test('the MapLibre worker is served from inside the service worker scope', () => {
     // THE ONE THAT ACTUALLY SHIPPED BROKEN, so it is worth being precise about.
     //
-    // The SW is registered with scope /app/. A page it CONTROLS has its requests
-    // intercepted at any path, so a main-thread fetch of /basemap/fonts/… is
-    // served from the precache. But a DEDICATED WORKER is its own service-worker
-    // client, and whether its script load and its own imports are intercepted is
-    // matched on the WORKER's URL — not on the page that spawned it.
+    // A page the SW CONTROLS has its requests intercepted at any path, so a
+    // main-thread fetch of /basemap/fonts/… is served from the precache. But a
+    // DEDICATED WORKER is its own service-worker client, and whether its script load
+    // and its own imports are intercepted is matched on the WORKER's URL — not on the
+    // page that spawned it.
     //
-    // Shipped at /basemap/maplibre/, the worker was outside the scope, so neither
-    // its script nor its `./maplibre-gl-shared.mjs` import ever reached the cache:
-    // offline both went to the network and failed, the map never fired `load`, and
-    // the two precached files sat there unreachable. Every test passed. The build
-    // was clean. The console was clean. (This is the same scope problem that makes
-    // the SQLite engine run from an inline blob: worker — see src/manifest.ts.)
+    // Under the old /app/ scope the worker shipped at /basemap/maplibre/, outside it,
+    // so neither its script nor its `./maplibre-gl-shared.mjs` import ever reached
+    // the cache: offline both went to the network and failed, the map never fired
+    // `load`, and the two precached files sat there unreachable. Every test passed.
+    // The build was clean. The console was clean. (Same scope problem as the one
+    // that makes the SQLite engine run from an inline blob: worker — src/manifest.ts.)
     //
     // Caught by scripts/offline-uat.mjs, which is the only thing that could.
+    //
+    // So the assertion is containment, checked against the scope the app ACTUALLY
+    // registers rather than a path spelled here — under ADR 0029 that is the origin,
+    // and if it is ever narrowed again this fails instead of the field.
+    const registration = readFileSync(resolve(ROOT, 'src/sw-registration.ts'), 'utf8');
+    const scope = registration.match(/const SW_SCOPE = '([^']+)'/)?.[1];
+    expect(scope, 'src/sw-registration.ts must declare SW_SCOPE as a plain literal').toBeDefined();
+
     for (const p of globPatterns.filter((g) => g.includes('maplibre'))) {
-      expect(p, 'the MapLibre worker must be precached from inside the /app/ SW scope')
-        .toMatch(/^app\//);
+      expect(`/${p}`, `the MapLibre worker must be precached from inside the SW scope ${scope}`)
+        .toMatch(new RegExp(`^${scope}`));
     }
     const src = readFileSync(resolve(ROOT, 'src/bee-map.ts'), 'utf8');
-    expect(src, 'setWorkerUrl must point inside /app/, or the worker cannot be served offline')
-      .toContain("'/app/basemap/maplibre/maplibre-gl-worker.mjs'");
+    const workerUrl = src.match(/const MAPLIBRE_WORKER_URL = '([^']+)'/)?.[1];
+    expect(workerUrl, 'src/bee-map.ts must declare MAPLIBRE_WORKER_URL as a plain literal').toBeDefined();
+    expect(workerUrl!.startsWith(scope!),
+      `setWorkerUrl points at ${workerUrl}, outside the SW scope ${scope} — offline the worker cannot be served`,
+    ).toBe(true);
+    // The URL bee-map hands MapLibre and the file the build precaches must be the
+    // same file. Precaching a path nobody requests is the exact shape of the bug.
+    expect(matched, 'bee-map asks for a worker the precache does not ship')
+      .toContain(workerUrl!.replace(/^\//, ''));
   });
 
   test('glyphs are fetched from the main thread, where the SW can serve them', () => {
     // The main thread IS controlled, so a glyph fetch from it is served from the
-    // precache wherever the file lives — which is why the fonts and sprites can
-    // stay outside /app/ while the worker cannot.
+    // precache wherever the file lives — which is why the fonts and sprites never
+    // had to satisfy the scope constraint above, and the worker did.
     //
     // In MapLibre v6 the glyph URL template is expanded on the main thread. If an
     // upgrade ever moves that into the worker, those fetches become the worker's
@@ -191,16 +232,35 @@ describe('the service worker precaches everything the basemap needs to draw', ()
   });
 
   test('the webmanifest and icons are precached — the browser requests them', () => {
-    // Nothing in the app fetches these; app/index.html LINKS them and the browser
+    // Nothing in the app fetches these; index.html LINKS them and the browser
     // requests them when it launches a standalone PWA. Unprecached they fail
     // offline, and iOS answers each failure with a system network alert over a
     // map that is otherwise working. No fetch instrumentation can find them,
     // which is why they survived every other probe.
-    expect(matched).toContain('app/manifest.webmanifest');
-    expect(matched).toContain('app/icons/apple-touch-icon-180.png');
+    expect(matched).toContain('manifest.webmanifest');
+    expect(matched).toContain('icons/apple-touch-icon-180.png');
     // …plus the three the webmanifest itself names.
     for (const f of ['icon-192.png', 'icon-512.png', 'icon-maskable-512.png']) {
-      expect(matched, `webmanifest icon not precached: ${f}`).toContain(`app/icons/${f}`);
+      expect(matched, `webmanifest icon not precached: ${f}`).toContain(`icons/${f}`);
+    }
+  });
+
+  test('the webmanifest names URLs that exist, and a scope the app registers', () => {
+    // ADR 0029 moved start_url and scope from /app/ to /. A webmanifest whose
+    // start_url no longer resolves is not an error anyone sees at build time: an
+    // installed PWA simply launches on a 404, and only on the device.
+    const manifest = JSON.parse(readFileSync(resolve(ROOT, 'public/manifest.webmanifest'), 'utf8'));
+    const registration = readFileSync(resolve(ROOT, 'src/sw-registration.ts'), 'utf8');
+    const scope = registration.match(/const SW_SCOPE = '([^']+)'/)?.[1];
+
+    // A launch outside the SW scope is an uncontrolled page: nothing precached is
+    // reachable and the app cannot start offline at all.
+    expect(manifest.scope, 'webmanifest scope must match the registered SW scope').toBe(scope);
+    expect(manifest.start_url.startsWith(scope!),
+      `start_url ${manifest.start_url} launches outside the SW scope ${scope}`).toBe(true);
+    for (const icon of manifest.icons as Array<{ src: string }>) {
+      expect(matched, `webmanifest names an unprecached icon: ${icon.src}`)
+        .toContain(icon.src.replace(/^\//, ''));
     }
   });
 
@@ -212,7 +272,7 @@ describe('the service worker precaches everything the basemap needs to draw', ()
       'data/counties-abc.geojson',
       'data/occurrences-abc.parquet',
       'feeds/notes.json',
-      'app/sw.js',
+      'sw.js',
     ]) {
       expect(matched, `should not be precached: ${rel}`).not.toContain(rel);
     }

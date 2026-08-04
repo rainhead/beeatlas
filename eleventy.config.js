@@ -73,17 +73,19 @@ export default async function (eleventyConfig) {
   eleventyConfig.addShortcode("viteAssets", (key) =>
     IS_SERVE ? devAssetTags(key) : assetTags(ROOT, key));
 
-  // `public/app` holds the PWA shell's static files (webmanifest + icons) at their
-  // runtime URLs under /app. It is copied directly now; under the old plugin it
-  // reached the site root by a two-step dance (Eleventy passthrough into the renamed
-  // temp folder, then Vite's publicDir copy back out).
+  // The PWA shell's static files (webmanifest + icons) at their runtime URLs. They
+  // sit at the SITE ROOT since ADR 0029 moved the app there — `/manifest.webmanifest`
+  // and `/icons/…`, named by `_pages/index.html` and by the webmanifest itself. They
+  // were under `/app/` while the app was a prototype at that path; nothing may live
+  // there now that the path is a redirect stub in its deprecation window.
   //
   // `public/data` is deliberately NOT passed through. scripts/postbuild-data.mjs owns
   // _site/data wholesale — it rm -rf's the directory and rebuilds it from the build
   // data dir — so the old passthrough staged 1275 files for that script to delete,
   // and under EXPORT_DIR it staged them from the wrong place (the repo's public/data
   // rather than the export).
-  eleventyConfig.addPassthroughCopy({ "public/app": "app" });
+  eleventyConfig.addPassthroughCopy({ "public/manifest.webmanifest": "manifest.webmanifest" });
+  eleventyConfig.addPassthroughCopy({ "public/icons": "icons" });
 
   // Vendored MapLibre glyphs + sprites for the self-hosted basemap (beeatlas-hvp).
   // These are code-coupled — src/basemap-style.ts names the fontstacks — so they
@@ -111,27 +113,31 @@ export default async function (eleventyConfig) {
   // required and must stay siblings: the worker imports ./maplibre-gl-shared.mjs
   // relative to itself. maplibre-worker.test.ts pins all of it.
   //
-  // UNDER /app/, AND THAT IS LOAD-BEARING (beeatlas-6rs). The service worker is
-  // registered with scope /app/. A page it controls has its requests intercepted
-  // at any path — but a DEDICATED WORKER is a separate service-worker client, and
-  // both its script load and its own imports are matched against the registration
-  // by the WORKER's URL. Served from /basemap/, the worker sits outside the scope,
-  // so neither request ever reaches the cache: offline they go to the network and
-  // fail, and the map is blank with a clean console — precaching the files changes
-  // nothing, because nothing that can read the cache ever asks for them.
-  // Inside /app/ both requests are intercepted and served. Verified offline with
-  // scripts/offline-uat.mjs; it is the check that caught this.
-  // ONE self-contained file, built by scripts/build-maplibre-worker.mjs, not the
-  // two dist files side by side. The worker's own
-  // `from "./maplibre-gl-shared.mjs"` is a fetch made BY THE WORKER, which is its
-  // own service-worker client and is NOT controlled by the /app/ registration —
-  // so offline that import is never served, the worker dies before it runs, and
-  // everything it does (tile parsing, GeoJSON clustering, symbol layout) silently
-  // stops. Precaching both files did not help and could not: only the worker
-  // needs them, and only the worker cannot read them. See that script for the
+  // IT MUST SIT INSIDE THE SERVICE WORKER'S SCOPE (beeatlas-6rs). A page the worker
+  // controls has its requests intercepted at any path — but a DEDICATED WORKER is a
+  // separate service-worker client, and its script load is matched against the
+  // registration by the WORKER's URL, not by the page that spawned it. Outside the
+  // scope the request never reaches the cache: offline it goes to the network and
+  // fails, and the map is blank with a clean console — precaching the file changes
+  // nothing, because nothing that can read the cache ever asks for it.
+  //
+  // That constraint is why this lived at `/app/basemap/maplibre/` while the scope was
+  // `/app/`. ADR 0029 moved the scope to the origin, so `/basemap/maplibre/` is now
+  // inside it and the worker rejoins the rest of the vendored renderer. The pairing is
+  // asserted, not assumed: src/tests/basemap-precache.test.ts reads the scope out of
+  // src/sw-registration.ts and requires this path to be under it, so narrowing the
+  // scope again fails the suite instead of the field.
+  //
+  // ONE self-contained file, built by scripts/build-maplibre-worker.mjs, not the two
+  // dist files side by side, and that stays true at root scope. The worker's own
+  // `from "./maplibre-gl-shared.mjs"` is a fetch made BY THE WORKER, so whether it is
+  // served offline depends on the worker being a CONTROLLED client — a subtler
+  // property than being in scope, and the one that was silently false on iOS while
+  // both files sat precached and unreachable. Bundling removes the dependency
+  // altogether: there is no second request to be right about. See that script for the
   // measurement.
   eleventyConfig.addPassthroughCopy({
-    ".cache/beeatlas-maplibre/maplibre-gl-worker.mjs": "app/basemap/maplibre/maplibre-gl-worker.mjs",
+    ".cache/beeatlas-maplibre/maplibre-gl-worker.mjs": "basemap/maplibre/maplibre-gl-worker.mjs",
   });
 
   // In serve mode Vite runs as middleware inside the Eleventy dev server, so

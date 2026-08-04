@@ -1,23 +1,35 @@
-// Registers the /app service worker.
-// Imported ONLY by src/app-entry.ts.
-// _pages/index.html -> src/bee-atlas.ts never imports this file,
-// guaranteeing / has no service worker (structural, not runtime).
+// Registers the service worker.
+// Imported ONLY by src/app-entry.ts, which only `_pages/index.html` references.
+// The static pages mount through src/entries/{bee-header,species-index,taxon-page}.ts,
+// none of which import this file — so a reader who never opens the map is never
+// handed the 3.3 MB precache. That separation is LOAD-BEARING as of ADR 0029, where
+// the numbers are: a species page loads 18 KB of JavaScript.
+//
+// SCOPE IS THE ORIGIN, not the app's own path (ADR 0029). It has to be — the app is
+// at `/` — but the navigation fallback in src/sw.ts is narrowed to match, so the app
+// shell still answers `/` and nothing else.
 //
 // Plan 150-02 (D-13): migrated from manual SW registration to
 // workbox-window.Workbox so the 'waiting' event drives the SW update prompt.
 
 import { Workbox } from 'workbox-window';
 
+// The scope, named once. src/tests/basemap-precache.test.ts reads this literal out of
+// the source to check that the MapLibre worker's URL falls inside it — a dedicated
+// worker outside the scope is unreachable offline however thoroughly it is precached,
+// and that failure is completely silent.
+const SW_SCOPE = '/';
+
 // Not exported: registration fires as a module side effect (see call below).
-// Keeping it private preserves the structural no-SW-on-/ guarantee — no other
-// module can import this symbol by name and register the SW from /'s entry.
+// Keeping it private preserves the structural only-the-app-registers guarantee — no
+// other module can import this symbol by name and register the SW from a static page.
 async function registerServiceWorker(): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
-  // Scope MUST be '/app/' (trailing slash): a script at /app/sw.js has a
-  // default max scope of '/app/', and the browser rejects any requested
-  // scope not prefixed by it — '/app' (no slash) fails with a SecurityError.
-  // No Service-Worker-Allowed header is needed; '/app/' is the default scope.
-  const wb = new Workbox('/app/sw.js', { scope: '/app/' });
+  void unregisterLegacyAppScope();
+  // A script at /sw.js has a default max scope of '/', so no Service-Worker-Allowed
+  // header is needed. (The rule that bit us at the old path: the browser rejects any
+  // requested scope the script's own path does not prefix.)
+  const wb = new Workbox('/sw.js', { scope: SW_SCOPE });
 
   // Fired when a new SW is installed but waiting (this tab still controlled by
   // old SW). event.isExternal === true means another tab triggered the update;
@@ -34,7 +46,7 @@ async function registerServiceWorker(): Promise<void> {
   // wb.messageSkipWaiting() to post {type:'SKIP_WAITING'} to the waiting SW.
   (window as Window & { __wb?: Workbox }).__wb = wb;
 
-  // register() triggers an UPDATE CHECK: the browser re-fetches /app/sw.js to
+  // register() triggers an UPDATE CHECK: the browser re-fetches /sw.js to
   // byte-compare it. The service worker is deliberately never precached (a worker
   // caching itself is how you strand a device on a broken version), so offline
   // that fetch cannot be served — and on iOS a failed request inside an installed
@@ -63,11 +75,43 @@ async function registerServiceWorker(): Promise<void> {
   await register();
 }
 
+/**
+ * Drop the pre-ADR-0029 registration at scope `/app/`.
+ *
+ * Two registrations can coexist, and the more specific scope wins: left alone, the
+ * old worker keeps answering every `/app/` navigation from its own precache, which
+ * includes the OLD app shell and the OLD bundle. It cannot be talked out of that from
+ * inside — the redirect stub at `_pages/app/index.html` is on the network side of it
+ * and is never reached — so it has to be unregistered from here.
+ *
+ * The build no longer emits `/app/sw.js`, so the browser's own update check for it
+ * 404s and drops the registration anyway. This is the deterministic half of that: it
+ * runs the moment someone loads the root page, rather than whenever the browser next
+ * decides to look.
+ *
+ * Scoped by prefix rather than equality because a registration reports its scope as an
+ * absolute URL. Anything at or under `/app/` is by definition the old one — this file
+ * is the only thing that registers, and it registers at the origin.
+ *
+ * Best-effort throughout: `getRegistrations()` rejects in some private-browsing modes,
+ * and a failed cleanup costs the user nothing that the 404 path will not also fix.
+ */
+async function unregisterLegacyAppScope(): Promise<void> {
+  try {
+    for (const reg of await navigator.serviceWorker.getRegistrations()) {
+      if (new URL(reg.scope).pathname.startsWith('/app/')) {
+        await reg.unregister();
+        console.log('[SW] unregistered the legacy /app/ worker (ADR 0029)');
+      }
+    }
+  } catch { /* not worth surfacing; the 404-on-update path is the backstop */ }
+}
+
 registerServiceWorker();
 
 // requestPersistentStorage — CACHE-05 / D-12.
 //
-// Called once at first /app page launch, gated by a localStorage key to avoid
+// Called once at first app launch, gated by a localStorage key to avoid
 // spamming the call on every visit. The localStorage write happens BEFORE the
 // await so a rejected/throwing persist() cannot cause a retry on the next visit
 // (one-shot semantics per D-12).

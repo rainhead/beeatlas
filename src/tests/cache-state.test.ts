@@ -59,7 +59,7 @@ if (typeof window !== 'undefined' && window.location?.pathname == null) {
   try {
     Object.defineProperty(window, 'location', {
       configurable: true,
-      value: { ...window.location, pathname: '/app/index.html' },
+      value: { ...window.location, pathname: '/' },
     });
   } catch {
     // ignore — env already has a writable location
@@ -554,8 +554,9 @@ describe('bee-atlas update banner + popover lazy storage estimate (Phase 150)', 
   });
 
   test('with no service worker at all, the tap reloads immediately', async () => {
-    // index.html mounts this same component with no SW registered (sw-registration.ts
-    // is imported only by the /app entry), so there is no control transfer to wait for.
+    // Registration can fail, and a browser without service workers never registers
+    // at all — in either case __wb is absent and there is no control transfer to
+    // wait for, so the tap must still reload.
     delete (window as any).__wb;
     const reloadSpy = stubReload();
 

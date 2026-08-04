@@ -8,7 +8,7 @@
  * app frontmost; when it does not cooperate there is no fallback and a bug report
  * degrades to "the map was blank".
  *
- * So: open any /app URL with `?diag=1` and the app runs as normal with a
+ * So: open the app with `?diag=1` and it runs as normal with a
  * screenshot-able report pinned over it. One screenshot answers the questions that
  * would otherwise take a round trip each — is it installed, is storage persisted,
  * are the archives actually there and how big, did the real style load or the
@@ -140,7 +140,7 @@ export async function collectDiagnostics(): Promise<string> {
   add('');
 
   // --- The renderer. These are served by the SW, and only work because they sit
-  // inside its /app/ scope; a worker outside it is unreachable offline however
+  // inside its scope; a worker outside it is unreachable offline however
   // thoroughly it was precached.
   add('— renderer reachability —');
   // maplibre-gl-shared.mjs is deliberately NOT here: the worker is bundled into
@@ -149,7 +149,7 @@ export async function collectDiagnostics(): Promise<string> {
   // which on iOS raises the system "Turn On Wi-Fi" alert. A diagnostic must not
   // create the symptom it is diagnosing.
   for (const url of [
-    '/app/basemap/maplibre/maplibre-gl-worker.mjs',
+    '/basemap/maplibre/maplibre-gl-worker.mjs',
     '/basemap/fonts/Noto Sans Medium/0-255.pbf',
     '/basemap/sprites/light.json',
   ]) {
@@ -200,7 +200,7 @@ export async function collectDiagnostics(): Promise<string> {
     // that proves nothing: a dedicated worker is a separate service-worker
     // client, matched on its own URL. This actually spawns one.
     add(await probe('maplibre worker spawns', () => new Promise<string>((res) => {
-      const url = '/app/basemap/maplibre/maplibre-gl-worker.mjs';
+      const url = '/basemap/maplibre/maplibre-gl-worker.mjs';
       const t = setTimeout(() => res('yes (no message, as expected)'), 4000);
       try {
         const w = new Worker(url, { type: 'module' });

@@ -1,7 +1,7 @@
 // Service-worker build — a SECOND, tiny Vite pass that runs AFTER Eleventy.
 //
 // Why it is separate (beeatlas-d3y): vite-plugin-pwa's injectManifest globs the
-// built site to compute the precache list, and that list includes `app/index.html`,
+// built site to compute the precache list, and that list includes `index.html`,
 // which Eleventy writes. Under the old eleventy-plugin-vite the whole Vite build ran
 // after Eleventy, so one pass sufficed. With backend integration the app build must
 // run BEFORE Eleventy (Eleventy needs the manifest to emit hashed URLs), so the SW
@@ -32,19 +32,28 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',     // .ts extension triggers the TypeScript SW sub-build
-      outDir: resolve(process.cwd(), '_site/app'),
+      // _site, not _site/app: the worker is served from /sw.js, whose default max
+      // scope is the origin — which is what ADR 0029's move of the app to `/`
+      // requires. A worker at /app/sw.js cannot claim scope `/` at all.
+      //
+      // Dropping /app/sw.js is also the migration: the one installed PWA still has a
+      // registration there, and the browser's next update check for that script now
+      // 404s, which drops the registration. Until it does, that old worker keeps
+      // answering /app/ from its own precache. src/sw-registration.ts unregisters it
+      // explicitly too, for whichever happens first.
+      outDir: resolve(process.cwd(), '_site'),
       base: '/',             // ensures precache URLs have a leading /
       injectRegister: null,  // D-06: keep Phase 147 registration; no competing <script>
       manifest: false,       // D-07: no webmanifest emitted by the plugin
       injectManifest: {
         globDirectory: resolve(process.cwd(), '_site'),
-        swDest: resolve(process.cwd(), '_site/app/sw.js'),
+        swDest: resolve(process.cwd(), '_site/sw.js'),
         globPatterns,
         globIgnores,
         maximumFileSizeToCacheInBytes: 30_000_000,  // D-03: 30 MB cap
         // Glob paths are relative to globDirectory (_site/) without a leading /.
         // modifyURLPrefix prepends / so precache URLs are absolute site paths
-        // (e.g. /app/index.html, /assets/app/index-<hash>.js) as required by the
+        // (e.g. /index.html, /assets/app/index-<hash>.js) as required by the
         // criterion-4 assertion and the SW precache cache-key contract.
         modifyURLPrefix: { '': '/' },
       },

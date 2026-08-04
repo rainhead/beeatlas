@@ -94,12 +94,52 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
   // ---------------------------------------------------------------------------
   // Test 1: Workbox constructor is called with the correct arguments
   // ---------------------------------------------------------------------------
-  test('imports Workbox and instantiates it with /app/sw.js + scope /app/', async () => {
+  test('imports Workbox and instantiates it with /sw.js + scope /', async () => {
+    // ADR 0029: the app is at the root, so the worker is too. Scope `/` is not
+    // incidental — a script at /app/sw.js cannot claim it, and an app at `/` cannot
+    // be controlled without it.
     await import('../sw-registration.ts');
     await flushMicrotasks();
 
     expect(mocks.constructorCalls).toHaveLength(1);
-    expect(mocks.constructorCalls[0]).toEqual(['/app/sw.js', { scope: '/app/' }]);
+    expect(mocks.constructorCalls[0]).toEqual(['/sw.js', { scope: '/' }]);
+  });
+
+  // -------------------------------------------------------------------------
+  // The migration off /app/ (ADR 0029). Two registrations can coexist and the
+  // narrower scope wins, so the old worker would keep answering /app/ from its own
+  // precache — including the old shell and the old bundle — indefinitely.
+  // -------------------------------------------------------------------------
+  test('unregisters the legacy /app/ registration and leaves the root one alone', async () => {
+    const legacy = { scope: 'https://beeatlas.net/app/', unregister: vi.fn(async () => true) };
+    const current = { scope: 'https://beeatlas.net/', unregister: vi.fn(async () => true) };
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: { getRegistrations: vi.fn(async () => [legacy, current]) },
+      configurable: true,
+      writable: true,
+    });
+
+    await import('../sw-registration.ts');
+    await flushMicrotasks();
+
+    expect(legacy.unregister).toHaveBeenCalledOnce();
+    expect(current.unregister, 'the root registration is the one we just made').not.toHaveBeenCalled();
+  });
+
+  test('a browser that rejects getRegistrations still registers', async () => {
+    // It rejects in some private-browsing modes. The cleanup is best-effort — the
+    // 404 on the vanished /app/sw.js drops the old registration anyway — but a
+    // throw here must not take the registration down with it.
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: { getRegistrations: vi.fn(async () => { throw new Error('denied'); }) },
+      configurable: true,
+      writable: true,
+    });
+
+    await import('../sw-registration.ts');
+    await flushMicrotasks();
+
+    expect(mocks.instance.register).toHaveBeenCalledOnce();
   });
 
   // ---------------------------------------------------------------------------

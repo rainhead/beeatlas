@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# offline-leak-check.sh — find what an /app launch still fetches from the network.
+# offline-leak-check.sh — find what an app launch still fetches from the network.
 #
 # THE IDEA. Testing offline behaviour by going offline is self-defeating: the
 # requests you care about are the ones that FAIL, and a failed request tells you
@@ -15,7 +15,7 @@
 #   - the service worker's own fetches;
 #   - requests from workers in other realms (the SQLite engine runs in an inline
 #     blob: worker, outside the SW scope and invisible to page instrumentation);
-#   - the browser's soft service-worker update check for /app/sw.js.
+#   - the browser's soft service-worker update check for /sw.js.
 # Every one of those was a real culprit or suspect during beeatlas-6rs, and the
 # first three were each found the slow way.
 #

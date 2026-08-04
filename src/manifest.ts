@@ -80,8 +80,8 @@ async function _fetchAndCache(url: string): Promise<Manifest> {
  * during page init is too early to help. Not needing the network is what works.
  *
  * THIS RUNS IN THE SQLITE WORKER TOO, which is where it matters most: that worker
- * is created from an inline blob: URL, so it is outside the /app service-worker
- * scope and uncontrolled — its fetches bypass the SW entirely and go to the
+ * is created from an inline blob: URL, so it is uncontrolled whatever the service
+ * worker's scope is — its fetches bypass the SW entirely and go to the
  * network. It is also a separate realm, so nothing the page instruments can see
  * it, which is why this survived several rounds of hunting.
  *

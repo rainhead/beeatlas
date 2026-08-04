@@ -4,10 +4,10 @@
  *
  * THE BUG THIS FIXES. `maplibre-gl-worker.mjs` opens with
  * `from "./maplibre-gl-shared.mjs"` — a module import made BY THE WORKER at
- * startup. A dedicated worker is its own service-worker client and is not
- * controlled by the /app/ registration, so that import is never served from the
- * precache: offline it goes to the network, fails, and the worker dies before it
- * runs a line.
+ * startup. A dedicated worker is its own service-worker client, so whether that
+ * import is served from the precache turns on the WORKER being controlled — which
+ * it was not: offline the import went to the network, failed, and the worker died
+ * before it ran a line.
  *
  * Everything downstream then stops without a word. Vector tile parsing, GeoJSON
  * clustering and symbol layout all live on that worker, so the basemap sources
@@ -16,9 +16,11 @@
  * of workers where only some die, you get tile-shaped holes that move as you
  * zoom, which is how this was first reported.
  *
- * Measured, not assumed: a worker under /app/ importing its sibling returns
- * SIBLING-IMPORT-OK online and fails with an opaque error offline, in BOTH
- * WebKit and Chromium, with the server killed rather than emulated.
+ * Measured, not assumed: a worker inside the SW scope importing its sibling
+ * returns SIBLING-IMPORT-OK online and fails with an opaque error offline, in BOTH
+ * WebKit and Chromium, with the server killed rather than emulated. Widening the
+ * scope to the origin (ADR 0029) does not retire this step — it removes a
+ * containment problem, not the control-vs-scope distinction that broke the import.
  *
  * Copying the two dist files side by side (the previous approach) cannot work,
  * however correct the precache looks — and it looked correct: both files were

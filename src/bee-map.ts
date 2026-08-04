@@ -83,16 +83,19 @@ const FIT_PADDING_PX = 48;
  * bundle graph, and the page tree is served `max-age=0`, so a version bump
  * cannot leave a stale worker paired with a new bundle.
  *
- * UNDER /app/ FOR OFFLINE (beeatlas-6rs), not for tidiness. The service worker's
- * scope is /app/, and a dedicated worker is its own service-worker client:
- * whether its script load and its `./maplibre-gl-shared.mjs` import are
- * intercepted is decided by THIS URL, not by the page that spawned it. At
- * /basemap/ both requests missed the cache entirely and went to the network —
- * offline that is a blank map and an empty console, with the files sitting
- * precached and unreachable. The root page has no service worker and does not
- * care where this lives.
+ * INSIDE THE SERVICE WORKER'S SCOPE FOR OFFLINE (beeatlas-6rs), not for tidiness.
+ * A dedicated worker is its own service-worker client: whether its script load is
+ * intercepted is decided by THIS URL, not by the page that spawned it. Outside the
+ * scope the request misses the cache entirely and goes to the network — offline that
+ * is a blank map and an empty console, with the file sitting precached and
+ * unreachable.
+ *
+ * This read `/app/basemap/…` while the scope was `/app/`. ADR 0029 moved the app and
+ * the scope to the origin, so it now sits with the rest of the vendored renderer.
+ * src/tests/basemap-precache.test.ts checks the containment against the scope
+ * src/sw-registration.ts actually registers, rather than against a path spelled here.
  */
-const MAPLIBRE_WORKER_URL = '/app/basemap/maplibre/maplibre-gl-worker.mjs';
+const MAPLIBRE_WORKER_URL = '/basemap/maplibre/maplibre-gl-worker.mjs';
 
 /** One rung of the click priority chain — see BeeMap._clickTargets. */
 type ClickTarget = {

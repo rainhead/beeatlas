@@ -63,9 +63,10 @@ let _geoBuffer: ArrayBuffer | null = null;
   if (occurrencesDbUrl == null) throw new Error('manifest is missing occurrences_db key');
 
   // Load the pre-built SQLite database. Read from Cache Storage FIRST (populated by
-  // the page-side prime), falling back to the network. This worker runs at /assets/…,
-  // outside the /app service-worker scope, so a bare fetch() bypasses the SW and would
-  // fail offline; caches.match() works regardless of SW control (Phase 151 offline fix).
+  // the page-side prime), falling back to the network. This worker is created from an
+  // inline blob: URL, so it is uncontrolled whatever the SW's scope is (see sqlite.ts)
+  // and a bare fetch() bypasses the SW and would fail offline; caches.match() works
+  // regardless of SW control (Phase 151 offline fix).
   const tFetch0 = performance.now();
   let resp: Response | undefined;
   if (typeof caches !== 'undefined') {

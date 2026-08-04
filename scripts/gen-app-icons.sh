@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/gen-app-icons.sh — regenerate /app PWA icons from the SVG master.
+# scripts/gen-app-icons.sh — regenerate the PWA icons from the SVG master.
 #
 # NOT wired into the build (D-07 — avoids adding an image-processing dependency
 # to the bespoke .11ty-vite pipeline). Run manually after editing icon.svg:
@@ -9,12 +9,13 @@
 # Requires: rsvg-convert (librsvg)
 #   Install via: brew install librsvg
 #
-# The four output PNGs are committed static assets in public/app/icons/.
-# They ride the Vite publicDir passthrough to land at /app/icons/ at runtime.
+# The four output PNGs are committed static assets in public/icons/.
+# Eleventy passthrough-copies them to /icons/ at runtime (ADR 0029 moved them out
+# from under /app/ along with the app itself).
 set -euo pipefail
 
-SRC="public/app/icons/icon.svg"
-OUT="public/app/icons"
+SRC="public/icons/icon.svg"
+OUT="public/icons"
 
 command -v rsvg-convert >/dev/null || {
   echo "Error: rsvg-convert not found. Install with: brew install librsvg"

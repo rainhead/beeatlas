@@ -1,9 +1,10 @@
 // Inline the worker into the main bundle (base64) so its script needs NO network
 // fetch to start. iOS Safari does not reliably serve a dedicated/module worker's
-// script through the service worker offline (the worker lives at /assets/, outside
-// the /app SW scope), so a separate worker-script request fails on an offline
-// cold-start and tablesReady hangs forever. Inlining removes that fetch entirely
-// (Phase 151 iOS offline fix).
+// script through the service worker offline, so a separate worker-script request fails
+// on an offline cold-start and tablesReady hangs forever. Inlining removes that fetch
+// entirely (Phase 151 iOS offline fix). Note this is NOT the scope problem MapLibre's
+// worker had — a blob: worker is uncontrolled however wide the scope is, so ADR 0029
+// widening it to the origin changes nothing here.
 import SqliteWorker from './sqlite-worker.ts?worker&inline';
 // Resolve the engine binary's hashed asset URL on the MAIN thread (where
 // import.meta.url is a real http(s) URL) and hand it to the inline worker, whose

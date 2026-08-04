@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 /**
- * offline-uat.mjs — automated offline cold-start UAT for the /app PWA (beeatlas-6rs).
+ * offline-uat.mjs — automated offline cold-start UAT for the PWA (beeatlas-6rs).
+ *
+ * It points at `/` since ADR 0029 moved the app there. That is the check itself as
+ * much as the target: the app shell has to answer the ROOT navigation now, and
+ * nothing else, so a run against `/` is what proves the scope and the navigation
+ * allowlist moved together.
  *
  * WHY THIS EXISTS. Every offline failure this project has had was iOS-only and
  * SILENT: a missing worker, an unshipped glyph range, a manifest that was never
@@ -29,7 +34,8 @@
  *   node scripts/offline-uat.mjs                      # default: manifest-only, fast
  *   node scripts/offline-uat.mjs --prime              # + download the ~285 MB archives
  *   node scripts/offline-uat.mjs --browser=chromium   # compare engines
- *   node scripts/offline-uat.mjs --url=http://localhost:8080/app/
+ *   node scripts/offline-uat.mjs --url=http://localhost:8080/
+ *   node scripts/offline-uat.mjs --read-url=…/species/Bombus/mixtus/   # the boundary
  *   node scripts/offline-uat.mjs --fresh              # discard the profile first
  *
  * The profile persists under .cache/beeatlas-offline-uat/<browser>, so a primed
@@ -48,7 +54,11 @@ const arg = (name, fallback) => {
 const flag = (name) => argv.includes(`--${name}`);
 
 const BROWSER = arg('browser', 'webkit');
-const URL_ = arg('url', 'https://beeatlas.net/app/');
+const URL_ = arg('url', 'https://beeatlas.net/');
+// A page on the READING surface, for the boundary check below. Same origin as URL_
+// by construction — the whole question ADR 0029 raises is what an origin-scoped
+// service worker does to the pages it did not come for.
+const READ_URL = arg('read-url', new URL('/species/Bombus/mixtus/', URL_).href);
 const PRIME = flag('prime');
 const PROFILE = resolve(process.cwd(), '.cache/beeatlas-offline-uat', BROWSER);
 
@@ -120,6 +130,41 @@ for (let i = 0; i < 4 && !controlled; i++) {
 }
 check('service worker controls the page', controlled);
 if (!controlled) { await context.close(); process.exit(1); }
+
+// THE BOUNDARY (ADR 0029). The scope is the whole origin now — it has to be, for
+// the app to work at `/` — so a controlled client's navigation to a species page
+// DOES pass through the worker's fetch handler. What must not happen is the worker
+// answering it: with no matching route Workbox hands it to the network, and the
+// reader gets the page they asked for. The failure this guards is a navigation
+// allowlist widened by one character, which replaces every page on the site with the
+// map and looks, from the map's side, like everything working.
+//
+// Checked online first because it is the ordinary case, and because the offline half
+// below can only observe the absence of a shell, not the presence of the right page.
+const readResponse = await page.goto(READ_URL, { waitUntil: 'domcontentloaded' });
+const readSurface = await page.evaluate(() => ({
+  isAppShell: !!document.querySelector('bee-atlas'),
+  controlled: !!navigator.serviceWorker.controller,
+  title: document.title,
+}));
+check(
+  'a species page is served as itself, not as the app shell',
+  !readSurface.isAppShell,
+  `${readSurface.title}${readSurface.controlled ? ' (page is controlled, as expected)' : ''}`,
+);
+// Stronger than the content check above, and the one that protects note WRITING.
+// `bee-notes.ts` calls window.location.reload() after a live publish, and that reload
+// IS how an author sees their own note — the server has re-rendered the page. Any
+// route matching this navigation returns the pre-write copy instead: CacheFirst
+// obviously, StaleWhileRevalidate identically, and the author cannot tell either from
+// a failed save. fromServiceWorker() is false exactly when no route matched and
+// Workbox never called respondWith, which is the property that has to hold.
+check(
+  'the species page came from the network, not from the worker',
+  readResponse?.fromServiceWorker() === false,
+  'a cached read path would return the pre-write copy after a note publish',
+);
+await page.goto(URL_, { waitUntil: 'load' });
 
 // The basemap manifest self-primes on any successful online load. This is the
 // pre-condition for everything else: the archives are named by date, so without
@@ -276,6 +321,21 @@ if (PRIME) {
   );
 }
 check('no uncaught page errors', pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '));
+
+// The offline half of the boundary. Reading requires a network, permanently and by
+// design (ADR 0029) — so this navigation is SUPPOSED to fail, and the only wrong
+// answer is the app shell appearing in its place. Playwright rejects the goto when
+// the browser shows its own offline page, which is the pass.
+{
+  let shell = false;
+  try {
+    await page.goto(READ_URL, { waitUntil: 'domcontentloaded' });
+    shell = await page.evaluate(() => !!document.querySelector('bee-atlas'));
+  } catch {
+    // net::ERR_INTERNET_DISCONNECTED — the browser's offline page. Correct.
+  }
+  check('an offline species page is not answered with the map', !shell);
+}
 
 await context.close();
 

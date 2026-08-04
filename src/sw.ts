@@ -1,10 +1,17 @@
-// Service worker source for the /app shell — compiled to _site/app/sw.js by
-// vite-plugin-pwa (injectManifest strategy, wired in eleventy.config.js).
+// Service worker source for the app shell — compiled to _site/sw.js by
+// vite-plugin-pwa (injectManifest strategy, wired in vite.sw.config.ts).
+//
+// SCOPE IS THE ORIGIN as of ADR 0029, because the app is at `/`. That is wider than
+// the routing below, deliberately: with no matching route Workbox hands a request to
+// the network, so a controlled client's later navigation to /species/… behaves
+// exactly as it did when this worker could not see it. The residual cost the ADR
+// names is that a BROKEN worker now takes the whole site down for that user rather
+// than only /app/ — smaller than caching the read path would have been, but not zero.
 //
 // D-04: NO top-level skipWaiting, NO claiming of clients. The no-skipWaiting invariant
 // is now satisfied STRUCTURALLY via the SKIP_WAITING gate (D-16): skipWaiting()
 // fires ONLY in response to wb.messageSkipWaiting() from the user-clicked update banner.
-// The new SW waits until all /app tabs are closed before activating.
+// The new SW waits until all app tabs are closed before activating.
 // This preserves the prompt-to-reload lifecycle (OFF-03) and prevents
 // app-code ↔ DB version skew (Phase 149+).
 //
@@ -28,17 +35,27 @@ import { CacheFirst, NetworkFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
-// Precache the /app shell (hashed JS/CSS + /app/index.html).
+// Precache the app shell (hashed JS/CSS + /index.html).
 // self.__WB_MANIFEST is replaced at build time by vite-plugin-pwa's
 // workbox-build injectManifest step.
 precacheAndRoute(self.__WB_MANIFEST);
 
-// Offline navigation: any /app/ navigation returns the cached app shell.
-// The allowlist prevents this from intercepting navigations to / or other routes (D-05).
-// Canonical URL is /app/index.html — CloudFront OAC 403s the trailing-slash /app/.
-const handler = createHandlerBoundToURL('/app/index.html');
+// Offline navigation: the app shell answers `/` AND NOTHING ELSE (ADR 0029).
+//
+// The allowlist is the boundary between the two surfaces, and at origin scope it had
+// to be re-drawn rather than deleted. A navigation to /species/Bombus/mixtus/ must
+// reach the network — an allowlist that let this route match would replace the page a
+// reader asked for with an application they did not open, and offline it would do so
+// silently.
+//
+// Workbox tests the allowlist against `pathname + search`, so the alternation must
+// admit a query string: the app's whole state travels in one (`?o=`, `?bbox=`,
+// `?pane=`), and a bare `/^\/$/` would drop every restored view back to the network.
+// The precache route ahead of this one already answers a query-less `/` by way of
+// workbox's `directoryIndex`; this is what catches the rest.
+const handler = createHandlerBoundToURL('/index.html');
 const navigationRoute = new NavigationRoute(handler, {
-  allowlist: [/^\/app\//],
+  allowlist: [/^\/(index\.html)?(\?|$)/],
 });
 registerRoute(navigationRoute);
 

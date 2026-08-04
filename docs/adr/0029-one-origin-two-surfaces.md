@@ -1,6 +1,6 @@
 # ADR 0029: The app moves to the root, and offline stops at the map
 
-**Status:** Proposed (issue beeatlas-3xx)
+**Status:** Accepted — shipped 2026-08-04 (issue beeatlas-3xx)
 
 Unblocked by [ADR 0026](0026-self-hosted-basemap.md) and [ADR 0025](0025-offline-basemap-is-a-byte-store.md),
 which cleared the licensing and storage gates that kept the PWA on a separate path.
@@ -138,6 +138,36 @@ because the population is one.
 
 **The Atom feed link and the PWA metadata merge onto one page** — manifest link, iOS
 meta tags, apple-touch-icon, theme colour.
+
+## As shipped — three things this record did not anticipate
+
+**The MapLibre worker had to move too.** It was served from `/app/basemap/maplibre/`
+for one reason: a dedicated worker is its own service-worker client, matched on its
+OWN url, so at the old scope anywhere else was unreachable offline
+([ADR 0025](0025-offline-basemap-is-a-byte-store.md)). Widening the scope to the
+origin dissolves that constraint and would have left a load-bearing runtime asset
+under a path this record deprecates. It now sits at `/basemap/maplibre/` with the
+glyphs and sprites. The constraint is not gone, only satisfied differently, so it is
+asserted rather than remembered: `src/tests/basemap-precache.test.ts` reads `SW_SCOPE`
+out of `src/sw-registration.ts` and requires both the precache glob and
+`MAPLIBRE_WORKER_URL` to fall inside it. Narrowing the scope again fails the suite.
+
+**The old registration had to be actively retired.** Two registrations coexist and the
+narrower scope wins, so the `/app/` worker would have gone on answering `/app/`
+navigations from its own precache — the old shell, the old bundle — indefinitely, and
+the redirect stub is on the network side of it where it is never reached. Two things
+retire it, either sufficient: the build no longer emits `/app/sw.js`, so the browser's
+next update check for that script 404s and drops the registration; and
+`sw-registration.ts` unregisters any `/app/`-scoped registration it finds when the root
+page loads.
+
+**`src/bee-atlas.ts` stopped being a Vite entry.** The two-entry split WAS the
+no-service-worker-on-`/` guarantee while the two pages existed. With one page there is
+one way in, and leaving `bee-atlas.ts` in `rollupOptions.input` would have left a
+template able to mount the map without registering the worker or priming — the one
+thing that list should make impossible.
+
+The precache is unchanged in shape and came out at 33 entries / 3.35 MB.
 
 ### Rejected alternatives
 
