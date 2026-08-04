@@ -86,12 +86,25 @@ function isStandalone(): boolean {
 //     exclusions — share-sheet not available in those contexts, D-12).
 //
 // NOTE: Do NOT parse iOS version numbers — navigator.userAgent is frozen at iOS 26+ for WKWebView.
+//
+// isIosDevice is split out because two DIFFERENT questions are being asked of it.
+// The share-sheet affordance needs Safari specifically (no other iOS browser exposes
+// Add to Home Screen through it). The STORAGE question does not: every browser on
+// iOS is WebKit with its own per-app storage, so data cached in Chrome-iOS is just
+// as invisible to an installed PWA as data cached in Safari — and since iOS 16.4
+// Chrome-iOS can add to the Home Screen itself. Gating storage advice on
+// isIosSafari() would tell Chrome-iOS users nothing when the same caveat applies.
+function isIosDevice(): boolean {
+  const ua = navigator.userAgent;
+  return (
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+}
+
 function isIosSafari(): boolean {
   const ua = navigator.userAgent;
-  const isIosDevice =
-    /iPad|iPhone|iPod/.test(ua) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  if (!isIosDevice) return false;
+  if (!isIosDevice()) return false;
   if (!ua.includes('Safari')) return false;
   if (/CriOS|FxiOS|EdgiOS|GSA|FBAN|FBAV|Instagram|Line/.test(ua)) return false;
   return true;
@@ -219,6 +232,23 @@ export class BeeAtlas extends LitElement {
     people: Map<string, number>;
   } | null = null;
   // Named places (beeatlas-7nx.3). Two shapes on purpose — see _loadPlaces.
+  /**
+   * True where cached data cannot outlive this browsing context (beeatlas-66o).
+   *
+   * On iOS an installed PWA gets its OWN storage bucket — measured bidirectionally
+   * on iOS 18.7 by beeatlas-93t — so nothing cached in a browser tab is visible to
+   * the installed app. WebKit's 7-day cap compounds it: script-writable storage,
+   * Service Worker cache included, is deleted after seven days of Safari use without
+   * interaction on the site, and Home Screen web apps are explicitly exempt because
+   * they keep their own counter.
+   *
+   * So on iOS-in-a-tab the cache is a SESSION accelerator, not offline readiness,
+   * and the menu must not claim otherwise. Computed here rather than in the header,
+   * which is a pure presenter (architecture invariant) — it flows down as a property
+   * the way basemapState.installed already does.
+   */
+  @state() private _cacheIsEphemeral = isIosDevice() && !isStandalone();
+
   @state() private _placeOptions: PlaceOption[] = [];
   @state() private _placeNameBySlug: Map<string, string> = new Map();
   // One in-flight fetch, shared. The boot path and the D-04 detail path both want
@@ -608,6 +638,7 @@ bee-map {
         .iosInstructable=${this._iosInstructable}
         .authState=${this._authState}
         .searchEnabled=${true}
+        .cacheIsEphemeral=${this._cacheIsEphemeral}
         .searchStatus=${this._searchStatus}
         .searchCandidates=${this._searchCandidates}
         .searchCandidatesTruncated=${this._searchCandidatesTruncated}
@@ -1685,6 +1716,9 @@ bee-map {
     if (e.matches) {
       this._installable = false;
       this._iosInstructable = false;
+      // Launched standalone: the cache now lives in the installed app's own bucket,
+      // which persists and survives the 7-day cap. The caveat retires with it.
+      this._cacheIsEphemeral = false;
     }
   };
 

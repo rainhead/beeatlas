@@ -155,6 +155,64 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     expect(text).toMatch(/Offline-ready/);
   });
 
+  // beeatlas-66o — where the cache cannot outlive this browsing context, the menu
+  // must not claim offline readiness.
+  //
+  // Two measured facts sit behind these cases. An installed iOS PWA has its own
+  // storage bucket (beeatlas-93t, confirmed in both directions on iOS 18.7), so a
+  // tab's cache never reaches the installed app. And WebKit deletes script-writable
+  // storage — Service Worker cache included — after seven days of Safari use without
+  // interaction on the site, exempting Home Screen apps because they keep their own
+  // counter. "Offline-ready" is false on both counts there.
+  test('ephemeral cache: ready reports what it can keep, not offline readiness', async () => {
+    (el as any).cacheState = { ready: true, cached: ['a', 'b', 'c', 'd'], missing: [] };
+    (el as any).cacheIsEphemeral = true;
+    await (el as any).updateComplete;
+    await openMenu();
+
+    const text = el.shadowRoot!.querySelector('.account-popover')!.textContent!;
+    expect(text).toMatch(/Cached for this visit/);
+    expect(text, 'the claim it cannot keep').not.toMatch(/Offline-ready/);
+  });
+
+  test('ephemeral cache: the row points at installing, which is the actual fix', async () => {
+    // Explains AND points, rather than only disclaiming — installing is the only
+    // action that converts this into real offline. Mirrors the basemap row.
+    (el as any).cacheState = { ready: true, cached: ['a'], missing: [] };
+    (el as any).cacheIsEphemeral = true;
+    await (el as any).updateComplete;
+    await openMenu();
+
+    const text = el.shadowRoot!.querySelector('.account-popover')!.textContent!;
+    expect(text).toMatch(/Install the app/);
+    expect(text, 'says why, not just what').toMatch(/7 days|installed app/);
+  });
+
+  test('a non-ephemeral context still gets the plain readiness claim', async () => {
+    // Desktop and Android installed PWAs share the origin's storage, so there is no
+    // caveat to give — gating this on iOS-in-a-tab is the whole point.
+    (el as any).cacheState = { ready: true, cached: ['a'], missing: [] };
+    (el as any).cacheIsEphemeral = false;
+    await (el as any).updateComplete;
+    await openMenu();
+
+    const text = el.shadowRoot!.querySelector('.account-popover')!.textContent!;
+    expect(text).toMatch(/Offline-ready/);
+    expect(text).not.toMatch(/Cached for this visit/);
+  });
+
+  test('ephemeral only changes the READY message, not the in-progress ones', async () => {
+    (el as any).cacheState = { ready: false, cached: [], missing: ['db'] };
+    (el as any).cacheIsEphemeral = true;
+    (el as any).offline = true;
+    await (el as any).updateComplete;
+    await openMenu();
+
+    const text = el.shadowRoot!.querySelector('.account-popover')!.textContent!;
+    expect(text).toMatch(/Finish on WiFi to complete cache/);
+    expect(text).not.toMatch(/Cached for this visit/);
+  });
+
   test('menu status row absent when cacheState is null — menu still opens', async () => {
     (el as any).cacheState = null;
     await (el as any).updateComplete;

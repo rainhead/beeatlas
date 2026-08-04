@@ -59,6 +59,10 @@ const SEARCH_KIND_LABEL: Record<SearchKind, string> = {
 export class BeeHeader extends LitElement {
   @property({ attribute: false }) offline = false;
   @property({ attribute: false }) cacheState: { ready: boolean; cached: string[]; missing: string[] } | null = null;
+  // True where cached data cannot outlive this browsing context — iOS in a tab
+  // (beeatlas-66o). Computed by the state owner, never here; this presenter only
+  // renders the consequence.
+  @property({ attribute: false }) cacheIsEphemeral = false;
   @property({ attribute: false }) primeProgress: { received: number; total: number; assetInFlight: string | null } | null = null;
   @property({ attribute: false }) freshnessLabel: string | null = null;
   // Which code the site was built from, from the slim manifest (beeatlas-4uj) — it
@@ -957,6 +961,19 @@ export class BeeHeader extends LitElement {
     let statusContent: TemplateResult | null;
     if (!cs) {
       statusContent = null;
+    } else if (cs.ready && this.cacheIsEphemeral) {
+      // NOT "Offline-ready" here, because it would be false twice over: on iOS an
+      // installed PWA has its own storage bucket, so none of this reaches the app
+      // if it is installed later (beeatlas-93t measured it both ways), and WebKit
+      // deletes script-writable storage — Service Worker cache included — after
+      // seven days of Safari use without interaction on the site. Home Screen apps
+      // are exempt, which is why installing is the fix rather than a preference.
+      //
+      // Points at installing rather than merely disclaiming, and points at the
+      // install control the header already carries rather than growing a second one
+      // — the same shape _renderBasemapRow settled on.
+      statusContent = html`Cached for this visit
+        <div class="menu-meta">Install the app to keep it — data cached in the browser can't be used by the installed app, and Safari clears it after 7 days</div>`;
     } else if (cs.ready) {
       statusContent = html`<span style="color: var(--accent)">✓</span> Offline-ready`;
     } else if (this.offline) {
