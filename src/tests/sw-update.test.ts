@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => {
     register: vi.fn(() => Promise.resolve()),
     addEventListener: vi.fn(),
     messageSkipWaiting: vi.fn(),
+    update: vi.fn(() => Promise.resolve()),
   };
   // Track constructor calls: each element is the args array passed to `new Workbox()`
   const constructorCalls: unknown[][] = [];
@@ -41,11 +42,14 @@ vi.mock('workbox-window', () => {
     addEventListener: (...args: unknown[]) => void;
     messageSkipWaiting: () => void;
 
+    update: () => Promise<void>;
+
     constructor(...args: unknown[]) {
       mocks.constructorCalls.push(args);
       this.register = mocks.instance.register;
       this.addEventListener = mocks.instance.addEventListener;
       this.messageSkipWaiting = mocks.instance.messageSkipWaiting;
+      this.update = mocks.instance.update;
     }
   }
   return { Workbox };
@@ -60,6 +64,8 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
   beforeEach(() => {
     vi.resetModules();
     vi.unstubAllGlobals();
+    // The update-check cooldown is wall-clock, so time is driven by hand.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     // Clear localStorage (persisted-storage gate)
     localStorage.clear();
     // Reset mock state
@@ -67,6 +73,7 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
     mocks.instance.register.mockClear();
     mocks.instance.addEventListener.mockClear();
     mocks.instance.messageSkipWaiting.mockClear();
+    mocks.instance.update.mockClear();
     // Clean up any window.__wb from previous test
     delete (window as Window & { __wb?: unknown }).__wb;
     // Default: navigator.onLine = true
@@ -89,6 +96,7 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   // ---------------------------------------------------------------------------
@@ -198,6 +206,99 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
     expect(typeof (wb as { register?: unknown }).register).toBe('function');
     expect(typeof (wb as { addEventListener?: unknown }).addEventListener).toBe('function');
     expect(typeof (wb as { messageSkipWaiting?: unknown }).messageSkipWaiting).toBe('function');
+  });
+
+  // ---------------------------------------------------------------------------
+  // Noticing a new version without a force-quit.
+  //
+  // register() checks once per page load, and an installed PWA is not reloaded
+  // the way a tab is — so without this the only reliable way to pick up a new
+  // version is to force-quit and relaunch, which is not a thing to ask of someone
+  // in a field.
+  // ---------------------------------------------------------------------------
+  const flushAll = async () => { await flushMicrotasks(); await flushMicrotasks(); };
+
+  // Counts are RELATIVE, deliberately. `vi.resetModules()` gives each test a fresh
+  // module, but the document/window listeners the previous ones attached are still
+  // there and have no teardown hook — so one dispatch fires every accumulated
+  // listener set. Asserting "went up" / "did not go up" across a single dispatch is
+  // true regardless of how many are attached, and it is also the property that
+  // actually matters.
+  const bumped = async (fire: () => void): Promise<boolean> => {
+    const before = mocks.instance.update.mock.calls.length;
+    fire();
+    await flushAll();
+    return mocks.instance.update.mock.calls.length > before;
+  };
+  const visible = (state: 'visible' | 'hidden') =>
+    Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+  const past = () => vi.setSystemTime(Date.now() + 20 * 60 * 1000);
+
+  test('returning to the foreground checks for an update', async () => {
+    await import('../sw-registration.ts');
+    await flushAll();
+    visible('visible');
+    past();
+
+    expect(await bumped(() => document.dispatchEvent(new Event('visibilitychange')))).toBe(true);
+  });
+
+  test('going to the BACKGROUND checks nothing', async () => {
+    await import('../sw-registration.ts');
+    await flushAll();
+    visible('hidden');
+    past();
+
+    expect(await bumped(() => document.dispatchEvent(new Event('visibilitychange')))).toBe(false);
+  });
+
+  test('app switching is throttled — visibilitychange fires constantly', async () => {
+    await import('../sw-registration.ts');
+    await flushAll();
+    visible('visible');
+
+    past();
+    expect(await bumped(() => document.dispatchEvent(new Event('visibilitychange')))).toBe(true);
+    // Immediately again: every listener is now inside its cooldown.
+    expect(await bumped(() => document.dispatchEvent(new Event('visibilitychange')))).toBe(false);
+    // …and again once the cooldown has passed.
+    past();
+    expect(await bumped(() => document.dispatchEvent(new Event('visibilitychange')))).toBe(true);
+  });
+
+  test('OFFLINE, the foreground check is not made at all', async () => {
+    // The whole reason registration itself defers: /sw.js is deliberately never
+    // precached, so offline this request cannot be served — and on iOS a failed
+    // request inside an installed app raises the system "Turn On Wi-Fi" modal over
+    // a map that is working perfectly. This app is used where there is no signal; a
+    // poll that raises a modal there is worse than never updating.
+    await import('../sw-registration.ts');
+    await flushAll();
+    visible('visible');
+    past();
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+
+    expect(await bumped(() => document.dispatchEvent(new Event('visibilitychange')))).toBe(false);
+  });
+
+  test('reconnecting checks for an update — it is the moment one can be fetched', async () => {
+    await import('../sw-registration.ts');
+    await flushAll();
+    past();
+
+    expect(await bumped(() => window.dispatchEvent(new Event('online')))).toBe(true);
+  });
+
+  test('a rejected update check is swallowed — onLine is a hint, not a guarantee', async () => {
+    mocks.instance.update.mockRejectedValue(new Error('captive portal'));
+    await import('../sw-registration.ts');
+    await flushAll();
+    visible('visible');
+    past();
+
+    expect(() => document.dispatchEvent(new Event('visibilitychange'))).not.toThrow();
+    await flushAll();
+    mocks.instance.update.mockResolvedValue(undefined);
   });
 
   // ---------------------------------------------------------------------------

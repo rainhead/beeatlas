@@ -63,6 +63,8 @@ async function registerServiceWorker(): Promise<void> {
   const register = async () => {
     try {
       await wb.register();
+      _lastUpdateCheck = Date.now();
+      watchForUpdates(wb);
     } catch (err) {
       console.error('[SW] Registration failed:', err);
     }
@@ -73,6 +75,62 @@ async function registerServiceWorker(): Promise<void> {
     return;
   }
   await register();
+}
+
+/**
+ * Notice a new version without being force-quit.
+ *
+ * The check above happens at `register()`, i.e. once per page load — and an
+ * INSTALLED PWA is not reloaded the way a tab is. Left at that, the only reliable
+ * way to pick up a new version is to force-quit the app and relaunch it, which is
+ * not something to ask of someone in a field. (Navigating to a species page and
+ * back does it too, since that is a real document navigation, but nobody should
+ * have to know that.)
+ *
+ * So: check again when the app comes back to the foreground, and when the network
+ * comes back. Those are the two moments when an update both might exist and can
+ * actually be fetched.
+ *
+ * NEVER OFFLINE, for the reason the registration itself defers: /sw.js is
+ * deliberately not precached (a worker that caches itself is how you strand a
+ * device on a broken version), so offline the request cannot be served — and on
+ * iOS a failed request inside an installed app raises the system "Turn On Wi-Fi
+ * to Use the Internet" modal over a map that is working perfectly. This app is
+ * used in places with no signal; a background poll that raises a modal there
+ * would be worse than never updating.
+ *
+ * The cooldown is because `visibilitychange` fires on every app switch, and this
+ * is a real conditional GET each time. Fifteen minutes is far more often than a
+ * site that deploys a few times a week needs, and rare enough to be free.
+ *
+ * When a new worker IS found it installs and then WAITS — there is no
+ * `clientsClaim` and no unsolicited `skipWaiting` (src/sw.ts) — so this never
+ * swaps code underneath someone. It surfaces the update banner, and the reload
+ * stays the user's.
+ */
+const UPDATE_CHECK_COOLDOWN_MS = 15 * 60 * 1000;
+let _lastUpdateCheck = 0;
+let _watching = false;
+
+function watchForUpdates(wb: Workbox): void {
+  if (_watching) return;
+  _watching = true;
+
+  const check = (reason: string) => {
+    if (navigator.onLine === false) return;
+    const now = Date.now();
+    if (now - _lastUpdateCheck < UPDATE_CHECK_COOLDOWN_MS) return;
+    _lastUpdateCheck = now;
+    // Rejections are swallowed: a failed update check is the ordinary offline
+    // case wearing a different hat (onLine is a hint, not a guarantee), and it
+    // costs nothing — the active worker keeps serving.
+    void wb.update().catch(() => { console.debug('[SW] update check failed', reason); });
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') check('foreground');
+  });
+  window.addEventListener('online', () => { check('online'); });
 }
 
 /**
