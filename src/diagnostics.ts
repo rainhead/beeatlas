@@ -101,10 +101,46 @@ export async function collectDiagnostics(): Promise<string> {
   // reachable and every offline symptom follows from that one fact.
   add('— service worker —');
   add(await probe('controlled', () => String(!!navigator.serviceWorker?.controller)));
+  // One sample cannot answer the question a transitional state raises. A reading
+  // of `activating` means either "caught mid-transition" — the ordinary case,
+  // over in about a second — or "stuck", which is a different and much worse
+  // thing: functional events queue behind activation, so a worker that never
+  // finishes takes the app down for that user. The panel reported the first and
+  // let the reader guess, which is exactly the shape of every other silent
+  // failure in this area.
+  //
+  // So: when the first reading is transitional, look again. Only then — the
+  // steady state is `activated` and must stay instant.
   add(await probe('registrations', async () => {
-    const regs = await navigator.serviceWorker?.getRegistrations?.() ?? [];
-    return regs.length === 0 ? 'NONE' :
-      regs.map((r) => `${r.scope} [${r.active?.state ?? 'no active'}]`).join(', ');
+    const read = async () => (await navigator.serviceWorker?.getRegistrations?.() ?? [])
+      .map((r) => ({
+        scope: r.scope,
+        // All three slots, not just `active`. During an update the interesting
+        // worker is often the one in `installing` or `waiting`, and reporting
+        // only the active one made an update in flight look like nothing.
+        state: r.active?.state ?? 'no active',
+        pending: [
+          r.installing ? `installing:${r.installing.state}` : null,
+          r.waiting ? `waiting:${r.waiting.state}` : null,
+        ].filter(Boolean).join(' '),
+      }));
+    const TRANSITIONAL = ['installing', 'installed', 'activating'];
+
+    const first = await read();
+    if (first.length === 0) return 'NONE';
+    if (!first.some((r) => TRANSITIONAL.includes(r.state)) ) {
+      return first.map((r) => `${r.scope} [${r.state}]${r.pending ? ` ${r.pending}` : ''}`).join(', ');
+    }
+
+    await new Promise((res) => setTimeout(res, 2000));
+    const again = await read();
+    return first.map((r, i) => {
+      const now = again[i];
+      const moved = now && now.state !== r.state;
+      const verdict = moved ? `${r.state} → ${now.state}`
+        : `${r.state} — UNCHANGED after 2s${TRANSITIONAL.includes(r.state) ? ', may be STUCK' : ''}`;
+      return `${r.scope} [${verdict}]${now?.pending ? ` ${now.pending}` : ''}`;
+    }).join(', ');
   }));
   add('');
 
