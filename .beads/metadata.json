@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "beeatlas",
+  "project_id": "cf936388-79c9-4b03-b7e9-70b5cfcb5224"
+}

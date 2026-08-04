@@ -193,5 +193,8 @@ data/notes-dev.db-wal
 *.db
 .beads-credential-key
 
-# Beads is local-only: issues live in the Dolt DB, never in git.
-.beads/
+# Beads: the JSONL export IS tracked (issues.jsonl / interactions.jsonl), so the
+# tracker travels with the repo and survives this checkout. What must NOT be
+# tracked — the Dolt database, backups, locks, per-machine sync state — is
+# ignored by .beads/.gitignore, which bd manages. Do not re-add a blanket
+# `.beads/` rule here: it would silently un-track the issues again.
