@@ -193,6 +193,10 @@ export class BeeAtlas extends LitElement {
   // Header search (beeatlas-7nx.5, ADR 0028). The index is assembled here from the
   // option lists this component already owns; ranking is pure (src/search.ts).
   private _searchIndex: SearchIndex = EMPTY_INDEX;
+  // Ranked answers to what is currently typed, handed down to <bee-header>
+  // (beeatlas-7nx.4). Recomputed per keystroke; pure and in-memory, so no debounce.
+  @state() private _searchCandidates: SearchCandidate[] = [];
+  @state() private _searchCandidatesTruncated = false;
   // Record counts behind each searchable thing — the ranking tie-break. Queried once
   // (they change only when the DB reloads) and cached, so _rebuildSearchIndex stays
   // synchronous and can be re-run cheaply as its other inputs land.
@@ -593,7 +597,10 @@ bee-map {
         .authState=${this._authState}
         .searchEnabled=${true}
         .searchStatus=${this._searchStatus}
-        @search-submit=${this._onSearchSubmit}
+        .searchCandidates=${this._searchCandidates}
+        .searchCandidatesTruncated=${this._searchCandidatesTruncated}
+        @search-query=${this._onSearchQuery}
+        @search-pick=${this._onSearchPick}
       ></bee-header>
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
       ${this._loading ? html`<div class="loading-overlay">Loading…</div>` : ''}
@@ -1866,12 +1873,16 @@ bee-map {
     this._replaceUrlState();
   }
 
-  // beeatlas-8zs / beeatlas-v66: answer a search submitted from <bee-header>.
+  // beeatlas-8zs / v66 / 7nx: answer a row the reader chose in <bee-header>.
   //
-  // This is the router for the header's one search field. Today every query is a
-  // label number and the only resolver is the catalog lookup; taxa, places and
-  // people are meant to join it here, which is why the event the header emits is
-  // `search-submit` and not `catalog-lookup`.
+  // The header ranks nothing and resolves nothing: it emits `search-query` to ask
+  // for candidates and `search-pick` to report the choice. The seam v66 named for
+  // what it would become is now what it became — `search-submit` is retired, since
+  // Enter on the field just means "pick the first candidate".
+  //
+  // A label number is the ONLY kind that still has to ask the DB here. Every other
+  // kind names a set, and _applyViewCandidate applies it from data the candidate
+  // already carries (ADR 0028).
   //
   // Jumping to the specimen named by a physical label number is a SELECTION, not a
   // filter (the 999.8 separation): it resolves the typed number to an occ_id and
@@ -1889,7 +1900,38 @@ bee-map {
   // (_writeViewportHistory) and may predate the filter entirely. Making the yield
   // undoable would mean pushing an entry before the clear — a deliberate change to
   // history behaviour, not a comment fix, so it is left alone here.
-  private _onSearchSubmit = async (e: CustomEvent<{ query: string }>) => {
+  private _onSearchQuery = (e: CustomEvent<{ query: string }>) => {
+    const typed = e.detail.query.trim();
+    if (typed === '') {
+      this._catalogLookupGeneration++; // an emptied field abandons the lookup too
+      this._searchCandidates = [];
+      this._searchCandidatesTruncated = false;
+      // An emptied field has not failed at anything — retire the message with it.
+      this._searchStatus = null;
+      return;
+    }
+    // A NEW QUERY SUPERSEDES WHATEVER IS IN FLIGHT, whatever it turns out to be.
+    // The bump belongs here, not only on a pick: the reader has moved on the moment
+    // they type, and a query that ranks to nothing never produces a pick at all. The
+    // guard was originally bumped on every submission for exactly this reason —
+    // without it, a label lookup started before the reader retyped lands late,
+    // replaces the message they are looking at, and moves the map to a specimen they
+    // had already abandoned.
+    this._catalogLookupGeneration++;
+
+    const { candidates, truncated } = rankCandidates(this._searchIndex, typed);
+    this._searchCandidates = candidates;
+    this._searchCandidatesTruncated = truncated;
+    // A query nothing answers to is a miss the moment it is ranked — the reader
+    // should not have to press Enter to be told there is nothing there. A ranking
+    // that DID find something supersedes whatever message was showing; the header
+    // renders a status only while the field still holds its query, so this only
+    // ever clears a message that is already hidden.
+    this._searchStatus = candidates.length === 0 ? { query: typed, kind: 'miss' } : null;
+  };
+
+  private _onSearchPick = async (e: CustomEvent<{ candidate: SearchCandidate; query: string }>) => {
+    const candidate = e.detail.candidate;
     const typed = e.detail.query.trim();
     // Bump the generation on EVERY submission, before the validity checks — a
     // submission supersedes whatever is in flight regardless of what it turns out
@@ -1897,21 +1939,14 @@ bee-map {
     // exists to close: submit a good number, then a malformed one, and the earlier
     // lookup still lands, overwriting the newer answer and moving the map.
     const myGen = ++this._catalogLookupGeneration;
-    if (typed === '') { this._searchStatus = null; return; }
-
-    // ADR 0028: the query is ranked against the index, and the top candidate is what
-    // a bare submit means. A digits query still yields exactly one label candidate,
-    // so the path below is unchanged for it; a name now resolves to a view instead
-    // of falling straight through to `miss`.
-    const { candidates } = rankCandidates(this._searchIndex, typed);
-    const top = candidates[0];
-    if (top === undefined) { this._searchStatus = { query: typed, kind: 'miss' }; return; }
-
-    if (top.kind !== 'label') { this._applyViewCandidate(top, typed); return; }
+    // A view is applied synchronously from what the candidate already carries. Only
+    // a label row still has to ask the DB — it names a record it has not fetched
+    // (ADR 0028), which is why it alone can come back a miss.
+    if (candidate.kind !== 'label') { this._applyViewCandidate(candidate, typed); return; }
 
     let result;
     try {
-      result = await lookupByCatalogSuffix(top.suffix, this._filterState);
+      result = await lookupByCatalogSuffix(candidate.suffix, this._filterState);
     } catch (err) {
       console.error('Catalog lookup failed:', err);
       if (myGen !== this._catalogLookupGeneration) return; // superseded

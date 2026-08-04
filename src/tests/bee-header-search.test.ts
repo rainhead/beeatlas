@@ -1,5 +1,6 @@
 import { test, expect, describe, vi, beforeEach } from 'vitest';
 import type { SearchStatus } from '../bee-header.ts';
+import type { SearchCandidate } from '../search.ts';
 
 // beeatlas-v66 — the search button in <bee-header>, successor to the label-number
 // field that lived in <bee-pane>'s filter panel (beeatlas-8zs).
@@ -24,10 +25,12 @@ await import('../bee-header.ts');
 interface HeaderEl extends HTMLElement {
   searchEnabled: boolean;
   searchStatus: SearchStatus | null;
+  searchCandidates: SearchCandidate[];
+  searchCandidatesTruncated: boolean;
   updateComplete: Promise<unknown>;
 }
 
-const FIELD = 'input[aria-label="Find a specimen by its catalog or label number"]';
+const FIELD = 'input.search-input';
 
 let header: HeaderEl;
 
@@ -60,6 +63,15 @@ async function type(el: HeaderEl, value: string) {
   const input = searchInput(el);
   input.value = value;
   input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+  await el.updateComplete;
+}
+
+function rows(el: HeaderEl): HTMLButtonElement[] {
+  return [...el.shadowRoot!.querySelectorAll<HTMLButtonElement>('.search-result')];
+}
+
+async function pressKey(el: HeaderEl, key: string, target: Element = searchInput(el)) {
+  target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, composed: true }));
   await el.updateComplete;
 }
 
@@ -145,94 +157,180 @@ describe('search is a header button, left of the account', () => {
   });
 });
 
-describe('the search field submits a query', () => {
+describe('the search field asks for candidates and reports a pick', () => {
+  // The v66 seam (`search-submit`) is retired. The header ranks nothing and
+  // resolves nothing: it asks for candidates as you type (`search-query`) and
+  // reports the row you chose (`search-pick`). ADR 0028.
+  const TAXON: SearchCandidate = {
+    kind: 'taxon', taxonId: 42, key: 'taxon:42', label: 'Bombus (genus)',
+    detail: 'genus', weight: 4182, href: '/species/Bombus/',
+  };
+  const LABEL: SearchCandidate = {
+    kind: 'label', suffix: '2303966', key: 'label:2303966', label: '2303966',
+    detail: null, weight: 0, href: null,
+  };
+
   beforeEach(async () => {
     await openSearch(header);
   });
 
-  test('Enter dispatches search-submit carrying what the user typed', async () => {
+  async function offer(candidates: SearchCandidate[], truncated = false) {
+    header.searchCandidates = candidates;
+    header.searchCandidatesTruncated = truncated;
+    await header.updateComplete;
+  }
+
+  test('every keystroke asks for a ranking — resolving is not deferred to Enter', async () => {
     const seen: string[] = [];
-    header.addEventListener('search-submit', (e) => {
+    header.addEventListener('search-query', (e) => {
       seen.push((e as CustomEvent<{ query: string }>).detail.query);
     });
-
-    await type(header, 'WSDA_2303966');
-    expect(seen, 'typing alone must not fire a lookup').toEqual([]);
-
-    await pressEnter(header);
-    expect(seen).toEqual(['WSDA_2303966']);
+    await type(header, 'Bom');
+    await type(header, 'Bombus');
+    expect(seen).toEqual(['Bom', 'Bombus']);
   });
 
-  test('the submit button submits — on a phone it is the only way to', async () => {
-    // inputmode="numeric" earns a numeric keypad, and a numeric keypad has no
-    // return key: on iOS there is no Enter to press. Without this button the
-    // field cannot be submitted on a phone at all.
+  test('the query is asked trimmed', async () => {
     const seen: string[] = [];
-    header.addEventListener('search-submit', (e) => {
+    header.addEventListener('search-query', (e) => {
       seen.push((e as CustomEvent<{ query: string }>).detail.query);
     });
-
-    await type(header, '2303966');
-    header.shadowRoot!.querySelector<HTMLButtonElement>('button[aria-label="Submit search"]')!.click();
-    await header.updateComplete;
+    await type(header, '  2303966 ');
     expect(seen).toEqual(['2303966']);
   });
 
-  test('the submit button is dead until there is something to submit', async () => {
+  test('clicking a row reports that exact candidate', async () => {
+    const seen: SearchCandidate[] = [];
+    header.addEventListener('search-pick', (e) => {
+      seen.push((e as CustomEvent<{ candidate: SearchCandidate }>).detail.candidate);
+    });
+    await type(header, 'Bombus');
+    await offer([TAXON, LABEL]);
+    rows(header)[0]!.click();
+    await header.updateComplete;
+    expect(seen).toEqual([TAXON]);
+  });
+
+  test('Enter with nothing highlighted picks the first candidate', async () => {
+    // That is what the old bare submit meant, which is why search-submit had
+    // nothing left to carry.
+    const seen: SearchCandidate[] = [];
+    header.addEventListener('search-pick', (e) => {
+      seen.push((e as CustomEvent<{ candidate: SearchCandidate }>).detail.candidate);
+    });
+    await type(header, 'Bombus');
+    await offer([TAXON, LABEL]);
+    await pressEnter(header);
+    expect(seen).toEqual([TAXON]);
+  });
+
+  test('ArrowDown moves the pick to the row it highlights', async () => {
+    const seen: SearchCandidate[] = [];
+    header.addEventListener('search-pick', (e) => {
+      seen.push((e as CustomEvent<{ candidate: SearchCandidate }>).detail.candidate);
+    });
+    await type(header, 'Bombus');
+    await offer([TAXON, LABEL]);
+    await pressKey(header, 'ArrowDown');
+    await pressKey(header, 'ArrowDown', rows(header)[0]!);
+    rows(header)[1]!.click();
+    await header.updateComplete;
+    expect(seen).toEqual([LABEL]);
+  });
+
+  test('the pick carries the query, because a label row can still come back empty', async () => {
+    const seen: { candidate: SearchCandidate; query: string }[] = [];
+    header.addEventListener('search-pick', (e) => {
+      seen.push((e as CustomEvent<{ candidate: SearchCandidate; query: string }>).detail);
+    });
+    await type(header, '2303966');
+    await offer([LABEL]);
+    await pressEnter(header);
+    expect(seen[0]!.query).toBe('2303966');
+  });
+
+  test('the submit button picks — on a phone it is the only way to', async () => {
+    // ADR 0021 kept this button even though the numeric keypad hint is now gone:
+    // on touch a visible tap target beats a keyboard convention.
+    const seen: SearchCandidate[] = [];
+    header.addEventListener('search-pick', (e) => {
+      seen.push((e as CustomEvent<{ candidate: SearchCandidate }>).detail.candidate);
+    });
+    await type(header, '2303966');
+    await offer([LABEL]);
+    header.shadowRoot!.querySelector<HTMLButtonElement>('button[aria-label="Submit search"]')!.click();
+    await header.updateComplete;
+    expect(seen).toEqual([LABEL]);
+  });
+
+  test('the submit button is dead until there is something to pick', async () => {
     const btn = () => header.shadowRoot!.querySelector<HTMLButtonElement>('button[aria-label="Submit search"]')!;
     expect(btn().disabled).toBe(true);
     await type(header, '  ');
     expect(btn().disabled, 'whitespace is not a query').toBe(true);
-    await type(header, '2303966');
+    await type(header, 'Bombus');
+    expect(btn().disabled, 'nor is a query nothing answers to').toBe(true);
+    await offer([TAXON]);
     expect(btn().disabled).toBe(false);
   });
 
-  test('the event escapes the shadow root so <bee-atlas> can hear it', async () => {
+  test('Enter picks nothing when nothing was offered', async () => {
     const seen: Event[] = [];
-    document.addEventListener('search-submit', (e) => seen.push(e));
-    await type(header, '2303966');
+    header.addEventListener('search-pick', (e) => seen.push(e));
     await pressEnter(header);
-    expect(seen).toHaveLength(1);
-  });
-
-  test('a keystroke that is not Enter submits nothing', async () => {
-    const seen: Event[] = [];
-    header.addEventListener('search-submit', (e) => seen.push(e));
-    await type(header, '230396');
-    searchInput(header).dispatchEvent(
-      new KeyboardEvent('keydown', { key: '6', bubbles: true, composed: true })
-    );
-    await header.updateComplete;
-    expect(seen).toEqual([]);
-  });
-
-  test('Enter in an empty field submits nothing — same as the disabled button', async () => {
-    // Not cosmetic: every submission that reaches <bee-atlas> supersedes the lookup
-    // in flight, so a stray empty submit would cancel a search the user is waiting on.
-    const seen: Event[] = [];
-    header.addEventListener('search-submit', (e) => seen.push(e));
-    await pressEnter(header);
-    await type(header, '   ');
+    await type(header, 'Zzzz');
     await pressEnter(header);
     expect(seen).toEqual([]);
   });
 
-  test('the query is submitted trimmed', async () => {
+  test('the events escape the shadow root so <bee-atlas> can hear them', async () => {
     const seen: string[] = [];
-    header.addEventListener('search-submit', (e) => {
-      seen.push((e as CustomEvent<{ query: string }>).detail.query);
-    });
-    await type(header, '  2303966 ');
+    document.addEventListener('search-query', () => seen.push('query'));
+    document.addEventListener('search-pick', () => seen.push('pick'));
+    await type(header, 'Bombus');
+    await offer([TAXON]);
     await pressEnter(header);
-    expect(seen).toEqual(['2303966']);
+    expect(seen).toEqual(['query', 'pick']);
   });
 
   test('the header stays a presenter — a search never emits filter-changed', async () => {
     const seen: Event[] = [];
     header.addEventListener('filter-changed', (e) => seen.push(e));
-    await type(header, '2303966');
+    await type(header, 'Bombus');
+    await offer([TAXON]);
     await pressEnter(header);
     expect(seen).toEqual([]);
+  });
+
+  test('a row is a button, and its page link is a real link beside it', async () => {
+    // NOT an ARIA listbox: an option cannot contain a focusable child, which is
+    // exactly what the page link is (ADR 0028).
+    await type(header, 'Bombus');
+    await offer([TAXON, LABEL]);
+    expect(header.shadowRoot!.querySelector('[role="listbox"]')).toBeNull();
+    const link = header.shadowRoot!.querySelector<HTMLAnchorElement>('.search-result-link');
+    expect(link!.getAttribute('href')).toBe('/species/Bombus/');
+  });
+
+  test('a candidate with no page gets no link, rather than a guessed one', async () => {
+    await type(header, '2303966');
+    await offer([LABEL]);
+    expect(header.shadowRoot!.querySelector('.search-result-link')).toBeNull();
+  });
+
+  test('a truncated list says so', async () => {
+    await type(header, 'b');
+    await offer([TAXON], true);
+    expect(header.shadowRoot!.textContent).toContain('More matches');
+    await offer([TAXON], false);
+    expect(header.shadowRoot!.textContent).not.toContain('More matches');
+  });
+
+  test('kind is a heading over the rows it explains', async () => {
+    await type(header, 'Bombus');
+    await offer([TAXON, LABEL]);
+    const headings = [...header.shadowRoot!.querySelectorAll('.search-group-label')].map(h => h.textContent);
+    expect(headings).toEqual(['Species and groups', 'Label number']);
   });
 });
 
@@ -245,30 +343,30 @@ describe('the status message tracks the field, not the clock', () => {
     await type(header, '9999999');
     header.searchStatus = { query: '9999999', kind: 'miss' };
     await header.updateComplete;
-    expect(header.shadowRoot!.textContent).toContain('No specimen with number 9999999');
+    expect(header.shadowRoot!.textContent).toContain('Nothing matches 9999999');
   });
 
   test('editing the number retires the message with no round-trip to the parent', async () => {
     await type(header, '9999999');
     header.searchStatus = { query: '9999999', kind: 'miss' };
     await header.updateComplete;
-    expect(header.shadowRoot!.textContent).toContain('No specimen with number');
+    expect(header.shadowRoot!.textContent).toContain('Nothing matches');
 
     await type(header, '999999');
     // searchStatus is untouched — the parent has not been asked anything yet.
     expect(header.searchStatus).toEqual({ query: '9999999', kind: 'miss' });
-    expect(header.shadowRoot!.textContent).not.toContain('No specimen with number');
+    expect(header.shadowRoot!.textContent).not.toContain('Nothing matches');
   });
 
   test('a stale miss from an earlier number does not haunt a different one', async () => {
     header.searchStatus = { query: '9999999', kind: 'miss' };
     await type(header, '2303966');
-    expect(header.shadowRoot!.textContent).not.toContain('No specimen with number');
+    expect(header.shadowRoot!.textContent).not.toContain('Nothing matches');
   });
 
   test('no message at all when nothing has missed', async () => {
     await type(header, '2303966');
-    expect(header.shadowRoot!.textContent).not.toContain('No specimen with number');
+    expect(header.shadowRoot!.textContent).not.toContain('Nothing matches');
   });
 
   test('Escape in a non-empty field clears it — and takes the message with it', async () => {
@@ -286,7 +384,7 @@ describe('the status message tracks the field, not the clock', () => {
       'the first Escape clears the field; it does not close the popover',
     ).not.toBeNull();
     expect(searchInput(header).value).toBe('');
-    expect(header.shadowRoot!.textContent).not.toContain('No specimen with number');
+    expect(header.shadowRoot!.textContent).not.toContain('Nothing matches');
   });
 });
 
@@ -304,7 +402,7 @@ describe('a failure is not a miss', () => {
     await header.updateComplete;
     const text = header.shadowRoot!.textContent!;
     expect(text).toContain("Couldn't look that up just now");
-    expect(text).not.toContain('No specimen with number');
+    expect(text).not.toContain('Nothing matches');
   });
 
   test('editing the number retires the failure message too', async () => {

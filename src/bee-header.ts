@@ -2,6 +2,7 @@ import { LitElement, css, html, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { AuthState } from './auth-client.ts';
 import type { BasemapOfflineState } from './basemap-prime.ts';
+import type { SearchCandidate, SearchKind } from './search.ts';
 
 /**
  * What came of the last submitted search, reported back by whoever resolves it.
@@ -22,6 +23,16 @@ import type { BasemapOfflineState } from './basemap-prime.ts';
  * presenter cannot tell those apart.
  */
 export type SearchStatus = { query: string; kind: 'hit' | 'miss' | 'error' };
+
+/** Group headings for the result list. Plural — a heading names a set of rows. */
+const SEARCH_KIND_LABEL: Record<SearchKind, string> = {
+  label: 'Label number',
+  taxon: 'Species and groups',
+  person: 'People',
+  place: 'Places',
+  county: 'Counties',
+  ecoregion: 'Ecoregions',
+};
 
 @customElement('bee-header')
 export class BeeHeader extends LitElement {
@@ -59,6 +70,13 @@ export class BeeHeader extends LitElement {
   // rather than a dead one.
   @property({ attribute: false }) searchEnabled = false;
   @property({ attribute: false }) searchStatus: SearchStatus | null = null;
+  // Ranked answers to the CURRENT query, supplied by whoever can resolve it
+  // (beeatlas-7nx.4, ADR 0028). This presenter neither ranks nor resolves — it
+  // renders what it is given and reports back which row was chosen.
+  @property({ attribute: false }) searchCandidates: SearchCandidate[] = [];
+  // True when matches were dropped to fit the list. Shown, never swallowed: a
+  // top-N presented as the whole answer tells a reader their thing is not there.
+  @property({ attribute: false }) searchCandidatesTruncated = false;
 
   // Single account/status menu (beeatlas-j96): one popover behind the account
   // button carrying auth, offline-cache status, freshness, source link and build.
@@ -67,9 +85,14 @@ export class BeeHeader extends LitElement {
   // Transient iOS A2HS popover open/close — local to presenter, not app state.
   @state() private _iosPopoverOpen = false;
   // Search popover open/close and its field. Both are presenter-local: the query
-  // becomes app state only on submit, and only as the `search-submit` event.
+  // leaves this component only as `search-query` (asking to be ranked) and the
+  // chosen row only as `search-pick`. Neither ranking nor resolving happens here.
   @state() private _searchOpen = false;
   @state() private _searchInput = '';
+  // Which result row holds focus, or -1 for "the field does". Roving tabindex
+  // rather than aria-activedescendant — see the results markup for why this is a
+  // list of buttons and not an ARIA listbox.
+  @state() private _searchActive = -1;
   // Set if the iNat avatar image fails to load — falls back to the person glyph.
   @state() private _avatarError = false;
 
@@ -429,6 +452,112 @@ export class BeeHeader extends LitElement {
       opacity: 0.6;
     }
 
+    /* Results (beeatlas-7nx.4). Scrolls rather than growing without bound — the
+       popover hangs over the map and must not become the page. */
+    .search-results {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-height: min(50vh, 340px);
+      overflow-y: auto;
+      margin: 2px -4px 0;
+      padding: 0 4px;
+    }
+
+    .search-group-label {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      margin: 6px 0 2px;
+      padding: 2px 0;
+      background: var(--surface, #fff);
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-hint, #767676);
+    }
+    .search-group-label:first-child { margin-top: 0; }
+
+    .search-group { display: flex; flex-direction: column; }
+
+    /* The row is the thing; the link is an attribute of it, not a sibling result. */
+    .search-result-row { display: flex; align-items: stretch; gap: 2px; }
+
+    .search-result {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      min-height: 40px;
+      padding: 6px 8px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.875rem;
+      text-align: left;
+      color: var(--text-body, #213547);
+      cursor: pointer;
+    }
+
+    .search-result:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+    .search-result:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+
+    .search-result-label {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .search-result-detail {
+      flex: 0 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.75rem;
+      color: var(--text-hint, #767676);
+    }
+
+    /* The count is the tie-break the ranking used, so showing it explains the order. */
+    .search-result-weight {
+      flex: none;
+      font-size: 0.75rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-hint, #767676);
+    }
+
+    .search-result-link {
+      flex: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      border-radius: 4px;
+      color: var(--text-hint, #767676);
+    }
+    .search-result-link:hover {
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+      color: var(--accent);
+    }
+    .search-result-link:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+
+    .search-more {
+      margin: 4px 0 0;
+      font-size: 0.72rem;
+      color: var(--text-hint, #767676);
+    }
+
     .search-hint {
       margin: 0;
       font-size: 0.75rem;
@@ -531,25 +660,74 @@ export class BeeHeader extends LitElement {
     }
   };
 
-  // Submits the trimmed query, and nothing at all when there is none: Enter in an
-  // empty field must do what the submit button does with an empty field, which is
-  // nothing. (It matters more than it looks — every submission that reaches
-  // <bee-atlas> supersedes the lookup in flight.)
-  private _submitSearch() {
-    const query = this._searchInput.trim();
-    if (query === '') return;
-    this.dispatchEvent(new CustomEvent('search-submit', {
+  // Every keystroke asks for a fresh ranking. No debounce: the answer comes from an
+  // in-memory index (src/search.ts), so a query costs a scan over a few thousand
+  // short strings — cheaper than the timer that would smooth it.
+  private _onSearchInput(value: string) {
+    this._searchInput = value;
+    this._searchActive = -1;
+    this.dispatchEvent(new CustomEvent('search-query', {
       bubbles: true, composed: true,
-      detail: { query },
+      detail: { query: value.trim() },
     }));
+  }
+
+  // Report the chosen thing upward. The query rides along because the answer may
+  // still fail — a label row is a promise to look, not a claim to have found — and
+  // `searchStatus` is only rendered while the field still holds the query it
+  // belongs to.
+  private _pickCandidate(candidate: SearchCandidate) {
+    this.dispatchEvent(new CustomEvent('search-pick', {
+      bubbles: true, composed: true,
+      detail: { candidate, query: this._searchInput.trim() },
+    }));
+  }
+
+  // What a bare submit means: the row the reader is on, or the best one if they
+  // never left the field. Nothing at all when there is nothing to pick — Enter in
+  // an empty field must do what the submit button does with an empty field.
+  private _pickActiveOrFirst() {
+    const candidate = this.searchCandidates[this._searchActive] ?? this.searchCandidates[0];
+    if (candidate === undefined) return;
+    this._pickCandidate(candidate);
   }
 
   private _clearSearch = () => {
     this._searchInput = '';
+    this._searchActive = -1;
     // Retires the status message too: it shows only while the field holds the
     // query it belongs to.
+    this.dispatchEvent(new CustomEvent('search-query', {
+      bubbles: true, composed: true, detail: { query: '' },
+    }));
     this.shadowRoot?.querySelector<HTMLInputElement>('.search-input')?.focus();
   };
+
+  /**
+   * Move focus between the field and the result rows.
+   *
+   * Focus genuinely moves (roving tabindex) rather than being simulated with
+   * aria-activedescendant, because a row is a real button that may carry a real
+   * link, and an ARIA listbox option cannot contain a focusable child. ArrowUp from
+   * the first row returns to the field, so typing can resume without reaching for
+   * the mouse.
+   */
+  private _moveSearchFocus(delta: number) {
+    const count = this.searchCandidates.length;
+    if (count === 0) return;
+    const next = this._searchActive + delta;
+    if (next < 0) {
+      this._searchActive = -1;
+      void this.updateComplete.then(() => {
+        this.shadowRoot?.querySelector<HTMLInputElement>('.search-input')?.focus();
+      });
+      return;
+    }
+    this._searchActive = Math.min(next, count - 1);
+    void this.updateComplete.then(() => {
+      this.shadowRoot?.querySelectorAll<HTMLButtonElement>('.search-result')[this._searchActive]?.focus();
+    });
+  }
 
   // A resolved query has put its answer on screen — behind this popover, which
   // covers the sidebar it lands in. Close, and empty the field so the next search
@@ -851,35 +1029,34 @@ export class BeeHeader extends LitElement {
     const typed = this._searchInput.trim();
     const reported = this.searchStatus;
     const status = reported && reported.query === typed && reported.kind !== 'hit' ? reported : null;
+    const candidates = this.searchCandidates;
     return html`
       <div class="cache-popover search-popover" role="dialog" aria-modal="false" aria-label="Search">
         <div class="search-row">
           <input
             type="text"
             class="search-input"
-            placeholder="Label number"
-            inputmode="numeric"
+            placeholder="Species, place, person, or label number"
             enterkeyhint="go"
-            aria-label="Find a specimen by its catalog or label number"
+            aria-label="Search for a species, place, person, or specimen label number"
             .value=${this._searchInput}
-            @input=${(e: Event) => { this._searchInput = (e.target as HTMLInputElement).value; }}
+            @input=${(e: Event) => { this._onSearchInput((e.target as HTMLInputElement).value); }}
             @keydown=${(e: KeyboardEvent) => {
-              if (e.key === 'Enter') { e.preventDefault(); this._submitSearch(); }
+              if (e.key === 'Enter') { e.preventDefault(); this._pickActiveOrFirst(); }
+              if (e.key === 'ArrowDown') { e.preventDefault(); this._moveSearchFocus(1); }
               // Escape inside the field: clear first, close only when already empty.
               if (e.key === 'Escape' && this._searchInput !== '') { e.stopPropagation(); this._clearSearch(); }
             }}
             autocomplete="off"
             spellcheck="false"
           />
-          <!-- The ONLY way to submit on a phone. inputmode="numeric" earns a numeric
-               keypad, and a numeric keypad has no return key — so on iOS there is no
-               Enter to press, and the field was unsubmittable there. Keep this button
-               even if the keypad hint ever goes away: a tap target beats a keyboard
-               convention on touch. -->
+          <!-- The ONLY way to submit on a phone, and kept even though the numeric
+               keypad hint is gone (ADR 0021 pre-decided this): on touch a visible
+               tap target beats a keyboard convention. -->
           <button
             class="search-submit"
-            @click=${() => this._submitSearch()}
-            ?disabled=${typed === ''}
+            @click=${() => this._pickActiveOrFirst()}
+            ?disabled=${typed === '' || candidates.length === 0}
             aria-label="Submit search"
             title="Search"
           >
@@ -888,11 +1065,76 @@ export class BeeHeader extends LitElement {
             </svg>
           </button>
         </div>
+        ${candidates.length > 0 ? this._renderSearchResults(candidates) : nothing}
         ${status === null
-          ? html`<p class="search-hint">Type the number on a specimen label.</p>`
+          ? (candidates.length === 0 && typed === ''
+              ? html`<p class="search-hint">Search species, places, people, or a specimen label number.</p>`
+              : nothing)
           : status.kind === 'miss'
-            ? html`<p class="search-error" role="status">No specimen with number ${typed}</p>`
+            ? html`<p class="search-error" role="status">Nothing matches ${typed}</p>`
             : html`<p class="search-error" role="status">Couldn't look that up just now — try again</p>`}
+      </div>
+    `;
+  }
+
+  /**
+   * The ranked answers.
+   *
+   * A LIST OF BUTTONS IN A DIALOG, NOT AN ARIA LISTBOX (ADR 0028). A row may carry
+   * a link to the thing's own page, and a listbox option cannot contain a focusable
+   * child — listbox semantics would force that link into a keyboard modifier nothing
+   * announces. Real elements give real semantics for free.
+   *
+   * ONE ROW IS ONE THING, with one primary verb — apply — and an escape hatch that
+   * leaves the app. What applying does is the thesis of ADR 0028 and is not this
+   * component's business: a record row selects, a view row filters, and the header
+   * knows neither.
+   *
+   * Grouping is presentation only. Groups appear in the order their best-ranked
+   * member did, so the ranking still shows through; kind explains a row, it never
+   * orders one.
+   */
+  private _renderSearchResults(candidates: SearchCandidate[]): TemplateResult {
+    const groups: { kind: SearchKind; rows: { c: SearchCandidate; i: number }[] }[] = [];
+    candidates.forEach((c, i) => {
+      const group = groups.find(g => g.kind === c.kind) ?? (groups.push({ kind: c.kind, rows: [] }), groups[groups.length - 1]!);
+      group.rows.push({ c, i });
+    });
+
+    return html`
+      <div class="search-results">
+        ${groups.map(g => html`
+          <p class="search-group-label" id=${`search-group-${g.kind}`}>${SEARCH_KIND_LABEL[g.kind]}</p>
+          <div class="search-group" role="group" aria-labelledby=${`search-group-${g.kind}`}>
+            ${g.rows.map(({ c, i }) => html`
+              <div class="search-result-row">
+                <button
+                  class="search-result"
+                  tabindex=${i === this._searchActive ? 0 : -1}
+                  @click=${() => this._pickCandidate(c)}
+                  @keydown=${(e: KeyboardEvent) => {
+                    if (e.key === 'ArrowDown') { e.preventDefault(); this._moveSearchFocus(1); }
+                    if (e.key === 'ArrowUp') { e.preventDefault(); this._moveSearchFocus(-1); }
+                  }}
+                >
+                  <span class="search-result-label">${c.label}</span>
+                  ${c.detail === null ? nothing : html`<span class="search-result-detail">${c.detail}</span>`}
+                  ${c.weight > 0 ? html`<span class="search-result-weight">${c.weight.toLocaleString()}</span>` : nothing}
+                </button>
+                ${c.href === null ? nothing : html`
+                  <a class="search-result-link" href=${c.href} aria-label=${`Open the page for ${c.label}`} title="Open its page">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" width="16" height="16" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/>
+                    </svg>
+                  </a>
+                `}
+              </div>
+            `)}
+          </div>
+        `)}
+        ${this.searchCandidatesTruncated
+          ? html`<p class="search-more">More matches — keep typing to narrow.</p>`
+          : nothing}
       </div>
     `;
   }

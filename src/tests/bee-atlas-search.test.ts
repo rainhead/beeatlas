@@ -132,11 +132,40 @@ function map(atlas: AtlasEl) {
   };
 }
 
-/** Fire the lookup the way <bee-header> does, then let the async handler settle. */
-async function lookup(atlas: AtlasEl, query: string) {
-  header(atlas).dispatchEvent(new CustomEvent('search-submit', {
-    bubbles: true, composed: true, detail: { query },
+/**
+ * Search the way <bee-header> does: ask for a ranking, then pick the top row.
+ *
+ * Deliberately the real two-event flow rather than a shortcut into the handler —
+ * "Enter picks the first candidate" is the contract the header implements, and a
+ * test that skipped the ranking could not catch a query that ranks to nothing.
+ */
+/** Start a search but do NOT drain the microtasks — leaves the lookup in flight. */
+async function lookupNoSettle(atlas: AtlasEl, query: string) {
+  const el = header(atlas);
+  el.dispatchEvent(new CustomEvent('search-query', {
+    bubbles: true, composed: true, detail: { query: query.trim() },
   }));
+  await atlas.updateComplete;
+  const candidate = (atlas as unknown as { _searchCandidates: unknown[] })._searchCandidates[0];
+  if (candidate !== undefined) {
+    el.dispatchEvent(new CustomEvent('search-pick', {
+      bubbles: true, composed: true, detail: { candidate, query: query.trim() },
+    }));
+  }
+}
+
+async function lookup(atlas: AtlasEl, query: string) {
+  const el = header(atlas);
+  el.dispatchEvent(new CustomEvent('search-query', {
+    bubbles: true, composed: true, detail: { query: query.trim() },
+  }));
+  await atlas.updateComplete;
+  const candidate = (atlas as unknown as { _searchCandidates: unknown[] })._searchCandidates[0];
+  if (candidate !== undefined) {
+    el.dispatchEvent(new CustomEvent('search-pick', {
+      bubbles: true, composed: true, detail: { candidate, query: query.trim() },
+    }));
+  }
   for (let i = 0; i < 8; i++) await Promise.resolve();
   await atlas.updateComplete;
 }
@@ -286,9 +315,7 @@ describe('a lookup that resolves nothing changes nothing', () => {
       .mockImplementationOnce(() => new Promise<CatalogLookupResult>(res => { releaseSlow = res; }))
       .mockResolvedValueOnce(fast);
 
-    header(el!).dispatchEvent(new CustomEvent('search-submit', {
-      bubbles: true, composed: true, detail: { query: '111' },
-    }));
+    await lookupNoSettle(el!, '111');
     await lookup(el!, '222');
     expect(map(el!).selectedOccIds).toEqual(new Set(['ecdysis:222']));
 
@@ -307,9 +334,7 @@ describe('a lookup that resolves nothing changes nothing', () => {
     let releaseSlow!: (v: CatalogLookupResult) => void;
     mockLookup.mockImplementationOnce(() => new Promise<CatalogLookupResult>(res => { releaseSlow = res; }));
 
-    header(el!).dispatchEvent(new CustomEvent('search-submit', {
-      bubbles: true, composed: true, detail: { query: '111' },
-    }));
+    await lookupNoSettle(el!, '111');
     await lookup(el!, 'Bombus');
     expect(header(el!).searchStatus).toEqual({ query: 'Bombus', kind: 'miss' });
 
@@ -325,9 +350,7 @@ describe('a lookup that resolves nothing changes nothing', () => {
     let releaseSlow!: (v: CatalogLookupResult) => void;
     mockLookup.mockImplementationOnce(() => new Promise<CatalogLookupResult>(res => { releaseSlow = res; }));
 
-    header(el!).dispatchEvent(new CustomEvent('search-submit', {
-      bubbles: true, composed: true, detail: { query: '111' },
-    }));
+    await lookupNoSettle(el!, '111');
     await lookup(el!, '');
 
     releaseSlow(slow);
