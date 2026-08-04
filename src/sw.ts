@@ -126,14 +126,20 @@ registerRoute(
 // gone, which is the steady state for every install after this ships. Kept out of
 // the fetch path deliberately; this is the one lifecycle event that runs once per
 // worker version.
-// The `activate` listener is typed with a plain Event under this project's libs
-// (the only ambient service-worker type here is the `self` declaration at the
-// top), so name the one member used rather than pulling in the WebWorker lib for
-// a three-line handler.
-type ExtendableLike = Event & { waitUntil(promise: Promise<unknown>): void };
-
-self.addEventListener('activate', (event) => {
-  (event as ExtendableLike).waitUntil(caches.delete('mapbox-basemap'));
+//
+// NOT inside waitUntil, and that is the whole point of this line existing in this
+// shape. Activation is a gate: while a client's active worker is `activating`, the
+// spec HOLDS every fetch event it dispatches — so anything that can hang in an
+// activate handler's waitUntil can wedge the entire app for that user. Cache
+// Storage on an origin holding a 285 MB basemap is not somewhere to take that bet
+// for a housekeeping delete of a cache no route will ever read.
+//
+// The cost of dropping the waitUntil is that the worker may be terminated before
+// the delete lands, in which case it simply runs again at the next activation.
+// That is the correct trade for cleanup: worst case it happens later, rather than
+// worst case the app never starts.
+self.addEventListener('activate', () => {
+  void caches.delete('mapbox-basemap');
 });
 
 // D-16: skipWaiting fires ONLY in response to wb.messageSkipWaiting() from the user-clicked update banner.

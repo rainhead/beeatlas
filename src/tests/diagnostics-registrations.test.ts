@@ -25,7 +25,10 @@ beforeEach(() => {
 type FakeWorker = { state: string } | null;
 
 /** A registration whose worker states come from a script, one entry per read. */
-function stubRegistrations(reads: Array<{ active?: FakeWorker; installing?: FakeWorker; waiting?: FakeWorker }>) {
+function stubRegistrations(
+  reads: Array<{ active?: FakeWorker; installing?: FakeWorker; waiting?: FakeWorker }>,
+  opts: { controller?: { state: string } | null } = {},
+) {
   let i = 0;
   const getRegistrations = vi.fn(async () => {
     const r = reads[Math.min(i++, reads.length - 1)]!;
@@ -37,7 +40,7 @@ function stubRegistrations(reads: Array<{ active?: FakeWorker; installing?: Fake
     }];
   });
   Object.defineProperty(navigator, 'serviceWorker', {
-    value: { getRegistrations, controller: null },
+    value: { getRegistrations, controller: opts.controller ?? null },
     configurable: true,
   });
   return getRegistrations;
@@ -82,18 +85,48 @@ describe('diagnostics: the registrations line', () => {
     expect(line, 'a worker that moved must not be called stuck').not.toContain('STUCK');
   });
 
-  test('a transitional state that does NOT move says so, in those words', async () => {
+  // The two halves of a state that does not move. They are opposite verdicts, and
+  // getting them the wrong way round is what a first version of this did.
+  test('unchanged AND uncontrolled is genuinely stuck', async () => {
     // The failure that matters. Silence here reads as health, which is how every
     // other bug in this area has presented.
     stubRegistrations([
       { active: { state: 'activating' } },
       { active: { state: 'activating' } },
-    ]);
+    ], { controller: null });
 
     const line = await registrationsLine();
 
-    expect(line).toContain('UNCHANGED after 2s');
-    expect(line).toContain('may be STUCK');
+    expect(line).toContain('NOT controlled');
+    expect(line).toContain('genuinely STUCK');
+  });
+
+  test('unchanged but CONTROLLED is not stuck — the fetches prove it', async () => {
+    // Observed on iOS 18.7 / Safari 26.6: `activating` reported indefinitely for a
+    // worker serving a 31-entry precache perfectly, with the map fully up. The
+    // spec HOLDS a controlled client's fetch events while its active worker is
+    // activating — so a controlled page whose requests complete has a worker that
+    // activated, whatever this value says. Calling that "may be STUCK" was a false
+    // alarm on the one platform this panel exists for.
+    stubRegistrations([
+      { active: { state: 'activating' } },
+      { active: { state: 'activating' } },
+    ], { controller: { state: 'activated' } });
+
+    const line = await registrationsLine();
+
+    expect(line).toContain('CONTROLLED');
+    expect(line).toContain('has activated');
+    expect(line, 'must not raise an alarm the same report disproves').not.toMatch(/genuinely STUCK/);
+  });
+
+  test('the controller state is reported beside it, so a disagreement is visible', async () => {
+    stubRegistrations([{ active: { state: 'activating' } }, { active: { state: 'activating' } }],
+      { controller: { state: 'activated' } });
+
+    const { collectDiagnostics } = await import('../diagnostics.ts');
+    const report = await collectDiagnostics();
+    expect(report).toContain('controlled: true (controller state=activated)');
   });
 
   test('an update in flight is visible — installing and waiting, not just active', async () => {

@@ -378,8 +378,18 @@ describe('no Mapbox surface remains in the service worker', () => {
     expect(swSrc).toMatch(/caches\.delete\(\s*'mapbox-basemap'\s*\)/);
   });
 
-  test('the delete is inside waitUntil, so activation cannot finish before it', () => {
+  test('the delete is NOT inside waitUntil — activation must not be gated on it', () => {
+    // Inverted deliberately (2026-08-04). Activation is a gate: while a client's
+    // active worker is `activating`, the spec HOLDS every fetch event it
+    // dispatches, so anything that can hang inside an activate handler's
+    // waitUntil can wedge the whole app for that user. Cache Storage on an origin
+    // holding a 285 MB basemap is not where to take that bet for a housekeeping
+    // delete of a cache no route will ever read.
+    //
+    // The cost is that the worker may be terminated before the delete lands, in
+    // which case it runs again at the next activation. Worst case it happens
+    // later, rather than worst case the app never starts.
     const activate = swSrc.slice(swSrc.indexOf("addEventListener('activate'"));
-    expect(activate.slice(0, 300)).toMatch(/waitUntil\(/);
+    expect(activate.slice(0, 200)).not.toMatch(/waitUntil\(/);
   });
 });

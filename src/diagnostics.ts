@@ -100,7 +100,16 @@ export async function collectDiagnostics(): Promise<string> {
   // --- Service worker. If this page is uncontrolled, nothing precached is
   // reachable and every offline symptom follows from that one fact.
   add('— service worker —');
-  add(await probe('controlled', () => String(!!navigator.serviceWorker?.controller)));
+  // The controller is THIS CLIENT's view of its worker, and it is the reading to
+  // trust: a controlled client whose fetches complete has a worker that is
+  // dispatching events. `registration.active.state` is a separate object and, on
+  // iOS 18.7 / Safari 26.6, was observed reporting `activating` indefinitely for a
+  // worker that was demonstrably serving. Print both so a disagreement is visible
+  // rather than alarming.
+  add(await probe('controlled', () => {
+    const c = navigator.serviceWorker?.controller;
+    return c ? `true (controller state=${c.state})` : 'false';
+  }));
   // One sample cannot answer the question a transitional state raises. A reading
   // of `activating` means either "caught mid-transition" — the ordinary case,
   // over in about a second — or "stuck", which is a different and much worse
@@ -134,11 +143,30 @@ export async function collectDiagnostics(): Promise<string> {
 
     await new Promise((res) => setTimeout(res, 2000));
     const again = await read();
+
+    // A state that has not moved is only alarming if the worker is ALSO not
+    // working, and this client can tell: while its active worker is `activating`,
+    // the spec holds every fetch event it dispatches. So a controlled page that
+    // has completed fetches — this report is full of them — has a worker that
+    // activated, whatever `registration.active.state` says.
+    //
+    // Observed on iOS 18.7 / Safari 26.6: `activating` reported indefinitely for a
+    // worker serving a 31-entry precache perfectly. Reporting that as "may be
+    // STUCK" was a false alarm on the one platform this panel exists for, which is
+    // worse than the ambiguity it replaced.
+    const controlled = !!navigator.serviceWorker?.controller;
     return first.map((r, i) => {
       const now = again[i];
-      const moved = now && now.state !== r.state;
-      const verdict = moved ? `${r.state} → ${now.state}`
-        : `${r.state} — UNCHANGED after 2s${TRANSITIONAL.includes(r.state) ? ', may be STUCK' : ''}`;
+      if (now && now.state !== r.state) {
+        return `${r.scope} [${r.state} → ${now.state}]${now.pending ? ` ${now.pending}` : ''}`;
+      }
+      const stuck = TRANSITIONAL.includes(r.state);
+      const verdict = !stuck ? `${r.state} — UNCHANGED after 2s`
+        : controlled
+          ? `${r.state} — unchanged after 2s, but this page is CONTROLLED and its fetches ` +
+            'complete, so the worker is dispatching events and has activated; some ' +
+            'browsers do not update this value on the page-side object'
+          : `${r.state} — UNCHANGED after 2s and this page is NOT controlled — genuinely STUCK`;
       return `${r.scope} [${verdict}]${now?.pending ? ` ${now.pending}` : ''}`;
     }).join(', ');
   }));
