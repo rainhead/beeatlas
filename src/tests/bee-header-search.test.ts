@@ -326,6 +326,95 @@ describe('the search field asks for candidates and reports a pick', () => {
     expect(header.shadowRoot!.textContent).not.toContain('More matches');
   });
 
+  test('arrowing to a row picks THAT row, even when grouping reorders (regression)', async () => {
+    // Rank order interleaves kinds; the rendered list groups them. Three sequences
+    // used to be in play — the ranked array, the DOM, and _searchActive — so
+    // arrowing to the ecoregion row and pressing Enter applied the TAXON that sat at
+    // the same ranked index. Different thing, different kind, silently.
+    const ECOREGION: SearchCandidate = {
+      kind: 'ecoregion', name: 'Eastern Cascades', key: 'ecoregion:Eastern Cascades',
+      label: 'Eastern Cascades', detail: null, weight: 4676, href: null,
+    };
+    const SECOND_TAXON: SearchCandidate = {
+      kind: 'taxon', taxonId: 7, key: 'taxon:7', label: 'Andrena prunorum',
+      detail: 'species', weight: 1192, href: null,
+    };
+    const picked: SearchCandidate[] = [];
+    header.addEventListener('search-pick', (e) => {
+      picked.push((e as CustomEvent<{ candidate: SearchCandidate }>).detail.candidate);
+    });
+
+    await type(header, 'an');
+    // Ranked: taxon, ECOREGION, taxon — grouping moves the ecoregion to the END.
+    await offer([TAXON, ECOREGION, SECOND_TAXON]);
+    expect(rows(header).map(r => r.textContent!.trim().split('\n')[0]!.trim()))
+      .toEqual(['Bombus (genus)', 'Andrena prunorum', 'Eastern Cascades']);
+
+    // Walk to the LAST row on screen, which is the ecoregion.
+    await pressKey(header, 'ArrowDown');
+    await pressKey(header, 'ArrowDown', rows(header)[0]!);
+    await pressKey(header, 'ArrowDown', rows(header)[1]!);
+    rows(header)[2]!.click();
+    await header.updateComplete;
+    expect(picked).toEqual([ECOREGION]);
+  });
+
+  test('Enter picks the first row AS DISPLAYED, not the top-ranked candidate', async () => {
+    const ECOREGION: SearchCandidate = {
+      kind: 'ecoregion', name: 'E', key: 'ecoregion:E', label: 'E',
+      detail: null, weight: 99, href: null,
+    };
+    const picked: SearchCandidate[] = [];
+    header.addEventListener('search-pick', (e) => {
+      picked.push((e as CustomEvent<{ candidate: SearchCandidate }>).detail.candidate);
+    });
+    await type(header, 'x');
+    await offer([TAXON, ECOREGION]);
+    await pressEnter(header);
+    // Here the two orders agree; the point is that display order is what is consulted.
+    expect(picked).toEqual([TAXON]);
+  });
+
+  test('with no row active the FIRST row stays in the tab sequence', async () => {
+    // Roving tabindex: exactly one row must be tabbable. All -1 would send Tab from
+    // the field past every row button and onto the first row's page LINK — reaching
+    // the escape hatch before the primary action.
+    await type(header, 'Bombus');
+    await offer([TAXON, LABEL]);
+    expect(rows(header).map(r => r.getAttribute('tabindex'))).toEqual(['0', '-1']);
+  });
+
+  test('a hit for an abandoned query does not close a newer search', async () => {
+    // A label pick resolves asynchronously. If the reader retypes while it is in
+    // flight, its late hit must not clear the query they are in the middle of.
+    await type(header, '2303966');
+    await offer([LABEL]);
+    await type(header, 'Bombus');
+    header.searchStatus = { query: '2303966', kind: 'hit' };
+    await header.updateComplete;
+    expect(searchInput(header).value, 'the newer query survives').toBe('Bombus');
+  });
+
+  test('a hit for the query in the field does close the popover', async () => {
+    await type(header, '2303966');
+    await offer([LABEL]);
+    header.searchStatus = { query: '2303966', kind: 'hit' };
+    await header.updateComplete;
+    expect(header.shadowRoot!.querySelector('.search-input')).toBeNull();
+  });
+
+  test('Enter in an emptied field picks nothing, even with candidates still in hand', async () => {
+    // The candidate list is cleared by whoever ranks it, one turn later; Enter in
+    // that window must do what the disabled submit button does.
+    const picked: Event[] = [];
+    header.addEventListener('search-pick', (e) => picked.push(e));
+    await type(header, 'Bombus');
+    await offer([TAXON]);
+    await type(header, '');
+    await pressEnter(header);
+    expect(picked).toEqual([]);
+  });
+
   test('kind is a heading over the rows it explains', async () => {
     await type(header, 'Bombus');
     await offer([TAXON, LABEL]);

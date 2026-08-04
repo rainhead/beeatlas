@@ -982,18 +982,36 @@ bee-map {
     const features = geojson?.features ?? [];
     if (features.length === 0) { this._fitBounds = null; return; }
 
-    let west = Infinity, south = Infinity, east = -Infinity, north = -Infinity;
+    const lons: number[] = [];
+    const lats: number[] = [];
     for (const f of features) {
       const lon = f.geometry.coordinates[0];
       const lat = f.geometry.coordinates[1];
       if (lon === undefined || lat === undefined) continue;
       if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
-      if (lon < west) west = lon;
-      if (lon > east) east = lon;
-      if (lat < south) south = lat;
-      if (lat > north) north = lat;
+      lons.push(lon);
+      lats.push(lat);
     }
-    if (!Number.isFinite(west) || !Number.isFinite(south)) { this._fitBounds = null; return; }
+    if (lons.length === 0) { this._fitBounds = null; return; }
+
+    // TRIM THE TAILS. A raw min/max extent is at the mercy of one bad coordinate,
+    // and the corpus has them: a single iNat record sitting in Arizona carries the
+    // ecoregion "Eastern Cascades Slopes and Foothills", so framing all 4,676 of that
+    // ecoregion's records by min/max flew the camera to Nevada at minimum zoom —
+    // a screen with essentially none of the answer on it.
+    //
+    // The fraction is deliberately expressed as a COUNT that floors to zero on small
+    // results (under 50 points nothing is trimmed), so a three-record answer is still
+    // framed exactly, while a large one stops being hostage to its worst row. Trimmed
+    // points are not hidden — they are still plotted, still in the count, and still
+    // reachable by zooming out.
+    const trim = Math.floor(lons.length * 0.02);
+    lons.sort((a, b) => a - b);
+    lats.sort((a, b) => a - b);
+    const west = lons[trim]!;
+    const east = lons[lons.length - 1 - trim]!;
+    const south = lats[trim]!;
+    const north = lats[lats.length - 1 - trim]!;
 
     // A NEW OBJECT EVERY TIME, even for an identical extent: this is a command, and
     // Lit only notices a changed property. Searching the same thing twice must frame
@@ -1282,8 +1300,15 @@ bee-map {
    * arrived returns fewer candidates, never wrong ones.
    */
   private _rebuildSearchIndex(): void {
-    const w = this._searchWeights;
-    if (w === null) return; // nothing can be ranked without weights
+    // Weights are a TIE-BREAK, not a precondition. If the weights query failed, names
+    // must still be findable — an unranked list beats a search that answers nothing —
+    // so fall back to zero for every weight rather than refusing to build an index.
+    const w = this._searchWeights ?? {
+      taxa: new Map<number, number>(),
+      counties: new Map<string, number>(),
+      ecoregions: new Map<string, number>(),
+      people: new Map<string, number>(),
+    };
 
     // A genus earns the weight of its species — see rollUpTaxonCounts. Without this
     // Bombus sorts below every bumblebee for the query "bombus".

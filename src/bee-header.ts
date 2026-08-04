@@ -24,6 +24,27 @@ import type { SearchCandidate, SearchKind } from './search.ts';
  */
 export type SearchStatus = { query: string; kind: 'hit' | 'miss' | 'error' };
 
+/**
+ * The display order: rows collected by kind, groups in the order their best-ranked
+ * member appeared.
+ *
+ * THE ONE ORDERING. It used to be computed inline in the renderer while
+ * `_searchActive` indexed the ranked array and `_moveSearchFocus` indexed the DOM —
+ * three sequences that agree only while no two kinds interleave. They interleave
+ * constantly: the query "an" ranks an ecoregion 5th and a person 6th among taxa, so
+ * arrowing to the row reading "Eastern Cascades Slopes and Foothills" and pressing
+ * Enter applied *Andrena prunorum*. Everything now indexes what is on screen.
+ */
+function groupByKind(candidates: SearchCandidate[]): { kind: SearchKind; rows: SearchCandidate[] }[] {
+  const groups: { kind: SearchKind; rows: SearchCandidate[] }[] = [];
+  for (const c of candidates) {
+    let group = groups.find(g => g.kind === c.kind);
+    if (group === undefined) { group = { kind: c.kind, rows: [] }; groups.push(group); }
+    group.rows.push(c);
+  }
+  return groups;
+}
+
 /** Group headings for the result list. Plural — a heading names a set of rows. */
 const SEARCH_KIND_LABEL: Record<SearchKind, string> = {
   label: 'Label number',
@@ -687,9 +708,19 @@ export class BeeHeader extends LitElement {
   // never left the field. Nothing at all when there is nothing to pick — Enter in
   // an empty field must do what the submit button does with an empty field.
   private _pickActiveOrFirst() {
-    const candidate = this.searchCandidates[this._searchActive] ?? this.searchCandidates[0];
+    // An empty field picks nothing, matching the disabled submit button. The
+    // candidate list is cleared asynchronously by whoever ranks it, so without this
+    // an Enter landing in that window could apply a result for a query already gone.
+    if (this._searchInput.trim() === '') return;
+    const order = this._displayOrder();
+    const candidate = order[this._searchActive] ?? order[0];
     if (candidate === undefined) return;
     this._pickCandidate(candidate);
+  }
+
+  /** Candidates in the order they are RENDERED — what _searchActive indexes. */
+  private _displayOrder(): SearchCandidate[] {
+    return groupByKind(this.searchCandidates).flatMap(g => g.rows);
   }
 
   private _clearSearch = () => {
@@ -713,7 +744,7 @@ export class BeeHeader extends LitElement {
    * the mouse.
    */
   private _moveSearchFocus(delta: number) {
-    const count = this.searchCandidates.length;
+    const count = this._displayOrder().length;
     if (count === 0) return;
     const next = this._searchActive + delta;
     if (next < 0) {
@@ -736,9 +767,16 @@ export class BeeHeader extends LitElement {
   // willUpdate, not updated: state written here lands in the SAME render pass, so
   // the popover never paints once more with the resolved query still in it.
   willUpdate(changed: Map<string, unknown>) {
-    if (changed.has('searchStatus') && this.searchStatus?.kind === 'hit') {
+    // Only a hit for what the field currently HOLDS may close the popover. A label
+    // pick resolves asynchronously, so a slow lookup can land after the reader has
+    // typed something else — closing then would throw away the query they are in the
+    // middle of, on the strength of an answer to a question they abandoned.
+    if (changed.has('searchStatus')
+        && this.searchStatus?.kind === 'hit'
+        && this.searchStatus.query === this._searchInput.trim()) {
       this._searchOpen = false;
       this._searchInput = '';
+      this._searchActive = -1;
     }
   }
 
@@ -1095,22 +1133,23 @@ export class BeeHeader extends LitElement {
    * orders one.
    */
   private _renderSearchResults(candidates: SearchCandidate[]): TemplateResult {
-    const groups: { kind: SearchKind; rows: { c: SearchCandidate; i: number }[] }[] = [];
-    candidates.forEach((c, i) => {
-      const group = groups.find(g => g.kind === c.kind) ?? (groups.push({ kind: c.kind, rows: [] }), groups[groups.length - 1]!);
-      group.rows.push({ c, i });
-    });
+    const groups = groupByKind(candidates);
+    let index = -1; // position in DISPLAY order — see _displayOrder
+    // Roving tabindex: exactly one row stays in the tab sequence. With no row active
+    // that is the first, or Tab from the field would skip every row's button and land
+    // on the first row's page LINK — the escape hatch reached before the main action.
+    const tabbable = this._searchActive === -1 ? 0 : this._searchActive;
 
     return html`
       <div class="search-results">
         ${groups.map(g => html`
           <p class="search-group-label" id=${`search-group-${g.kind}`}>${SEARCH_KIND_LABEL[g.kind]}</p>
           <div class="search-group" role="group" aria-labelledby=${`search-group-${g.kind}`}>
-            ${g.rows.map(({ c, i }) => html`
+            ${g.rows.map(c => { index++; const i = index; return html`
               <div class="search-result-row">
                 <button
                   class="search-result"
-                  tabindex=${i === this._searchActive ? 0 : -1}
+                  tabindex=${i === tabbable ? 0 : -1}
                   @click=${() => this._pickCandidate(c)}
                   @keydown=${(e: KeyboardEvent) => {
                     if (e.key === 'ArrowDown') { e.preventDefault(); this._moveSearchFocus(1); }
@@ -1129,7 +1168,7 @@ export class BeeHeader extends LitElement {
                   </a>
                 `}
               </div>
-            `)}
+            `; })}
           </div>
         `)}
         ${this.searchCandidatesTruncated

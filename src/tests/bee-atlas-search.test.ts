@@ -163,7 +163,14 @@ function map(atlas: AtlasEl) {
  * "Enter picks the first candidate" is the contract the header implements, and a
  * test that skipped the ranking could not catch a query that ranks to nothing.
  */
-/** Start a search but do NOT drain the microtasks — leaves the lookup in flight. */
+/**
+ * Start a search but do NOT drain the microtasks — leaves the lookup in flight.
+ *
+ * ASSERTS that the query produced a candidate. Without that, a query which ranked to
+ * nothing would quietly start no lookup at all, and every stale-guard case below
+ * would pass by testing nothing: "the abandoned lookup must not select" is trivially
+ * true when no lookup was ever abandoned.
+ */
 async function lookupNoSettle(atlas: AtlasEl, query: string) {
   const el = header(atlas);
   el.dispatchEvent(new CustomEvent('search-query', {
@@ -171,11 +178,10 @@ async function lookupNoSettle(atlas: AtlasEl, query: string) {
   }));
   await atlas.updateComplete;
   const candidate = (atlas as unknown as { _searchCandidates: unknown[] })._searchCandidates[0];
-  if (candidate !== undefined) {
-    el.dispatchEvent(new CustomEvent('search-pick', {
-      bubbles: true, composed: true, detail: { candidate, query: query.trim() },
-    }));
-  }
+  expect(candidate, `"${query}" must rank to a candidate, or nothing goes in flight`).toBeDefined();
+  el.dispatchEvent(new CustomEvent('search-pick', {
+    bubbles: true, composed: true, detail: { candidate, query: query.trim() },
+  }));
 }
 
 async function lookup(atlas: AtlasEl, query: string) {
@@ -503,6 +509,26 @@ describe('a search frames its answer; the filter panel never does', () => {
   beforeEach(() => seedIndex(el!));
 
   test('the camera is told the extent of what matched', async () => {
+    geoOverride = pointsAt([[-122.3, 47.6], [-120.1, 46.2], [-121.0, 48.9]]);
+    await lookup(el!, 'Bombus');
+    expect(map(el!).fitBounds).toEqual({ west: -122.3, south: 46.2, east: -120.1, north: 48.9 });
+  });
+
+  test('one bad coordinate does not drag the camera off the answer (regression)', async () => {
+    // A single iNat record in Arizona carries a Washington ecoregion, so a raw
+    // min/max extent over that ecoregion's 4,676 records flew the camera to Nevada
+    // at minimum zoom. Found by driving the app, not by a fixture.
+    const wa: [number, number][] = Array.from({ length: 99 }, (_, i) => [-122 + (i % 10) * 0.4, 46 + (i % 10) * 0.2]);
+    geoOverride = pointsAt([...wa, [-111.14, 33.28]]);
+    await lookup(el!, 'Bombus');
+    const fit = map(el!).fitBounds!;
+    expect(fit.south, 'the Arizona outlier must not set the southern edge').toBeGreaterThan(40);
+    expect(fit.east, 'nor the eastern one').toBeLessThan(-115);
+  });
+
+  test('a small result is framed exactly — nothing is trimmed off three records', async () => {
+    // The trim is a COUNT that floors to zero under 50 points, so a handful of
+    // records keeps its true extent rather than being clipped to its middle.
     geoOverride = pointsAt([[-122.3, 47.6], [-120.1, 46.2], [-121.0, 48.9]]);
     await lookup(el!, 'Bombus');
     expect(map(el!).fitBounds).toEqual({ west: -122.3, south: 46.2, east: -120.1, north: 48.9 });
