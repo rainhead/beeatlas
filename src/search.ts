@@ -174,6 +174,14 @@ export function buildSearchIndex(sources: SearchIndexSources): SearchIndex {
 
   for (const p of sources.people) {
     const login = p.collector.host_inat_login;
+    // A person with NEITHER identity field is unfilterable, so it must never reach
+    // the list. buildFilterSQL builds the collector clause from recordedBy and
+    // host_inat_login alone (filter.ts:457); with both null it collects no parts and
+    // pushes NO CLAUSE, so picking such a row would appear to filter and in fact
+    // show the whole corpus. CollectorEntry permits it ("either may be null"), and
+    // it is also the only way two people could share a key — recordedBy arrives
+    // from a GROUP BY, so it is distinct per row.
+    if (p.collector.recordedBy === null && login === null) continue;
     entries.push(entry(
       {
         kind: 'person',

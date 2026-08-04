@@ -119,6 +119,24 @@ describe('match quality', () => {
     expect(rankCandidates(i, 'roe').candidates).toHaveLength(1);
   });
 
+  test('a person with no filterable identity is not indexed at all', () => {
+    // buildFilterSQL builds the collector clause from recordedBy and
+    // host_inat_login alone (filter.ts:457). With both null it pushes NO clause, so
+    // such a row would appear to filter and in fact show the whole corpus.
+    const i = buildSearchIndex(sources({
+      people: [{ collector: collector('Anonymous', null, null), weight: 5, href: null }],
+    }));
+    expect(rankCandidates(i, 'anonymous').candidates).toEqual([]);
+  });
+
+  test('a person known only by their iNat handle is still indexed', () => {
+    // The guard above must drop only the unfilterable case — one identity is enough.
+    const i = buildSearchIndex(sources({
+      people: [{ collector: collector('beequeen', null, 'beequeen'), weight: 5, href: null }],
+    }));
+    expect(rankCandidates(i, 'beequeen').candidates).toHaveLength(1);
+  });
+
   test('a taxon is not reachable by the parenthetical in its display label', () => {
     // "Bombus (genus)" must not answer to "genus", which would match every genus.
     const i = buildSearchIndex(sources({ taxa: [BOMBUS] }));

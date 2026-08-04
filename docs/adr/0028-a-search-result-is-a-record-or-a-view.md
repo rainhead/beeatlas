@@ -94,6 +94,12 @@ table runs only when that row is picked. The existing miss/error/hit path surviv
 unchanged behind it, which is why `SearchStatus` keeps all three members and its rule of
 rendering only while the field still holds the same string.
 
+That row is not an exception to the thesis. It names a record — *the* record carrying
+that number — and naming a record is not the same as having fetched one. Every other
+kind is named by something already in memory, so the distinction never shows; here it
+does, and the cost is that a label row is the one row that can still come back empty.
+That is what `miss` is for, and why it is reported rather than inferred.
+
 ### Ranking is match quality, then weight — kind is not a ranking key
 
 1. **Syntax decides the kind when it can.** Digits ⇒ label number, exclusively.
@@ -102,7 +108,9 @@ rendering only while the field still holds the same string.
    *Smith, J.*), substring 1, no match drops.
 3. **Ties break by weight** — the record count behind the thing. Taxa carry occurrence
    counts, places carry `specimen_count`/`sample_count`, collectors carry a row count.
-4. **Then by label, ascending**, so the list is deterministic.
+4. **Then by label, then by a stable per-thing key** (`<kind>:<id>`), ascending. Label
+   alone is not a total order — a county and an ecoregion can carry the same name —
+   and two rows that swap places between renders move under the reader's cursor.
 
 Kind is deliberately *not* a ranking key. A well-attested collector should outrank a
 one-record subgenus, and any fixed kind order gets that wrong in one direction or the
@@ -123,8 +131,10 @@ does not exist… 20 of 646 Anthophila taxa with occurrences have no page at all
 counties and ecoregions have no pages at all. As an attribute the link is simply absent
 where there is no page; as a row it would be a hole in a ranked list.
 
-So one row is one thing, with one primary verb — *filter* — and an escape hatch that
-leaves the app.
+So one row is one thing, with one primary verb — *apply* — and an escape hatch that
+leaves the app. What applying does is the thesis: a record row selects, a view row
+filters. The reader does not choose between the two, because the thing they picked
+already decided it.
 
 ### The list is buttons in a dialog, not a listbox
 
@@ -141,8 +151,10 @@ Escape in an empty field closes the popover.
 ### `search-submit` is retired, and the seam is finally the right shape
 
 The header emits `search-query {query}` on input and `search-pick {candidate}` on
-choice; `<bee-atlas>` sends back a ranked `SearchCandidate[]` and the same
-`searchStatus`. Enter with nothing highlighted picks the first candidate, which is what
+choice; `<bee-atlas>` sends back a ranked `SearchCandidate[]`, **the flag saying the
+list was capped**, and the same `searchStatus`. The flag is part of the contract and
+not a presenter detail: only the ranker knows how many matches it dropped, and a
+top-N presented as the whole answer tells a reader their thing is not in the data. Enter with nothing highlighted picks the first candidate, which is what
 the old submit meant, so `search-submit` has nothing left to carry.
 
 A candidate is **declarative data, never a closure** — a discriminated union over kind
