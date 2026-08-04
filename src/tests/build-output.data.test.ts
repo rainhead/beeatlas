@@ -438,14 +438,25 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
   // Map link, with no checklist badge. The checklist-only signal survives on
   // the species detail page (covered by the D-15 test above).
 
-  // Phase 147 — /app route build output (ROUTE-01)
+  // Phase 147 — app build output (ROUTE-01). The app moved from /app/ to / in
+  // ADR 0029; `/app/` is now a redirect stub in its deprecation window.
 
-  test('emits _site/app/index.html (ROUTE-01)', () => {
-    expect(existsSync(resolve(ROOT, '_site/app/index.html'))).toBe(true);
+  test('emits _site/index.html (ROUTE-01)', () => {
+    expect(existsSync(resolve(ROOT, '_site/index.html'))).toBe(true);
   });
 
-  test('_site/app/index.html references a hashed app entry chunk (ROUTE-01)', () => {
+  test('/app/ still answers, as a redirect and not as the app (ADR 0029)', () => {
+    // The stub exists so an installed PWA whose start_url is still /app/index.html
+    // lands somewhere. It must NOT be the app: shipping a second working copy is how
+    // the split this ADR closed would quietly reopen.
     const html = readFileSync(resolve(ROOT, '_site/app/index.html'), 'utf-8');
+    expect(html).toMatch(/http-equiv="refresh"/);
+    expect(html).not.toContain('<bee-atlas>');
+    expect(html, 'the stub must not load the app bundle').not.toMatch(/assets\/app-entry-/);
+  });
+
+  test('_site/index.html references a hashed app entry chunk (ROUTE-01)', () => {
+    const html = readFileSync(resolve(ROOT, '_site/index.html'), 'utf-8');
     // beeatlas-d3y: Eleventy now emits this tag itself from the Vite manifest (the
     // viteAssets shortcode), so the chunk is named after the ENTRY MODULE
     // (src/app-entry.ts -> assets/app-entry-<hash>.js). Under the old plugin's MPA
@@ -453,25 +464,25 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     // Pin the app-entry- prefix, as the index- pin did, so an async or vendor chunk
     // cannot satisfy this — it must be the entry (WR-02).
     const m = html.match(/<script type="module"[^>]*src="(\/assets\/app-entry-[^"]+\.js)"/);
-    expect(m, `no hashed app-entry module script in _site/app/index.html:\n${html}`).toBeTruthy();
+    expect(m, `no hashed app-entry module script in _site/index.html:\n${html}`).toBeTruthy();
     // And the chunk must actually exist. This is the half the old regex could not
     // check: the tag is now rendered from a STASHED manifest that outlives a build,
     // so a stale manifest would emit a perfectly well-formed reference to a chunk
     // this build never wrote.
     expect(
       existsSync(resolve(ROOT, '_site' + m![1]!)),
-      `app/index.html references ${m![1]!}, which is not in _site/ — stale Vite manifest?`,
+      `index.html references ${m![1]!}, which is not in _site/ — stale Vite manifest?`,
     ).toBe(true);
   });
 
-  test('_site/app/sw.js exists at unhashed stable URL (D-04)', () => {
-    expect(existsSync(resolve(ROOT, '_site/app/sw.js'))).toBe(true);
+  test('_site/sw.js exists at unhashed stable URL (D-04)', () => {
+    expect(existsSync(resolve(ROOT, '_site/sw.js'))).toBe(true);
   });
 
   // Phase 148 — precache manifest verification (OFF-01)
 
-  test('_site/app/sw.js contains an injected precache manifest (OFF-01, criterion 1)', () => {
-    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+  test('_site/sw.js contains an injected precache manifest (OFF-01, criterion 1)', () => {
+    const sw = readFileSync(resolve(ROOT, '_site/sw.js'), 'utf-8');
     // If self.__WB_MANIFEST appears verbatim, injection failed
     expect(sw).not.toContain('self.__WB_MANIFEST');
     // The Workbox injectManifest step emits a JSON-format precache manifest
@@ -479,8 +490,8 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(sw).toMatch(/"url":"[^"]+"/);
   });
 
-  test('every precached URL in _site/app/sw.js exists as a file in _site/ (OFF-01, criterion 4)', () => {
-    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+  test('every precached URL in _site/sw.js exists as a file in _site/ (OFF-01, criterion 4)', () => {
+    const sw = readFileSync(resolve(ROOT, '_site/sw.js'), 'utf-8');
     // The Workbox injectManifest step emits JSON-format entries: "url":"/path"
     const urlMatches = [...sw.matchAll(/"url":"([^"]+)"/g)].map(m => m[1]!);
     expect(urlMatches.length, 'no precache URLs found — manifest may not have been injected').toBeGreaterThan(0);
@@ -495,7 +506,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     // the wa-sqlite WebAssembly binary is precached. Without it, tablesReady never
     // resolves and the "Loading…" curtain hangs forever on offline cold-start.
     // The precache glob in vite.sw.config.ts must keep `wasm` in its extension list.
-    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+    const sw = readFileSync(resolve(ROOT, '_site/sw.js'), 'utf-8');
     const urlMatches = [...sw.matchAll(/"url":"([^"]+)"/g)].map(m => m[1]!);
     const wasmEntries = urlMatches.filter(u => u.endsWith('.wasm'));
     expect(wasmEntries.length, 'no .wasm precached — offline SQL engine init will hang (see vite.sw.config.ts globPatterns)').toBeGreaterThan(0);
@@ -515,8 +526,8 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
 
   // Phase 149 — runtime cache assertions (OFF-02, OFF-03, CACHE-05)
 
-  test('_site/app/sw.js registers a runtime CacheFirst route for /data/ (OFF-02)', () => {
-    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+  test('_site/sw.js registers a runtime CacheFirst route for /data/ (OFF-02)', () => {
+    const sw = readFileSync(resolve(ROOT, '_site/sw.js'), 'utf-8');
     // Rollup preserves string literals like cache names through minification
     expect(sw).toContain('data-artifacts');
     // The .db route matcher substring is preserved in the Rollup output
@@ -525,8 +536,8 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(sw).toMatch(/\.geojson/);
   });
 
-  test('_site/app/sw.js calls skipWaiting only inside a message handler (D-16)', () => {
-    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+  test('_site/sw.js calls skipWaiting only inside a message handler (D-16)', () => {
+    const sw = readFileSync(resolve(ROOT, '_site/sw.js'), 'utf-8');
     const skipMatches = [...sw.matchAll(/skipWaiting/g)];
     expect(skipMatches.length).toBeGreaterThan(0);
     expect(sw).toContain('SKIP_WAITING');
@@ -541,8 +552,8 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(allDeps['workbox-cacheable-response']).toBeDefined();
   });
 
-  test('_site/app/sw.js registers NetworkFirst route for /data/manifest.json (D-08)', () => {
-    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+  test('_site/sw.js registers NetworkFirst route for /data/manifest.json (D-08)', () => {
+    const sw = readFileSync(resolve(ROOT, '_site/sw.js'), 'utf-8');
     expect(sw).toContain('data-manifest');
     expect(sw).toMatch(/manifest\.json/);
     expect(sw).toMatch(/NetworkFirst|networkTimeout/);
@@ -556,14 +567,17 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
 
   // Phase 151 — PWA manifest assertions (PWA-01, D-01..D-06, D-13)
 
-  test('emits _site/app/manifest.webmanifest with required keys (PWA-01, D-13)', () => {
-    const manifestPath = resolve(ROOT, '_site/app/manifest.webmanifest');
-    expect(existsSync(manifestPath), '_site/app/manifest.webmanifest missing').toBe(true);
+  test('emits _site/manifest.webmanifest with required keys (PWA-01, D-13)', () => {
+    const manifestPath = resolve(ROOT, '_site/manifest.webmanifest');
+    expect(existsSync(manifestPath), '_site/manifest.webmanifest missing').toBe(true);
     const m = JSON.parse(readFileSync(manifestPath, 'utf-8'));
     expect(m.name).toBe('Washington Bee Atlas');
     expect(m.short_name).toBe('BeeAtlas');
-    expect(m.start_url).toBe('/app/index.html');   // D-01 — explicit, do NOT "fix" to /app
-    expect(m.scope).toBe('/app/');
+    // ADR 0029. `start_url` was '/app/index.html' — explicit, because CloudFront's
+    // OAC 403'd the trailing-slash directory URL. Apache serves `/` fine, and the
+    // precache answers it through workbox's directoryIndex.
+    expect(m.start_url).toBe('/');
+    expect(m.scope).toBe('/');
     expect(m.display).toBe('standalone');
     expect(m.theme_color).toBe('#080d26');          // D-03
     expect(m.background_color).toBe('#080d26');     // D-03
@@ -583,19 +597,40 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     }
   });
 
-  // Wave 0 RED: link assertions pass only after Plan 02 adds <link rel="manifest">
-  // and iOS meta to _pages/app/index.html. Expected to fail until Plan 02 merges.
-
-  test('_site/app/index.html links the manifest and apple-touch-icon (PWA-01, D-04)', () => {
-    const html = readFileSync(resolve(ROOT, '_site/app/index.html'), 'utf-8');
-    expect(html).toMatch(/<link[^>]+rel="manifest"[^>]+href="\/app\/manifest\.webmanifest"/);
+  test('_site/index.html links the manifest and apple-touch-icon (PWA-01, D-04)', () => {
+    const html = readFileSync(resolve(ROOT, '_site/index.html'), 'utf-8');
+    expect(html).toMatch(/<link[^>]+rel="manifest"[^>]+href="\/manifest\.webmanifest"/);
     expect(html).toMatch(/apple-mobile-web-app-capable/);
     expect(html).toMatch(/rel="apple-touch-icon"/);
   });
 
-  test('_site/index.html does NOT link a manifest (no-PWA-on-/ guarantee, D-04)', () => {
-    const html = readFileSync(resolve(ROOT, '_site/index.html'), 'utf-8');
-    expect(html).not.toMatch(/rel="manifest"/);
+  // This assertion used to read the other way round — '_site/index.html does NOT
+  // link a manifest' was the no-PWA-on-/ guarantee, back when / and /app/ were two
+  // pages. ADR 0029 merged them, so the guarantee it protected is gone and its
+  // REPLACEMENT is what needs pinning: the reading surface must not become the app.
+  //
+  // A species page that grew a manifest link, or an app entry, would be a PWA a
+  // reader never asked for — 3.3 MB of precache and a ~34.8 MB prime against a page
+  // that loads 18 KB of JS. That is the trade the whole ADR turns on, and it is one
+  // careless <link> or one line in rollupOptions.input away.
+  test('a species page is not the app (ADR 0029, replacing the no-PWA-on-/ guarantee)', () => {
+    const html = readFileSync(resolve(ROOT, '_site/species/Bombus/mixtus/index.html'), 'utf-8');
+    expect(html, 'a read-path page must not declare itself installable').not.toMatch(/rel="manifest"/);
+    expect(html, 'a read-path page must not load the app entry').not.toMatch(/assets\/app-entry-/);
+    expect(html, 'a read-path page must not mount the map').not.toContain('<bee-atlas>');
+  });
+
+  test('nothing but the app entry can register a service worker (ADR 0029)', () => {
+    // The structural half of the same guarantee, checked in the BUILT bundles rather
+    // than in the import graph — minification is exactly where a source-level claim
+    // stops being evidence. Workbox's registration surface must appear in the app
+    // entry's chunk and nowhere a static page can reach.
+    const assets = resolve(ROOT, '_site/assets');
+    const registrars = readdirSync(assets)
+      .filter((f) => f.endsWith('.js'))
+      .filter((f) => /serviceWorker|workbox/i.test(readFileSync(resolve(assets, f), 'utf-8')));
+    expect(registrars.length, `expected exactly one SW-registering chunk, got: ${registrars.join(', ')}`).toBe(1);
+    expect(registrars[0]).toMatch(/^app-entry-/);
   });
 
   // Phase 154 pinned a Mapbox performance cache in the BUILT service worker: the
@@ -609,15 +644,15 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
   // still asserted against the BUILT worker, because the built worker is what ships
   // and minification is exactly where a source-level assertion stops being evidence.
 
-  test('_site/app/sw.js has no Mapbox route left (beeatlas-mas)', () => {
-    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+  test('_site/sw.js has no Mapbox route left (beeatlas-mas)', () => {
+    const sw = readFileSync(resolve(ROOT, '_site/sw.js'), 'utf-8');
     expect(sw).not.toContain('api.mapbox.com');
     expect(sw).not.toContain('events.mapbox.com');
     expect(sw).not.toContain('/map-sessions/');
   });
 
-  test('_site/app/sw.js deletes the orphaned mapbox-basemap cache on activate (beeatlas-mas)', () => {
-    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+  test('_site/sw.js deletes the orphaned mapbox-basemap cache on activate (beeatlas-mas)', () => {
+    const sw = readFileSync(resolve(ROOT, '_site/sw.js'), 'utf-8');
     // A device that used the app before 2026-08-01 still holds up to 150 tile
     // responses in a cache no route will ever read again. The ONLY surviving mention
     // of that name must be the delete — anything else is a route come back to life.
