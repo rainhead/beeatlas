@@ -22,6 +22,7 @@
 
 import { archiveReadStats } from './basemap-cache.ts';
 import { netAttempts, browserLoadedResources } from './net-log.ts';
+import { loadLastKnownIdentity } from './auth-client.ts';
 
 const PARAM = 'diag';
 
@@ -84,6 +85,15 @@ export async function collectDiagnostics(): Promise<string> {
   add(await probe('storage estimate', async () => {
     const e = await navigator.storage?.estimate?.();
     return e ? `${mb(e.usage ?? 0)} used of ${mb(e.quota ?? 0)}` : 'unsupported';
+  }));
+  // beeatlas-1dc: the LOCAL half of identity only — read straight out of
+  // storage, never a whoami call, because this panel exists for the device that
+  // cannot reach the network. "who does this device think you are" is now a
+  // distinct question from "who does the server say you are", and only the
+  // first one is answerable here.
+  add(await probe('last known identity', () => {
+    const known = loadLastKnownIdentity();
+    return known.authenticated ? `${known.login} (unverified; role=${known.role ?? 'none'})` : 'none';
   }));
   add('');
 

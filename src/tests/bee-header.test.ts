@@ -158,7 +158,7 @@ describe('178-07: bee-header sign-in / whoami / sign-out (D-10)', () => {
   test('menu offers "Sign in with iNaturalist" when authState.authenticated is false', async () => {
     await import('../bee-header.ts');
     el = document.createElement('bee-header') as any;
-    (el as any).authState = { authenticated: false };
+    (el as any).authState = { authenticated: false, verified: true };
     document.body.appendChild(el);
     await el.updateComplete;
     await _openMenu(el);
@@ -191,7 +191,7 @@ describe('178-07: bee-header sign-in / whoami / sign-out (D-10)', () => {
   test('shows an account button; its popover carries username + allowlisted badge + sign-out', async () => {
     await import('../bee-header.ts');
     el = document.createElement('bee-header') as any;
-    (el as any).authState = { authenticated: true, login: 'someuser', role: 'author', isAuthor: true };
+    (el as any).authState = { authenticated: true, verified: true, login: 'someuser', role: 'author', isAuthor: true };
     document.body.appendChild(el);
     await el.updateComplete;
 
@@ -214,7 +214,7 @@ describe('178-07: bee-header sign-in / whoami / sign-out (D-10)', () => {
   test('account popover shows "Not an editor" badge when authenticated but not allowlisted', async () => {
     await import('../bee-header.ts');
     el = document.createElement('bee-header') as any;
-    (el as any).authState = { authenticated: true, login: 'guestuser', role: null, isAuthor: false };
+    (el as any).authState = { authenticated: true, verified: true, login: 'guestuser', role: null, isAuthor: false };
     document.body.appendChild(el);
     await el.updateComplete;
 
@@ -226,10 +226,55 @@ describe('178-07: bee-header sign-in / whoami / sign-out (D-10)', () => {
     expect(badge.classList.contains('whoami-badge--guest')).toBe(true);
   });
 
+  // beeatlas-1dc: an unverified identity is a signed-IN state — it must not
+  // render as the Sign in button an offline cold start used to show.
+  test('an unverified identity still renders as signed in, with a note and no remote avatar', async () => {
+    await import('../bee-header.ts');
+    el = document.createElement('bee-header') as any;
+    (el as any).authState = {
+      authenticated: true, verified: false, login: 'someuser',
+      role: 'author', isAuthor: true, iconUrl: 'https://static.inaturalist.org/x.jpg',
+    };
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const acct = el.shadowRoot!.querySelector('.account-btn') as HTMLButtonElement;
+    expect(acct.getAttribute('aria-label')).toContain('someuser');
+    // The avatar is the only networked part of the identity; requesting it is
+    // exactly the doomed request the offline path exists to avoid.
+    expect(el.shadowRoot!.querySelector('.account-avatar')).toBeNull();
+
+    acct.click();
+    await el.updateComplete;
+    const popover = el.shadowRoot!.querySelector('.account-popover')!;
+    expect(popover.textContent).toContain('someuser');
+    expect(popover.querySelector('.whoami-badge')!.textContent).toContain('Author');
+    expect(popover.querySelector('.menu-identity__note')).not.toBeNull();
+    // Sign-out stays reachable: dismissing a session you cannot confirm is the
+    // one action that must not require the network.
+    expect(_popoverSignOut(el)).toBeTruthy();
+  });
+
+  test('a verified identity renders the avatar and no unverified note', async () => {
+    await import('../bee-header.ts');
+    el = document.createElement('bee-header') as any;
+    (el as any).authState = {
+      authenticated: true, verified: true, login: 'someuser',
+      role: 'author', isAuthor: true, iconUrl: 'https://static.inaturalist.org/x.jpg',
+    };
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    expect(el.shadowRoot!.querySelector('.account-avatar')).not.toBeNull();
+    (el.shadowRoot!.querySelector('.account-btn') as HTMLButtonElement).click();
+    await el.updateComplete;
+    expect(el.shadowRoot!.querySelector('.menu-identity__note')).toBeNull();
+  });
+
   test('dispatches a composed+bubbling sign-out event from the account popover', async () => {
     await import('../bee-header.ts');
     el = document.createElement('bee-header') as any;
-    (el as any).authState = { authenticated: true, login: 'someuser', role: 'author', isAuthor: true };
+    (el as any).authState = { authenticated: true, verified: true, login: 'someuser', role: 'author', isAuthor: true };
     document.body.appendChild(el);
     await el.updateComplete;
 

@@ -14,7 +14,7 @@ import { makeStaleGuard } from './stale-guard.ts';
 import { loadTaxonPages } from './taxon-pages.ts';
 import type { CachePrimeProgressDetail, CacheStateChangedDetail } from './prime-orchestrator.ts';
 import { loadBuildId, loadFreshnessLabel, resolveDataUrl } from './manifest.ts';
-import { fetchWhoami, signOut, startSignIn, type AuthState } from './auth-client.ts';
+import { fetchWhoami, loadLastKnownIdentity, signOut, startSignIn, type AuthState } from './auth-client.ts';
 import { loadBasemapManifest } from './basemap-cache.ts';
 import { openDiagnostics } from './diagnostics.ts';
 import {
@@ -849,9 +849,17 @@ bee-map {
     window.addEventListener('focus', this._refreshFreshness);
     // Phase 157: close the relocated region menu on outside click.
     document.addEventListener('click', this._onDocumentClick);
+    // beeatlas-1dc: seed the header from the last identity the server confirmed
+    // on this device. Synchronous, network-free, and immediate — which is what
+    // makes an offline cold start show who you are at all, since the deferred
+    // check below is cancelled outright by the 'offline' event.
+    const known = loadLastKnownIdentity();
+    if (known.authenticated) this._authState = known;
+
     // 178-07 gap fix: fetch whoami for the map-page header. fetchWhoami() never
-    // throws — resolves {authenticated:false} on any network error — so this
-    // never blocks or delays map init (mirrors src/entries/bee-header.ts).
+    // throws — it resolves to that same last-known identity on any network
+    // error — so this never blocks or delays map init (mirrors
+    // src/entries/bee-header.ts).
     //
     // DEFERRED, because at page-init `navigator.onLine` is not yet trustworthy:
     // on a real iPhone in airplane mode it still read true at 110 ms and only
@@ -1309,13 +1317,11 @@ bee-map {
     }
   }
 
-  // Re-check identity on reconnect. fetchWhoami() cannot tell "signed out" from
-  // "could not ask" — every network failure resolves to {authenticated:false} —
-  // so a session that started offline showed a Sign in button and kept showing
-  // one for the rest of the session, even once back on WiFi. That is the field
-  // flow, not an edge case: the app is opened with no signal and gets connectivity
-  // later. Also refresh the offline-maps row, which is likewise unanswerable
-  // offline.
+  // Re-check identity on reconnect: the last-known identity the header is
+  // showing is unverified until the server confirms it, and only reconnecting
+  // can. This is the field flow, not an edge case — the app is opened with no
+  // signal and gets connectivity later. Also refresh the offline-maps row,
+  // which is likewise unanswerable offline.
   private _onOnline = () => {
     this._offline = false;
     void this._refreshFreshness();

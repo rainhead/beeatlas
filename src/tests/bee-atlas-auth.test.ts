@@ -58,10 +58,12 @@ vi.mock('../bee-map.ts', async () => {
 const mockFetchWhoami = vi.fn();
 const mockStartSignIn = vi.fn();
 const mockSignOut = vi.fn();
+const mockLoadLastKnownIdentity = vi.fn(() => ({ authenticated: false, verified: false }));
 vi.mock('../auth-client.ts', () => ({
   fetchWhoami: (...args: unknown[]) => mockFetchWhoami(...args),
   startSignIn: (...args: unknown[]) => mockStartSignIn(...args),
   signOut: (...args: unknown[]) => mockSignOut(...args),
+  loadLastKnownIdentity: (...args: unknown[]) => mockLoadLastKnownIdentity(...(args as [])),
 }));
 
 // happy-dom can leave `window.location.pathname` undefined in some module
@@ -86,6 +88,10 @@ describe('bee-atlas map-page <bee-header> auth wiring (178-07 gap fix)', () => {
     mockFetchWhoami.mockReset();
     mockStartSignIn.mockReset();
     mockSignOut.mockReset();
+    // Default: nothing remembered on this device, so the header starts empty and
+    // whoami is the only source of identity (beeatlas-1dc).
+    mockLoadLastKnownIdentity.mockReset();
+    mockLoadLastKnownIdentity.mockReturnValue({ authenticated: false, verified: false });
     // auth-client is module-mocked above, but the mounted <bee-atlas> also
     // background-fetches data (places_meta name map, …) with swallowed
     // failures; unstubbed, those open real sockets and the connection errors
@@ -102,7 +108,7 @@ describe('bee-atlas map-page <bee-header> auth wiring (178-07 gap fix)', () => {
   });
 
   test('on mount, fetchWhoami is called and its result flows to <bee-header>.authState', async () => {
-    mockFetchWhoami.mockResolvedValue({ authenticated: true, login: 'rainhead', role: 'author', isAuthor: true });
+    mockFetchWhoami.mockResolvedValue({ authenticated: true, verified: true, login: 'rainhead', role: 'author', isAuthor: true });
 
     await import('../bee-atlas.ts');
     el = document.createElement('bee-atlas') as any;
@@ -122,11 +128,11 @@ describe('bee-atlas map-page <bee-header> auth wiring (178-07 gap fix)', () => {
 
     const header = el!.shadowRoot!.querySelector('bee-header') as any;
     expect(header).not.toBeNull();
-    expect(header.authState).toEqual({ authenticated: true, login: 'rainhead', role: 'author', isAuthor: true });
+    expect(header.authState).toEqual({ authenticated: true, verified: true, login: 'rainhead', role: 'author', isAuthor: true });
   });
 
   test('anonymous whoami result flows through as {authenticated:false}', async () => {
-    mockFetchWhoami.mockResolvedValue({ authenticated: false });
+    mockFetchWhoami.mockResolvedValue({ authenticated: false, verified: true });
 
     await import('../bee-atlas.ts');
     el = document.createElement('bee-atlas') as any;
@@ -140,11 +146,40 @@ describe('bee-atlas map-page <bee-header> auth wiring (178-07 gap fix)', () => {
     await el!.updateComplete;
 
     const header = el!.shadowRoot!.querySelector('bee-header') as any;
-    expect(header.authState).toEqual({ authenticated: false });
+    expect(header.authState).toEqual({ authenticated: false, verified: true });
+  });
+
+  // beeatlas-1dc: the deferred whoami is cancelled outright by the 'offline'
+  // event, so the seed is the ONLY thing that puts an identity on an offline
+  // cold start's header. It must be there before the first paint, not a second
+  // later — and long before any network answer.
+  test('the last known identity seeds the header immediately, before any whoami', async () => {
+    mockLoadLastKnownIdentity.mockReturnValue({
+      authenticated: true, verified: false, login: 'rainhead',
+      role: 'author', isAuthor: true, isCurator: false, iconUrl: null,
+    } as any);
+    mockFetchWhoami.mockResolvedValue({ authenticated: false, verified: true });
+
+    await import('../bee-atlas.ts');
+    el = document.createElement('bee-atlas') as any;
+    document.body.appendChild(el!);
+    await el!.updateComplete;
+    await el!.updateComplete;
+
+    expect(mockFetchWhoami).not.toHaveBeenCalled();
+    const header = el!.shadowRoot!.querySelector('bee-header') as any;
+    expect(header.authState).toMatchObject({ authenticated: true, verified: false, login: 'rainhead' });
+
+    // …and the deferred check still upgrades it to the server's answer.
+    await vi.waitFor(() => expect(mockFetchWhoami).toHaveBeenCalled(), { timeout: 4000 });
+    await Promise.resolve();
+    await Promise.resolve();
+    await el!.updateComplete;
+    expect(header.authState).toEqual({ authenticated: false, verified: true });
   });
 
   test('"sign-in" event dispatched from <bee-header> calls startSignIn(window.location.href)', async () => {
-    mockFetchWhoami.mockResolvedValue({ authenticated: false });
+    mockFetchWhoami.mockResolvedValue({ authenticated: false, verified: true });
 
     await import('../bee-atlas.ts');
     el = document.createElement('bee-atlas') as any;
@@ -161,8 +196,8 @@ describe('bee-atlas map-page <bee-header> auth wiring (178-07 gap fix)', () => {
 
   test('"sign-out" event dispatched from <bee-header> calls signOut() then re-fetches whoami', async () => {
     mockFetchWhoami
-      .mockResolvedValueOnce({ authenticated: true, login: 'rainhead', role: 'author', isAuthor: true })
-      .mockResolvedValueOnce({ authenticated: false });
+      .mockResolvedValueOnce({ authenticated: true, verified: true, login: 'rainhead', role: 'author', isAuthor: true })
+      .mockResolvedValueOnce({ authenticated: false, verified: true });
     mockSignOut.mockResolvedValue(undefined);
 
     await import('../bee-atlas.ts');
@@ -187,12 +222,12 @@ describe('bee-atlas map-page <bee-header> auth wiring (178-07 gap fix)', () => {
     await vi.waitFor(() => {
       expect(mockFetchWhoami).toHaveBeenCalledTimes(2);
       const headerNow = el!.shadowRoot!.querySelector('bee-header') as any;
-      expect(headerNow.authState).toEqual({ authenticated: false });
+      expect(headerNow.authState).toEqual({ authenticated: false, verified: true });
     });
   });
 
   test('disconnectedCallback removes sign-in/sign-out listeners (no state leak after removal)', async () => {
-    mockFetchWhoami.mockResolvedValue({ authenticated: false });
+    mockFetchWhoami.mockResolvedValue({ authenticated: false, verified: true });
 
     await import('../bee-atlas.ts');
     el = document.createElement('bee-atlas') as any;

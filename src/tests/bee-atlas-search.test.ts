@@ -25,9 +25,10 @@ vi.mock('../features.ts', () => ({
 vi.mock('maplibre-gl/dist/maplibre-gl.css?raw', () => ({ default: '' }));
 
 vi.mock('../auth-client.ts', () => ({
-  fetchWhoami: vi.fn(() => Promise.resolve({ authenticated: false })),
+  fetchWhoami: vi.fn(() => Promise.resolve({ authenticated: false, verified: true })),
   startSignIn: vi.fn(),
   signOut: vi.fn(),
+  loadLastKnownIdentity: vi.fn(() => ({ authenticated: false, verified: false })),
 }));
 
 // Inert <bee-map>: these tests read the state <bee-atlas> hands DOWN to the map,

@@ -2,6 +2,7 @@ import { test, expect, describe, vi, beforeEach } from 'vitest';
 
 const authClientMocks = vi.hoisted(() => ({
   fetchWhoami: vi.fn(),
+  loadLastKnownIdentity: vi.fn(() => ({ authenticated: false, verified: false })),
   createNote: vi.fn(),
   updateNote: vi.fn(),
   deleteNote: vi.fn(),
@@ -55,7 +56,7 @@ describe('bee-notes: hydration gating', () => {
   });
 
   test('guest (not authenticated): calls fetchWhoami itself and stays inert', async () => {
-    authClientMocks.fetchWhoami.mockResolvedValue({ authenticated: false });
+    authClientMocks.fetchWhoami.mockResolvedValue({ authenticated: false, verified: true });
     const el = await mountBeeNotes();
     await el.updateComplete;
     // allow the fetchWhoami() promise resolution + re-render to flush
@@ -72,13 +73,35 @@ describe('bee-notes: hydration gating', () => {
   });
 
   test('signed-in non-author: stays inert', async () => {
-    authClientMocks.fetchWhoami.mockResolvedValue({ authenticated: true, login: 'reader1', role: null, isAuthor: false });
+    authClientMocks.fetchWhoami.mockResolvedValue({ authenticated: true, verified: true, login: 'reader1', role: null, isAuthor: false });
     const el = await mountBeeNotes();
     await el.updateComplete;
     await new Promise((r) => setTimeout(r, 0));
     await el.updateComplete;
 
     expect(el.querySelector('.notes-section')).toBeNull();
+  });
+
+  // beeatlas-1dc: an unverified identity is for display and local filtering.
+  // Every affordance this island offers needs the API that is by definition
+  // unreachable when the identity went unverified, so it stays inert — and
+  // leaves the baked #notes section visible rather than hiding it behind an
+  // editor that cannot save.
+  test('unverified author: stays inert and leaves the baked #notes visible', async () => {
+    authClientMocks.fetchWhoami.mockResolvedValue({
+      authenticated: true, verified: false, login: 'author1', role: 'author', isAuthor: true, isCurator: true,
+    });
+    await import('../bee-notes.ts');
+    document.body.innerHTML = '<section id="notes"></section><bee-notes></bee-notes>';
+    const el = document.querySelector('bee-notes') as any;
+    el.canonicalName = 'Agapostemon femoratus';
+    el.bakedNotes = [OWN_NOTE];
+    await el.updateComplete;
+    await new Promise((r) => setTimeout(r, 0));
+    await el.updateComplete;
+
+    expect(el.querySelector('.notes-section')).toBeNull();
+    expect(document.getElementById('notes')?.hasAttribute('hidden')).toBe(false);
   });
 
   test('before whoami resolves: renders nothing (no flash)', async () => {
@@ -88,7 +111,7 @@ describe('bee-notes: hydration gating', () => {
     await el.updateComplete;
 
     expect(el.querySelector('.notes-section')).toBeNull();
-    resolveWhoami({ authenticated: false });
+    resolveWhoami({ authenticated: false, verified: true });
   });
 
   test('confirmed author: renders own .notes-section and hides the baked #notes element', async () => {
@@ -96,7 +119,7 @@ describe('bee-notes: hydration gating', () => {
     // once `bee-notes` is already defined (from an earlier test in this
     // file), setting innerHTML upgrades + connects it synchronously, so
     // connectedCallback's fetchWhoami() call happens immediately.
-    authClientMocks.fetchWhoami.mockResolvedValue({ authenticated: true, login: 'author1', role: 'author', isAuthor: true });
+    authClientMocks.fetchWhoami.mockResolvedValue({ authenticated: true, verified: true, login: 'author1', role: 'author', isAuthor: true });
     await import('../bee-notes.ts');
     document.body.innerHTML = '<section id="notes"></section><bee-notes></bee-notes>';
     const el = document.querySelector('bee-notes') as any;
@@ -115,7 +138,7 @@ describe('bee-notes: author view', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     document.body.innerHTML = '';
-    authClientMocks.fetchWhoami.mockResolvedValue({ authenticated: true, login: 'author1', role: 'author', isAuthor: true });
+    authClientMocks.fetchWhoami.mockResolvedValue({ authenticated: true, verified: true, login: 'author1', role: 'author', isAuthor: true });
   });
 
   async function mountAsAuthor(bakedNotes: unknown[] = []) {
@@ -255,8 +278,8 @@ describe('bee-notes: author view', () => {
     // authorship is revoked — the reader view must not vanish.
     authClientMocks.fetchWhoami.mockReset();
     authClientMocks.fetchWhoami
-      .mockResolvedValueOnce({ authenticated: true, login: 'author1', role: 'author', isAuthor: true })
-      .mockResolvedValueOnce({ authenticated: true, login: 'author1', role: null, isAuthor: false });
+      .mockResolvedValueOnce({ authenticated: true, verified: true, login: 'author1', role: 'author', isAuthor: true })
+      .mockResolvedValueOnce({ authenticated: true, verified: true, login: 'author1', role: null, isAuthor: false });
     await import('../bee-notes.ts');
     document.body.innerHTML = '<section id="notes"></section><bee-notes></bee-notes>';
     const el = document.querySelector('bee-notes') as any;
@@ -330,7 +353,7 @@ describe('bee-notes: curator controls (D-01/D-02/D-03)', () => {
 
   async function mountAsCurator(bakedNotes: unknown[] = []) {
     authClientMocks.fetchWhoami.mockResolvedValue({
-      authenticated: true, login: 'curator1', role: 'curator', isAuthor: true, isCurator: true,
+      authenticated: true, verified: true, login: 'curator1', role: 'curator', isAuthor: true, isCurator: true,
     });
     const el = await mountBeeNotes('Agapostemon femoratus', bakedNotes);
     await el.updateComplete;
@@ -358,7 +381,7 @@ describe('bee-notes: curator controls (D-01/D-02/D-03)', () => {
 
   test('a signed-in non-curator author does NOT see the Take down control', async () => {
     authClientMocks.fetchWhoami.mockResolvedValue({
-      authenticated: true, login: 'author1', role: 'author', isAuthor: true, isCurator: false,
+      authenticated: true, verified: true, login: 'author1', role: 'author', isAuthor: true, isCurator: false,
     });
     const el = await mountBeeNotes('Agapostemon femoratus', [OWN_NOTE, OTHER_NOTE]);
     await el.updateComplete;
@@ -411,7 +434,7 @@ describe('bee-notes: curator controls (D-01/D-02/D-03)', () => {
     // The post-403 whoami re-read reflects the revocation: still an author,
     // no longer a curator.
     authClientMocks.fetchWhoami.mockResolvedValue({
-      authenticated: true, login: 'curator1', role: 'author', isAuthor: true, isCurator: false,
+      authenticated: true, verified: true, login: 'curator1', role: 'author', isAuthor: true, isCurator: false,
     });
 
     el.querySelector('[data-note-id="2"] [aria-label="Take down this note (curator)"]').click();

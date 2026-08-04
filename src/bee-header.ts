@@ -272,6 +272,18 @@ export class BeeHeader extends LitElement {
       color: var(--text-body, #213547);
     }
 
+    /* Sits under .menu-identity when the identity is the last known one rather
+       than one the server confirmed this session (beeatlas-1dc). Muted and
+       non-interactive: the identity is still shown and still usable, so this
+       explains rather than warns. */
+    .menu-identity__note {
+      padding: 0 16px 10px;
+      margin-top: -6px;
+      font-size: 0.75rem;
+      line-height: 1.4;
+      color: var(--text-hint, #767676);
+    }
+
     /* Interactive row — actions and links alike. */
     .menu-row {
       display: flex;
@@ -769,6 +781,9 @@ export class BeeHeader extends LitElement {
               ${auth?.isAuthor ? 'Author' : 'Not an editor'}
             </span>
           </div>
+          ${auth?.verified === false ? html`
+            <div class="menu-identity__note">Last known sign-in — the server couldn't be reached to confirm it.</div>
+          ` : ''}
           <button class="menu-row" @click=${this._onSignOutClick}>
             <svg class="menu-row__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"/>
@@ -937,6 +952,13 @@ export class BeeHeader extends LitElement {
   private _renderAuth(): TemplateResult {
     const auth = this.authState;
     const signedIn = Boolean(auth?.authenticated);
+    // The avatar is the one part of the identity that is NOT local: it is an
+    // <img> against static.inaturalist.org. An unverified identity is precisely
+    // the case where we just failed to reach the network, so requesting it would
+    // be a second doomed request — and on iOS in an installed app that is what
+    // raises the system "Turn On Wi-Fi" modal the whole offline path exists to
+    // avoid (beeatlas-1dc). The glyph stands in until whoami is confirmed.
+    const showAvatar = signedIn && auth?.verified === true && Boolean(auth?.iconUrl) && !this._avatarError;
     return html`
       <button
         class="icon-btn account-btn"
@@ -946,8 +968,8 @@ export class BeeHeader extends LitElement {
         aria-label=${signedIn ? `Account: ${auth?.login ?? ''}` : 'Account and app status'}
         title=${signedIn ? 'Account' : 'Account and app status'}
       >
-        ${signedIn && auth?.iconUrl && !this._avatarError
-          ? html`<img class="account-avatar" src=${auth.iconUrl} alt="" @error=${this._onAvatarError}>`
+        ${showAvatar
+          ? html`<img class="account-avatar" src=${auth?.iconUrl ?? ''} alt="" @error=${this._onAvatarError}>`
           : html`
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>

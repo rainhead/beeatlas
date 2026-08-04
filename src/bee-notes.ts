@@ -94,7 +94,7 @@ export class BeeNotes extends LitElement {
     super.connectedCallback();
     fetchWhoami().then((auth) => {
       this._authState = auth;
-      if (auth.authenticated && auth.isAuthor) {
+      if (this._isAuthor) {
         // Avoid a duplicate note list in the accessibility tree once this
         // island takes over the display (UI-SPEC "How <bee-notes> relates
         // to the baked #notes section").
@@ -103,15 +103,26 @@ export class BeeNotes extends LitElement {
     });
   }
 
+  // `verified` is required here and not merely `authenticated` (beeatlas-1dc).
+  // A last-known identity replayed from local storage is for display and local
+  // filtering; this getter gates the WRITE affordances, and every one of them
+  // needs the API that is by definition unreachable whenever the identity went
+  // unverified. Offering an editor that cannot save — after hiding the baked
+  // #notes section it renders over — would be worse than staying inert, which
+  // is exactly what an offline reader got before this and still gets now.
   private get _isAuthor(): boolean {
-    return this._authState?.authenticated === true && this._authState?.isAuthor === true;
+    return this._authState?.authenticated === true
+      && this._authState?.verified === true
+      && this._authState?.isAuthor === true;
   }
 
   // Curator-only signal (D-03): a UX affordance only -- the takedown POST is
   // always independently re-authorized server-side (a forged/stale client
   // flag yields a 403, surfaced via CURATOR_LOST_COPY + refetch).
   private get _isCurator(): boolean {
-    return this._authState?.authenticated === true && this._authState?.isCurator === true;
+    return this._authState?.authenticated === true
+      && this._authState?.verified === true
+      && this._authState?.isCurator === true;
   }
 
   private get _notes(): NoteView[] {

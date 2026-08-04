@@ -30,3 +30,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0024](0024-compression-is-a-build-artifact.md) | The database is compressed by the build, not by the server | Accepted |
 | [0025](0025-offline-basemap-is-a-byte-store.md) | The offline basemap is a byte store the page reads, not something the SW serves | Accepted |
 | [0026](0026-self-hosted-basemap.md) | The basemap is ours — MapLibre over a self-hosted Protomaps extract | Accepted |
+| [0027](0027-identity-survives-going-offline.md) | Identity survives going offline, and an unverified identity is still an identity | Accepted |
