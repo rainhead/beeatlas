@@ -211,6 +211,50 @@ else
     echo "  WARN: raco not on PATH — skipping stelis bytecode build" >&2
 fi
 
+# 1b. Can this host RUN the engine, and does the engine still agree with THIS
+# repo? Two questions, both about the checkout we just pulled unreviewed.
+#
+# PROVISIONING (stelis scripts/preflight.sh, st-7lm): a stelis push arrives via
+# the pull above, and nothing checked the host can load it. On 2026-08-01 `sha`
+# was missing here, every `racket src/main.rkt` failed to load, and this whole
+# leg was dead — as a module-resolution stack trace naming no fix. Fatal, early,
+# and it prints the install command.
+#
+# DRIFT (the stelis suite, st-r0x): stelis MIRRORS things that live in this repo
+# — notes-digest hardcodes notes_harvest's join, filter, and hashed field list;
+# the graph declares each task's inputs and outputs. Nothing but stelis's tests
+# ties the two, and they CANNOT run in stelis's CI, which has no beeatlas
+# checkout. This host has both repos, so it is the only place they run at all.
+#
+# BEEATLAS_DIR is load-bearing, not decoration. Those tests default it to a path
+# that exists only on Peter's laptop, and SKIP when it is absent — measured
+# 2026-08-04, the suite skips 9 things without it and 2 with it. Unset, this gate
+# would pass while running none of the checks it exists for.
+#
+# STELIS_STATE_DIR is redirected to a scratch dir for the same reason it is set
+# globally above: tests must never write into the production build history.
+#
+# 40-65s on this host across two runs (measured 2026-08-04), against an hour for
+# the data build — so it goes BEFORE that build rather than after.
+echo "--- stelis preflight + test gate ---"
+_t0=$(date +%s)
+if [[ -n "${SKIP_STELIS_GATE:-}" ]]; then
+    echo "WARN: SKIP_STELIS_GATE set — BYPASSING the stelis preflight + test gate." >&2
+    echo "WARN: this publishes with the cross-repo drift checks UNRUN." >&2
+else
+    bash "$STELIS_DIR/scripts/preflight.sh"          # exits 78 on a provisioning gap
+    _stelis_test_state="$(mktemp -d)"
+    if ! (cd "$STELIS_DIR" &&           BEEATLAS_DIR="$REPO_ROOT" STELIS_STATE_DIR="$_stelis_test_state"           raco test src/*-test.rkt); then
+        rm -rf "$_stelis_test_state"
+        echo "STELIS TEST GATE FAILED in $(_elapsed $_t0) — aborting publish" >&2
+        echo "The engine disagrees with this repo (or with itself). Publishing now" >&2
+        echo "would build data with a pipeline whose contracts no longer hold." >&2
+        exit 1
+    fi
+    rm -rf "$_stelis_test_state"
+    echo "stelis gate passed in $(_elapsed $_t0)"
+fi
+
 # Cache node_modules between runs keyed on package-lock.json hash. npm ci wipes
 # node_modules and reinstalls everything every call, which for the DATA tooling
 # means rebuilding the msgpackr-extract and better-sqlite3 native addons
