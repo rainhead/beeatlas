@@ -88,41 +88,6 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-# NOTE: "Agapostemon texanus" is synonymized within Washington with Agapostemon
-# subtilior, so WA records resolve to subtilior and texanus never appears as its own
-# species in public/data/species.json. The lone `validate-species` warning for this
-# name is therefore EXPECTED, not a data error. These curated photos arguably belong
-# under the "Agapostemon subtilior" entry above — left as-is pending a curation call.
-[species."Agapostemon texanus"]
-description = ""
-
-  [[species."Agapostemon texanus".photos]]
-  observation_id = 328_820_584
-  photo_id = 595_925_217
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/595925217/large.jpg"
-  caption = ""
-  attribution = "(c) patsykuentz, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 1
-
-  [[species."Agapostemon texanus".photos]]
-  observation_id = 66_228_701
-  photo_id = 106_713_540
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/106713540/large.jpeg"
-  caption = ""
-  attribution = "(c) John Brush, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 2
-
-  [[species."Agapostemon texanus".photos]]
-  observation_id = 239_182_209
-  photo_id = 425_942_421
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/425942421/large.jpeg"
-  caption = ""
-  attribution = "(c) Frankie Simmons, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 3
-
 [species."Agapostemon virescens"]
 description = ""
 
@@ -4268,36 +4233,6 @@ description = ""
   attribution = "(c) Riley-Brendan Walsh, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
-
-[species."Coelioxys octodentata"]
-description = ""
-
-  [[species."Coelioxys octodentata".photos]]
-  observation_id = 102_225_512
-  photo_id = 170_835_706
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/170835706/large.jpeg"
-  caption = ""
-  attribution = "(c) Molly Jacobson, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 1
-
-  [[species."Coelioxys octodentata".photos]]
-  observation_id = 102_225_512
-  photo_id = 170_835_916
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/170835916/large.jpeg"
-  caption = ""
-  attribution = "(c) Molly Jacobson, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 2
-
-  [[species."Coelioxys octodentata".photos]]
-  observation_id = 102_225_512
-  photo_id = 170_835_953
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/170835953/large.jpeg"
-  caption = ""
-  attribution = "(c) Molly Jacobson, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 3
 
 [species."Coelioxys octodentatus"]
 description = ""

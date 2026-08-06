@@ -1,3 +1,18 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:03116e3879259100516131b805f6b863af79a039a9320ff7f3d5383092c9cbb1
-size 1379
+# Distilled from data/dbt/target/sandbox/higher_taxa.parquet (2026-06-06).
+# Source columns verified via DESCRIBE SELECT * FROM read_parquet(...) on live parquet.
+# Covers:
+#   test_check_slug_collisions_clean_real_data: genus + subfamily rows present (collision-clean)
+#   test_export_runs_collision_check_clean: _check_slug_collisions passes with distinct names
+# NOT covered here (tagged @pytest.mark.integration in Plan 03):
+#   test_higher_taxa_json_written_and_12_subfamilies: asserts == 12 subfamilies (real-dataset
+#   property); this fixture intentionally has only 2 subfamily rows. The == 12 assertion
+#   is a full-data check and belongs in the nightly integration tier (RESEARCH open question #2).
+# Row notes:
+#   rank='subfamily' rows carry the subfamily NAME in the name column; the subfamily column
+#   is NULL (matches the real parquet shape, verified from live data).
+#   member_taxon_ids is a JSON-list-encoded VARCHAR.
+taxon_id,rank,name,family,subfamily,tribe,genus,specimen_count,inat_obs_count,occurrence_count,species_count,member_taxon_ids
+606634,subfamily,Halictinae,Halictidae,,,,1200,800,2000,45,"[1581467,270393]"
+111111,subfamily,Apinae,Apidae,,,,5000,3000,8000,120,"[52775,111222]"
+1581466,genus,Agapostemon,Halictidae,Halictinae,Halictini,Agapostemon,342,202,544,8,"[1581467]"
+52774,genus,Bombus,Apidae,Apinae,Bombini,Bombus,50,50,100,3,"[52775]"

@@ -1,3 +1,10 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:8fe719bdb18381c373bb43246c44bdf719027d3e7065bbce61fec19463d1cc51
-size 1900
+synonym,accepted_name,source
+agapostemon texanus,agapostemon subtilior,"Portman et al. 2024 (Eur. J. Taxon. 958: 203-241, doi:10.5852/ejt.2024.958.2671) reinstates A. subtilior; A. texanus s.s. is prairie-only, so all PNW texanus are subtilior"
+coelioxys octodentata,coelioxys octodentatus,Coelioxys gender-variant fold (-a->-us); resolves atlas duplicate species pair + bridges Bee-Gap trait seeds
+coelioxys alternata,coelioxys alternatus,Coelioxys gender-variant (-a->-us); aligns Bee-Gap spelling to atlas checklist
+coelioxys funeraria,coelioxys funerarius,Coelioxys gender-variant (-a->-us); aligns Bee-Gap spelling to atlas checklist
+coelioxys moesta,coelioxys moestus,Coelioxys gender-variant (-a->-us); aligns Bee-Gap spelling to atlas checklist
+dioxys aurifusca,dioxys aurifuscus,Dioxys gender-variant (-a->-us); aligns Bee-Gap spelling to atlas checklist
+dioxys producta,dioxys productus,Dioxys gender-variant (-a->-us); aligns Bee-Gap spelling to atlas checklist
+bombus californicus,bombus fervidus,WA Bee Atlas curatorial decision 2026-07-26 — B. californicus folded into B. fervidus (dark colour form); iNaturalist retains both as separate taxa under the B. fervidus complex (1266534)
+bombus lapponicus,bombus sylvicola,WA Bee Atlas curatorial decision 2026-07-31 — B. lapponicus is Palearctic; Nearctic material under that name is B. sylvicola. The WABA checklist's species list still said lapponicus while its 145 records were already filed under sylvicola; without this the lapponicus entry is a ghost species page with zero of everything

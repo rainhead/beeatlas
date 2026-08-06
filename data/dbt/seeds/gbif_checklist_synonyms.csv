@@ -1,3 +1,13 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:5c1a953005b598dc82a713f221399aaa3fc07e59df7868ca276741be478803b4
-size 1072
+synonym,accepted_name,source,gbif_usage_key,gbif_match_type,gbif_confidence
+andrena chalybiodes,andrena chalybioides,gbif-backbone:1357497,1357497,VARIANT,96
+andrena floculosa,andrena flocculosa,gbif-backbone:1357905,1357905,VARIANT,98
+andrena obsuripostica,andrena obscuripostica,gbif-backbone:1357143,1357143,VARIANT,96
+anthidium utanense,anthidium utahense,gbif-backbone:1334955,1334955,VARIANT,96
+calliopsis personatus,calliopsis personata,gbif-backbone:5042970,5042970,VARIANT,98
+colletes sleveni,colletes slevini,gbif-backbone:1348916,1348916,VARIANT,96
+melissodes dagosa,melissodes dagosus,gbif-backbone:5040705,5040705,VARIANT,98
+melissodes microstitus,melissodes microstictus,gbif-backbone:5040604,5040604,VARIANT,96
+melissodes pallidisgnatus,melissodes pallidisignatus,gbif-backbone:5040743,5040743,VARIANT,96
+osmia penstemonis,osmia pentstemonis,gbif-backbone:5039292,5039292,VARIANT,96
+coelioxys moesta,coelioxys moestus,gbif-backbone:1338428,1338428,VARIANT,98
+laisoglossum lusorium,lasioglossum lusorium,gbif-backbone:1355290,1355290,VARIANT,89

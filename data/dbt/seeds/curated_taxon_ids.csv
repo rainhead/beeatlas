@@ -1,3 +1,19 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:fab0f3a7bf7e5d1c19b2f4af3bbd80292655a0ce731ca9f34b19356276b4a0a0
-size 2747
+canonical_name,taxon_id,note
+lasioglossum aspilurus,1339222,Lasioglossum aspilurum (iNat 1339222) — Latin gender variant -us->-um; curator-confirmed against taxa.csv.gz (debug nightly-resolution-gate)
+lasioglossum heterorhinus,271600,Lasioglossum heterorhinum (iNat 271600) — Latin gender variant -us->-um; curator-confirmed against taxa.csv.gz (debug nightly-resolution-gate)
+anthidiellum robertsoni,361496,Anthidiellum notatum robertsoni (iNat 361496) — subspecies; no species by this name exists; curator-confirmed against taxa.csv.gz (debug nightly-resolution-gate)
+osmia phaceliae,226676,Osmia nanula (iNat 226676) — junior synonym per ITIS TSN 1163658 (https://www.itis.gov/servlet/SingleRpt/SingleRpt?search_topic=TSN&search_value=1163658); curator-confirmed against taxa.csv.gz (debug nightly-resolution-gate)
+agapostemon angelicus,270393,iNat exact match for a GBIF-accepted checklist name; auto-resolved by --refresh-checklist (bridge fallback)
+andrena candidiformis,458998,iNat exact match for a GBIF-accepted checklist name; auto-resolved by --refresh-checklist (bridge fallback)
+andrena chalybioides,573383,iNat exact match for a GBIF-accepted checklist name; auto-resolved by --refresh-checklist (bridge fallback)
+bombus suckleyi,452445,iNat exact match for a GBIF-accepted checklist name; auto-resolved by --refresh-checklist (bridge fallback)
+epimelissodes obliqua,1630911,iNat exact match for a GBIF-accepted checklist name; auto-resolved by --refresh-checklist (bridge fallback)
+lasioglossum comagenense,459081,iNat exact match for a GBIF-accepted checklist name; auto-resolved by --refresh-checklist (bridge fallback)
+lasioglossum heterorhinum,271600,iNat exact match for a GBIF-accepted checklist name; auto-resolved by --refresh-checklist (bridge fallback)
+lasioglossum pavonotum,1453119,iNat exact match for a GBIF-accepted checklist name; auto-resolved by --refresh-checklist (bridge fallback)
+megachile concinna,308913,iNat exact match for a GBIF-accepted checklist name; auto-resolved by --refresh-checklist (bridge fallback)
+nomada citrina,1030776,iNat exact match for a GBIF-accepted checklist name; auto-resolved by --refresh-checklist (bridge fallback)
+nomada heiligbrodtii,1447845,iNat exact match for a GBIF-accepted checklist name; auto-resolved by --refresh-checklist (bridge fallback)
+nomada kincaidiana,1588468,iNat exact match for a GBIF-accepted checklist name; auto-resolved by --refresh-checklist (bridge fallback)
+nomada rivalis,1339416,iNat exact match for a GBIF-accepted checklist name; auto-resolved by --refresh-checklist (bridge fallback)
+nomada washingtoni,1339464,iNat exact match for a GBIF-accepted checklist name; auto-resolved by --refresh-checklist (bridge fallback)

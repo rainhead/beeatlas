@@ -1,3 +1,9 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:a410e46ef958d0e2da8a3eb4b18d7360d61110a64a4f36a9991d8597f9f76d2b
-size 1052
+ObjectID,Family,Genus,Scientific Name,Locality,Latitude,Longitude,Date,recordedBy,County_join,x,y
+1,Halictidae,Agapostemon,"Agapostemon angelicus Cockerell, 1924",Auburn and vicinity,47.3075,-122.2272,1991-07-12T00:00:00,"Yanega, Douglas",King,-122.2272,47.3075
+3,Halictidae,Agapostemon,"Agapostemon angelicus Cockerell, 1924","Wenatchee, 16 km N",,,1957-08-06T00:00:00,unknown,Chelan,,
+17423,Apidae,Bombus,"Bombus insularis (Smith, 1861)","Washington S.",0,0,,T. Kincaid,No LatLon,0,0
+8702,Apidae,Apis,Apis mellifera,,49.00003811,-122.7518213,,Scientist,Whatcom,-122.7518213,49.00003811
+31311,Apidae,Bombus,Bombus vancouverensis,Clayton,47.99,-117.56,1812-06-18T00:00:00,M.A. Yothers,Stevens,-117.56,47.99
+1668,Halictidae,Agapostemon,Agapostemon texanus,Central Ferry/Snake River,46.6238,-117.7952,6/14/1905,,Garfield,-117.7952,46.6238
+1386,Halictidae,Agapostemon,Agapostemon angelicus/texanus,,48.53459,-122.9235,,Whirledge Karp,San Juan,-122.9235,48.53459
+99999,Apidae,Bombus,Bombus mixtus,Synthetic year-only row,47.5,-122.0,1995,,King,-122.0,47.5

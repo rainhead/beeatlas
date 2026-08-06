@@ -1,3 +1,4 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:bf47af4cd118cc60a2ec842da8e4e6ad96704e75945b2e127440bdde0b4f82d3
-size 1369
+canonical_name,trait,action,expected_upstream,corrected_value,reason
+"bombus vosnesenskii","sociality","replace","Parasitic","Primitively Eusocial","Bee-Gap 2017 records B. vosnesenskii as a parasite. It is a common eusocial bumble bee (subgenus Pyrobombus) with a normal queen-and-worker colony cycle, not a cleptoparasite; the genuine cuckoo bumble bees are subgenus Psithyrus. Confirmed against the upstream ScienceBase file, so the error is Bee-Gap's, not our ingestion's."
+"bombus vosnesenskii","nesting","retract","Host Nest","","Follows the sociality correction: 'Host Nest' encodes cleptoparasitism, which is wrong here. RETRACTED rather than replaced — B. vosnesenskii nests underground, but Bee-Gap's own vocabulary splits bumble bee nesting inconsistently between Ground and Cavity, and inventing which term they would have used would be fabricating precision we do not have. The genus backbone is empty for bombus (5 distinct nesting values upstream), so this species now publishes no nesting claim, which is the honest outcome."
+"bombus vosnesenskii","host_bees","retract","Bombus","","Same upstream error as the sociality row: Bee-Gap lists B. vosnesenskii among its cleptoparasites, so bee_parasite_hosts records Bombus as its host. A bee that is not a cuckoo has no host, so the whole assertion is retracted rather than corrected to some other host."

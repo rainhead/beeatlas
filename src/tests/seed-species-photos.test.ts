@@ -319,10 +319,17 @@ describe('curator comments survive a rewrite (beeatlas-zd7)', () => {
     expect(reattachSpeciesComments('[species."X"]', undefined)).toBe('[species."X"]');
   });
 
-  test('the committed manifest still carries its curator note', () => {
-    // Regression pin: this note was destroyed once already.
+  test('every comment in the committed manifest still names a species that exists', () => {
+    // Was pinned to the Agapostemon texanus note specifically, until that note was
+    // removed WITH its orphan entry (beeatlas-mm0) — the note existed only to explain
+    // why the orphan was being kept. Pinning a particular comment made the test a
+    // hostage to a curation decision; the durable invariant is that a comment never
+    // outlives the entry it annotates, which is the state a rewrite can silently create.
     const manifest = readFileSync(resolve(ROOT, 'content/species-photos.toml'), 'utf-8');
-    expect(extractSpeciesComments(manifest).has('Agapostemon texanus')).toBe(true);
+    const species = (TOML.parse(manifest).species ?? {}) as Record<string, unknown>;
+    for (const name of extractSpeciesComments(manifest).keys() as Iterable<string>) {
+      expect(species[name], `comment for "${name}" but no such species entry`).toBeDefined();
+    }
   });
 });
 
@@ -443,6 +450,7 @@ describe('RateLimiter (PHOTO-07 <=1 req/sec)', () => {
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import TOML from '@iarna/toml';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '../..');

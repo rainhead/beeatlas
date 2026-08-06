@@ -1,2 +1,22 @@
 *.zip filter=lfs diff=lfs merge=lfs -text
-*.csv filter=lfs diff=lfs merge=lfs -text
+
+# LFS is for files too big to live in git, NOT for "it is a CSV".
+#
+# The blanket `*.csv` rule this replaces was set in the repo's first commit and swept up
+# 24 files, of which 22 are small and 9 are CURATED dbt seeds — occurrence_synonyms.csv,
+# curated_taxon_ids.csv, inat_query_taxa.csv and friends. Those are hand-edited files
+# whose entire value is the reviewable diff and the provenance in their `source`/`note`
+# column, and LFS renders every change to them as an opaque oid+size swap. Adding the
+# Bombus lapponicus synonymy, a real curatorial decision with a citation, showed up in
+# git as two changed hashes and nothing else.
+#
+# The 22 small files total ~559 KB against a 67 MB .git, so this is not a size decision —
+# storing them as ordinary blobs is free and they delta-compress well. It also removes a
+# trap: pushing a commit that adds a new .csv needs git-lfs-authenticate on the remote,
+# which is not on maderas's non-login PATH, so `git push maderas main` failed the first
+# time anyone added a CSV in a while.
+#
+# Only genuinely large data files are listed, by path. Add a line here when a new one
+# appears; do not restore a glob.
+data/raw/inat_expert_obs.csv filter=lfs diff=lfs merge=lfs -text
+data/checklists/checklist_records_full.csv filter=lfs diff=lfs merge=lfs -text

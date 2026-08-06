@@ -1,3 +1,13 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:7e7f5b8a7b9d406a0c69a7a2cdafcc35f8ba6e45d8280b3282c1337496059a17
-size 938
+# Distilled from data/dbt/target/sandbox/occurrences.parquet (2026-06-06).
+# Only canonical_name is asserted on by test_dbt_synonymy (RESEARCH 1.2).
+# Covers:
+#   test_occurrences_has_agapostemon_subtilior: COUNT(*) WHERE canonical_name='agapostemon subtilior' >= 1
+#   test_occurrences_has_no_agapostemon_texanus: COUNT(*) WHERE canonical_name='agapostemon texanus' == 0
+# One row: agapostemon subtilior. Zero rows: agapostemon texanus.
+# Full 33-column occurrences schema not included here — the Plan-03 synonymy_sandbox builder
+# uses CREATE TABLE + INSERT + COPY (minimal-schema approach, RESEARCH 1.2 recommended approach)
+# to avoid a brittle 33-column CSV stub for a 1-column assertion.
+# Note: second column _source is a placeholder to allow DuckDB auto_detect to skip hash-comment
+# lines above (single-column CSVs do not trigger DuckDB's automatic comment-line detection).
+canonical_name,_source
+agapostemon subtilior,ecdysis

@@ -1,3 +1,17 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:df49aede9a0700194d093f874f71a3db55b514674c9c2b591b81299ca33344a3
-size 1761
+# Distilled from data/dbt/target/sandbox/species.parquet (2026-06-06).
+# Source columns verified via DESCRIBE SELECT * FROM read_parquet(...) on live parquet.
+# Covers:
+#   test_slug_hierarchical: specific_epithet IS NOT NULL -> slug == f"{genus}/{epithet}"
+#   test_no_old_slug_format: zero species-level slugs missing the Genus/epithet slash
+#   test_inat_obs_count_in_species: inat_obs_count is non-null in output parquet
+#   test_check_slug_collisions_clean_real_data: _check_slug_collisions passes (unique genus+epithet pairs)
+#   test_higher_taxa_json_written_and_12_subfamilies: subfamily column present
+#   test_higher_rank_taxon_ids_not_written: export_species_parquet completes
+#   test_export_runs_collision_check_clean: export_species_parquet completes without raising
+# Two rows: one Halictidae (Agapostemon subtilior), one Apidae (Bombus mixtus).
+# One species per family — sufficient for _check_slug_collisions to run collision-clean.
+# Note: on_checklist is BOOLEAN. Plan-03 sandbox_parquet builder uses
+#   CAST(on_checklist AS BOOLEAN) in the COPY SELECT (RESEARCH Pitfall 3).
+scientificName,canonical_name,family,subfamily,tribe,genus,subgenus,specific_epithet,on_checklist,status,occurrence_count,specimen_count,provisional_count,first_occurrence_date,last_occurrence_date,month_histogram,county_count,ecoregion_count,checklist_count,checklist_record_count,inat_obs_count,taxon_id
+Agapostemon subtilior,agapostemon subtilior,Halictidae,Halictinae,Halictini,Agapostemon,,subtilior,true,verified,342,342,0,2010-01-01,2023-12-01,"[0,0,0,12,45,80,90,75,40,0,0,0]",5,2,1,3,202,1581467
+Bombus mixtus,bombus mixtus,Apidae,Apinae,Bombini,Bombus,,mixtus,true,verified,100,50,0,2015-01-01,2023-06-01,"[0,0,0,0,10,30,40,15,5,0,0,0]",8,3,1,2,50,52775

@@ -1,3 +1,2 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:1b00660c4869887e9c1b6ec1c6f884e8751629ccefa072a546e1565862d2e7a6
-size 448
+canonical_name,taxon_id,note
+bombus fervidus,1266534,"Bombus fervidus complex (iNat 1266534) — our fervidus s.l. is exactly this complex's membership: B. fervidus s.s. (52774) + B. californicus (124420), the pair folded by occurrence_synonyms.csv. The bridge resolves the species-rank 52774, which holds only 198 of Washington's 1,254 research-grade complex records; the other 1,055 sit on californicus. Curator-confirmed 2026-08-06 (ADR 0030)."
