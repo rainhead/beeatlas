@@ -61,10 +61,19 @@ anything:
 |---|---|---|---|
 | *B. fervidus* | 1266534 (fervidus + californicus) | 1,254 vs. 198 | **complex matches our concept** |
 | *A. subtilior* | 1581466 (subtilior + texanus) | 304 vs. 304 | narrow is right |
+
 | *B. sylvicola* | 1653702 (+ 5 Palearctic spp.) | 20 vs. 20 | narrow is right |
 
 For the latter two the complex adds nothing in Washington and adds *wrong* species
 globally.
+
+The *A. subtilior* row is not a numerical coincidence, which matters because a
+coincidence could drift. **All PNW *Agapostemon texanus* are in fact *A. subtilior***
+(Peter, 2026-08-06) — true texanus does not occur here, and iNat's own data agrees:
+narrow texanus (1581468) has **zero** research-grade records in Washington and zero
+across OR/ID/BC, against 858 subtilior over the same area. The complex can therefore
+never hold a regional record the narrow species misses, so querying narrow subtilior is
+correct by range rather than by luck.
 
 ## Decision
 
