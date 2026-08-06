@@ -51,6 +51,28 @@ seeds:
           - not_null
       - name: note
         description: "Curator provenance: the iNat accepted name + reason for the override (gender variant / subspecies / synonym citation)."
+  - name: inat_query_taxa
+    description: >
+      OUTBOUND-QUERY overrides: the iNat taxon to ASK ABOUT for a BeeAtlas species,
+      when it differs from the taxon that species IS (ADR 0030). Distinct from
+      curated_taxon_ids, which feeds the identity bridge and must stay species-rank —
+      this seed may name a complex, and nothing here ever reaches an occurrence's
+      taxon_id. Read directly (raw read_csv) by scripts/seed-species-photos.mjs;
+      absent canonical_name means "query the bridge taxon", which is the case for
+      all but a handful of species. Add a row only where our synonymy merges taxa
+      iNat keeps apart AND the merged concept has a faithful iNat taxon.
+    columns:
+      - name: canonical_name
+        description: "Lowercased BeeAtlas canonical_name, POST-synonymy (the accepted name, never a folded synonym)."
+        data_tests:
+          - not_null
+          - unique
+      - name: taxon_id
+        description: "iNat taxon_id to query. May be any rank, including complex."
+        data_tests:
+          - not_null
+      - name: note
+        description: "Curator provenance: why the query taxon differs from the bridge taxon, and what it costs to get this wrong."
   - name: bee_traits_corrections
     description: >
       LOCAL CORRECTIONS to values an upstream source gets wrong (stelis st-t4t). Highest

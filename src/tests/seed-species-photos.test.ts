@@ -5,6 +5,7 @@ import {
   mergeFillOnly,
   sortManifestSpecies,
   RateLimiter,
+  buildTaxonIdSql,
   // @ts-expect-error -- .mjs source has no .d.ts; named exports are the contract
 } from '../../scripts/seed-species-photos.mjs';
 
@@ -265,6 +266,59 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '../..');
+
+// ---------- Outbound query-taxon override (ADR 0030) ----------
+
+describe('buildTaxonIdSql (ADR 0030 outbound query taxon)', () => {
+  const SEED = resolve(ROOT, 'data/dbt/seeds/inat_query_taxa.csv');
+
+  test('the override wins over the bridge, not the other way round', () => {
+    // COALESCE argument order IS the precedence rule. Reversed, the seed becomes
+    // dead weight and fervidus silently reverts to the narrow species.
+    expect(buildTaxonIdSql(SEED)).toContain('COALESCE(q.taxon_id, b.taxon_id)');
+  });
+
+  test('reads the seed when present', () => {
+    const sql = buildTaxonIdSql(SEED);
+    expect(sql).toContain('read_csv');
+    expect(sql).toContain('inat_query_taxa.csv');
+  });
+
+  test('degrades to a bridge-only resolve when the seed is absent', () => {
+    // A checkout without the seed must still produce valid SQL, not a duckdb
+    // "file not found" that kills the whole run.
+    const sql = buildTaxonIdSql('/nonexistent/inat_query_taxa.csv');
+    expect(sql).not.toContain('read_csv');
+    expect(sql).toContain('WHERE FALSE');
+    expect(sql).toContain('COALESCE(q.taxon_id, b.taxon_id)');
+  });
+
+  test('the committed seed maps fervidus to the complex that matches our synonymy', () => {
+    // Guards the pairing this ADR rests on: occurrence_synonyms folds californicus
+    // into fervidus, so the outbound query must reach the complex holding BOTH.
+    // 52774 alone reaches 198 of Washington's 1,254 research-grade records.
+    const seed = readFileSync(SEED, 'utf-8');
+    expect(seed).toMatch(/^bombus fervidus,1266534,/m);
+
+    const synonyms = readFileSync(resolve(ROOT, 'data/dbt/seeds/occurrence_synonyms.csv'), 'utf-8');
+    expect(synonyms).toMatch(/^bombus californicus,bombus fervidus,/m);
+  });
+
+  test('every override names a post-synonymy accepted name, never a folded synonym', () => {
+    // Keying a row on a synonym would make it unreachable: species.json only ever
+    // carries accepted names, so the LEFT JOIN would never match and the override
+    // would look applied while doing nothing.
+    const rows = readFileSync(SEED, 'utf-8').trim().split('\n').slice(1)
+      .map((l) => l.split(',')[0]);
+    const foldedAway = new Set(
+      readFileSync(resolve(ROOT, 'data/dbt/seeds/occurrence_synonyms.csv'), 'utf-8')
+        .trim().split('\n').slice(1).map((l) => l.split(',')[0]),
+    );
+    for (const name of rows) {
+      expect(foldedAway.has(name), `${name} is a folded synonym; use its accepted name`).toBe(false);
+    }
+  });
+});
 
 describe('build-chain isolation (PHOTO-07: seed NOT in CI)', () => {
   test('package.json does NOT reference seed-species-photos in any script', () => {

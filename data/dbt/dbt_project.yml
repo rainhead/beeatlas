@@ -63,6 +63,11 @@ seeds:
         canonical_name: varchar
         taxon_id: integer
         note: varchar
+    inat_query_taxa:
+      +column_types:
+        canonical_name: varchar
+        taxon_id: integer
+        note: varchar
     bee_traits_beegap:
       +column_types:
         canonical_name: varchar

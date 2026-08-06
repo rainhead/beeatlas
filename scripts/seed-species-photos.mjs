@@ -33,6 +33,7 @@ const ROOT = new URL('..', import.meta.url).pathname;
 const DB = join(ROOT, 'data', 'beeatlas.duckdb');
 const SPECIES_JSON = join(ROOT, 'public', 'data', 'species.json');
 const MANIFEST = join(ROOT, 'content', 'species-photos.toml');
+const INAT_QUERY_TAXA_CSV = join(ROOT, 'data', 'dbt', 'seeds', 'inat_query_taxa.csv');
 const INAT_BASE = 'https://api.inaturalist.org/v1/observations';
 const USER_AGENT = 'BeeAtlas/seed-species-photos (rainhead@gmail.com; github.com/rainhead/beeatlas)';
 const WA_PLACE_ID = 46;
@@ -134,9 +135,22 @@ export class RateLimiter {
  * on canonical_name (not scientificName) avoids both the case-mismatch and
  * the snake_case column-name issue on ecdysis_data.occurrences (which has
  * scientific_name, not scientificName).
+ *
+ * The bridge answers "what taxon IS this species", which is not always the
+ * taxon to ASK iNat about: where our synonymy merges taxa iNat keeps apart,
+ * the bridge's species-rank id reaches only part of our concept. ADR 0030 puts
+ * those cases in inat_query_taxa.csv, COALESCEd over the bridge here. The seed
+ * is read as raw CSV, not ref()'d, because this script runs against the
+ * ingestion schemas and must not require a dbt build.
  */
-export function loadTaxonIds(dbPath) {
-  const sql = `
+export function buildTaxonIdSql(queryTaxaCsv = INAT_QUERY_TAXA_CSV) {
+  // An override seed is optional: a checkout without it still resolves via the bridge.
+  const overrideCte = existsSync(queryTaxaCsv)
+    ? `SELECT LOWER(canonical_name) AS canonical_name, taxon_id
+       FROM read_csv('${queryTaxaCsv}', header=true,
+                     columns={'canonical_name':'VARCHAR','taxon_id':'BIGINT','note':'VARCHAR'})`
+    : `SELECT NULL::VARCHAR AS canonical_name, NULL::BIGINT AS taxon_id WHERE FALSE`;
+  return `
     WITH species_universe AS (
       SELECT
         COALESCE(c.scientificName, oa.canonical_name) AS scientificName,
@@ -147,12 +161,18 @@ export function loadTaxonIds(dbPath) {
         FROM ecdysis_data.occurrences
         WHERE canonical_name IS NOT NULL
       ) oa ON oa.canonical_name = c.canonical_name
-    )
-    SELECT DISTINCT s.scientificName, b.taxon_id
+    ), query_override AS (${overrideCte})
+    SELECT DISTINCT s.scientificName, COALESCE(q.taxon_id, b.taxon_id) AS taxon_id
     FROM species_universe s
     LEFT JOIN inaturalist_data.canonical_to_taxon_id b
       ON LOWER(s.canonical_name) = b.canonical_name
+    LEFT JOIN query_override q
+      ON LOWER(s.canonical_name) = q.canonical_name
   `.replace(/\n\s+/g, ' ').trim();
+}
+
+export function loadTaxonIds(dbPath, queryTaxaCsv = INAT_QUERY_TAXA_CSV) {
+  const sql = buildTaxonIdSql(queryTaxaCsv);
   const json = execSync(`duckdb "${dbPath}" -json "${sql}"`, { encoding: 'utf-8' });
   const rows = JSON.parse(json);
   const map = new Map();

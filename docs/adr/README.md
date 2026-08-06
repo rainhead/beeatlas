@@ -33,3 +33,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0027](0027-identity-survives-going-offline.md) | Identity survives going offline, and an unverified identity is still an identity | Accepted |
 | [0028](0028-a-search-result-is-a-record-or-a-view.md) | A search result names a record or a view — a record is selected, a view is filtered | Accepted |
 | [0029](0029-one-origin-two-surfaces.md) | The app moves to the root, and offline stops at the map | Proposed |
+| [0030](0030-what-a-species-is-vs-what-to-ask-inat.md) | What a species *is* and what we *ask iNat about* are two different taxon IDs | Accepted |
