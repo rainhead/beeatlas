@@ -6,6 +6,10 @@ import {
   sortManifestSpecies,
   RateLimiter,
   buildTaxonIdSql,
+  normalizeName,
+  isCuratorTouched,
+  extractSpeciesComments,
+  reattachSpeciesComments,
   // @ts-expect-error -- .mjs source has no .d.ts; named exports are the contract
 } from '../../scripts/seed-species-photos.mjs';
 
@@ -143,6 +147,182 @@ describe('extractPhotos (PHOTO-02 + Pitfall 1 + PHOTO-04)', () => {
     expect(photos[0].attribution).toBe('(c) Jane Doe, some rights reserved (CC BY-NC)');
     expect(photos[0].observation_id).toBe(7);
     expect(photos[0].photo_id).toBe(42);
+  });
+});
+
+describe('extractPhotos: one photo per observation (beeatlas-zd7)', () => {
+  // The regression this file previously had no coverage for. 276 of 374 multi-photo
+  // species drew all three photos from a single observation, because the old loop
+  // walked every photo WITHIN an observation before advancing to the next one.
+  const multiPhotoObs = (obsId: number, photoIds: number[]) => ({
+    id: obsId,
+    photos: photoIds.map((id) => ({
+      id,
+      license_code: 'cc-by',
+      url: `https://x/photos/${id}/square.jpg`,
+      attribution: '(c) Test',
+    })),
+  });
+
+  test('takes ONE photo from an observation carrying three licensed photos', () => {
+    const photos = extractPhotos([multiPhotoObs(100, [1, 2, 3])]);
+    expect(photos).toHaveLength(1);
+    expect(photos[0].photo_id).toBe(1);
+  });
+
+  test('three photos come from three DISTINCT observations', () => {
+    const photos = extractPhotos([
+      multiPhotoObs(100, [1, 2, 3]),
+      multiPhotoObs(200, [4, 5, 6]),
+      multiPhotoObs(300, [7, 8, 9]),
+    ]);
+    expect(photos).toHaveLength(3);
+    expect(photos.map((p: { observation_id: number }) => p.observation_id)).toEqual([100, 200, 300]);
+    expect(new Set(photos.map((p: { observation_id: number }) => p.observation_id)).size).toBe(3);
+  });
+
+  test('skips to the next licensed photo when an observation leads with an unlicensed one', () => {
+    const obs = {
+      id: 1,
+      photos: [
+        { id: 1, license_code: 'all-rights-reserved', url: 'https://x/photos/1/square.jpg' },
+        { id: 2, license_code: 'cc0', url: 'https://x/photos/2/square.jpg', attribution: '' },
+      ],
+    };
+    const photos = extractPhotos([obs]);
+    expect(photos).toHaveLength(1);
+    expect(photos[0].photo_id).toBe(2);
+  });
+
+  test('a repeated observation id is only used once', () => {
+    const photos = extractPhotos([multiPhotoObs(100, [1]), multiPhotoObs(100, [2])]);
+    expect(photos).toHaveLength(1);
+  });
+
+  test('excludeObservations keeps a later region tier off an earlier tier’s observations', () => {
+    // Tiers are nested: every WA observation reappears in the PNW and global queries.
+    // Without this, topping up would re-select the same bee it already had.
+    const photos = extractPhotos(
+      [multiPhotoObs(100, [1]), multiPhotoObs(200, [2])],
+      3,
+      1,
+      new Set([100]),
+    );
+    expect(photos).toHaveLength(1);
+    expect(photos[0].observation_id).toBe(200);
+  });
+
+  test('observations with no id are skipped rather than colliding on undefined', () => {
+    const photos = extractPhotos([
+      { photos: [{ id: 1, license_code: 'cc0', url: 'https://x/photos/1/square.jpg' }] },
+      multiPhotoObs(200, [2]),
+    ]);
+    expect(photos).toHaveLength(1);
+    expect(photos[0].observation_id).toBe(200);
+  });
+});
+
+describe('normalizeName (beeatlas-zd7 casing bug)', () => {
+  // species_universe keys occurrence-only species on the LOWERCASE canonical_name while
+  // species.json is properly cased, so an exact-string lookup missed 104 of 630 species
+  // — Bombus fervidus among them, which would have left the ADR 0030 override inert.
+  test('matches across the casing split', () => {
+    expect(normalizeName('Bombus fervidus')).toBe(normalizeName('bombus fervidus'));
+  });
+
+  test('trims incidental whitespace', () => {
+    expect(normalizeName('  Apis mellifera ')).toBe('apis mellifera');
+  });
+
+  test('is total over null/undefined', () => {
+    expect(normalizeName(null)).toBe('');
+    expect(normalizeName(undefined)).toBe('');
+  });
+});
+
+describe('isCuratorTouched (D-01 survives --reselect)', () => {
+  test('a machine-seeded entry is replaceable', () => {
+    expect(isCuratorTouched({ description: '', photos: [{ caption: '' }] })).toBe(false);
+  });
+
+  test('a written description protects the entry', () => {
+    expect(isCuratorTouched({ description: 'Our commonest bumblebee.', photos: [] })).toBe(true);
+  });
+
+  test('a caption on any photo protects the entry', () => {
+    expect(
+      isCuratorTouched({ description: '', photos: [{ caption: '' }, { caption: 'male, on Cirsium' }] }),
+    ).toBe(true);
+  });
+
+  test('whitespace-only prose does not count as curation', () => {
+    expect(isCuratorTouched({ description: '   ', photos: [{ caption: '\n' }] })).toBe(false);
+  });
+
+  test('is total over missing fields', () => {
+    expect(isCuratorTouched({})).toBe(false);
+    expect(isCuratorTouched(undefined)).toBe(false);
+  });
+});
+
+describe('curator comments survive a rewrite (beeatlas-zd7)', () => {
+  // The zd7 re-selection deleted the file's only curator note — five lines explaining
+  // why the orphan Agapostemon texanus entry was deliberately left in place. @iarna/toml
+  // drops comments on parse, so they are invisible to the manifest object and therefore
+  // to isCuratorTouched. Losing them loses the reasoning, not just a string.
+  const raw = [
+    '[species."Andrena nigrihirta"]',
+    'description = ""',
+    '',
+    '# NOTE: synonymized within Washington; the validate-species warning is EXPECTED.',
+    '# Left as-is pending a curation call.',
+    '[species."Agapostemon texanus"]',
+    'description = ""',
+  ].join('\n');
+
+  test('harvests a comment block anchored to its species header', () => {
+    const comments = extractSpeciesComments(raw);
+    expect([...comments.keys()]).toEqual(['Agapostemon texanus']);
+    expect(comments.get('Agapostemon texanus')).toContain('pending a curation call');
+  });
+
+  test('does not attribute a comment to a species it does not precede', () => {
+    expect(extractSpeciesComments(raw).has('Andrena nigrihirta')).toBe(false);
+  });
+
+  test('reattaches the block above the right header after stringify', () => {
+    const comments = extractSpeciesComments(raw);
+    const out = reattachSpeciesComments(
+      '[species."Agapostemon subtilior"]\n[species."Agapostemon texanus"]\n',
+      comments,
+    );
+    expect(out).toMatch(/# NOTE[\s\S]*\n\[species\."Agapostemon texanus"\]/);
+    // and must not smear onto the neighbouring species
+    expect(out.indexOf('# NOTE')).toBeGreaterThan(out.indexOf('subtilior'));
+  });
+
+  test('a round trip through harvest + reattach is lossless', () => {
+    // Models real usage: harvest from the raw file, reattach to the COMMENT-FREE
+    // output of TOML.stringify — which is what render() does on every write.
+    const comments = extractSpeciesComments(raw);
+    const stringified = raw.split('\n').filter((l) => !l.trim().startsWith('#')).join('\n');
+    expect(stringified).not.toContain('#');
+
+    const out = reattachSpeciesComments(stringified, comments);
+    expect((out.match(/^#/gm) ?? []).length).toBe((raw.match(/^#/gm) ?? []).length);
+    expect(extractSpeciesComments(out)).toEqual(comments);
+  });
+
+  test('no comments is a no-op, not a crash', () => {
+    expect(extractSpeciesComments('').size).toBe(0);
+    expect(reattachSpeciesComments('[species."X"]', new Map())).toBe('[species."X"]');
+    expect(reattachSpeciesComments('[species."X"]', undefined)).toBe('[species."X"]');
+  });
+
+  test('the committed manifest still carries its curator note', () => {
+    // Regression pin: this note was destroyed once already.
+    const manifest = readFileSync(resolve(ROOT, 'content/species-photos.toml'), 'utf-8');
+    expect(extractSpeciesComments(manifest).has('Agapostemon texanus')).toBe(true);
   });
 });
 
