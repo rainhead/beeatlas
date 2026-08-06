@@ -29,10 +29,15 @@
 // reader never receives the meta-refresh HTML, never sees the "reason" line, and never
 // sees whatever `source` says. Verified against production 2026-08-06.
 //
-// The pages are kept deliberately: they are the fallback if the Apache Include is ever
-// dropped, and they carry rel=canonical. But do not reason about the reason line as
-// user-facing copy, and do not treat a build-output assertion on its text as evidence
-// that anyone can read it. See beeatlas-5np for whether to keep them at all.
+// That is BY DESIGN, not an oversight — beeatlas-species-redirects.conf calls these
+// pages "belt and braces": if the map is ever missing or stale, the reader is still
+// forwarded, so the failure mode is a slower redirect rather than a 404. Keep emitting
+// them, and keep testing them; they are the fallback, and rel=canonical rides on them.
+//
+// The one thing not to conclude is that the reason line is user-facing COPY. On a
+// healthy server nobody reads it, so it is worth no wordsmithing and no publish of its
+// own — which is also why a bug in it can survive being "verified" by rendering the
+// page locally.
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
