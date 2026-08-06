@@ -324,6 +324,11 @@ async function fetchInatPage(params, rateLimiter, label) {
  * Ranking inside this pool is safe in a way that ranking the open pool is not: every
  * candidate is already a Washington bee an expert put a name on, so faves is selecting
  * for photography among determinable individuals rather than for the odd bee.
+ *
+ * NOTE: no quality_grade filter here, unlike tiers 2-4. An expert determination from our
+ * own arms is a stronger claim than iNat's research grade (two agreeing community IDs),
+ * so a `needs_id` observation in this pool is still a determined bee — filtering it out
+ * would discard the very records this tier exists to reach.
  */
 async function fetchVettedPhotos(observationIds, rateLimiter) {
   if (!observationIds?.length) return [];

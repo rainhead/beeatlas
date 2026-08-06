@@ -72,6 +72,13 @@ arms — 28,890 observations covering 294 species, 198 of them with three or mor
 hard genera where research-grade community IDs are unreliable, this is a materially
 better determination than iNat's own.
 
+Tier 1 deliberately applies **no `quality_grade` filter**, unlike tiers 2–4. Research
+grade means two agreeing community IDs; an expert determination carried by our own arms
+is the stronger claim, so a `needs_id` observation here is still a determined bee.
+Filtering on research grade would discard exactly the records this tier exists to reach.
+One of the three shipped *B. fervidus* photos (obs 129186130, Wenatchee) is `needs_id`
+for this reason.
+
 ### 3. `order_by=votes` is retained, deliberately
 
 Faves reward the unusual individual — but they also reward focus, lighting, and framing,
