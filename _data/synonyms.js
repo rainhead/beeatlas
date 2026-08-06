@@ -18,11 +18,21 @@
 // redirect with it. No new artifact, no manifest key, nothing for the pipeline
 // to publish.
 //
-// A true 301 would be better for search engines, but the serving vhost sets
-// AllowOverride None, so a build-emitted .htaccess is ignored and a redirect
-// rule would have to live in Apache config outside this repo. A zero-delay meta
-// refresh plus rel=canonical is the static-hosting equivalent and is treated as
-// a permanent redirect.
+// A true 301 would be better for search engines, and SINCE THIS WAS WRITTEN we have
+// one. The obstacle described here — AllowOverride None, so a build-emitted .htaccess
+// is ignored — was solved from the other side instead: species-redirects-map.njk emits
+// `species-redirects.map`, and Apache reads it as a RewriteMap via an Include outside
+// this repo (/etc/apache2/beeatlas-species-redirects.conf, included from both vhosts).
+//
+// CONSEQUENCE, which is easy to miss: the pages this file generates are NO LONGER
+// SERVED. Apache 301s /species/<Genus>/<folded>/ straight to the accepted name, so a
+// reader never receives the meta-refresh HTML, never sees the "reason" line, and never
+// sees whatever `source` says. Verified against production 2026-08-06.
+//
+// The pages are kept deliberately: they are the fallback if the Apache Include is ever
+// dropped, and they carry rel=canonical. But do not reason about the reason line as
+// user-facing copy, and do not treat a build-output assertion on its text as evidence
+// that anyone can read it. See beeatlas-5np for whether to keep them at all.
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -36,13 +46,24 @@ const seedsDir = join(here, '..', 'data', 'dbt', 'seeds');
 // usually header-only; it is read anyway so a future entry is not silently missed.
 const SEEDS = ['occurrence_synonyms.csv', 'auto_synonyms.csv', 'gbif_checklist_synonyms.csv'];
 
-// These CSVs are hand-maintained and quote nothing, so a split is enough — but
-// the two seed shapes differ, and the header says which is which. The curated
-// seeds end at `source`, whose prose may contain commas, so everything after the
-// second comma is the source. gbif_checklist_synonyms carries three more columns
-// after it (usage key, match type, confidence), so there the source is one field.
-// Reading the header rather than assuming keeps a column added upstream from
-// silently landing in the text shown to a reader.
+// The two seed shapes differ, and the header says which is which. The curated seeds
+// end at `source`, whose prose may contain commas, so everything after the second
+// comma is the source. gbif_checklist_synonyms carries three more columns after it
+// (usage key, match type, confidence), so there the source is one field. Reading the
+// header rather than assuming keeps a column added upstream from silently landing in
+// the text shown to a reader.
+//
+// `source` MAY be RFC4180-quoted. It went unquoted for a long time, so this used to
+// split and take the rest — until a citation containing commas was added, quoted, and
+// the surrounding quote characters leaked into the rendered text. dbt's seed loader
+// parses quoting properly, so the database was right and only this reader was wrong,
+// which is the kind of divergence that survives review. Unquote explicitly.
+function unquoteCsvField(value) {
+  const v = value.trim();
+  if (v.length < 2 || !v.startsWith('"') || !v.endsWith('"')) return v;
+  return v.slice(1, -1).replace(/""/g, '"'); // RFC4180 escapes a quote by doubling it
+}
+
 function readSynonymSeed(file) {
   let text;
   try {
@@ -64,7 +85,7 @@ function readSynonymSeed(file) {
       return {
         synonym: line.slice(0, first).trim(),
         accepted: line.slice(first + 1, second).trim(),
-        source: (sourceIsRest ? tail : tail.split(',')[0]).trim(),
+        source: unquoteCsvField(sourceIsRest ? tail : tail.split(',')[0]),
       };
     })
     .filter(Boolean);
