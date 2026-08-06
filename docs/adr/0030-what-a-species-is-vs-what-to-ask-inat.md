@@ -68,12 +68,22 @@ For the latter two the complex adds nothing in Washington and adds *wrong* speci
 globally.
 
 The *A. subtilior* row is not a numerical coincidence, which matters because a
-coincidence could drift. **All PNW *Agapostemon texanus* are in fact *A. subtilior***
-(Peter, 2026-08-06) — true texanus does not occur here, and iNat's own data agrees:
-narrow texanus (1581468) has **zero** research-grade records in Washington and zero
-across OR/ID/BC, against 858 subtilior over the same area. The complex can therefore
-never hold a regional record the narrow species misses, so querying narrow subtilior is
-correct by range rather than by luck.
+coincidence could drift. **All PNW *Agapostemon texanus* are in fact *A. subtilior*** —
+true texanus does not occur here. That is the finding of the paper our synonymy already
+cites: Portman *et al.* 2024 reinstates *A. subtilior* Cockerell as a valid species and
+puts *A. texanus* s.s. in "a relatively restricted range in the prairie region of the
+United States, with *A. subtilior* making up the bulk of what was formerly considered
+*A. texanus*."[^portman] The Pacific Northwest is not prairie.
+
+iNat's own data agrees: narrow texanus (1581468) has **zero** research-grade records in
+Washington and zero across OR/ID/BC, against 858 subtilior over the same area. The
+complex can therefore never hold a regional record the narrow species misses, so
+querying narrow subtilior is correct **by range**, not by luck.
+
+[^portman]: Portman Z.M., Arduser M., Powley M.E. & Cariveau D.P. 2024. Taxonomy of
+    *Agapostemon angelicus* and the *A. texanus* species complex (Hymenoptera,
+    Halictidae) in the United States. *European Journal of Taxonomy* 958(1): 203–241.
+    <https://doi.org/10.5852/ejt.2024.958.2671>
 
 ## Decision
 
