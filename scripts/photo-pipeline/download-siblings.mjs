@@ -9,7 +9,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { OUT, IMAGES } from './config.mjs';
+import { OUT, IMAGES , downscale } from './config.mjs';
 
 if (!existsSync(IMAGES)) mkdirSync(IMAGES, { recursive: true });
 const { rows } = JSON.parse(readFileSync(path.join(OUT, 'siblings.json'), 'utf8'));
@@ -50,7 +50,7 @@ for (const p of pool) {
     const res = await fetch(p.url);
     if (!res.ok) { p.download_error = `HTTP ${res.status}`; failed++; await sleep(1000); continue; }
     writeFileSync(p.full_path, Buffer.from(await res.arrayBuffer()));
-    execFileSync('/usr/bin/sips', ['-Z', '512', '-s', 'format', 'jpeg', p.full_path, '--out', p.small_path], { stdio: 'ignore' });
+    downscale(p.full_path, p.small_path);
     got++;
   } catch (e) {
     p.download_error = String(e).slice(0, 120); failed++; await sleep(1000); continue;

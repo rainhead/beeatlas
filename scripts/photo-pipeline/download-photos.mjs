@@ -18,7 +18,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import TOML from '@iarna/toml';
-import { MANIFEST, IMAGES, OUT } from './config.mjs';
+import { MANIFEST, IMAGES, OUT , downscale } from './config.mjs';
 
 const arg = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i === -1 ? d : Number(process.argv[i + 1]); };
 const LIMIT = arg('limit', Infinity);
@@ -77,9 +77,7 @@ for (const p of pool) {
     const res = await fetch(p.url);
     if (!res.ok) { p.download_error = `HTTP ${res.status}`; failed++; await sleep(1000); continue; }
     writeFileSync(p.full_path, Buffer.from(await res.arrayBuffer()));
-    // sips ships with macOS -- no image dependency. -Z fits the LONGEST edge, preserving
-    // aspect ratio, so normalized box coordinates stay meaningful.
-    execFileSync('/usr/bin/sips', ['-Z', '512', '-s', 'format', 'jpeg', p.full_path, '--out', p.small_path], { stdio: 'ignore' });
+    downscale(p.full_path, p.small_path);
     got++;
   } catch (e) {
     // One bad photo must not abandon a 1,000-item run.

@@ -205,3 +205,235 @@ export const boxArea = (b) => (Math.abs(b.x1 - b.x0) * Math.abs(b.y1 - b.y0)) / 
 /** How many frame edges the box touches. 3-4 is a strong crop signal, independent of the model. */
 export const edgesTouched = (b, tol = 15) =>
   (b.x0 <= tol) + (b.y0 <= tol) + (b.x1 >= 1000 - tol) + (b.y1 >= 1000 - tol);
+
+// ---------------------------------------------------------------------------
+// View classification: which slate slot does this photo fill?
+//
+// The general slate (beeatlas-g9f): lateral habitus, dorsal habitus, frontal, wing
+// venation. Note that mixes two axes -- three are ANGLES on a whole animal, one is a
+// STRUCTURE shown close up. So this asks for both and the slot is derived, rather than
+// asking for a slot directly and hoping the model splits the axes the same way we do.
+//
+// ANGLE IS DECIDED BY SYMMETRY, not by estimating a camera position. Dorsal, ventral and
+// frontal are all views ALONG the bee's plane of symmetry; lateral is that plane seen
+// EDGE-ON. Peter could not apply "oblique" consistently when it was left undefined, and
+// gemma chose it for 10 of 12 photos -- a catch-all swallows the axis. The tie-break
+// toward a named view is what keeps that from happening.
+// ---------------------------------------------------------------------------
+
+export const VIEW_SCHEMA = {
+  type: 'object',
+  properties: {
+    angle: {
+      type: 'string',
+      enum: ['dorsal', 'lateral', 'ventral', 'frontal', 'oblique'],
+      description: "The camera's viewpoint on the bee, decided by symmetry.",
+    },
+    subject: {
+      type: 'string',
+      enum: ['whole-animal', 'head', 'thorax', 'abdomen', 'wing', 'legs', 'other'],
+      description: 'What fills the frame. whole-animal when the entire bee is shown.',
+    },
+    wing_venation_traceable: {
+      type: 'boolean',
+      description: 'Can individual wing veins and the cells between them be followed?',
+    },
+  },
+  required: ['angle', 'subject', 'wing_venation_traceable'],
+  additionalProperties: false,
+};
+
+export const VIEW_PROMPT = `This is a photograph of a bee, from a reference collection.
+
+1. ANGLE — the camera's viewpoint on the bee. Five views, each with a POSITIVE test.
+   Apply them by asking what you can SEE, not by estimating a camera position.
+
+   dorsal   — you are looking squarely at the BACK. The midline runs down the picture,
+              tergite bands cross it symmetrically, wings lie to either side. Left and
+              right are mirror images.
+   ventral  — squarely at the UNDERSIDE: sternites, and the mouthparts seen from below.
+   frontal  — squarely at the FACE, down the bee's long axis. Both eyes and both antennal
+              sockets, roughly mirror-image.
+   lateral  — a TRUE SIDE PROFILE. You see one side only; the far side is hidden and the
+              midline is not visible.
+   oblique  — a THREE-QUARTER view: TWO surfaces visible at once, for example the back AND
+              one flank, or the face AND one side. The bee is turned away from square.
+
+   OBLIQUE IS A FIRST-CLASS VIEW, not a leftover. Three-quarter views are common in bee
+   photography and are often the single most useful view of an animal, because they show
+   more of it than any square-on view does. Do not avoid it, and do not treat it as an
+   admission of uncertainty.
+
+   WHICH TO CHOOSE: use dorsal, ventral, frontal or lateral only when the bee is presented
+   SQUARE-ON to that surface — near-symmetric for the first three, a clean profile for
+   lateral. As soon as two surfaces are substantially visible at once, the answer is
+   oblique.
+
+2. SUBJECT — what fills the frame. Answer "whole-animal" when the entire bee is present,
+   even if partly obscured or with a leg or antenna tip cropped. Name a structure only
+   when that structure fills the frame and the rest of the bee is absent.
+
+3. WING_VENATION_TRACEABLE — can individual wing veins, and the cells between them, be
+   followed by eye? True only if the venation pattern could be compared against a key.
+   A wing that is present but blurred, folded, or overlapping the body is false.`;
+
+/**
+ * Map a classification onto a slate slot. Derived rather than asked, so a wrong slot can
+ * be traced to which judgement produced it.
+ *
+ * A photo can serve more than one slot: a lateral habitus with traceable venation is both
+ * a lateral habitus and a wing-venation reference. Returning a LIST keeps that, which
+ * matters when the slate is a coverage target and photos are scarce.
+ */
+export function slateSlots(view) {
+  if (!view) return [];
+  const slots = [];
+  const whole = view.subject === 'whole-animal';
+  if (whole && view.angle === 'lateral') slots.push('lateral habitus');
+  if (whole && view.angle === 'dorsal') slots.push('dorsal habitus');
+  if (view.angle === 'frontal' || (!whole && view.subject === 'head')) slots.push('frontal');
+  if (view.wing_venation_traceable) slots.push('wing venation');
+  return slots;
+}
+
+// ---------------------------------------------------------------------------
+// Part visibility: score how well each body part is shown, 0-3.
+//
+// Replaces the single-select `subject` control, which Peter identified as unable to
+// express a real photo ("primarily legs, head and thorax, with some abdomen visible") and
+// which measured nothing anyway -- 90% accuracy against an 88% baseline.
+//
+// The ladder is the LEGIBILITY idea from the first day, made ordinal: the top rung means
+// the part could be compared against a key, not merely that it is present. Summing the
+// scores gives an information-content number, which is Peter's stated reason for
+// preferring lateral habitus ("it showed the most body parts") expressed as something a
+// machine can compute.
+//
+// NOTE this does NOT recover the dorsal-vs-lateral distinction -- both show much the same
+// parts. Angle and part-visibility are different questions and this answers only the
+// second.
+// ---------------------------------------------------------------------------
+
+export const PART_KEYS = ['head', 'thorax', 'abdomen', 'wings', 'legs'];
+
+const partScore = (part, detail) => ({
+  type: 'integer',
+  enum: [0, 1, 2, 3],
+  description: `${part}. 0 = not visible. 1 = present but not readable (blurred, edge-on, obscured). 2 = clearly visible, shape and colour readable. 3 = diagnostic detail readable (${detail}).`,
+});
+
+export const PARTS_SCHEMA = {
+  type: 'object',
+  properties: {
+    head: partScore('Head', 'facial markings, antennae, eye margins'),
+    thorax: partScore('Thorax', 'scutum punctation, hair pattern, scutellum shape'),
+    abdomen: partScore('Abdomen', 'tergite banding and punctation'),
+    wings: partScore('Wings', 'individual veins and the cells between them'),
+    legs: partScore('Legs', 'tibial and tarsal structure, scopa if present'),
+  },
+  required: ['head', 'thorax', 'abdomen', 'wings', 'legs'],
+  additionalProperties: false,
+};
+
+export const PARTS_PROMPT = `This is a photograph of a bee, from a reference collection.
+
+Score how well each body part is shown, on this scale:
+
+  0  NOT VISIBLE — absent from the picture, or completely hidden.
+  1  PRESENT BUT NOT READABLE — you can tell it is there, but not much else: blurred,
+     edge-on, deep in shadow, or obscured by a flower, another body part, or vial plastic.
+  2  CLEARLY VISIBLE — shape, proportions and colour can be made out.
+  3  DIAGNOSTIC DETAIL READABLE — fine structure could be compared against an
+     identification key.
+
+What counts as diagnostic detail differs per part:
+  head     facial markings, antennae, eye margins
+  thorax   scutum punctation, hair pattern, scutellum shape
+  abdomen  tergite banding and punctation
+  wings    individual veins and the cells between them
+  legs     tibial and tarsal structure, scopa if present
+
+Score what you can actually SEE. A part that is turned away from the camera, or
+foreshortened so its structure cannot be judged, is not readable however sharp the photo
+is. Be strict about 3: reserve it for detail a person could key from.`;
+
+/** Sum of part scores: how much of the bee this photo actually documents. Max 15. */
+export const informationScore = (parts) =>
+  parts ? PART_KEYS.reduce((a, k) => a + (Number(parts[k]) || 0), 0) : null;
+
+/**
+ * Downscale to 512px, portably.
+ *
+ * sips ships with macOS and nothing else; maderas (Ubuntu) has vips and ImageMagick. The
+ * pipeline needs to run in both places -- the laptop for interactive work, the server for
+ * long pulls, where the network is better and a 14-hour job does not block a laptop.
+ *
+ * vips is preferred over ImageMagick on the server: it streams rather than loading whole
+ * images, which matters on a 3 GB box.
+ *
+ * Fits the LONGEST edge, preserving aspect ratio, so normalized box coordinates stay
+ * meaningful across tools.
+ */
+import { execFileSync } from 'node:child_process';
+import { existsSync as _exists } from 'node:fs';
+
+let _downscaler = null;
+function pickDownscaler() {
+  if (_downscaler) return _downscaler;
+  const candidates = [
+    { bin: '/usr/bin/sips', build: (src, dst) => ['-Z', '512', '-s', 'format', 'jpeg', src, '--out', dst] },
+    { bin: '/usr/bin/vipsthumbnail', build: (src, dst) => [src, '--size', '512x512', '-o', `${dst}[Q=88]`] },
+    { bin: '/usr/bin/vips', build: (src, dst) => ['thumbnail', src, dst, '512'] },
+    { bin: '/usr/bin/convert', build: (src, dst) => [src, '-resize', '512x512>', '-quality', '88', dst] },
+  ];
+  _downscaler = candidates.find((c) => _exists(c.bin));
+  if (!_downscaler) throw new Error('no downscaler found (looked for sips, vipsthumbnail, vips, convert)');
+  return _downscaler;
+}
+
+export function downscale(src, dst) {
+  const d = pickDownscaler();
+  execFileSync(d.bin, d.build(src, dst), { stdio: 'ignore' });
+}
+export const downscalerName = () => pickDownscaler().bin;
+
+/**
+ * Fetch and downscale many photos concurrently.
+ *
+ * PHOTO-07's <=1 req/sec governs the iNat API (api.inaturalist.org) -- in
+ * seed-species-photos.mjs the RateLimiter is wired only into fetchInatPage. Photo FILES
+ * come from inaturalist-open-data.s3.amazonaws.com, an AWS Open Data bucket published for
+ * bulk access. Applying the API limit to it was my own over-caution and cost 20x: measured
+ * 20.8 photos/sec at 8 concurrent versus 1/sec serial, which is 40 minutes rather than 14
+ * hours for a full pull.
+ *
+ * Kept modest at 8. This is someone else's bucket even if it is meant for bulk reads.
+ *
+ * ORIGINALS ARE OPTIONAL: 50k full-size photos is ~15 GB, and only the 512px copies are
+ * ever scored. keepOriginals=false deletes each original after downscaling.
+ */
+export async function fetchPhotos(items, { concurrency = 8, keepOriginals = true, onProgress } = {}) {
+  const { writeFileSync, existsSync, unlinkSync } = await import('node:fs');
+  let cursor = 0, got = 0, cached = 0, failed = 0;
+
+  async function worker() {
+    while (cursor < items.length) {
+      const p = items[cursor++];
+      if (existsSync(p.small_path)) { cached++; continue; }
+      try {
+        const res = await fetch(p.url);
+        if (!res.ok) { p.download_error = `HTTP ${res.status}`; failed++; continue; }
+        writeFileSync(p.full_path, Buffer.from(await res.arrayBuffer()));
+        downscale(p.full_path, p.small_path);
+        if (!keepOriginals) { try { unlinkSync(p.full_path); delete p.full_path; } catch {} }
+        got++;
+        if (onProgress && got % 100 === 0) onProgress({ got, cached, failed, total: items.length });
+      } catch (e) {
+        p.download_error = String(e).slice(0, 120);
+        failed++;
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.max(1, concurrency) }, worker));
+  return { got, cached, failed };
+}
