@@ -305,31 +305,22 @@ description = ""
 description = ""
 
   [[species."Andrena auricoma".photos]]
-  observation_id = 47_320_057
-  photo_id = 75_041_248
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/75041248/large.jpg"
+  observation_id = 247_381_037
+  photo_id = 441_815_193
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/441815193/large.jpg"
   caption = ""
-  attribution = "(c) Parks Canada @ Fort Rodd Hill, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Andrena auricoma".photos]]
-  observation_id = 46_387_924
-  photo_id = 73_569_015
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/73569015/large.jpg"
+  observation_id = 247_392_086
+  photo_id = 441_838_057
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/441838057/large.jpg"
   caption = ""
-  attribution = "(c) Parks Canada @ Fort Rodd Hill, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
-
-  [[species."Andrena auricoma".photos]]
-  observation_id = 46_883_376
-  photo_id = 74_339_705
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/74339705/large.jpeg"
-  caption = ""
-  attribution = "no rights reserved"
-  license = "cc0"
-  ordering = 3
 
 [species."Andrena barbilabris"]
 description = ""
@@ -507,6 +498,15 @@ description = ""
 
 [species."Andrena chlorogaster"]
 description = ""
+
+  [[species."Andrena chlorogaster".photos]]
+  observation_id = 248_202_233
+  photo_id = 443_434_847
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/443434847/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
 
 [species."Andrena chlorura"]
 description = ""
@@ -943,6 +943,33 @@ description = ""
 [species."Andrena medionitens"]
 description = ""
 
+  [[species."Andrena medionitens".photos]]
+  observation_id = 247_393_441
+  photo_id = 441_840_825
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/441840825/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+
+  [[species."Andrena medionitens".photos]]
+  observation_id = 247_499_803
+  photo_id = 442_049_106
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/442049106/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+
+  [[species."Andrena medionitens".photos]]
+  observation_id = 244_428_683
+  photo_id = 435_999_423
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/435999423/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 3
+
 [species."Andrena melanochroa"]
 description = ""
 
@@ -1145,29 +1172,29 @@ description = ""
 description = ""
 
   [[species."Andrena nigrocaerulea".photos]]
-  observation_id = 328_995_958
-  photo_id = 596_276_097
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/596276097/large.jpg"
+  observation_id = 209_929_399
+  photo_id = 371_409_890
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/371409890/large.jpeg"
   caption = ""
   attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Andrena nigrocaerulea".photos]]
-  observation_id = 247_814_478
-  photo_id = 442_675_130
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/442675130/large.jpg"
+  observation_id = 247_492_115
+  photo_id = 442_033_740
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/442033740/large.jpg"
   caption = ""
-  attribution = "(c) Aidan Hersh, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Andrena nigrocaerulea".photos]]
-  observation_id = 328_995_949
-  photo_id = 596_275_907
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/596275907/large.jpg"
+  observation_id = 241_311_704
+  photo_id = 430_055_216
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/430055216/large.jpg"
   caption = ""
-  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -1253,29 +1280,29 @@ description = ""
 description = ""
 
   [[species."Andrena pallidifovea".photos]]
-  observation_id = 71_471_776
-  photo_id = 116_369_398
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/116369398/large.jpg"
+  observation_id = 246_708_841
+  photo_id = 440_482_588
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/440482588/large.jpg"
   caption = ""
-  attribution = "(c) Patricia Simpson, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Andrena pallidifovea".photos]]
-  observation_id = 71_487_030
-  photo_id = 116_395_125
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/116395125/large.jpeg"
+  observation_id = 246_709_200
+  photo_id = 440_483_147
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/440483147/large.jpg"
   caption = ""
-  attribution = "(c) Patricia Simpson, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Andrena pallidifovea".photos]]
-  observation_id = 72_042_774
-  photo_id = 117_389_498
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/117389498/large.jpeg"
+  observation_id = 247_377_526
+  photo_id = 441_808_467
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/441808467/large.jpg"
   caption = ""
-  attribution = "(c) Cindy Pencek, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -1421,29 +1448,29 @@ description = ""
 description = ""
 
   [[species."Andrena prunorum".photos]]
-  observation_id = 28_597_732
-  photo_id = 44_591_137
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/44591137/large.jpeg"
+  observation_id = 168_612_723
+  photo_id = 292_238_451
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/292238451/large.jpeg"
   caption = ""
-  attribution = "(c) Edmond Akopian, Ph.D., some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
+  attribution = "(c) giantcicada, some rights reserved (CC BY)"
+  license = "cc-by"
   ordering = 1
 
   [[species."Andrena prunorum".photos]]
-  observation_id = 65_205_094
-  photo_id = 104_912_269
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/104912269/large.jpeg"
+  observation_id = 174_608_541
+  photo_id = 303_360_445
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/303360445/large.jpeg"
   caption = ""
-  attribution = "(c) Lisa H. Robinson, some rights reserved (CC BY-NC)"
+  attribution = "(c) neilpa, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Andrena prunorum".photos]]
-  observation_id = 108_711_472
-  photo_id = 183_087_976
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/183087976/large.jpeg"
+  observation_id = 85_146_835
+  photo_id = 140_047_083
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/140047083/large.jpg"
   caption = ""
-  attribution = "(c) Lisa H. Robinson, some rights reserved (CC BY-NC)"
+  attribution = "(c) kcmaynard, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -1536,6 +1563,15 @@ description = ""
 
 [species."Andrena scurra"]
 description = ""
+
+  [[species."Andrena scurra".photos]]
+  observation_id = 330_668_593
+  photo_id = 599_670_175
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/599670175/large.jpg"
+  caption = ""
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
 
 [species."Andrena scutellinitens"]
 description = ""
@@ -2123,29 +2159,29 @@ description = ""
 description = ""
 
   [[species."Anthidium manicatum".photos]]
-  observation_id = 313_480_278
-  photo_id = 566_109_324
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/566109324/large.jpg"
+  observation_id = 169_844_966
+  photo_id = 294_497_101
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/294497101/large.jpg"
   caption = ""
-  attribution = "(c) song_dog, some rights reserved (CC BY-NC)"
+  attribution = "(c) Lisa Hill, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Anthidium manicatum".photos]]
-  observation_id = 127_701_669
-  photo_id = 216_827_384
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/216827384/large.jpeg"
+  observation_id = 219_449_534
+  photo_id = 388_429_621
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/388429621/large.jpeg"
   caption = ""
-  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  attribution = "(c) janeabel, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Anthidium manicatum".photos]]
-  observation_id = 127_709_613
-  photo_id = 216_841_854
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/216841854/large.jpeg"
+  observation_id = 225_848_009
+  photo_id = 400_471_504
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/400471504/large.jpeg"
   caption = ""
-  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  attribution = "(c) Elke Davis, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -2516,29 +2552,29 @@ description = ""
 description = ""
 
   [[species."Anthophora pacifica".photos]]
-  observation_id = 163_053_052
-  photo_id = 281_978_504
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/281978504/large.jpg"
+  observation_id = 152_514_475
+  photo_id = 263_293_868
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/263293868/large.jpeg"
   caption = ""
-  attribution = "(c) Scott Ramos, some rights reserved (CC BY-NC)"
+  attribution = "(c) janeabel, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Anthophora pacifica".photos]]
-  observation_id = 73_091_460
-  photo_id = 119_285_596
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/119285596/large.jpeg"
+  observation_id = 266_487_149
+  photo_id = 478_812_199
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/478812199/large.jpg"
   caption = ""
-  attribution = "(c) Lisa H. Robinson, some rights reserved (CC BY-NC)"
+  attribution = "(c) janeabel, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Anthophora pacifica".photos]]
-  observation_id = 108_777_097
-  photo_id = 183_089_844
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/183089844/large.jpeg"
+  observation_id = 205_324_149
+  photo_id = 363_038_501
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/363038501/large.jpeg"
   caption = ""
-  attribution = "(c) Lisa H. Robinson, some rights reserved (CC BY-NC)"
+  attribution = "(c) janeabel, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -2636,29 +2672,29 @@ description = ""
 description = ""
 
   [[species."Anthophora urbana".photos]]
-  observation_id = 306_535_152
-  photo_id = 552_807_046
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/552807046/large.jpg"
+  observation_id = 241_050_667
+  photo_id = 429_551_049
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/429551049/large.jpg"
   caption = ""
-  attribution = "(c) Lisa Hill, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Anthophora urbana".photos]]
-  observation_id = 93_115_886
-  photo_id = 154_283_657
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/154283657/large.jpg"
+  observation_id = 241_054_409
+  photo_id = 429_559_124
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/429559124/large.jpg"
   caption = ""
-  attribution = "(c) Lisa Hill, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Anthophora urbana".photos]]
-  observation_id = 93_672_517
-  photo_id = 155_286_643
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/155286643/large.jpg"
+  observation_id = 231_336_159
+  photo_id = 410_862_271
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/410862271/large.jpeg"
   caption = ""
-  attribution = "(c) Lisa Hill, some rights reserved (CC BY-NC)"
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -2754,6 +2790,15 @@ description = ""
 
 [species."Ashmeadiella aridula"]
 description = ""
+
+  [[species."Ashmeadiella aridula".photos]]
+  observation_id = 238_105_907
+  photo_id = 423_822_543
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/423822543/large.jpeg"
+  caption = ""
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
 
 [species."Ashmeadiella bucconis"]
 description = ""
@@ -2878,36 +2923,63 @@ description = ""
 [species."Atoposmia abjecta"]
 description = ""
 
+  [[species."Atoposmia abjecta".photos]]
+  observation_id = 250_358_611
+  photo_id = 447_737_292
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/447737292/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+
+  [[species."Atoposmia abjecta".photos]]
+  observation_id = 241_526_369
+  photo_id = 430_465_221
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/430465221/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+
 [species."Atoposmia copelandica"]
 description = ""
 
   [[species."Atoposmia copelandica".photos]]
-  observation_id = 321_358_960
-  photo_id = 581_169_521
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/581169521/large.jpg"
+  observation_id = 250_353_661
+  photo_id = 447_727_332
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/447727332/large.jpg"
   caption = ""
-  attribution = "(c) Bob McDougall, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Atoposmia copelandica".photos]]
-  observation_id = 56_141_253
-  photo_id = 89_443_558
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/89443558/large.jpeg"
+  observation_id = 249_821_773
+  photo_id = 446_660_617
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/446660617/large.jpg"
   caption = ""
-  attribution = "(c) Shaun Michael, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
+
+  [[species."Atoposmia copelandica".photos]]
+  observation_id = 249_820_854
+  photo_id = 446_658_768
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/446658768/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 3
 
 [species."Atoposmia elongata"]
 description = ""
 
   [[species."Atoposmia elongata".photos]]
-  observation_id = 144_393_570
-  photo_id = 247_810_284
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/247810284/large.jpeg"
+  observation_id = 249_813_775
+  photo_id = 446_643_726
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/446643726/large.jpg"
   caption = ""
-  attribution = "(c) rwr, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
@@ -2996,30 +3068,30 @@ description = ""
 description = ""
 
   [[species."Bombus appositus".photos]]
-  observation_id = 224_820_281
-  photo_id = 398_516_899
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/398516899/large.jpg"
+  observation_id = 176_722_501
+  photo_id = 307_279_828
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/307279828/large.jpg"
   caption = ""
-  attribution = "(c) Aidan Hersh, some rights reserved (CC BY-NC)"
+  attribution = "(c) Carter Urnes, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Bombus appositus".photos]]
-  observation_id = 83_858_407
-  photo_id = 137_760_661
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/137760661/large.jpg"
+  observation_id = 237_363_825
+  photo_id = 422_424_156
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/422424156/large.jpeg"
   caption = ""
-  attribution = "(c) JCE, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
+  attribution = "no rights reserved"
+  license = "cc0"
   ordering = 2
 
   [[species."Bombus appositus".photos]]
-  observation_id = 85_159_072
-  photo_id = 140_070_091
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/140070091/large.jpg"
+  observation_id = 392_042
+  photo_id = 490_621
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/490621/large.JPG"
   caption = ""
-  attribution = "(c) walinda, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
+  attribution = "(c) 101595408250610106310, some rights reserved (CC BY)"
+  license = "cc-by"
   ordering = 3
 
 [species."Bombus caliginosus"]
@@ -3266,29 +3338,29 @@ description = ""
 description = ""
 
   [[species."Bombus impatiens".photos]]
-  observation_id = 213_283_862
-  photo_id = 376_924_483
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/376924483/large.jpeg"
+  observation_id = 183_893_202
+  photo_id = 320_898_382
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/320898382/large.jpg"
   caption = ""
-  attribution = "(c) Annie Jolliff, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
+  attribution = "no rights reserved"
+  license = "cc0"
   ordering = 1
 
   [[species."Bombus impatiens".photos]]
-  observation_id = 111_559_017
-  photo_id = 188_337_769
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/188337769/large.jpeg"
+  observation_id = 184_449_654
+  photo_id = 321_969_353
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/321969353/large.jpeg"
   caption = ""
   attribution = "(c) Annie Jolliff, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Bombus impatiens".photos]]
-  observation_id = 116_708_332
-  photo_id = 197_029_220
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/197029220/large.jpg"
+  observation_id = 8_318_141
+  photo_id = 11_046_280
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/11046280/large.jpg"
   caption = ""
-  attribution = "(c) JCE, some rights reserved (CC BY-NC)"
+  attribution = "(c) Pam Borso, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -3626,29 +3698,29 @@ description = ""
 description = ""
 
   [[species."Bombus vagans".photos]]
-  observation_id = 118_615_977
-  photo_id = 200_432_833
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/200432833/large.jpeg"
+  observation_id = 131_636_551
+  photo_id = 224_040_772
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/224040772/large.jpg"
   caption = ""
-  attribution = "(c) Lapis Mothman, some rights reserved (CC BY-NC)"
+  attribution = "(c) Neil Gilham, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Bombus vagans".photos]]
-  observation_id = 132_613_928
-  photo_id = 225_832_212
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/225832212/large.jpeg"
+  observation_id = 197_865_097
+  photo_id = 348_603_117
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/348603117/large.jpg"
   caption = ""
-  attribution = "(c) Randy McKeen-Baker, some rights reserved (CC BY-NC)"
+  attribution = "(c) Lisa Hill, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Bombus vagans".photos]]
-  observation_id = 133_801_021
-  photo_id = 228_203_038
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/228203038/large.jpeg"
+  observation_id = 305_876_243
+  photo_id = 551_546_368
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/551546368/large.jpg"
   caption = ""
-  attribution = "(c) faybel, some rights reserved (CC BY-NC)"
+  attribution = "(c) Jack Cochran, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -3686,29 +3758,29 @@ description = ""
 description = ""
 
   [[species."Bombus vandykei".photos]]
-  observation_id = 126_113_769
-  photo_id = 213_940_296
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/213940296/large.png"
+  observation_id = 280_284_281
+  photo_id = 503_382_295
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/503382295/large.jpeg"
   caption = ""
-  attribution = "(c) . m m m m m m m m 7th, some rights reserved (CC BY-NC)"
+  attribution = "(c) monarchdavid, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Bombus vandykei".photos]]
-  observation_id = 204_099_640
-  photo_id = 360_702_546
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/360702546/large.jpeg"
+  observation_id = 268_856_868
+  photo_id = 483_324_358
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/483324358/large.jpeg"
   caption = ""
-  attribution = "(c) Lisa H. Robinson, some rights reserved (CC BY-NC)"
+  attribution = "(c) monarchdavid, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Bombus vandykei".photos]]
-  observation_id = 305_772_963
-  photo_id = 551_354_557
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/551354557/large.jpg"
+  observation_id = 289_737_556
+  photo_id = 521_153_447
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/521153447/large.jpg"
   caption = ""
-  attribution = "(c) Mark Robinson, some rights reserved (CC BY-NC)"
+  attribution = "(c) monarchdavid, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -3852,6 +3924,33 @@ description = ""
 
 [species."Calliopsis xenus"]
 description = ""
+
+  [[species."Calliopsis xenus".photos]]
+  observation_id = 249_561_774
+  photo_id = 446_137_901
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/446137901/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+
+  [[species."Calliopsis xenus".photos]]
+  observation_id = 249_563_103
+  photo_id = 446_140_450
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/446140450/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+
+  [[species."Calliopsis xenus".photos]]
+  observation_id = 249_556_086
+  photo_id = 446_125_847
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/446125847/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 3
 
 [species.Ceratina]
 description = ""
@@ -4049,13 +4148,31 @@ description = ""
 description = ""
 
   [[species."Chelostoma minutum".photos]]
-  observation_id = 244_433_093
-  photo_id = 436_008_687
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/436008687/large.jpg"
+  observation_id = 249_718_222
+  photo_id = 446_454_421
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/446454421/large.jpg"
   caption = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
+
+  [[species."Chelostoma minutum".photos]]
+  observation_id = 244_433_093
+  photo_id = 436_008_754
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/436008754/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+
+  [[species."Chelostoma minutum".photos]]
+  observation_id = 250_527_877
+  photo_id = 448_081_002
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/448081002/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 3
 
 [species."Chelostoma phaceliae"]
 description = ""
@@ -4121,46 +4238,55 @@ description = ""
 description = ""
 
   [[species."Coelioxys alternatus".photos]]
-  observation_id = 170_168_319
-  photo_id = 295_105_422
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/295105422/large.jpg"
+  observation_id = 321_973_485
+  photo_id = 582_360_465
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/582360465/large.jpg"
   caption = ""
-  attribution = "(c) karalyn, some rights reserved (CC BY-NC)"
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
-
-  [[species."Coelioxys alternatus".photos]]
-  observation_id = 304_036_017
-  photo_id = 548_045_906
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/548045906/large.jpg"
-  caption = ""
-  attribution = "(c) Spencer Hardy, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 2
-
-  [[species."Coelioxys alternatus".photos]]
-  observation_id = 85_778_593
-  photo_id = 141_195_307
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/141195307/large.jpg"
-  caption = ""
-  attribution = "(c) mike kiernan, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 3
 
 [species."Coelioxys apacheorum"]
 description = ""
 
   [[species."Coelioxys apacheorum".photos]]
-  observation_id = 252_541_496
-  photo_id = 452_098_591
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/452098591/large.jpeg"
+  observation_id = 241_147_212
+  photo_id = 429_737_078
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/429737078/large.jpg"
   caption = ""
-  attribution = "(c) Aidan Hersh, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
+  [[species."Coelioxys apacheorum".photos]]
+  observation_id = 252_541_496
+  photo_id = 452_098_646
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/452098646/large.jpeg"
+  caption = ""
+  attribution = "(c) Aidan Hersh, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+
 [species."Coelioxys banksi"]
 description = ""
+
+  [[species."Coelioxys banksi".photos]]
+  observation_id = 321_973_484
+  photo_id = 582_360_349
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/582360349/large.jpg"
+  caption = ""
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+
+  [[species."Coelioxys banksi".photos]]
+  observation_id = 321_973_490
+  photo_id = 582_361_281
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/582361281/large.jpg"
+  caption = ""
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
 
 [species."Coelioxys edita"]
 description = ""
@@ -4197,6 +4323,15 @@ description = ""
 
 [species."Coelioxys gilensis"]
 description = ""
+
+  [[species."Coelioxys gilensis".photos]]
+  observation_id = 241_059_991
+  photo_id = 429_570_677
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/429570677/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
 
 [species."Coelioxys grindeliae"]
 description = ""
@@ -4297,6 +4432,15 @@ description = ""
 [species."Coelioxys serricaudatus"]
 description = ""
 
+  [[species."Coelioxys serricaudatus".photos]]
+  observation_id = 321_973_486
+  photo_id = 582_360_803
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/582360803/large.jpg"
+  caption = ""
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+
 [species."Coelioxys sodalis"]
 description = ""
 
@@ -4391,31 +4535,13 @@ description = ""
 description = ""
 
   [[species."Colletes consors".photos]]
-  observation_id = 374_813_074
-  photo_id = 685_131_861
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/685131861/large.jpg"
+  observation_id = 241_141_770
+  photo_id = 429_727_551
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/429727551/large.jpg"
   caption = ""
-  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
-
-  [[species."Colletes consors".photos]]
-  observation_id = 373_656_301
-  photo_id = 682_857_157
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/682857157/large.jpg"
-  caption = ""
-  attribution = "(c) Henry Steig, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 2
-
-  [[species."Colletes consors".photos]]
-  observation_id = 26_148_164
-  photo_id = 40_574_734
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/40574734/large.jpg"
-  caption = ""
-  attribution = "(c) Briana Lindh, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 3
 
 [species."Colletes delodontus"]
 description = ""
@@ -4424,12 +4550,12 @@ description = ""
 description = ""
 
   [[species."Colletes fulgidus".photos]]
-  observation_id = 170_944_273
-  photo_id = 296_610_632
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/296610632/large.jpg"
+  observation_id = 247_498_677
+  photo_id = 442_046_593
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/442046593/large.jpg"
   caption = ""
-  attribution = "(c) Pete Lypkie, some rights reserved (CC BY)"
-  license = "cc-by"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
   ordering = 1
 
 [species."Colletes gypsicolens"]
@@ -4499,31 +4625,22 @@ description = ""
 description = ""
 
   [[species."Colletes kincaidii".photos]]
+  observation_id = 246_696_828
+  photo_id = 440_457_481
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/440457481/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+
+  [[species."Colletes kincaidii".photos]]
   observation_id = 314_637_199
   photo_id = 568_279_165
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/568279165/large.jpg"
   caption = ""
   attribution = "(c) Victor Burgett, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 1
-
-  [[species."Colletes kincaidii".photos]]
-  observation_id = 234_246_172
-  photo_id = 416_396_912
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/416396912/large.png"
-  caption = ""
-  attribution = "(c) . m m m m m m m m 7th, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
   ordering = 2
-
-  [[species."Colletes kincaidii".photos]]
-  observation_id = 340_502_451
-  photo_id = 619_654_465
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/619654465/large.jpg"
-  caption = ""
-  attribution = "(c) . m m m m m m m m 7th, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 3
 
 [species."Colletes lutzi"]
 description = ""
@@ -4620,30 +4737,48 @@ description = ""
 
   [[species.Diadasia.photos]]
   observation_id = 213_595_026
-  photo_id = 377_491_181
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/377491181/large.jpeg"
+  photo_id = 377_491_230
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/377491230/large.jpeg"
   caption = ""
   attribution = "(c) janeabel, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species.Diadasia.photos]]
-  observation_id = 241_346_088
-  photo_id = 430_085_745
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/430085745/large.jpeg"
+  observation_id = 323_283_673
+  photo_id = 584_933_418
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/584933418/large.jpg"
   caption = ""
-  attribution = "(c) Lisa H. Robinson, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species.Diadasia.photos]]
-  observation_id = 357_248_855
-  photo_id = 651_561_388
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/651561388/large.jpg"
+  observation_id = 284_680_932
+  photo_id = 511_638_383
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/511638383/large.jpg"
   caption = ""
-  attribution = "(c) janeabel, some rights reserved (CC BY-NC)"
+  attribution = "(c) Duane Mortensen, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
+
+  [[species.Diadasia.photos]]
+  observation_id = 323_280_725
+  photo_id = 584_927_731
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/584927731/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 4
+
+  [[species.Diadasia.photos]]
+  observation_id = 282_982_187
+  photo_id = 508_454_106
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/508454106/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 5
 
 [species."Diadasia australis"]
 description = ""
@@ -4709,29 +4844,29 @@ description = ""
 description = ""
 
   [[species."Diadasia enavata".photos]]
-  observation_id = 178_929_182
-  photo_id = 311_439_839
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/311439839/large.jpeg"
+  observation_id = 235_273_193
+  photo_id = 418_393_469
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/418393469/large.jpeg"
   caption = ""
-  attribution = "(c) Phil Kahler, some rights reserved (CC BY-NC)"
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Diadasia enavata".photos]]
-  observation_id = 179_061_840
-  photo_id = 311_690_086
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/311690086/large.jpg"
+  observation_id = 239_064_212
+  photo_id = 425_705_706
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/425705706/large.jpeg"
   caption = ""
-  attribution = "(c) turtleteaparty, some rights reserved (CC BY-NC)"
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Diadasia enavata".photos]]
-  observation_id = 180_316_864
-  photo_id = 314_070_686
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/314070686/large.jpeg"
+  observation_id = 239_064_213
+  photo_id = 425_705_865
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/425705865/large.jpeg"
   caption = ""
-  attribution = "(c) Phil Kahler, some rights reserved (CC BY-NC)"
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -5516,27 +5651,27 @@ description = ""
 description = ""
 
   [[species."Epimelissodes obliquus".photos]]
-  observation_id = 138_754_906
-  photo_id = 237_200_406
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/237200406/large.jpeg"
+  observation_id = 243_911_429
+  photo_id = 435_001_920
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/435001920/large.jpg"
   caption = ""
-  attribution = "(c) Lisa H. Robinson, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Epimelissodes obliquus".photos]]
-  observation_id = 234_475_078
-  photo_id = 416_846_656
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/416846656/large.jpeg"
+  observation_id = 243_013_447
+  photo_id = 433_283_000
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/433283000/large.jpg"
   caption = ""
-  attribution = "(c) Lisa H. Robinson, some rights reserved (CC BY-NC)"
+  attribution = "(c) Aidan Hersh, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Epimelissodes obliquus".photos]]
-  observation_id = 241_171_059
-  photo_id = 429_779_391
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/429779391/large.jpg"
+  observation_id = 138_754_893
+  photo_id = 237_196_021
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/237196021/large.jpeg"
   caption = ""
   attribution = "(c) Lisa H. Robinson, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
@@ -5915,30 +6050,30 @@ description = ""
 description = ""
 
   [[species.Halictus.photos]]
-  observation_id = 204_813_662
-  photo_id = 366_528_929
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/366528929/large.jpeg"
+  observation_id = 242_537_499
+  photo_id = 432_381_536
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432381536/large.jpeg"
   caption = ""
-  attribution = "(c) David Anderson, some rights reserved (CC BY)"
+  attribution = "(c) RJ Baltierra, some rights reserved (CC BY)"
   license = "cc-by"
   ordering = 1
 
   [[species.Halictus.photos]]
-  observation_id = 119_924_141
-  photo_id = 202_777_461
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/202777461/large.jpg"
+  observation_id = 134_856_077
+  photo_id = 229_937_029
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/229937029/large.jpg"
   caption = ""
-  attribution = "(c) ecologyquail, some rights reserved (CC BY-NC)"
+  attribution = "(c) Lisa Hill, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species.Halictus.photos]]
-  observation_id = 12_042_362
-  photo_id = 17_263_379
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/17263379/large.jpeg"
+  observation_id = 288_384_216
+  photo_id = 518_612_887
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/518612887/large.jpg"
   caption = ""
-  attribution = "no rights reserved"
-  license = "cc0"
+  attribution = "(c) Gary Chang, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
   ordering = 3
 
 [species."Halictus confusus"]
@@ -6005,29 +6140,29 @@ description = ""
 description = ""
 
   [[species."Halictus ligatus".photos]]
-  observation_id = 117_545_479
-  photo_id = 198_530_271
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/198530271/large.jpg"
+  observation_id = 332_503_294
+  photo_id = 603_443_688
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/603443688/large.jpg"
   caption = ""
   attribution = "(c) Lisa Hill, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Halictus ligatus".photos]]
-  observation_id = 104_825_602
-  photo_id = 175_734_852
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/175734852/large.jpg"
+  observation_id = 220_147_884
+  photo_id = 389_735_944
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/389735944/large.jpeg"
   caption = ""
-  attribution = "(c) Lisa Hill, some rights reserved (CC BY-NC)"
+  attribution = "(c) Christopher Lindsey, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Halictus ligatus".photos]]
-  observation_id = 127_751_160
-  photo_id = 216_916_416
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/216916416/large.jpg"
+  observation_id = 204_865_351
+  photo_id = 362_159_353
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/362159353/large.jpg"
   caption = ""
-  attribution = "(c) Lisa Hill, some rights reserved (CC BY-NC)"
+  attribution = "(c) allmand, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -6095,29 +6230,29 @@ description = ""
 description = ""
 
   [[species."Halictus virgatellus".photos]]
-  observation_id = 135_291_085
-  photo_id = 230_728_743
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/230728743/large.jpeg"
+  observation_id = 16_953_957
+  photo_id = 25_626_068
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/25626068/large.jpg"
   caption = ""
-  attribution = "(c) Rebecca Essenpreis, some rights reserved (CC BY-NC)"
+  attribution = "(c) Tony Iwane, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Halictus virgatellus".photos]]
-  observation_id = 313_443_768
-  photo_id = 566_035_722
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/566035722/large.jpg"
+  observation_id = 248_683_639
+  photo_id = 444_398_942
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/444398942/large.jpg"
   caption = ""
-  attribution = "(c) madeleinestrait, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Halictus virgatellus".photos]]
-  observation_id = 317_556_721
-  photo_id = 573_833_063
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/573833063/large.jpg"
+  observation_id = 248_959_033
+  photo_id = 444_943_964
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/444943964/large.jpg"
   caption = ""
-  attribution = "(c) madeleinestrait, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -6260,29 +6395,29 @@ description = ""
 description = ""
 
   [[species."Hoplitis albifrons".photos]]
-  observation_id = 169_602_374
-  photo_id = 294_056_595
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/294056595/large.jpeg"
+  observation_id = 242_558_165
+  photo_id = 432_419_046
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432419046/large.jpg"
   caption = ""
-  attribution = "(c) Lisa H. Robinson, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Hoplitis albifrons".photos]]
-  observation_id = 222_535_858
-  photo_id = 394_209_101
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/394209101/large.jpg"
+  observation_id = 242_545_130
+  photo_id = 432_395_055
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432395055/large.jpg"
   caption = ""
-  attribution = "(c) ahawse, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Hoplitis albifrons".photos]]
-  observation_id = 330_378_786
-  photo_id = 599_075_890
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/599075890/large.jpg"
+  observation_id = 240_198_296
+  photo_id = 427_901_813
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/427901813/large.jpg"
   caption = ""
-  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -6290,29 +6425,29 @@ description = ""
 description = ""
 
   [[species."Hoplitis fulgida".photos]]
-  observation_id = 172_625_304
-  photo_id = 299_696_274
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/299696274/large.jpeg"
+  observation_id = 241_366_786
+  photo_id = 430_159_536
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/430159536/large.jpg"
   caption = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Hoplitis fulgida".photos]]
-  observation_id = 284_873_967
-  photo_id = 512_007_925
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/512007925/large.jpg"
+  observation_id = 241_189_518
+  photo_id = 429_817_537
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/429817537/large.jpg"
   caption = ""
-  attribution = "(c) bee_safari1, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Hoplitis fulgida".photos]]
-  observation_id = 224_981_282
-  photo_id = 398_820_870
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/398820870/large.jpg"
+  observation_id = 286_952_536
+  photo_id = 518_612_524
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/518612524/large.jpg"
   caption = ""
-  attribution = "(c) Aidan Hersh, some rights reserved (CC BY-NC)"
+  attribution = "(c) bee_safari1, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -6530,27 +6665,27 @@ description = ""
 description = ""
 
   [[species.Hylaeus.photos]]
-  observation_id = 105_292_942
-  photo_id = 176_634_832
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/176634832/large.jpeg"
+  observation_id = 249_521_967
+  photo_id = 446_058_952
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/446058952/large.jpg"
   caption = ""
-  attribution = "(c) Lisa Hill, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species.Hylaeus.photos]]
-  observation_id = 129_428_734
-  photo_id = 219_947_189
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/219947189/large.jpeg"
+  observation_id = 326_887_151
+  photo_id = 592_106_088
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/592106088/large.jpg"
   caption = ""
-  attribution = "(c) giantcicada, some rights reserved (CC BY)"
-  license = "cc-by"
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
   ordering = 2
 
   [[species.Hylaeus.photos]]
-  observation_id = 129_773_471
-  photo_id = 220_588_037
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/220588037/large.jpg"
+  observation_id = 220_376_908
+  photo_id = 390_168_854
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/390168854/large.jpg"
   caption = ""
   attribution = "(c) Lisa Hill, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
@@ -7292,30 +7427,30 @@ description = ""
 description = ""
 
   [[species."Lasioglossum laevissimum".photos]]
-  observation_id = 176_650_477
-  photo_id = 307_140_765
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/307140765/large.jpg"
+  observation_id = 247_833_676
+  photo_id = 442_712_161
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/442712161/large.jpg"
   caption = ""
-  attribution = "(c) Chris O'Donoghue, some rights reserved (CC BY)"
-  license = "cc-by"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
   ordering = 1
 
   [[species."Lasioglossum laevissimum".photos]]
-  observation_id = 175_427_099
-  photo_id = 304_873_641
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/304873641/large.jpeg"
+  observation_id = 244_427_261
+  photo_id = 435_996_292
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/435996292/large.jpg"
   caption = ""
-  attribution = "(c) Séraphin Poudrier, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Lasioglossum laevissimum".photos]]
-  observation_id = 319_445_696
-  photo_id = 577_445_459
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/577445459/large.jpg"
+  observation_id = 248_201_331
+  photo_id = 443_433_291
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/443433291/large.jpg"
   caption = ""
-  attribution = "(c) Chris Friesen, some rights reserved (CC BY)"
-  license = "cc-by"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
   ordering = 3
 
 [species."Lasioglossum leucozonium"]
@@ -7418,13 +7553,31 @@ description = ""
 description = ""
 
   [[species."Lasioglossum marinense".photos]]
-  observation_id = 181_874_582
-  photo_id = 317_004_524
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/317004524/large.jpg"
+  observation_id = 331_163_575
+  photo_id = 600_691_424
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/600691424/large.jpg"
   caption = ""
-  attribution = "(c) Aidan Hersh, some rights reserved (CC BY-NC)"
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
+
+  [[species."Lasioglossum marinense".photos]]
+  observation_id = 331_475_787
+  photo_id = 601_337_410
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/601337410/large.jpg"
+  caption = ""
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+
+  [[species."Lasioglossum marinense".photos]]
+  observation_id = 248_537_208
+  photo_id = 444_105_552
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/444105552/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 3
 
 [species."Lasioglossum mellipes"]
 description = ""
@@ -7618,6 +7771,24 @@ description = ""
 [species."Lasioglossum pavoninum"]
 description = ""
 
+  [[species."Lasioglossum pavoninum".photos]]
+  observation_id = 248_680_282
+  photo_id = 444_391_448
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/444391448/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+
+  [[species."Lasioglossum pavoninum".photos]]
+  observation_id = 248_679_913
+  photo_id = 444_391_021
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/444391021/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+
 [species."Lasioglossum pavonotus"]
 description = ""
 
@@ -7726,6 +7897,15 @@ description = ""
 [species."Lasioglossum pulveris"]
 description = ""
 
+  [[species."Lasioglossum pulveris".photos]]
+  observation_id = 248_210_365
+  photo_id = 443_452_132
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/443452132/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+
 [species."Lasioglossum punctatoventre"]
 description = ""
 
@@ -7738,8 +7918,44 @@ description = ""
 [species."Lasioglossum ruidosense"]
 description = ""
 
+  [[species."Lasioglossum ruidosense".photos]]
+  observation_id = 248_205_066
+  photo_id = 443_441_173
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/443441173/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+
 [species."Lasioglossum sandhousiellum"]
 description = ""
+
+  [[species."Lasioglossum sandhousiellum".photos]]
+  observation_id = 331_475_781
+  photo_id = 601_336_871
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/601336871/large.jpg"
+  caption = ""
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+
+  [[species."Lasioglossum sandhousiellum".photos]]
+  observation_id = 331_163_587
+  photo_id = 600_691_584
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/600691584/large.jpg"
+  caption = ""
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+
+  [[species."Lasioglossum sandhousiellum".photos]]
+  observation_id = 331_475_784
+  photo_id = 601_337_263
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/601337263/large.jpg"
+  caption = ""
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 3
 
 [species."Lasioglossum sedi"]
 description = ""
@@ -8021,30 +8237,30 @@ description = ""
 description = ""
 
   [[species.Megachile.photos]]
-  observation_id = 7_308_988
-  photo_id = 9_460_918
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/9460918/large.jpg"
+  observation_id = 141_399_217
+  photo_id = 242_227_236
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/242227236/large.jpeg"
   caption = ""
-  attribution = "no rights reserved"
-  license = "cc0"
+  attribution = "(c) giantcicada, some rights reserved (CC BY)"
+  license = "cc-by"
   ordering = 1
 
   [[species.Megachile.photos]]
-  observation_id = 105_824_542
-  photo_id = 177_646_304
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/177646304/large.jpeg"
+  observation_id = 291_134_653
+  photo_id = 523_794_274
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/523794274/large.jpg"
   caption = ""
-  attribution = "(c) Zach Hawn, some rights reserved (CC BY-NC-SA)"
-  license = "cc-by-nc-sa"
+  attribution = '(c) Nicollet Overby ("Nature In Perspective"), some rights reserved (CC BY-NC)'
+  license = "cc-by-nc"
   ordering = 2
 
   [[species.Megachile.photos]]
-  observation_id = 131_030_172
-  photo_id = 222_922_471
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/222922471/large.jpg"
+  observation_id = 238_340_190
+  photo_id = 424_309_736
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/424309736/large.jpeg"
   caption = ""
-  attribution = "(c) tuts, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
+  attribution = "(c) Peter Abrahamsen, some rights reserved (CC BY)"
+  license = "cc-by"
   ordering = 3
 
 [species."Megachile angelarum"]
@@ -8285,31 +8501,22 @@ description = ""
 description = ""
 
   [[species."Megachile inermis".photos]]
+  observation_id = 326_878_409
+  photo_id = 592_096_181
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/592096181/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+
+  [[species."Megachile inermis".photos]]
   observation_id = 290_550_981
   photo_id = 522_696_917
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/522696917/large.jpg"
   caption = ""
   attribution = "(c) visage_will, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 1
-
-  [[species."Megachile inermis".photos]]
-  observation_id = 287_430_150
-  photo_id = 516_817_257
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/516817257/large.jpg"
-  caption = ""
-  attribution = "(c) Kris Ethington, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
   ordering = 2
-
-  [[species."Megachile inermis".photos]]
-  observation_id = 309_625_288
-  photo_id = 558_742_912
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/558742912/large.jpg"
-  caption = ""
-  attribution = "(c) S.Wolf, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 3
 
 [species."Megachile lapponica"]
 description = ""
@@ -8348,31 +8555,22 @@ description = ""
 description = ""
 
   [[species."Megachile lippiae".photos]]
-  observation_id = 156_830_027
-  photo_id = 271_200_102
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/271200102/large.jpg"
+  observation_id = 244_912_134
+  photo_id = 436_947_533
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/436947533/large.jpg"
   caption = ""
-  attribution = "(c) juanloredo, some rights reserved (CC BY-NC-SA)"
-  license = "cc-by-nc-sa"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
   ordering = 1
 
   [[species."Megachile lippiae".photos]]
-  observation_id = 86_423_539
-  photo_id = 142_367_997
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/142367997/large.jpg"
+  observation_id = 323_345_723
+  photo_id = 585_043_416
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/585043416/large.jpg"
   caption = ""
-  attribution = "(c) Brian Wright, some rights reserved (CC BY-NC)"
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
-
-  [[species."Megachile lippiae".photos]]
-  observation_id = 8_060_567
-  photo_id = 10_681_052
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/10681052/large.jpeg"
-  caption = ""
-  attribution = "(c) Sam Kieschnick, some rights reserved (CC BY)"
-  license = "cc-by"
-  ordering = 3
 
 [species."Megachile melanophaea"]
 description = ""
@@ -8618,30 +8816,30 @@ description = ""
 description = ""
 
   [[species."Megachile perihirta".photos]]
-  observation_id = 240_555_048
-  photo_id = 428_592_492
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/428592492/large.jpg"
+  observation_id = 183_592_236
+  photo_id = 320_321_577
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/320321577/large.jpg"
   caption = ""
-  attribution = "no rights reserved"
-  license = "cc0"
+  attribution = "(c) Lisa Hill, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
   ordering = 1
 
   [[species."Megachile perihirta".photos]]
-  observation_id = 65_228_964
-  photo_id = 104_951_231
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/104951231/large.jpeg"
+  observation_id = 35_654_907
+  photo_id = 56_245_437
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/56245437/large.jpg"
   caption = ""
-  attribution = "(c) Lisa H. Robinson, some rights reserved (CC BY-NC)"
+  attribution = "(c) Harsi S. Parker, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Megachile perihirta".photos]]
-  observation_id = 105_890_295
-  photo_id = 177_772_986
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/177772986/large.jpeg"
+  observation_id = 325_972_328
+  photo_id = 590_292_490
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/590292490/large.jpg"
   caption = ""
-  attribution = "(c) Zach Hawn, some rights reserved (CC BY-NC-SA)"
-  license = "cc-by-nc-sa"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
   ordering = 3
 
 [species."Megachile pugnata"]
@@ -9170,29 +9368,29 @@ description = ""
 description = ""
 
   [[species."Melissodes microstictus".photos]]
-  observation_id = 306_383_117
-  photo_id = 552_513_045
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/552513045/large.jpg"
+  observation_id = 244_050_575
+  photo_id = 435_274_766
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/435274766/large.jpg"
   caption = ""
-  attribution = "(c) Henry Steig, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Melissodes microstictus".photos]]
-  observation_id = 128_841_340
-  photo_id = 218_881_641
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/218881641/large.jpeg"
+  observation_id = 91_710_567
+  photo_id = 151_744_758
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/151744758/large.jpeg"
   caption = ""
-  attribution = "(c) Eric Running, some rights reserved (CC BY-NC)"
+  attribution = "(c) Kurt Steinbach, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Melissodes microstictus".photos]]
-  observation_id = 132_296_110
-  photo_id = 225_262_101
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/225262101/large.jpeg"
+  observation_id = 310_095_433
+  photo_id = 559_626_937
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/559626937/large.jpg"
   caption = ""
-  attribution = "(c) jennifer_clifford, some rights reserved (CC BY-NC)"
+  attribution = "(c) Francis J. Golden, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -9884,29 +10082,29 @@ description = ""
 description = ""
 
   [[species.Osmia.photos]]
-  observation_id = 112_430_733
-  photo_id = 189_898_988
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/189898988/large.jpg"
+  observation_id = 213_310_875
+  photo_id = 376_975_489
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/376975489/large.jpeg"
   caption = ""
-  attribution = "(c) alocastro, some rights reserved (CC BY-NC)"
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species.Osmia.photos]]
-  observation_id = 112_455_821
-  photo_id = 189_942_831
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/189942831/large.jpeg"
+  observation_id = 242_705_185
+  photo_id = 432_696_066
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432696066/large.jpg"
   caption = ""
-  attribution = "(c) anitamgeorge, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species.Osmia.photos]]
-  observation_id = 117_073_466
-  photo_id = 197_676_034
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/197676034/large.jpeg"
+  observation_id = 326_129_002
+  photo_id = 590_595_607
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/590595607/large.jpg"
   caption = ""
-  attribution = "(c) evangelineks, some rights reserved (CC BY-NC)"
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -10187,30 +10385,30 @@ description = ""
 description = ""
 
   [[species."Osmia cornifrons".photos]]
-  observation_id = 110_629_040
-  photo_id = 186_651_109
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/186651109/large.jpeg"
+  observation_id = 202_597_667
+  photo_id = 357_833_799
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/357833799/large.jpg"
   caption = ""
-  attribution = "(c) temporary_name, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
+  attribution = "(c) Peter Abrahamsen, some rights reserved (CC BY)"
+  license = "cc-by"
   ordering = 1
 
   [[species."Osmia cornifrons".photos]]
-  observation_id = 112_675_159
-  photo_id = 190_334_131
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/190334131/large.jpg"
+  observation_id = 170_223_097
+  photo_id = 295_222_756
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/295222756/large.jpg"
   caption = ""
-  attribution = "(c) kikibuggirl, some rights reserved (CC BY-NC)"
+  attribution = "(c) Lisa H. Robinson, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Osmia cornifrons".photos]]
-  observation_id = 161_739_899
-  photo_id = 279_592_216
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/279592216/large.jpg"
+  observation_id = 74_979_251
+  photo_id = 122_609_825
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/122609825/large.jpg"
   caption = ""
-  attribution = "(c) genebis, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
+  attribution = "no rights reserved"
+  license = "cc0"
   ordering = 3
 
 [species."Osmia cyanella"]
@@ -10466,27 +10664,27 @@ description = ""
 description = ""
 
   [[species."Osmia montana".photos]]
-  observation_id = 12_078_675
-  photo_id = 17_321_727
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/17321727/large.jpeg"
+  observation_id = 240_220_135
+  photo_id = 427_944_486
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/427944486/large.jpg"
   caption = ""
-  attribution = "(c) Mike, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species."Osmia montana".photos]]
-  observation_id = 162_783_002
-  photo_id = 281_493_501
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/281493501/large.jpeg"
+  observation_id = 325_814_814
+  photo_id = 589_963_708
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/589963708/large.jpg"
   caption = ""
-  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Osmia montana".photos]]
-  observation_id = 218_663_518
-  photo_id = 386_959_001
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/386959001/large.jpeg"
+  observation_id = 241_376_601
+  photo_id = 430_179_607
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/430179607/large.jpg"
   caption = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
@@ -10562,13 +10760,31 @@ description = ""
 description = ""
 
   [[species."Osmia odontogaster".photos]]
-  observation_id = 242_519_971
-  photo_id = 432_347_028
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432347028/large.jpg"
+  observation_id = 242_521_520
+  photo_id = 432_350_146
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432350146/large.jpg"
   caption = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
+
+  [[species."Osmia odontogaster".photos]]
+  observation_id = 242_519_124
+  photo_id = 432_345_617
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432345617/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+
+  [[species."Osmia odontogaster".photos]]
+  observation_id = 242_516_369
+  photo_id = 432_341_466
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432341466/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 3
 
 [species."Osmia paradisica"]
 description = ""
@@ -10653,6 +10869,33 @@ description = ""
 
 [species."Osmia regulina"]
 description = ""
+
+  [[species."Osmia regulina".photos]]
+  observation_id = 241_529_170
+  photo_id = 430_471_089
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/430471089/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+
+  [[species."Osmia regulina".photos]]
+  observation_id = 241_529_772
+  photo_id = 430_472_042
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/430472042/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+
+  [[species."Osmia regulina".photos]]
+  observation_id = 241_527_929
+  photo_id = 430_468_141
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/430468141/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 3
 
 [species."Osmia sculleni"]
 description = ""
@@ -10868,34 +11111,43 @@ description = ""
 description = ""
 
   [[species."Panurginus atriceps".photos]]
-  observation_id = 82_922_405
-  photo_id = 136_135_724
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/136135724/large.jpeg"
+  observation_id = 247_847_719
+  photo_id = 442_740_956
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/442740956/large.jpg"
   caption = ""
-  attribution = "no rights reserved"
-  license = "cc0"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
   ordering = 1
 
   [[species."Panurginus atriceps".photos]]
-  observation_id = 219_345_148
-  photo_id = 388_233_296
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/388233296/large.jpg"
+  observation_id = 248_204_241
+  photo_id = 443_439_448
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/443439448/large.jpg"
   caption = ""
-  attribution = "(c) Bob Lalonde, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species."Panurginus atriceps".photos]]
-  observation_id = 331_283_840
-  photo_id = 600_938_470
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/600938470/large.jpg"
+  observation_id = 248_211_391
+  photo_id = 443_454_631
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/443454631/large.jpg"
   caption = ""
-  attribution = "(c) Abby Hyde, some rights reserved (CC BY)"
-  license = "cc-by"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
   ordering = 3
 
 [species."Panurginus ineptus"]
 description = ""
+
+  [[species."Panurginus ineptus".photos]]
+  observation_id = 325_290_392
+  photo_id = 588_924_066
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/588924066/large.jpg"
+  caption = ""
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
 
 [species."Panurginus nigrellus"]
 description = ""
@@ -11255,29 +11507,29 @@ description = ""
 description = ""
 
   [[species.Sphecodes.photos]]
-  observation_id = 140_829_828
-  photo_id = 241_129_031
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/241129031/large.jpg"
+  observation_id = 319_395_832
+  photo_id = 577_339_025
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/577339025/large.jpg"
   caption = ""
-  attribution = "(c) Lisa Hill, some rights reserved (CC BY-NC)"
+  attribution = "(c) Victor Burgett, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
 
   [[species.Sphecodes.photos]]
-  observation_id = 125_380_785
-  photo_id = 212_620_612
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/212620612/large.jpg"
+  observation_id = 328_117_774
+  photo_id = 594_506_957
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/594506957/large.jpg"
   caption = ""
-  attribution = "(c) Lexi Menth, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
 
   [[species.Sphecodes.photos]]
-  observation_id = 156_363_420
-  photo_id = 270_376_449
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/270376449/large.jpg"
+  observation_id = 237_359_265
+  photo_id = 422_414_288
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/422414288/large.jpeg"
   caption = ""
-  attribution = "(c) Lisa Hill, some rights reserved (CC BY-NC)"
+  attribution = "(c) Jeff Back, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
 
@@ -11306,31 +11558,22 @@ description = ""
 description = ""
 
   [[species."Sphecodes pecosensis".photos]]
+  observation_id = 328_116_396
+  photo_id = 594_504_298
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/594504298/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+
+  [[species."Sphecodes pecosensis".photos]]
   observation_id = 210_737_989
   photo_id = 372_705_740
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/372705740/large.jpeg"
   caption = ""
   attribution = "no rights reserved"
   license = "cc0"
-  ordering = 1
-
-  [[species."Sphecodes pecosensis".photos]]
-  observation_id = 242_806_481
-  photo_id = 432_886_915
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432886915/large.jpeg"
-  caption = ""
-  attribution = "(c) Liam Hutcheson, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
   ordering = 2
-
-  [[species."Sphecodes pecosensis".photos]]
-  observation_id = 80_533_539
-  photo_id = 132_003_941
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/132003941/large.jpeg"
-  caption = ""
-  attribution = "(c) Stuart Tingley, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 3
 
 [species."Sphecodes washingtoni"]
 description = ""
@@ -11460,6 +11703,15 @@ description = ""
 
 [species."Stelis subcaerulea"]
 description = ""
+
+  [[species."Stelis subcaerulea".photos]]
+  observation_id = 242_761_180
+  photo_id = 432_804_276
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432804276/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
 
 [species."Stelis subemarginata"]
 description = ""
