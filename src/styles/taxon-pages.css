@@ -157,8 +157,16 @@ seasonality-viz .viz-fallback { color: #555; font-style: italic; font-size: 0.85
   white-space: nowrap;
 }
 
+/* Wraps rather than scrolls (beeatlas-dus). Thumbs are 60px with a 0.35rem gap, so a
+   one-row strip needs 60n + 5.6(n-1) px: fine at the 3 photos this shipped with, ~585px
+   at the 9 PHOTOS_PER_SPECIES now allows, which scrolls a phone sideways. Wrap over
+   overflow-x because this is a reference gallery — the reader is comparing body parts
+   ACROSS the set, and a scrolling strip both hides that there are more and gives no
+   affordance saying so. The cost is a taller card on narrow screens; the benefit is that
+   the whole set is visible and reachable at once. */
 .taxon-page .thumb-strip {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
   margin-top: 0.15rem;
 }
