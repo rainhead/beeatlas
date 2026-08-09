@@ -4,6 +4,7 @@
  *
  * - License field required; allowed: cc0, cc-by, cc-by-nc, cc-by-sa, cc-by-nc-sa
  * - Attribution required for non-CC0 photos
+ * - Provenance required; allowed: seeder, pipeline, curator (see PHOTO_PROVENANCE)
  * - Unknown scientificName (not in species.json) is a warning, not an error
  * - When species.json is absent, cross-reference check is skipped (mirrors
  *   validate-schema.mjs's CloudFront-fallback graceful-degradation pattern).
@@ -24,6 +25,47 @@ import { buildDataDir } from '../lib/build-data-dir.js';
 export const LICENSE_WHITELIST = new Set([
   'cc0', 'cc-by', 'cc-by-nc', 'cc-by-sa', 'cc-by-nc-sa',
 ]);
+
+/**
+ * How this photo came to be in the manifest. REQUIRED on every photo.
+ *
+ * The point is `curator`: it is the durable marker that makes a human's choice survive a
+ * later automated run. Before it, protection keyed on a non-empty description or caption
+ * (isCuratorTouched), and NOTHING in the manifest had either — all 630 entries read as
+ * machine-owned, including the 176 photos two review passes had accepted by hand. A
+ * `--reselect` would have discarded every one of them and looked like it worked.
+ *
+ *   seeder    scripts/seed-species-photos.mjs picked it: first license-clean photo of a
+ *             vetted observation, ranked by faves/votes. Freely replaceable.
+ *   pipeline  scripts/photo-pipeline/ picked it by part-coverage scoring, unreviewed.
+ *             Better than seeder, still machine-owned.
+ *   curator   a person accepted THIS photo. Never replace without an explicit override.
+ *
+ * Absent is an ERROR, not a default. A missing value would have to be read as "unknown",
+ * and the safe reading of unknown is "curator" — which would freeze the manifest — while
+ * the convenient one is "seeder", which silently discards curation. Requiring it means a
+ * writer that forgets fails the gate instead of quietly producing an unprotected photo.
+ */
+export const PHOTO_PROVENANCE = new Set(['seeder', 'pipeline', 'curator']);
+
+/**
+ * Does this entry contain work a human owns? If so, no automated pass may replace it —
+ * D-01, "humans always win". Consulted by seed-species-photos.mjs --reselect and by both
+ * photo-pipeline apply scripts, which each carried their own copy of the rule.
+ *
+ * The prose signals came first, on the reasoning that the seeder only ever writes empty
+ * strings, so anything non-empty came from a person. True, but it inferred curation from a
+ * SIDE EFFECT of curating rather than from the act itself — and the two review passes of
+ * 2026-08-08 accepted 176 photos by hand while writing no prose at all. Every one of those
+ * entries read as machine-owned. provenance says it directly; the prose checks stay,
+ * because a caption is still a human's work worth protecting.
+ */
+export function isCuratorTouched(entry) {
+  if ((entry?.description ?? '').trim()) return true;
+  return (entry?.photos ?? []).some(
+    (p) => p?.provenance === 'curator' || (p?.caption ?? '').trim(),
+  );
+}
 
 /**
  * @param {string} tomlSource - raw TOML text
@@ -63,6 +105,11 @@ export function validateSpeciesPhotos(tomlSource, speciesJsonArray) {
       }
       if (license !== 'cc0' && (!photo.attribution || photo.attribution === '')) {
         errors.push(`${photoLabel}: missing attribution (required for license "${license}")`);
+      }
+      // Required, and the VALUE is checked: a typo ("curater") would otherwise read as
+      // not-curator-owned, which is exactly the silent-discard this field exists to stop.
+      if (!photo.provenance || !PHOTO_PROVENANCE.has(photo.provenance)) {
+        errors.push(`${photoLabel}: invalid provenance ${JSON.stringify(photo.provenance ?? null)} (allowed: ${[...PHOTO_PROVENANCE].join(', ')})`);
       }
     }
   }

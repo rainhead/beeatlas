@@ -23,7 +23,7 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import TOML from '@iarna/toml';
-import { MANIFEST, LICENSE_WHITELIST } from './config.mjs';
+import { MANIFEST, LICENSE_WHITELIST, isCuratorTouched } from './config.mjs';
 import { extractSpeciesComments, reattachSpeciesComments, sortManifestSpecies } from '../seed-species-photos.mjs';
 
 const args = process.argv.slice(2);
@@ -42,9 +42,7 @@ for (const set of accepted) {
   const entry = manifest.species?.[set.species];
   if (!entry) { skipped.push({ ...set, why: 'species not in manifest' }); continue; }
 
-  const curated = (entry.description ?? '').trim() !== ''
-    || (entry.photos ?? []).some((p) => (p.caption ?? '').trim() !== '');
-  if (curated) { skipped.push({ ...set, why: 'human-curated (description or caption present)' }); continue; }
+  if (isCuratorTouched(entry)) { skipped.push({ ...set, why: 'human-curated (provenance, description or caption)' }); continue; }
 
   if (!set.photos?.length) { skipped.push({ ...set, why: 'empty photo set' }); continue; }
 
@@ -67,6 +65,8 @@ for (const set of accepted) {
     attribution: p.attribution ?? '',
     license: p.license,
     ordering: i + 1,
+    // Whole-set replacement from a reviewed sheet: every photo here was accepted by hand.
+    provenance: 'curator',
   }));
   applied.push({ species: set.species, before, after: entry.photos.map((p) => p.photo_id) });
 }

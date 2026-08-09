@@ -69,8 +69,9 @@ export function resolveProvider(name, model) {
 }
 export const USER_AGENT = 'BeeAtlas/photo-pipeline (rainhead@gmail.com; github.com/rainhead/beeatlas)';
 
-/** Must match scripts/validate-species.mjs. A swap that fails validation is worse than none. */
-export const LICENSE_WHITELIST = new Set(['cc0', 'cc-by', 'cc-by-nc', 'cc-by-sa', 'cc-by-nc-sa']);
+// Re-exported, not redeclared: a swap that fails validation is worse than none, and a second
+// copy of the contract vocabulary is how the two drift apart. validate-species.mjs owns both.
+export { LICENSE_WHITELIST, PHOTO_PROVENANCE, isCuratorTouched } from '../validate-species.mjs';
 
 // ---------------------------------------------------------------------------
 // Localization: put a box on the bee.

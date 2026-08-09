@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 // @ts-expect-error -- .mjs source has no .d.ts; named exports are the contract (mirrors seed-species-photos.test.ts)
-import { validateSpeciesPhotos, LICENSE_WHITELIST } from '../../scripts/validate-species.mjs';
+import { validateSpeciesPhotos, LICENSE_WHITELIST, PHOTO_PROVENANCE, isCuratorTouched } from '../../scripts/validate-species.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '../..');
@@ -23,6 +23,7 @@ const validPhoto = (overrides: Record<string, unknown> = {}) => {
     attribution: '(c) Test User, some rights reserved (CC BY)',
     license: 'cc-by',
     ordering: 1,
+    provenance: 'seeder',
     ...overrides,
   };
   return Object.entries(base)
@@ -107,6 +108,59 @@ describe('validateSpeciesPhotos', () => {
 
   test('LICENSE_WHITELIST exports exactly the 5 allowed values', () => {
     expect([...LICENSE_WHITELIST].sort()).toEqual(['cc-by', 'cc-by-nc', 'cc-by-nc-sa', 'cc-by-sa', 'cc0']);
+  });
+
+  test('PHOTO_PROVENANCE exports exactly the 3 allowed values', () => {
+    expect([...PHOTO_PROVENANCE].sort()).toEqual(['curator', 'pipeline', 'seeder']);
+  });
+
+  test('rejects a photo with no provenance', () => {
+    // Absent must be an ERROR rather than defaulting: "seeder" would silently expose curated
+    // photos to the next --reselect, and "curator" would freeze the manifest.
+    const photoLines = validPhoto().split('\n').filter(l => !l.startsWith('provenance =')).join('\n');
+    const { errors } = validateSpeciesPhotos(tomlFor(photoLines), SPECIES_JSON);
+    expect(errors[0]).toContain('invalid provenance');
+    expect(errors[0]).toContain('52274835');
+  });
+
+  test('rejects a misspelled provenance rather than reading it as not-curator', () => {
+    const { errors } = validateSpeciesPhotos(tomlFor(validPhoto({ provenance: 'curater' })), SPECIES_JSON);
+    expect(errors[0]).toContain('invalid provenance');
+  });
+
+  test('accepts all 3 provenance values', () => {
+    for (const provenance of ['seeder', 'pipeline', 'curator']) {
+      const { errors } = validateSpeciesPhotos(tomlFor(validPhoto({ provenance })), SPECIES_JSON);
+      expect(errors, `provenance ${provenance}`).toEqual([]);
+    }
+  });
+});
+
+describe('isCuratorTouched (D-01: humans always win)', () => {
+  const photo = (over: Record<string, unknown> = {}) => ({
+    photo_id: 1, caption: '', provenance: 'seeder', ...over,
+  });
+
+  test('a curator-provenance photo protects the entry', () => {
+    // The case the prose-only rule missed: 176 photos were accepted by hand on 2026-08-08
+    // with no description and no caption written, so every one of those entries read as
+    // machine-owned and the next --reselect would have discarded them.
+    const entry = { description: '', photos: [photo(), photo({ provenance: 'curator' })] };
+    expect(isCuratorTouched(entry)).toBe(true);
+  });
+
+  test('pipeline provenance does NOT protect — it is machine-owned', () => {
+    const entry = { description: '', photos: [photo({ provenance: 'pipeline' })] };
+    expect(isCuratorTouched(entry)).toBe(false);
+  });
+
+  test('the prose signals still protect', () => {
+    expect(isCuratorTouched({ description: 'a note', photos: [photo()] })).toBe(true);
+    expect(isCuratorTouched({ description: '', photos: [photo({ caption: 'lateral' })] })).toBe(true);
+  });
+
+  test('a fully machine-seeded entry is not protected', () => {
+    expect(isCuratorTouched({ description: '', photos: [photo(), photo()] })).toBe(false);
   });
 
   test('validateSpeciesPhotos is exported and callable', () => {

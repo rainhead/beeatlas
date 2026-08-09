@@ -1,6 +1,7 @@
 # ADR 0031: A species photo is a reference image, not a prize-winner
 
 **Status:** Accepted (implemented 2026-08-06; issue beeatlas-zd7)
+**Amended:** 2026-08-08 — curation is recorded per photo, not inferred from prose; see the amendment
 
 ---
 
@@ -147,3 +148,49 @@ parser discards. Ask what the parse drops before trusting the guard.
   species, and not excluded by this — `--reselect` already protects curator-touched
   entries. It is not a substitute for making the automated path pick sane defaults for
   the long tail.
+
+---
+
+## Amendment (2026-08-08): curation is a recorded fact, not an inference from prose
+
+§4 above protects curator-touched entries by looking for a non-empty `description` or a
+caption, reasoning that the seeder writes only empty strings so anything non-empty came
+from a person. That reasoning is sound and the rule still failed, because it infers
+curation from a **side effect** of curating rather than from the act itself.
+
+Two review passes on 2026-08-08 accepted 176 photos by hand — 118 sibling swaps
+(`1331b219`) and 58 whole sets (`d2ad2210`) — and wrote no prose at all. Neither pass
+had any reason to: the reviewer was choosing photos, not annotating them. Measured
+across the manifest afterwards, **0 of 630 entries were curator-touched.** The whole
+file read as machine-owned, and the next `--reselect` would have discarded every
+accepted photo and exited 0.
+
+§4's own closing line — "the rule has to hold for the next run" — is what broke. It held
+for the run it was written for, when nothing was curated, and stopped holding the moment
+curation happened in the way curation actually happens.
+
+**Decision: every photo carries a required `provenance` field** — `seeder`, `pipeline`,
+or `curator` (`PHOTO_PROVENANCE` in `scripts/validate-species.mjs`). `isCuratorTouched`
+reads it first; the prose checks stay, since a caption is still human work worth
+protecting. The whole point of a per-photo field over an entry-level flag is that
+protection has the same grain as the decision: a swap makes *one* photo a human's choice
+while its neighbours in the entry remain arbitrary seeder picks, and an entry-level flag
+would have to round that either up (freezing photos nobody chose) or down (exposing ones
+somebody did).
+
+**Absent is an error, not a default.** There is no safe default: reading a missing value
+as `seeder` silently re-opens exactly this hole, and reading it as `curator` freezes the
+manifest against every future automated pass. Requiring it means a writer that forgets
+fails `validate-species` instead of quietly emitting an unprotected photo.
+
+The existing 1,116 photos were stamped by reading the two review commits' diffs
+(`scripts/photo-pipeline/backfill-provenance.mjs`, a one-shot): 247 `curator`, 869
+`seeder`, protecting 148 entries. `pipeline` is deliberately unused there — no
+unreviewed pipeline selection was ever applied to the manifest, and inventing one would
+misreport the file's history.
+
+The general lesson, which is why this is in the record rather than just in the code:
+§5 warned that a "humans always win" rule inspecting only the parsed structure will eat
+whatever the parser discards. This is the same failure one level up — a rule inspecting
+only *incidental* evidence will eat whatever the workflow never happened to produce. Ask
+what the curator actually does, not what they usually leave behind.

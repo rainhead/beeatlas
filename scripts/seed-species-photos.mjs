@@ -115,24 +115,16 @@ export function extractPhotos(observations, maxCount = 3, startOrdering = 1, exc
       attribution: photo.attribution ?? '',
       license: photo.license_code,
       ordering: ordering++,
+      provenance: 'seeder',
     });
   }
   return photos;
 }
 
-/**
- * A manifest entry is curator-touched if a human wrote prose into it: a non-empty
- * description, or a caption on any photo. --reselect overwrites everything else.
- *
- * This keeps D-01 ("humans always win") intact without a new marker field: the seeder
- * only ever writes empty strings into both, so anything non-empty came from a person.
- * At the time of the zd7 re-selection NO entry was curator-touched — the whole manifest
- * was machine-seeded — but the rule has to hold for the next run, not just this one.
- */
-export function isCuratorTouched(entry) {
-  if ((entry?.description ?? '').trim()) return true;
-  return (entry?.photos ?? []).some((p) => (p?.caption ?? '').trim());
-}
+// Re-exported for its original importers. Defined in validate-species.mjs alongside
+// PHOTO_PROVENANCE, the field it reads: three scripts enforce this rule (this one and
+// both photo-pipeline apply scripts) and each had its own copy.
+export { isCuratorTouched } from './validate-species.mjs';
 
 /**
  * D-01 fill-only merge: insert entry only when scientificName is absent.

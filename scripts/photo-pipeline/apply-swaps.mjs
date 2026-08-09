@@ -22,7 +22,7 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import TOML from '@iarna/toml';
-import { MANIFEST, LICENSE_WHITELIST } from './config.mjs';
+import { MANIFEST, LICENSE_WHITELIST, isCuratorTouched } from './config.mjs';
 import { extractSpeciesComments, reattachSpeciesComments, sortManifestSpecies } from '../seed-species-photos.mjs';
 
 const args = process.argv.slice(2);
@@ -42,9 +42,7 @@ for (const s of accepted) {
   if (!entry) { skipped.push({ ...s, why: 'species not in manifest' }); continue; }
 
   // Curation marker: a person has touched this species. Leave it alone.
-  const curated = (entry.description ?? '').trim() !== ''
-    || (entry.photos ?? []).some((p) => (p.caption ?? '').trim() !== '');
-  if (curated) { skipped.push({ ...s, why: 'human-curated (description or caption present)' }); continue; }
+  if (isCuratorTouched(entry)) { skipped.push({ ...s, why: 'human-curated (provenance, description or caption)' }); continue; }
 
   const photo = (entry.photos ?? []).find((p) => p.photo_id === s.replace_photo_id);
   if (!photo) { skipped.push({ ...s, why: `photo ${s.replace_photo_id} not found` }); continue; }
@@ -61,6 +59,9 @@ for (const s of accepted) {
   photo.url = s.url;
   photo.attribution = s.attribution;
   photo.license = s.license;
+  // This file holds swaps a person accepted by eye, so the new frame is a human's choice.
+  // Only the swapped photo is stamped: its neighbours in the entry are still seeder picks.
+  photo.provenance = 'curator';
 }
 
 const comments = extractSpeciesComments(raw);
