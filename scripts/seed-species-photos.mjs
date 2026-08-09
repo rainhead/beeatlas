@@ -34,7 +34,7 @@
  * Behavior:
  *   - For each species in species.json, look up iNat taxon_id via DuckDB bridge,
  *     honouring the ADR 0030 outbound query-taxon overrides
- *   - Walk the four tiers until 3 license-whitelisted photos are found
+ *   - Walk the four tiers until PHOTOS_PER_SPECIES license-whitelisted photos are found
  *   - Transform photo.url from /square.{ext} to /large.{ext} (PHOTO-04)
  *   - Merge fill-only into content/species-photos.toml (D-01: humans always win);
  *     --reselect replaces machine-seeded entries but still never curator-touched ones
@@ -62,7 +62,16 @@ const WA_PLACE_ID = 46;
 // whole world (beeatlas-zd7). A PNW bee is a defensible stand-in for a WA one; a
 // Florida bee of the same name may be a different colour form entirely.
 const PNW_PLACE_IDS = [10, 22, 7085];
-const PHOTOS_PER_SPECIES = 3;
+// A CEILING, not a target. The tier walk stops as soon as it is filled, and a species with
+// fewer licensed photos than this ships fewer — there is no padding. Raised from 3 to 9 on
+// 2026-08-09: 3 was a flat quota applied to species and genus alike, and it is plainly wrong
+// for the 39 genus-level entries, where one individual cannot represent the taxon and iNat
+// itself shows a 3x3 grid for subgenus and higher (beeatlas-ekk). 9 matches that grid.
+//
+// Inert on the existing manifest: mergeFillOnly never touches an entry that exists, and all
+// 630 do. This governs cold starts — a species newly appearing in species.json — until
+// someone runs --reselect, which is a separate decision (beeatlas-a2u).
+const PHOTOS_PER_SPECIES = 9;
 // Deep enough that "one photo per observation" can still fill the quota when the
 // top-voted observations are unlicensed or repeat a photographer's series.
 const CANDIDATE_POOL_SIZE = 50;
