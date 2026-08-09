@@ -175,7 +175,7 @@ def write_dedup_candidates(con=None) -> int:
 
         count = 0
         with DEDUP_CANDIDATE_CSV.open("w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=_FIELDNAMES)
+            writer = csv.DictWriter(f, fieldnames=_FIELDNAMES, lineterminator="\n")
             writer.writeheader()
             for raw_row in all_rows:
                 row = dict(zip(col_names, raw_row))

@@ -280,13 +280,13 @@ def generate_inactive_remaps() -> None:
         # WR-03: sanitize each cell against CSV formula injection on write.
         AUTO_SYNONYMS_CSV.parent.mkdir(parents=True, exist_ok=True)
         with AUTO_SYNONYMS_CSV.open("w", newline="") as f:
-            writer = csv.writer(f)
+            writer = csv.writer(f, lineterminator="\n")
             writer.writerow(["synonym", "accepted_name", "source"])
             writer.writerows(tuple(_csv_safe(v) for v in r) for r in auto_rows)
 
         with INACTIVE_UNRESOLVED_CSV.open("w", newline="") as f:
             fieldnames = ["canonical_name", "inactive_taxon_id", "inat_name", "reason", "attempted_at"]
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer = csv.DictWriter(f, fieldnames=fieldnames, lineterminator="\n")
             writer.writeheader()
             writer.writerows(
                 {k: _csv_safe(v) for k, v in r.items()} for r in triage_rows
@@ -650,7 +650,7 @@ def resolve_taxon_ids(refresh: bool = False) -> None:
         for name in names:
             _resolve_one(con, name, unresolved)
         with UNRESOLVED_CSV.open("w", newline="") as f:
-            writer = csv.writer(f)
+            writer = csv.writer(f, lineterminator="\n")
             writer.writerow(["canonical_name", "reason", "attempted_at"])
             writer.writerows(unresolved)
         n_resolved = con.execute(

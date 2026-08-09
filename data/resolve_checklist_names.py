@@ -569,7 +569,7 @@ def resolve_checklist_names(refresh: bool = False) -> None:
         "gbif_match_type", "notes",
     ]
     with AUDIT_CSV.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=audit_fieldnames)
+        writer = csv.DictWriter(f, fieldnames=audit_fieldnames, lineterminator="\n")
         writer.writeheader()
         writer.writerows(
             {k: _csv_safe(v) for k, v in row.items()} for row in audit_rows
@@ -584,7 +584,7 @@ def resolve_checklist_names(refresh: bool = False) -> None:
         "fuzzy_score", "fuzzy_candidate_taxon_id",
     ]
     with FUZZY_REVIEW_CSV.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fuzzy_fieldnames)
+        writer = csv.DictWriter(f, fieldnames=fuzzy_fieldnames, lineterminator="\n")
         writer.writeheader()
         writer.writerows(
             {k: _csv_safe(v) for k, v in row.items()} for row in fuzzy_rows
@@ -595,7 +595,7 @@ def resolve_checklist_names(refresh: bool = False) -> None:
     # -----------------------------------------------------------------------
     GBIF_SEED_CSV.parent.mkdir(parents=True, exist_ok=True)
     with GBIF_SEED_CSV.open("w", newline="") as f:
-        writer = csv.writer(f)
+        writer = csv.writer(f, lineterminator="\n")
         writer.writerow([
             "synonym", "accepted_name", "source",
             "gbif_usage_key", "gbif_match_type", "gbif_confidence",
@@ -636,7 +636,7 @@ def resolve_checklist_names(refresh: bool = False) -> None:
                 order.append(cn)
         CURATED_TAXON_IDS_CSV.parent.mkdir(parents=True, exist_ok=True)
         with CURATED_TAXON_IDS_CSV.open("w", newline="") as f:
-            writer = csv.writer(f)
+            writer = csv.writer(f, lineterminator="\n")
             writer.writerow(["canonical_name", "taxon_id", "note"])
             for cn in order:
                 tid, note = existing[cn]
