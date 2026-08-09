@@ -4,9 +4,11 @@
  *
  *   node scripts/photo-pipeline/pull-candidates.mjs [--cap 60]
  *
- * Differs from the seeder in the three ways today's work established:
- *   1. ALL vetted arms, including ecdysis `specimen`, which loadVettedObservations()
- *      excludes -- 90 species have vetted photos it cannot see.
+ * Differs from the seeder in the ways today's work established:
+ *   1. (was: ALL vetted arms, including ecdysis `specimen`. beeatlas-an8 has since fixed
+ *      loadVettedObservations(), which excluded the specimen arm and so could not see the
+ *      vetted photos of 90 species. Both now read the same arms; kept here as the reason
+ *      this pool's SQL has no record_type predicate.)
  *   2. EVERY license-clean photo of each observation, not the first. 79% of shipped photos
  *      come from an observation with 2+, and the first is an arbitrary choice.
  *   3. No quality_grade filter, because these are OUR determinations: an Ecdysis specimen

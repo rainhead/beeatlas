@@ -4,10 +4,14 @@
  *
  *   node scripts/photo-pipeline/demo-coverage.mjs "Osmia montana" --slots 8
  *
- * Assembles the FULL vetted candidate pool -- including the ecdysis `specimen` arm that
- * seed-species-photos.mjs currently excludes -- takes EVERY license-clean photo of each
- * observation rather than only the first, scores each photo's part visibility, then picks
- * a set by greedy set cover rather than by rank.
+ * Assembles the FULL vetted candidate pool -- including the ecdysis `specimen` arm -- takes
+ * EVERY license-clean photo of each observation rather than only the first, scores each
+ * photo's part visibility, then picks a set by greedy set cover rather than by rank.
+ *
+ * The `specimen` arm used to be this pool's distinguishing feature: seed-species-photos.mjs
+ * excluded it, so 90 species had vetted photos it could not see. beeatlas-an8 fixed the
+ * seeder, so both now draw from the same arms; what still differs is every-photo-per-
+ * observation, part scoring, and set cover.
  *
  * WHY SET COVER RATHER THAN TOP-N. Ranking by any score picks the N best photos, which are
  * often near-duplicates: three good lateral shots document the same parts three times.
@@ -32,13 +36,13 @@ const MODEL = flag('model', 'qwen/qwen3-vl-235b-a22b-instruct');
 const provider = resolveProvider(flag('provider', 'openrouter'), MODEL);
 const READABLE = 2;   // a part counts as covered at 2+; 3 is "keyable"
 
-// ---- 1. vetted observations, ALL arms (the seeder's filter drops `specimen`) ----
+// ---- 1. vetted observations, ALL arms ----
 const sql = `SELECT DISTINCT specimen_observation_id AS id, record_type
   FROM read_parquet('public/data/occurrences.parquet')
   WHERE lower(canonical_name) = '${species.toLowerCase()}' AND specimen_observation_id IS NOT NULL`;
 const vetted = JSON.parse(execSync(`duckdb -json -c "${sql}"`, { encoding: 'utf8' }));
-const seederVisible = vetted.filter((v) => ['inat_expert', 'waba_specimen'].includes(v.record_type)).length;
-console.log(`${species}: ${vetted.length} vetted observations (${seederVisible} visible to the seeder today)`);
+const specimenArm = vetted.filter((v) => v.record_type === 'specimen').length;
+console.log(`${species}: ${vetted.length} vetted observations (${specimenArm} from the ecdysis specimen arm)`);
 
 // ---- 2. every license-clean photo of each ----
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -131,4 +135,4 @@ console.log(`  parts readable (>=${READABLE}): ${PART_KEYS.filter((k) => cover[k
 console.log(`  parts keyable (3):    ${PART_KEYS.filter((k) => cover[k] >= 3).length}/${PART_KEYS.length}`);
 
 writeFileSync(path.join(OUT, `coverage-${species.replace(/\s+/g, '_')}.json`),
-  JSON.stringify({ species, vetted: vetted.length, seederVisible, candidates: scored.length, chosen, cover }, null, 2));
+  JSON.stringify({ species, vetted: vetted.length, specimenArm, candidates: scored.length, chosen, cover }, null, 2));

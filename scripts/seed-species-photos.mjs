@@ -386,22 +386,40 @@ export async function fetchPhotosForTaxon(taxonId, vettedIds, rateLimiter) {
  *
  * specimen_observation_id, NOT observation_id. On a `specimen` row observation_id is
  * the SAMPLE observation — the flower the bee was collected from — so seeding from it
- * would put plant photographs on species pages. The bee is on specimen_observation_id,
- * which the inat_expert and waba_specimen arms carry (docs/domain-model.md arms 3-4).
+ * would put plant photographs on species pages. The bee is on specimen_observation_id.
+ *
+ * beeatlas-an8: this used to add `record_type IN ('inat_expert','waba_specimen')`, on the
+ * belief that only those arms carry specimen_observation_id. The data says otherwise — the
+ * `specimen` arm carries it on 1,839 rows across 220 species — and the belief inverted the
+ * evidence ranking. Arm 1 `specimen` gets its specimen_observation_id from int_waba_link,
+ * joined on catalog suffix (int_ecdysis_base.sql): the SAME thing arm 2 `waba_specimen`
+ * points at, a WABA collector's iNat photo of the bee. Arms 1 and 2 are one specimen at two
+ * stages — a waba_specimen row becomes a specimen row once Ecdysis catalogues it
+ * (docs/domain-model.md §"Category 2"). So the old filter meant: the moment a taxonomist
+ * catalogues a specimen, its photos go invisible. Including arm 1 takes tier-1 reach from
+ * 294 species to 384.
+ *
+ * No record_type predicate is needed at all. Arms 3 (provisional_sample) and 5 (checklist)
+ * carry specimen_observation_id = NULL always — D-11 for arm 3, and arm 5 has no iNat link —
+ * so IS NOT NULL already selects exactly arms 1, 2 and 4. This matches the pool that
+ * scripts/photo-pipeline/pull-candidates.mjs builds.
  */
+export function buildVettedObservationsSql(occurrencesParquet) {
+  return `
+    SELECT canonical_name, list(DISTINCT specimen_observation_id) AS ids
+    FROM read_parquet('${occurrencesParquet}')
+    WHERE specimen_observation_id IS NOT NULL
+      AND canonical_name IS NOT NULL
+    GROUP BY canonical_name
+  `.replace(/\n\s+/g, ' ').trim();
+}
+
 export function loadVettedObservations(occurrencesParquet) {
   if (!existsSync(occurrencesParquet)) {
     console.warn(`! ${occurrencesParquet} not found — tier 1 (expert-vetted photos) disabled`);
     return new Map();
   }
-  const sql = `
-    SELECT canonical_name, list(DISTINCT specimen_observation_id) AS ids
-    FROM read_parquet('${occurrencesParquet}')
-    WHERE record_type IN ('inat_expert', 'waba_specimen')
-      AND specimen_observation_id IS NOT NULL
-      AND canonical_name IS NOT NULL
-    GROUP BY canonical_name
-  `.replace(/\n\s+/g, ' ').trim();
+  const sql = buildVettedObservationsSql(occurrencesParquet);
   // -c, with no database path: this reads a parquet file, so an in-memory duckdb is enough.
   const rows = JSON.parse(execSync(`duckdb -json -c "${sql}"`, { encoding: 'utf-8', maxBuffer: 1 << 28 }));
   const map = new Map();

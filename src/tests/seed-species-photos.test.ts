@@ -6,6 +6,7 @@ import {
   sortManifestSpecies,
   RateLimiter,
   buildTaxonIdSql,
+  buildVettedObservationsSql,
   normalizeName,
   isCuratorTouched,
   extractSpeciesComments,
@@ -456,6 +457,36 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '../..');
 
 // ---------- Outbound query-taxon override (ADR 0030) ----------
+
+describe('buildVettedObservationsSql (beeatlas-an8: tier 1 sees every vetted arm)', () => {
+  const PARQUET = 'public/data/occurrences.parquet';
+
+  test('does not restrict record_type — the specimen arm is the STRONGEST evidence', () => {
+    // The bug this pins: `record_type IN ('inat_expert','waba_specimen')` excluded arm 1
+    // `specimen` (a catalogued Ecdysis bee), which carries specimen_observation_id on 1,839
+    // rows across 220 species. Arms 1 and 2 are one specimen at two stages — arm 2 BECOMES
+    // arm 1 once Ecdysis catalogues it — so filtering arm 1 out meant a specimen's photos
+    // went invisible the moment a taxonomist catalogued it. Re-adding any record_type
+    // predicate here re-breaks that, silently: the seeder still runs and still writes photos.
+    expect(buildVettedObservationsSql(PARQUET)).not.toContain('record_type');
+  });
+
+  test('selects on specimen_observation_id, which is what excludes the bee-less arms', () => {
+    // IS NOT NULL is load-bearing, and is the ONLY thing keeping plant images out: arm 3
+    // provisional_sample (D-11) and arm 5 checklist carry no specimen_observation_id at all,
+    // so this predicate alone selects exactly arms 1, 2 and 4. Dropping it would seed
+    // species pages from `observation_id` — the flower the bee was collected from.
+    const sql = buildVettedObservationsSql(PARQUET);
+    expect(sql).toContain('specimen_observation_id IS NOT NULL');
+    expect(sql).not.toMatch(/\bobservation_id IS NOT NULL/);
+  });
+
+  test('groups one id list per species, deduplicated', () => {
+    const sql = buildVettedObservationsSql(PARQUET);
+    expect(sql).toContain('list(DISTINCT specimen_observation_id)');
+    expect(sql).toContain('GROUP BY canonical_name');
+  });
+});
 
 describe('buildTaxonIdSql (ADR 0030 outbound query taxon)', () => {
   const SEED = resolve(ROOT, 'data/dbt/seeds/inat_query_taxa.csv');
