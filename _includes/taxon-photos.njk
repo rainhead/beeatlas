@@ -1,0 +1,56 @@
+{# Photo gallery for a taxon page. Shared by species-detail.njk and genus.njk.
+
+   Lifted out of species-detail.njk (beeatlas-xrg): 39 genus entries carried 119
+   photos that no template rendered, so every one of them — including the five
+   curator-accepted Diadasia photos — was seeded, validated and shown to nobody.
+
+   `entry` is a photos[...] value; `label` is the taxon name, used as the alt-text
+   fallback when a photo has no caption. Callers look the entry up themselves
+   because the key differs by rank (sp.scientificName vs genus.genus).
+
+   The empty-entry branch renders the "No photo available" placeholder, which is
+   the species page's established behaviour: it holds one cell of a grid whose
+   other cell is a full stat row. genus.njk deliberately does NOT call the macro
+   when it has no photos — see the comment there.
+
+   NOT wired to subgenus.njk, tribe.njk or subfamily.njk, deliberately. Tribe and
+   subfamily have no path to a manifest entry: the seeder pages over species.json,
+   which holds species and genera only. Subgenus is worse than merely empty — a
+   nominate subgenus shares its genus's name (Stelis (Stelis), Apis (Apis),
+   Triepeolus (Triepeolus) are 3 of the 111 built subgenus pages), so a lookup by
+   bare name would silently show the GENUS's photos on a subgenus page and
+   attribute a broader taxon's images to a narrower one. Wiring subgenus needs a
+   rank-qualified key first. #}
+
+{% macro gallery(entry, label) %}
+{# One <figure> per photo, baked. bee-photo-gallery reads these and upgrades
+   them into a strip + lightbox; without JS they stand as a plain stack, each
+   with its own attribution (which is per-photo, not per-species). #}
+{%- if entry and entry.photos and entry.photos.length > 0 -%}
+<bee-photo-gallery class="photo-gallery">
+  {%- for p in entry.photos -%}
+  <figure class="hero-photo">
+    <img
+      class="photo-hero"
+      src="{{ p.src or p.url }}"
+      {% if p.srcset %}srcset="{{ p.srcset }}" sizes="(min-width: 768px) 50vw, 100vw"{% endif %}
+      {% if p.square %}data-square="{{ p.square }}"{% endif %}
+      {% if p.large %}data-large="{{ p.large }}"{% endif %}
+      {% if p.attribution %}data-attribution="{{ p.attribution }}"{% endif %}
+      {% if p.observation_id %}data-observation-url="https://www.inaturalist.org/observations/{{ p.observation_id }}"{% endif %}
+      {# The first photo is the LCP candidate — eager, and flagged so the
+         intent is explicit rather than an absent attribute. The rest defer. #}
+      {% if loop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %}
+      alt="{{ p.caption or label }}">
+    {%- if p.attribution -%}
+    <figcaption class="attribution">{{ p.attribution }}</figcaption>
+    {%- endif -%}
+  </figure>
+  {%- endfor -%}
+</bee-photo-gallery>
+{%- else -%}
+<figure class="hero-photo">
+  <div class="photo-placeholder">No photo available</div>
+</figure>
+{%- endif -%}
+{% endmacro %}

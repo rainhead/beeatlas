@@ -19,7 +19,27 @@ layout: default.njk
     {% endfor %}
   </nav>
   <h1><em>{{ genus.genus }}</em></h1>
+
+  {# Identity band, same shape as the species page: photo beside the headline
+     numbers, reusing .species-identity so this introduces no new layout rule.
+     beeatlas-xrg — 39 genus entries hold 119 photos and nothing rendered them.
+
+     Unlike the species page, no photo means NO BAND rather than a placeholder.
+     10 of the 49 genera have no entry, and reserving half the viewport above the
+     fold for a grey "No photo available" box is worse than the layout this
+     replaced — on a species page the placeholder holds one cell of a grid that
+     has other content to balance, here it would stand almost alone. #}
+  {%- import "taxon-photos.njk" as taxonPhotos -%}
+  {%- set genusPhotos = photos[genus.genus] -%}
+  {%- if genusPhotos and genusPhotos.photos and genusPhotos.photos.length > 0 -%}
+  <div class="species-identity">
+    {{ taxonPhotos.gallery(genusPhotos, genus.genus) }}
+    <p class="metadata">{{ genus.speciesCount | quantify("species", "species") }} · {{ genus.totalOccurrences | quantify("record") }}</p>
+  </div>
+  {%- else -%}
   <p class="metadata">{{ genus.speciesCount | quantify("species", "species") }} · {{ genus.totalOccurrences | quantify("record") }}</p>
+  {%- endif -%}
+
   <div class="media-grid">
     <img loading="lazy"
          src="/data/species-maps/genus/{{ genus.genus }}.svg"
