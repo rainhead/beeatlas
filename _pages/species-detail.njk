@@ -56,7 +56,7 @@ layout: default.njk
          count instead, and let the geographic stats appear only when mapped
          records back them. #}
       <dl class="stat-row">
-        {%- if sp.occurrence_count > 0 or not sp.on_checklist -%}
+        {%- if sp.occurrence_count > 0 or sp.inat_obs_count > 0 or not sp.on_checklist -%}
         <div class="stat">
           <dt>Specimens</dt>
           <dd>{{ sp.specimen_count or 0 }}</dd>
@@ -81,7 +81,7 @@ layout: default.njk
         </div>
         {%- endif -%}
       </dl>
-      {%- if sp.occurrence_count === 0 and sp.on_checklist -%}
+      {%- if sp.occurrence_count === 0 and not sp.inat_obs_count and sp.on_checklist -%}
       <p class="no-occurrences">Listed for Washington, but no specimens or community observations are in the atlas yet.</p>
       {%- endif -%}
       {%- if sp.on_checklist -%}
@@ -228,14 +228,14 @@ layout: default.njk
         <h2 class="viz-heading">Flight season</h2>
         <seasonality-viz id="sviz"></seasonality-viz>
       </section>
-      {%- if sp.occurrence_count > 0 or sp.on_checklist -%}
+      {%- if sp.occurrence_count > 0 or sp.inat_obs_count > 0 or sp.on_checklist -%}
       <section class="viz-block">
         <h2 class="viz-heading">Where it has been found</h2>
-        <img loading="lazy" src="/data/species-maps/{{ sp.slug }}.svg" alt="Map of Washington showing {% if sp.occurrence_count > 0 %}{{ sp.scientificName }} occurrence points across {{ sp.county_count }} counties{% else %}the counties where {{ sp.scientificName }} is recorded on the checklist{% endif %}">
+        <img loading="lazy" src="/data/species-maps/{{ sp.slug }}.svg" alt="Map of Washington showing {% if sp.occurrence_count > 0 or sp.inat_obs_count > 0 %}{{ sp.scientificName }} occurrence points across {{ sp.county_count }} counties{% else %}the counties where {{ sp.scientificName }} is recorded on the checklist{% endif %}">
         {# The SVG carries two encodings (red dots, shaded checklist counties);
            caption whichever are actually present. #}
         <p class="viz-caption">
-          {%- if sp.occurrence_count > 0 -%}
+          {%- if sp.occurrence_count > 0 or sp.inat_obs_count > 0 -%}
           One red dot per record across {{ sp.county_count | quantify("Washington county", "Washington counties") }}.
           {%- if sp.on_checklist %} Shaded counties are checklist records.{% endif -%}
           {%- else -%}
@@ -244,7 +244,7 @@ layout: default.njk
         </p>
         {# The map is a static preview of what this button opens, so the two
            belong together (beeatlas-coo). #}
-        {%- if sp.occurrence_count > 0 -%}
+        {%- if sp.occurrence_count > 0 or sp.inat_obs_count > 0 -%}
         <a class="taxon-action taxon-action--primary" href="/?taxon={{ sp.scientificName | urlencode }}&amp;taxonRank=species">View {{ (sp.occurrence_count + (sp.inat_obs_count or 0)) | quantify("record") }} on the atlas →</a>
         {%- endif -%}
       </section>

@@ -1,8 +1,11 @@
 """Per-species static SVG occurrence maps.
 
-For each species with occurrence_count > 0 in public/data/species.parquet,
+For each species with any mappable evidence (occurrence_count > 0,
+inat_obs_count > 0, or on_checklist) in public/data/species.parquet,
 emit public/data/species-maps/<slug>.svg containing the WA county polygon
 backdrop plus one <circle class="occ"> per in-bbox occurrence point.
+Points come from occurrences.parquet (all arms), so a species documented
+only by expert-identified iNat observations still plots (beeatlas-3ed).
 
 Per D-03 (CONTEXT.md): single <style> block, classed .county / .occ —
 NOT per-element fill/stroke. Browsers honor <style> blocks inside
@@ -484,7 +487,8 @@ def _generate_group_maps(
 
 
 def generate_species_maps(con: duckdb.DuckDBPyConnection | None = None) -> None:
-    """Emit one <slug>.svg per species with occurrence_count > 0.
+    """Emit one <slug>.svg per species with mappable evidence (occurrence,
+    iNat expert observation, or checklist listing).
 
     D-04 idempotency: wipe and recreate the species-maps directory at the
     start of each run — guarantees no stale files for species whose
@@ -518,7 +522,7 @@ def generate_species_maps(con: duckdb.DuckDBPyConnection | None = None) -> None:
             f"""
             SELECT canonical_name, slug
             FROM read_parquet('{species_parquet}')
-            WHERE (occurrence_count > 0 OR on_checklist = true)
+            WHERE (occurrence_count > 0 OR inat_obs_count > 0 OR on_checklist = true)
               AND specific_epithet IS NOT NULL
             ORDER BY canonical_name
             """

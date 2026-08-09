@@ -21,14 +21,21 @@
 -- the lineage inputs (canonical_to_taxon_id, taxon_lineage_extended) which DO
 -- have staging wrappers.
 {{ config(severity='warn') }}
+-- beeatlas-3ed: the universe gained a third arm (iNat expert observations) in
+-- int_species_universe; mirrored here so coverage is measured over the same set.
 WITH species_universe AS (
-    SELECT DISTINCT COALESCE(c.canonical_name, oa.canonical_name) AS canonical_name
+    SELECT DISTINCT COALESCE(c.canonical_name, oa.canonical_name, ioa.canonical_name) AS canonical_name
     FROM {{ ref('stg_checklist__species') }} c
     FULL OUTER JOIN (
         SELECT DISTINCT canonical_name
         FROM {{ source('ecdysis_data', 'occurrences') }}
         WHERE canonical_name IS NOT NULL
     ) oa ON oa.canonical_name = c.canonical_name
+    FULL OUTER JOIN (
+        SELECT DISTINCT canonical_name
+        FROM {{ source('inat_obs_data', 'observations') }}
+        WHERE canonical_name IS NOT NULL
+    ) ioa ON ioa.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
 ),
 coverage AS (
     SELECT

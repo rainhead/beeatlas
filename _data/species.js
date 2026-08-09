@@ -182,10 +182,13 @@ for (const sp of flat) {
 const genusList = Object.values(genusMap)
   .sort((a, b) => a.genus.localeCompare(b.genus))
   .map(g => {
-    // All members with occurrences, sorted by canonical_name. Drives the DISPLAY
-    // list and the counts; colors come from `mapped` below, which is the wider set.
+    // All members with atlas records — Ecdysis occurrences OR expert-identified
+    // iNat observations (beeatlas-3ed: a species documented only by iNat
+    // observations has occurrence_count 0 and still has records that plot).
+    // Sorted by canonical_name. Drives the DISPLAY list and the counts; colors
+    // come from `mapped` below, which is the wider set.
     const withOcc = g.allMembers
-      .filter(sp => sp.occurrence_count > 0)
+      .filter(sp => sp.occurrence_count > 0 || (sp.inat_obs_count || 0) > 0)
       .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
     // All members that put dots on the genus map, sorted by canonical_name —
     // matches Python _group_colors input. A hue is a position in THIS list.
@@ -235,11 +238,14 @@ const genusList = Object.values(genusMap)
     const speciesOnly = withOcc
       .filter(sp => sp.specific_epithet !== null)
       .map(sp => ({ ...sp, hexColor: colorByCanon[sp.canonical_name] }));
-    // Species with no WABA specimens but a checklist listing. They keep their map
-    // hue when they plot (community observation or georeferenced checklist point);
-    // neutral grey is for the ones with nothing on the map to be a legend for.
+    // Species with no atlas records but a checklist listing. Species with iNat
+    // observations now live in withOcc above (beeatlas-3ed), so this bucket is
+    // genuinely record-less. They keep their map hue when they plot (georeferenced
+    // checklist point); neutral grey is for the ones with nothing on the map to
+    // be a legend for.
     const checklistOnly = g.allMembers
-      .filter(sp => sp.occurrence_count === 0 && sp.on_checklist && sp.specific_epithet !== null)
+      .filter(sp => sp.occurrence_count === 0 && (sp.inat_obs_count || 0) === 0
+        && sp.on_checklist && sp.specific_epithet !== null)
       .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
     const checklistSpecies = checklistOnly.map(sp => ({
       ...sp,
@@ -258,7 +264,7 @@ const genusList = Object.values(genusMap)
     // entry is appended after this sort and remains last.
     const species = [...speciesOnly, ...checklistSpecies]
       .sort((a, b) => a.scientificName.localeCompare(b.scientificName));
-    if (unresolvedOccurrences > 0) {
+    if (unresolvedOccurrences > 0 || unresolvedInatObsCount > 0) {
       species.push({ scientificName: `${g.genus} sp.`, hexColor: '#aaaaaa', occurrence_count: unresolvedOccurrences, specimen_count: unresolvedSpecimenCount, inat_obs_count: unresolvedInatObsCount, slug: null });
     }
     // Partition species into subgenus groups + ungrouped (derived from the already-built species array
@@ -282,7 +288,11 @@ const genusList = Object.values(genusMap)
       subgenera,
       ungroupedSpecies,
       speciesCount: speciesOnly.length,
-      totalOccurrences: speciesOnly.reduce((acc, sp) => acc + sp.occurrence_count, 0) + unresolvedOccurrences,
+      // "Records" = what the atlas map plots for this genus: Ecdysis occurrences
+      // plus expert-identified iNat observations — the same sum the species page
+      // uses for its "View N records on the atlas" link (beeatlas-3ed).
+      totalOccurrences: speciesOnly.reduce((acc, sp) => acc + sp.occurrence_count + (sp.inat_obs_count || 0), 0)
+        + unresolvedOccurrences + unresolvedInatObsCount,
       taxon_id: higherTaxaByRankName['genus']?.[g.genus]?.taxon_id ?? null,
     };
   });
@@ -309,11 +319,12 @@ for (const sp of flat) {
 const subgenusList = Object.values(subgenusMap)
   .sort((a, b) => a.genus.localeCompare(b.genus) || a.subgenus.localeCompare(b.subgenus))
   .map(g => {
-    // All members with occurrences, sorted by canonical_name. Drives the DISPLAY
-    // list and the counts; colors come from `mapped`, the set that puts dots on
-    // the subgenus map — see isMapped.
+    // All members with atlas records — Ecdysis occurrences OR expert-identified
+    // iNat observations (beeatlas-3ed, same widening as genusList above).
+    // Sorted by canonical_name. Drives the DISPLAY list and the counts; colors
+    // come from `mapped`, the set that puts dots on the subgenus map — see isMapped.
     const withOcc = g.allMembers
-      .filter(sp => sp.occurrence_count > 0)
+      .filter(sp => sp.occurrence_count > 0 || (sp.inat_obs_count || 0) > 0)
       .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
     const mapped = g.allMembers
       .filter(isMapped)
@@ -330,10 +341,13 @@ const subgenusList = Object.values(subgenusMap)
     const speciesOnly = withOcc
       .filter(sp => sp.specific_epithet !== null)
       .map(sp => ({ ...sp, hexColor: colorByCanon[sp.canonical_name] }));
-    // Species with no WABA specimens but a checklist listing. They keep their map
-    // hue when they plot; neutral grey is for the ones that draw nothing.
+    // Species with no atlas records but a checklist listing (record-bearing
+    // species, including iNat-only ones, live in withOcc above — beeatlas-3ed).
+    // They keep their map hue when they plot; neutral grey is for the ones that
+    // draw nothing.
     const checklistOnly = g.allMembers
-      .filter(sp => sp.occurrence_count === 0 && sp.on_checklist && sp.specific_epithet !== null)
+      .filter(sp => sp.occurrence_count === 0 && (sp.inat_obs_count || 0) === 0
+        && sp.on_checklist && sp.specific_epithet !== null)
       .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
     const checklistSpecies = checklistOnly.map(sp => ({
       ...sp,
@@ -351,7 +365,7 @@ const subgenusList = Object.values(subgenusMap)
     // entry is appended after this sort and remains last.
     const species = [...speciesOnly, ...checklistSpecies]
       .sort((a, b) => a.scientificName.localeCompare(b.scientificName));
-    if (unresolvedOccurrences > 0) {
+    if (unresolvedOccurrences > 0 || unresolvedInatObsCount > 0) {
       species.push({ scientificName: `${g.genus} sp.`, hexColor: '#aaaaaa', occurrence_count: unresolvedOccurrences, specimen_count: unresolvedSpecimenCount, inat_obs_count: unresolvedInatObsCount, slug: null });
     }
     const checklistCount = checklistOnly.reduce((acc, sp) => acc + (sp.checklist_count || 0), 0);
@@ -363,7 +377,8 @@ const subgenusList = Object.values(subgenusMap)
       tribe: g.tribe,
       species,
       speciesCount: speciesOnly.length,
-      totalOccurrences: withOcc.reduce((acc, sp) => acc + sp.occurrence_count, 0),
+      // Same "records on the atlas" sum as genusList (beeatlas-3ed).
+      totalOccurrences: withOcc.reduce((acc, sp) => acc + sp.occurrence_count + (sp.inat_obs_count || 0), 0),
       checklistCount,
       taxon_id: higherTaxaByRankName['subgenus']?.[g.subgenus]?.taxon_id ?? null,
     };
@@ -394,10 +409,10 @@ const tribeList = Object.values(tribeMap)
   .sort((a, b) => a.tribe.localeCompare(b.tribe))
   .map(t => {
     const genera = Object.entries(t.generaMap)
-      .filter(([, counts]) => counts.occurrence_count > 0)
+      .filter(([, counts]) => counts.occurrence_count > 0 || counts.inat_obs_count > 0)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([genus, counts]) => ({ genus, ...counts }));
-    const totalOccurrences = genera.reduce((acc, g) => acc + g.occurrence_count, 0);
+    const totalOccurrences = genera.reduce((acc, g) => acc + g.occurrence_count + (g.inat_obs_count || 0), 0);
     return {
       tribe: t.tribe,
       family: t.family,

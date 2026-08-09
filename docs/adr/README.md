@@ -35,3 +35,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0029](0029-one-origin-two-surfaces.md) | The app moves to the root, and offline stops at the map | Proposed |
 | [0030](0030-what-a-species-is-vs-what-to-ask-inat.md) | What a species *is* and what we *ask iNat about* are two different taxon IDs | Accepted |
 | [0031](0031-a-species-photo-is-a-reference-not-a-prize.md) | A species photo is a reference image, not a prize-winner | Accepted |
+| [0032](0032-species-universe-includes-expert-identified-observations.md) | The species universe includes expert-identified observations | Accepted |

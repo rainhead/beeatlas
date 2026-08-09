@@ -1,5 +1,13 @@
--- Species universe: FULL OUTER JOIN of checklist + ecdysis occurrences with
--- lineage backfill. Mirrors species_export.py lines 157-208.
+-- Species universe: FULL OUTER JOIN of checklist + ecdysis occurrences + iNat
+-- expert observations, with lineage backfill. Originally mirrored
+-- species_export.py lines 157-208 (two arms); the iNat arm was added for
+-- beeatlas-3ed so a taxon documented only by expert-identified observations
+-- (e.g. Neolarra, subgenus-rank determinations like Dialictus) still gets a
+-- universe row — previously iNat observations could contribute counts to an
+-- existing row but never create one. The bee-family WHERE gate below is what
+-- keeps the non-bee occurrences that ride the inat_expert arm (roster filters
+-- on WHO identified) out of the universe: their lineage resolves to a non-bee
+-- family, or not at all.
 -- Materialized as TABLE to prevent re-evaluating the FULL OUTER JOIN on each
 -- mart pass (same reason as int_combined).
 -- NOTE: month_histogram uses COALESCE element-wise addition. The original four-branch
@@ -72,14 +80,37 @@ checklist_record_count_agg AS (
     WHERE cr.canonical_name IS NOT NULL
     GROUP BY 1
 ),
--- Per-species iNat expert obs count (OCC-02). Reads source directly to avoid circular DAG with occurrences mart.
+-- Per-species iNat expert observation aggregate (OCC-02, beeatlas-3ed).
+-- Reads source directly to avoid circular DAG with occurrences mart.
 -- Phase 123 (SYN-02): apply occurrence synonymy here too. Reads source
 -- directly (avoids circular DAG with occurrences mart) so it must
 -- redo the same LEFT JOIN that int_combined applies to ARM 3.
-inat_obs_count_agg AS (
+-- beeatlas-3ed: now a third arm of the species-universe FULL OUTER JOIN
+-- (was a count-only LEFT JOIN), and also carries first/last dates and a
+-- month histogram so iNat evidence feeds seasonality alongside the
+-- ecdysis + checklist arms. No coordinate filter — count parity with the
+-- previous inat_obs_count is deliberate (ARM 4 of int_combined filters
+-- lat/lon; this agg never has).
+inat_obs_agg AS (
     SELECT
         COALESCE(syn.accepted_name, io.canonical_name) AS canonical_name,
-        COUNT(*) AS inat_obs_count
+        COUNT(*) AS inat_obs_count,
+        MIN(CAST(io.observed_on AS DATE)) AS inat_first_date,
+        MAX(CAST(io.observed_on AS DATE)) AS inat_last_date,
+        list_value(
+            SUM(CASE WHEN MONTH(io.observed_on) =  1 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN MONTH(io.observed_on) =  2 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN MONTH(io.observed_on) =  3 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN MONTH(io.observed_on) =  4 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN MONTH(io.observed_on) =  5 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN MONTH(io.observed_on) =  6 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN MONTH(io.observed_on) =  7 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN MONTH(io.observed_on) =  8 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN MONTH(io.observed_on) =  9 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN MONTH(io.observed_on) = 10 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN MONTH(io.observed_on) = 11 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN MONTH(io.observed_on) = 12 THEN 1 ELSE 0 END)
+        ) AS inat_month_histogram
     FROM {{ source('inat_obs_data', 'observations') }} io
     LEFT JOIN {{ ref('int_synonyms') }} syn ON syn.synonym = io.canonical_name
     WHERE io.canonical_name IS NOT NULL
@@ -101,48 +132,57 @@ species_universe AS (
     SELECT
         COALESCE(
             c.scientificName,
-            upper(left(COALESCE(c.canonical_name, oa.canonical_name), 1)) ||
-            substring(COALESCE(c.canonical_name, oa.canonical_name), 2)
+            upper(left(COALESCE(c.canonical_name, oa.canonical_name, ioa.canonical_name), 1)) ||
+            substring(COALESCE(c.canonical_name, oa.canonical_name, ioa.canonical_name), 2)
         ) AS scientificName,
-        COALESCE(c.canonical_name, oa.canonical_name) AS canonical_name,
+        COALESCE(c.canonical_name, oa.canonical_name, ioa.canonical_name) AS canonical_name,
         COALESCE(c.family, tle.family) AS family,
         COALESCE(c.subfamily, tle.subfamily) AS subfamily,
         COALESCE(c.tribe, tle.tribe) AS tribe,
+        -- Single-token subgenus-rank names ('dialictus') would split_part to
+        -- themselves; tle.genus resolves them to the parent genus. A name whose
+        -- lineage does not resolve keeps the split_part fallback and then fails
+        -- the bee-family gate below, so it cannot leak a wrong genus into the
+        -- universe.
         COALESCE(
             c.genus,
             tle.genus,
-            split_part(COALESCE(c.canonical_name, oa.canonical_name), ' ', 1)
+            split_part(COALESCE(c.canonical_name, oa.canonical_name, ioa.canonical_name), ' ', 1)
         ) AS genus,
         COALESCE(c.subgenus, tle.subgenus) AS subgenus,
         COALESCE(
             c.specific_epithet,
-            NULLIF(split_part(COALESCE(c.canonical_name, oa.canonical_name), ' ', 2), '')
+            NULLIF(split_part(COALESCE(c.canonical_name, oa.canonical_name, ioa.canonical_name), ' ', 2), '')
         ) AS specific_epithet,
         c.scientificName IS NOT NULL AS on_checklist,
         c.status AS status,
         COALESCE(oa.occurrence_count, 0) AS occurrence_count,
         COALESCE(oa.specimen_count, 0) AS specimen_count,
         COALESCE(pa.provisional_count, 0) AS provisional_count,
-        oa.first_occurrence_date,
-        oa.last_occurrence_date,
-        -- Merged month_histogram: element-wise sum of ecdysis + checklist months.
-        -- COALESCE(arr[n], 0) handles NULL on either side without branching, which
+        -- least/greatest ignore NULLs in DuckDB (verified 1.5.x), so a species
+        -- with only one arm's dates keeps them and a checklist-only row stays NULL.
+        least(oa.first_occurrence_date, ioa.inat_first_date) AS first_occurrence_date,
+        greatest(oa.last_occurrence_date, ioa.inat_last_date) AS last_occurrence_date,
+        -- Merged month_histogram: element-wise sum of ecdysis + checklist + iNat
+        -- expert months (beeatlas-3ed added the third term — iNat evidence feeds
+        -- the flight-season histogram site-wide, decided 2026-08-08).
+        -- COALESCE(arr[n], 0) handles NULL on any side without branching, which
         -- avoids a DuckDB 1.5.2 materialization bug where the four-branch CASE on
         -- INTEGER[] arrays produced corrupt values when both arms were non-NULL.
         -- ::INTEGER cast on each element ensures INT32 (not BIGINT) before list_value.
         list_value(
-            COALESCE(oa.month_histogram[1],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[1],  0)::INTEGER,
-            COALESCE(oa.month_histogram[2],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[2],  0)::INTEGER,
-            COALESCE(oa.month_histogram[3],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[3],  0)::INTEGER,
-            COALESCE(oa.month_histogram[4],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[4],  0)::INTEGER,
-            COALESCE(oa.month_histogram[5],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[5],  0)::INTEGER,
-            COALESCE(oa.month_histogram[6],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[6],  0)::INTEGER,
-            COALESCE(oa.month_histogram[7],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[7],  0)::INTEGER,
-            COALESCE(oa.month_histogram[8],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[8],  0)::INTEGER,
-            COALESCE(oa.month_histogram[9],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[9],  0)::INTEGER,
-            COALESCE(oa.month_histogram[10], 0)::INTEGER + COALESCE(cma.checklist_month_histogram[10], 0)::INTEGER,
-            COALESCE(oa.month_histogram[11], 0)::INTEGER + COALESCE(cma.checklist_month_histogram[11], 0)::INTEGER,
-            COALESCE(oa.month_histogram[12], 0)::INTEGER + COALESCE(cma.checklist_month_histogram[12], 0)::INTEGER
+            COALESCE(oa.month_histogram[1],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[1],  0)::INTEGER + COALESCE(ioa.inat_month_histogram[1],  0)::INTEGER,
+            COALESCE(oa.month_histogram[2],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[2],  0)::INTEGER + COALESCE(ioa.inat_month_histogram[2],  0)::INTEGER,
+            COALESCE(oa.month_histogram[3],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[3],  0)::INTEGER + COALESCE(ioa.inat_month_histogram[3],  0)::INTEGER,
+            COALESCE(oa.month_histogram[4],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[4],  0)::INTEGER + COALESCE(ioa.inat_month_histogram[4],  0)::INTEGER,
+            COALESCE(oa.month_histogram[5],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[5],  0)::INTEGER + COALESCE(ioa.inat_month_histogram[5],  0)::INTEGER,
+            COALESCE(oa.month_histogram[6],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[6],  0)::INTEGER + COALESCE(ioa.inat_month_histogram[6],  0)::INTEGER,
+            COALESCE(oa.month_histogram[7],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[7],  0)::INTEGER + COALESCE(ioa.inat_month_histogram[7],  0)::INTEGER,
+            COALESCE(oa.month_histogram[8],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[8],  0)::INTEGER + COALESCE(ioa.inat_month_histogram[8],  0)::INTEGER,
+            COALESCE(oa.month_histogram[9],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[9],  0)::INTEGER + COALESCE(ioa.inat_month_histogram[9],  0)::INTEGER,
+            COALESCE(oa.month_histogram[10], 0)::INTEGER + COALESCE(cma.checklist_month_histogram[10], 0)::INTEGER + COALESCE(ioa.inat_month_histogram[10], 0)::INTEGER,
+            COALESCE(oa.month_histogram[11], 0)::INTEGER + COALESCE(cma.checklist_month_histogram[11], 0)::INTEGER + COALESCE(ioa.inat_month_histogram[11], 0)::INTEGER,
+            COALESCE(oa.month_histogram[12], 0)::INTEGER + COALESCE(cma.checklist_month_histogram[12], 0)::INTEGER + COALESCE(ioa.inat_month_histogram[12], 0)::INTEGER
         )::INTEGER[12] AS month_histogram,
         COALESCE(ga.county_count, 0) AS county_count,
         COALESCE(ga.ecoregion_count, 0) AS ecoregion_count,
@@ -152,22 +192,24 @@ species_universe AS (
         ctt.taxon_id::INTEGER AS taxon_id
     FROM {{ ref('stg_checklist__species') }} c
     FULL OUTER JOIN occ_agg oa ON oa.canonical_name = c.canonical_name
+    -- Third universe arm (beeatlas-3ed): iNat expert observations can now
+    -- CREATE a universe row, not just decorate one.
+    FULL OUTER JOIN inat_obs_agg ioa
+        ON ioa.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
     LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt
-        ON ctt.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
+        ON ctt.canonical_name = COALESCE(c.canonical_name, oa.canonical_name, ioa.canonical_name)
     LEFT JOIN {{ ref('stg_inat__taxon_lineage_extended') }} tle
         ON tle.taxon_id = ctt.taxon_id
     LEFT JOIN provisional_agg pa
-        ON pa.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
+        ON pa.canonical_name = COALESCE(c.canonical_name, oa.canonical_name, ioa.canonical_name)
     LEFT JOIN geo_agg ga
-        ON ga.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
+        ON ga.canonical_name = COALESCE(c.canonical_name, oa.canonical_name, ioa.canonical_name)
     LEFT JOIN checklist_month_agg cma
-        ON cma.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
+        ON cma.canonical_name = COALESCE(c.canonical_name, oa.canonical_name, ioa.canonical_name)
     LEFT JOIN checklist_count_agg cca
-        ON cca.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
+        ON cca.canonical_name = COALESCE(c.canonical_name, oa.canonical_name, ioa.canonical_name)
     LEFT JOIN checklist_record_count_agg crca
-        ON crca.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
-    LEFT JOIN inat_obs_count_agg ioa
-        ON ioa.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
+        ON crca.canonical_name = COALESCE(c.canonical_name, oa.canonical_name, ioa.canonical_name)
 )
 -- Collapse any accidental duplicate canonical_name rows, preferring the
 -- checklist-favoring row when both arms produce one (Pitfall 7: DISTINCT ON).
