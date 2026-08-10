@@ -286,16 +286,14 @@ echo "sync done in $(_elapsed $_t0)"
 # Always back up DuckDB + taxa cache on exit (success or failure) so pipeline
 # progress (e.g. occurrence_links) is not lost if a later step fails. `|| true`
 # per copy so the trap preserves the script's exit code.
+# stelis st-8x1: which build this run appended (captured after fetch-data, by
+# epoch match) and how far the run got — the trap turns these into a publish
+# receipt. Empty capture = this run appended nothing = nothing to mark.
+_sb_num=""
+_sb_epoch=""
+_stage="startup"
+
 trap '
-# Stelis operator build log (stelis st-9rf): refresh the served copy even when a
-# gate aborts the publish — a failed or blocked build is exactly what the page is
-# for, and it is engine state, not site data, so serving it fresh while the site
-# data stays at last-published is correct. Stelis rewrites --build; a run that
-# died before reaching the build leaves the previous page, visibly stale by its
-# own build stamp. merge-swap.sh excludes /build-log.html from its --delete.
-if [[ -f "$STELIS_STATE_DIR/build-log.html" && -d "$SITE_ROOT" ]]; then
-    cp "$STELIS_STATE_DIR/build-log.html" "$SITE_ROOT/build-log.html" || true
-fi
 if [[ -f "$DB_PATH" ]]; then
     echo "--- backing up DuckDB (trap) --- sha256=$(_hash "$DB_PATH")"
     aws --profile "$AWS_PROFILE" s3 cp --no-progress "$DB_PATH" "s3://$BACKUP_BUCKET/$DB_S3_KEY" || true
@@ -305,6 +303,24 @@ if [[ -f "$TAXA_PATH" ]]; then
 fi
 if [[ -f "$TAXA_CACHE_PATH" ]]; then
     aws --profile "$AWS_PROFILE" s3 cp --no-progress "$TAXA_CACHE_PATH" "s3://$BACKUP_BUCKET/$TAXA_CACHE_S3_KEY" || true
+fi
+# stelis st-8x1 + st-9rf: publish receipt, then the served operator page. AFTER
+# the backups — nothing below may block them — and each guarded (|| true): a
+# broken stelis checkout degrades to a stale badge, never a lost backup or a
+# changed exit code. The receipt is written only when this run CAPTURED its own
+# build (epoch-matched after fetch-data); a run that died earlier marks nothing,
+# and stelis itself refuses a mismatch or double-mark. Serving the page even on
+# a gate abort is deliberate — a failed build is what the page is for; the site
+# DATA stays at last-published. merge-swap.sh excludes /build-log.html from its
+# --delete.
+if [[ -n "${_sb_num:-}" ]]; then
+    _outcome="not-published"
+    [[ -n "${_published:-}" ]] && _outcome="published"
+    ( cd "$STELIS_DIR" && env BEEATLAS_DIR="$REPO_ROOT" racket src/main.rkt \
+        --mark-publish "$_sb_num" "$_sb_epoch" "$_outcome" "${_stage:-unknown}" nightly ) || true
+fi
+if [[ -f "$STELIS_STATE_DIR/build-log.html" && -d "$SITE_ROOT" ]]; then
+    cp "$STELIS_STATE_DIR/build-log.html" "$SITE_ROOT/build-log.html" || true
 fi
 ' EXIT
 
@@ -342,7 +358,24 @@ export DB_PATH EXPORT_DIR NOTES_DB_PATH
 # explain pass against the same export dir the build reads (non-fatal on error).
 export STELIS_EXPLAIN=1
 cd "$REPO_ROOT"
-npm run fetch-data
+_stage="data-build"
+_fetch_rc=0
+npm run fetch-data || _fetch_rc=$?
+# stelis st-8x1: capture WHICH build the engine just appended — positively, by
+# matching its epoch against the SOURCE_DATE_EPOCH this run exported. A match
+# proves the history tail is THIS run's build (a FAILED build appended too, and
+# deserves its not-published receipt — hence capturing before the exit below);
+# a mismatch means the run died before appending, and the trap marks nothing.
+# Guarded: a capture failure costs the badge, never the run.
+_sb_line="$(cd "$STELIS_DIR" && env BEEATLAS_DIR="$REPO_ROOT" racket src/main.rkt --last-build 2>/dev/null)" || true
+if [[ -n "$_sb_line" && "${_sb_line##* }" == "$SOURCE_DATE_EPOCH" ]]; then
+    _sb_num="${_sb_line%% *}"
+    _sb_epoch="${_sb_line##* }"
+fi
+if [[ $_fetch_rc -ne 0 ]]; then
+    echo "--- data build FAILED (rc=$_fetch_rc) in $(_elapsed $_t0) ---" >&2
+    exit "$_fetch_rc"
+fi
 echo "--- data build done in $(_elapsed $_t0) ---"
 
 # 4. Integration (dataset-validation) gate — HARD GATE before build/publish.
@@ -363,6 +396,7 @@ echo "--- data build done in $(_elapsed $_t0) ---"
 #     SKIP_INTEGRATION_GATE=1 bash data/nightly.sh
 # Use the bypass ONLY for an intended, reviewed contract change — never to
 # paper over an unexpected diff.
+_stage="integration-gate"
 echo "--- integration test gate ---"
 _t0=$(date +%s)
 cd "$SCRIPT_DIR"
@@ -389,6 +423,7 @@ fi
 # build nothing had looked at. They were byte-identical in practice, which is
 # exactly why it went unnoticed. Now there is one build and the gate inspects the
 # artifact that gets published.
+_stage="site-build"
 echo "--- building site ---"
 _t0=$(date +%s)
 cd "$REPO_ROOT"
@@ -409,6 +444,7 @@ echo "--- site build done in $(_elapsed $_t0) ---"
 # rendered site would be wrong, so we abort rather than publish. Note that
 # SKIP_INTEGRATION_GATE does NOT bypass it — that flag is scoped to the pytest
 # contract gate above.
+_stage="js-data-gate"
 echo "--- JS data-dependent test gate ---"
 _t0=$(date +%s)
 cd "$REPO_ROOT"
@@ -422,6 +458,7 @@ echo "JS data test gate passed in $(_elapsed $_t0)"
 # lives in data/merge-swap.sh — THE publish contract, shared with the st-nee
 # note-write path (data/publish-notes.sh). Exit 3 = SITE_ROOT absent, which
 # for the nightly is a skip (fresh host), not a failure.
+_stage="merge-swap"
 echo "--- publishing into $SITE_ROOT ---"
 _t0=$(date +%s)
 _published=""
@@ -431,6 +468,7 @@ if [[ $_swap_rc -eq 0 ]]; then
     _published=1
     echo "published in $(_elapsed $_t0)"
 elif [[ $_swap_rc -eq 3 ]]; then
+    _stage="site-root-absent"
     echo "NOTE: SITE_ROOT $SITE_ROOT absent — publish skipped (install: docs/runbooks/serve-from-maderas.md)" >&2
 else
     exit $_swap_rc

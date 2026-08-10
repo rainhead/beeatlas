@@ -109,14 +109,47 @@ _invalidate_receipt_on_failure() {
         echo "publish failed (rc=$rc) — invalidating the build receipt so the next publish renders in full" >&2
         node "$REPO_ROOT/scripts/build-receipt.mjs" --invalidate || true
     fi
+    # stelis st-8x1: report the publish outcome back (path `note` — this script
+    # merge-swaps the same contract the nightly does, and without a receipt the
+    # build log's "site last published" line would lie after every note write),
+    # then refresh the served operator page. Both guarded (|| true): failure
+    # costs a badge, never the exit code. A run that died before its scoped
+    # build appended captured nothing and marks nothing; rc==75 never got here.
+    if [[ -n "${_sb_num:-}" ]]; then
+        local _outcome="not-published"
+        [[ -n "${_note_published:-}" ]] && _outcome="published"
+        ( cd "$STELIS_DIR" && env BEEATLAS_DIR="$REPO_ROOT" racket src/main.rkt \
+            --mark-publish "$_sb_num" "$_sb_epoch" "$_outcome" "${_stage:-unknown}" note ) || true
+    fi
+    if [[ -f "$STELIS_STATE_DIR/build-log.html" && -d "$SITE_ROOT" ]]; then
+        cp "$STELIS_STATE_DIR/build-log.html" "$SITE_ROOT/build-log.html" || true
+    fi
 }
 trap _invalidate_receipt_on_failure EXIT
+_sb_num=""
+_sb_epoch=""
+_note_published=""
+_stage="notes-build"
 
 # 2. Scoped stelis build: only the notes suffix, targeted to the changed keys.
 echo "--- building notes (stelis, scoped) ---"
 _t0=$(date +%s)
 export DB_PATH EXPORT_DIR NOTES_DB_PATH STELIS_DIR
-bash "$REPO_ROOT/scripts/fetch-data.sh" --from notes-harvest notes
+_fetch_rc=0
+bash "$REPO_ROOT/scripts/fetch-data.sh" --from notes-harvest notes || _fetch_rc=$?
+# stelis st-8x1: capture WHICH build the scoped run just appended, positively —
+# epoch match against this run's exported SOURCE_DATE_EPOCH. A failed build
+# appended too and deserves its not-published receipt, hence capturing before
+# the exit below; a mismatch means nothing was appended, so nothing is marked.
+_sb_line="$(cd "$STELIS_DIR" && env BEEATLAS_DIR="$REPO_ROOT" racket src/main.rkt --last-build 2>/dev/null)" || true
+if [[ -n "$_sb_line" && "${_sb_line##* }" == "$SOURCE_DATE_EPOCH" ]]; then
+    _sb_num="${_sb_line%% *}"
+    _sb_epoch="${_sb_line##* }"
+fi
+if [[ $_fetch_rc -ne 0 ]]; then
+    echo "--- notes build FAILED (rc=$_fetch_rc) in $(_elapsed $_t0) ---" >&2
+    exit "$_fetch_rc"
+fi
 echo "--- notes build done in $(_elapsed $_t0) ---"
 
 # 3. Site render. SCOPED when we can prove it is sound (beeatlas-4oa), full
@@ -135,6 +168,7 @@ echo "--- notes build done in $(_elapsed $_t0) ---"
 #   last full build's output, for the current code, manifest and data
 #   (scripts/build-receipt.mjs — the same precondition Stelis's own partial
 #   rebuilds enforce with prior-complete-build?, st-243).
+_stage="site-build"
 echo "--- building site ---"
 _t0=$(date +%s)
 cd "$REPO_ROOT"
@@ -163,9 +197,11 @@ echo "--- site build done in $(_elapsed $_t0) ---"
 # 4. Merge-swap into the served root. Exit 3 (SITE_ROOT absent) propagates as
 # a failure here — unlike the nightly, a note write with nowhere to publish
 # IS a publish failure (the API responds "pending").
+_stage="merge-swap"
 echo "--- publishing into $SITE_ROOT ---"
 _t0=$(date +%s)
 BASE_DIR="$BASE_DIR" SITE_ROOT="$SITE_ROOT" bash "$SCRIPT_DIR/merge-swap.sh"
+_note_published=1
 echo "published in $(_elapsed $_t0)"
 
 echo "=== note publish complete $(_ts) ==="
