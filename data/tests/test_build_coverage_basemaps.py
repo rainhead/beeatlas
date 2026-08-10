@@ -303,12 +303,17 @@ def test_build_ecoregions_base_aria_hidden(tmp_path):
 # Weight regression guard (uses real ecoregions.geojson if present)
 # ---------------------------------------------------------------------------
 
-_REAL_ECO = Path(__file__).parent.parent.parent / "public" / "data" / "ecoregions.geojson"
+# The raw ecoregions mart lives in $EXPORT_DIR under the nightly (the
+# public/data copy is a retired-path leftover that nothing refreshes); fall
+# back to public/data only for local runs without EXPORT_DIR set.
+_REAL_ECO = Path(
+    os.environ.get("EXPORT_DIR", str(Path(__file__).parent.parent.parent / "public" / "data"))
+) / "ecoregions.geojson"
 
 
 @pytest.mark.skipif(
     not _REAL_ECO.exists(),
-    reason="public/data/ecoregions.geojson not present (gitignored in CI)",
+    reason="ecoregions.geojson not present (gitignored in CI)",
 )
 def test_ecoregions_base_weight_regression(tmp_path):
     """ecoregions-base.svg from the real ecoregions.geojson stays under 200 KB.

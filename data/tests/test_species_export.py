@@ -21,6 +21,7 @@ Run after ``bash data/dbt/run.sh build`` for the integration tier:
 """
 
 import json
+import os
 from pathlib import Path
 
 import duckdb
@@ -30,12 +31,21 @@ import species_export as se_mod
 from species_export import export_species_parquet, SPECIES_COLUMNS
 
 SANDBOX = Path(__file__).resolve().parent.parent / "dbt" / "target" / "sandbox"
-SPECIES_JSON = Path(__file__).resolve().parent.parent.parent / "public" / "data" / "species.json"
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+# Assert on the FRESH exporter output ($EXPORT_DIR under the nightly), not
+# public/data: the latter is the restored last-published baseline, so a broken
+# fresh export would pass the gate tonight and only fail after it went live.
+_EXPORT_DIR_ENV = os.environ.get("EXPORT_DIR")
+SPECIES_JSON = (
+    Path(_EXPORT_DIR_ENV)
+    if _EXPORT_DIR_ENV
+    else Path(__file__).resolve().parent.parent.parent / "public" / "data"
+) / "species.json"
 
 _SPECIES_JSON_GUARD = pytest.mark.skipif(
     not SPECIES_JSON.exists(),
-    reason="[integration] run `uv run python data/species_export.py` first to produce public/data/species.json",
+    reason="[integration] run `uv run python data/species_export.py` first to produce species.json",
 )
 
 
@@ -192,9 +202,9 @@ def test_inat_obs_count_in_species(tmp_path, monkeypatch, sandbox_parquet):
 @pytest.mark.integration
 @_SPECIES_JSON_GUARD
 def test_taxon_id(tmp_path):
-    """Every species entry in public/data/species.json has a non-null integer taxon_id (TID-03).
+    """Every species entry in the fresh species.json has a non-null integer taxon_id (TID-03).
 
-    [integration] Reads public/data/species.json — a downstream artifact produced by
+    [integration] Reads $EXPORT_DIR/species.json (public/data fallback) — produced by
     `uv run python data/species_export.py`. Requires the full dbt sandbox + export pipeline.
     Deselected from the fast tier by addopts = -m "not integration" in pyproject.toml.
     """

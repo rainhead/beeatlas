@@ -353,17 +353,32 @@ def test_occurrences_ecoregion_spatial_diff():
     )
 
 
+# The published region files are the topology-postprocess outputs
+# `<name>.clean.geojson` (one-producer rename, beeatlas-hyq); a raw
+# `<name>.geojson` under public/data is a retired-path leftover that no
+# baseline cycle refreshes. These tests guard the postprocess step itself, so
+# they diff the fresh raw mart (SANDBOX) against the fresh cleaned sibling
+# (EXPORT); with EXPORT_DIR unset they fall back to the live published clean
+# file, which the baseline restore keeps current.
+
+def _clean_geojson(filename: str) -> dict:
+    path = EXPORT / filename.replace(".geojson", ".clean.geojson")
+    if not path.exists():
+        pytest.skip(f"[integration] {path} absent — run topology_postprocess first")
+    return json.loads(path.read_text())
+
+
 @pytest.mark.skipif(
     not (SANDBOX / "counties.geojson").exists(),
     reason="run `bash data/dbt/run.sh build` first to produce sandbox outputs",
 )
 def test_counties_geojson_feature_count_matches():
-    """counties.geojson has the same feature count in sandbox and public/data (both 39)."""
+    """counties.clean.geojson keeps the sandbox mart's feature count (39; -clean only, no simplify)."""
     s = json.loads((SANDBOX / "counties.geojson").read_text())
-    p = json.loads((PUBLIC / "counties.geojson").read_text())
+    p = _clean_geojson("counties.geojson")
     assert len(s["features"]) == len(p["features"]), (
-        f"counties.geojson feature count mismatch: sandbox={len(s['features'])}, "
-        f"public={len(p['features'])}"
+        f"counties feature count mismatch: sandbox={len(s['features'])}, "
+        f"clean={len(p['features'])}"
     )
 
 
@@ -372,22 +387,21 @@ def test_counties_geojson_feature_count_matches():
     reason="run `bash data/dbt/run.sh build` first to produce sandbox outputs",
 )
 def test_ecoregions_geojson_feature_count_matches():
-    """public ecoregions.geojson keeps every distinct L3 region from the sandbox.
+    """ecoregions.clean.geojson keeps every distinct L3 region from the sandbox.
 
     topology-postprocess (mapshaper -clean gap-fill-area=0.01km2, #14) intentionally
-    folds sub-hectare sliver polygons into surrounding water, so public has the
-    same-or-fewer features than the pre-postprocess sandbox (currently 64 of 66 —
-    2 sub-hectare "Strait of Georgia/Puget Lowland" rocks dropped). The invariant is
+    folds sub-hectare sliver polygons into surrounding water, so the cleaned file has
+    the same-or-fewer features than the pre-postprocess sandbox. The invariant is
     therefore NOT equal counts but that simplification never drops a whole named L3
-    region: public <= sandbox AND the distinct NA_L3NAME set is preserved.
+    region: clean <= sandbox AND the distinct NA_L3NAME set is preserved.
     """
     s = json.loads((SANDBOX / "ecoregions.geojson").read_text())
-    p = json.loads((PUBLIC / "ecoregions.geojson").read_text())
+    p = _clean_geojson("ecoregions.geojson")
     s_names = {f["properties"]["NA_L3NAME"] for f in s["features"]}
     p_names = {f["properties"]["NA_L3NAME"] for f in p["features"]}
     assert len(p["features"]) <= len(s["features"]), (
-        f"public ecoregions has MORE features than sandbox: "
-        f"sandbox={len(s['features'])}, public={len(p['features'])}"
+        f"cleaned ecoregions has MORE features than sandbox: "
+        f"sandbox={len(s['features'])}, clean={len(p['features'])}"
     )
     assert s_names == p_names, (
         f"topology-postprocess dropped a whole L3 region.\n"
@@ -408,29 +422,37 @@ def test_ecoregions_geojson_feature_count_matches():
     ],
 )
 def test_geojson_property_names_match(filename, prop):
-    """The distinct set of region names is identical between sandbox and public/data.
+    """The distinct set of region names survives topology-postprocess unchanged.
 
     For counties: the NAME property (39 WA county names, each unique).
     For ecoregions: the NA_L3NAME property (9 distinct L3 region names).
 
     Compares distinct SETS, not per-feature lists: topology-postprocess folds
     sub-hectare sliver polygons (extra duplicate-named features) into surrounding
-    water, so per-feature multisets can legitimately differ between sandbox and
-    public, but no distinct region name may appear or disappear. Counties have one
-    feature per name, so set-equality is equivalent to list-equality there.
+    water, so per-feature multisets can legitimately differ between the raw mart
+    and the cleaned file, but no distinct region name may appear or disappear.
+    Counties have one feature per name, so set-equality is list-equality there.
     """
     s_data = json.loads((SANDBOX / filename).read_text())
-    p_data = json.loads((PUBLIC / filename).read_text())
+    p_data = _clean_geojson(filename)
     s_names = {f["properties"][prop] for f in s_data["features"]}
     p_names = {f["properties"][prop] for f in p_data["features"]}
     assert s_names == p_names, (
         f"{filename} '{prop}' distinct name sets differ.\n"
         f"Only in sandbox: {sorted(s_names - p_names)}\n"
-        f"Only in public:  {sorted(p_names - s_names)}"
+        f"Only in clean:   {sorted(p_names - s_names)}"
     )
 
 
-# PORT-01: Species artifact diff tests
+# PORT-01: species.parquet schema contract (mart -> exporter)
+#
+# species.parquet is NOT a published artifact: since Model Y it is an
+# EXPORT_DIR intermediate consumed by places_export/collectors_export, and
+# public/data/species.parquet is a retired-run.py leftover that no baseline
+# cycle refreshes (it froze on 2026-07-02 and failed this gate on 2026-08-09).
+# Fresh-vs-live species drift (entry count, canonical_name set) is covered by
+# the PORT-02 species.json tests below; the parquet-specific invariant that
+# remains is the structural contract with its downstream consumers.
 
 SANDBOX_SPECIES_PARQUET_GUARD = pytest.mark.skipif(
     not (SANDBOX / "species.parquet").exists(),
@@ -439,76 +461,32 @@ SANDBOX_SPECIES_PARQUET_GUARD = pytest.mark.skipif(
 
 
 @SANDBOX_SPECIES_PARQUET_GUARD
-def test_species_parquet_row_count_within_tolerance():
-    """Sandbox species.parquet row count is within [-2%, +5%] of public/data.
-
-    Species follow occurrences: new taxa appear as observations are identified, and
-    a species drops out when its last backing record is deleted. Bound the drift
-    rather than require exact equality.
-    """
-    s = duckdb.execute(
-        f"SELECT COUNT(*) FROM read_parquet('{SANDBOX}/species.parquet')"
-    ).fetchone()[0]
-    p = duckdb.execute(
-        f"SELECT COUNT(*) FROM read_parquet('{PUBLIC}/species.parquet')"
-    ).fetchone()[0]
-    _assert_count_within_tolerance(s, p, "species")
-
-
-@SANDBOX_SPECIES_PARQUET_GUARD
+@_EXPORT_DISTINCT_GUARD
 def test_species_parquet_schema_matches():
-    """Public schema equals sandbox schema PLUS appended slug column.
+    """Exporter schema equals sandbox mart schema PLUS appended slug column.
 
-    The dbt mart writes a 21-column species.parquet to data/dbt/target/sandbox/.
-    species_export.py reads it, appends a slug column via feeds._slugify, and
-    writes the resulting 22-column file to public/data/species.parquet
-    (Phase 86 Plan 05 contract). This test asserts the 21 sandbox cols equal
-    the first 21 public cols in order and types, and that the 22nd public col
-    is ('slug', 'VARCHAR').
+    The dbt mart writes a 22-column species.parquet to data/dbt/target/sandbox/;
+    species_export.py reads it, appends a slug column, and writes the 23-column
+    EXPORT_DIR/species.parquet that places_export and collectors_export consume.
+    This asserts the 22 mart cols equal the first 22 export cols in order and
+    types, and that the 23rd export col is ('slug', 'VARCHAR').
     """
+    export_parquet = EXPORT / "species.parquet"
+    if not export_parquet.exists():
+        pytest.skip("[integration] EXPORT_DIR/species.parquet absent — run species-export first")
     s_cols = [(r[0], r[1]) for r in duckdb.execute(
         f"DESCRIBE SELECT * FROM read_parquet('{SANDBOX}/species.parquet')"
     ).fetchall()]
     p_cols = [(r[0], r[1]) for r in duckdb.execute(
-        f"DESCRIBE SELECT * FROM read_parquet('{PUBLIC}/species.parquet')"
+        f"DESCRIBE SELECT * FROM read_parquet('{export_parquet}')"
     ).fetchall()]
     assert p_cols[:-1] == s_cols, (
-        f"Sandbox/public column prefix mismatch.\n"
+        f"Sandbox/export column prefix mismatch.\n"
         f"Sandbox only: {[c for c in s_cols if c not in p_cols]}\n"
-        f"Public[:-1] only: {[c for c in p_cols[:-1] if c not in s_cols]}"
+        f"Export[:-1] only: {[c for c in p_cols[:-1] if c not in s_cols]}"
     )
     assert p_cols[-1] == ('slug', 'VARCHAR'), (
-        f"Expected last public column to be ('slug', 'VARCHAR'); got {p_cols[-1]!r}"
-    )
-
-
-@SANDBOX_SPECIES_PARQUET_GUARD
-def test_species_canonical_name_drift_bounded():
-    """canonical_name anti-join: newly-identified taxa allowed, disappearances bounded to -2%.
-
-    Re-identified specimens and new observations introduce canonical_names (allowed);
-    a name leaves only when its last record is deleted (bounded). A large drop is the
-    regression signature the gate must catch.
-    """
-    only_in_sandbox = duckdb.execute(f"""
-        SELECT COUNT(*) FROM (
-            SELECT canonical_name FROM read_parquet('{SANDBOX}/species.parquet')
-            EXCEPT
-            SELECT canonical_name FROM read_parquet('{PUBLIC}/species.parquet')
-        )
-    """).fetchone()[0]
-    only_in_public = duckdb.execute(f"""
-        SELECT COUNT(*) FROM (
-            SELECT canonical_name FROM read_parquet('{PUBLIC}/species.parquet')
-            EXCEPT
-            SELECT canonical_name FROM read_parquet('{SANDBOX}/species.parquet')
-        )
-    """).fetchone()[0]
-    public_total = duckdb.execute(
-        f"SELECT COUNT(DISTINCT canonical_name) FROM read_parquet('{PUBLIC}/species.parquet')"
-    ).fetchone()[0]
-    _assert_set_drift_within_tolerance(
-        only_in_sandbox, only_in_public, public_total, "species canonical_name set"
+        f"Expected last export column to be ('slug', 'VARCHAR'); got {p_cols[-1]!r}"
     )
 
 
