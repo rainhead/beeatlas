@@ -23,6 +23,7 @@ import TOML from '@iarna/toml';
 import { OUT, MANIFEST, PART_KEYS } from './config.mjs';
 
 const flag = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i === -1 ? Number(d) : Number(process.argv[i + 1]); };
+const strFlag = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i === -1 ? d : process.argv[i + 1]; };
 const SLOTS = flag('slots', 8);
 const READABLE = 2;
 const FLOOR = flag('floor', 3);   // top up to this many when good candidates exist
@@ -32,6 +33,28 @@ const scored = readFileSync(path.join(OUT, 'candidate-parts.jsonl'), 'utf8')
   .split('\n').filter(Boolean).map(JSON.parse).filter((r) => !r.error && r.information != null);
 const meta = new Map(JSON.parse(readFileSync(path.join(OUT, 'candidate-photos.json'), 'utf8')).map((p) => [p.photo_id, p]));
 const manifest = TOML.parse(readFileSync(MANIFEST, 'utf8'));
+
+/**
+ * MULTI-BEE GUARD (beeatlas-ekk, 2026-08-08). Part scores cannot tell one bee from many:
+ * photo 50962190 shows ~65 bees, locate returned 65 raw boxes, the overlap merge unioned
+ * them into one frame-filling box, and the photo scored a perfect subject fraction while
+ * being a reference view of no individual at all. The signal was already recorded and
+ * never consulted. A photo is suspect when the model returned 3+ raw boxes (one bee split
+ * in two is the known 2% failure; three is not one bee) or 2+ distinct in-focus bees
+ * survive the merge. Suspects never take a slot; a photo with no locate row passes, since
+ * locate may only have run over the species being re-selected.
+ */
+const locateFile = path.join(OUT, strFlag('locate', 'locate-qwen_qwen3-vl-32b-instruct-candidates.jsonl'));
+const located = new Map(!existsSync(locateFile) ? [] :
+  readFileSync(locateFile, 'utf8').split('\n').filter(Boolean)
+    .map((l) => { try { return JSON.parse(l); } catch { return null; } })
+    .filter((r) => r && !r.error).map((r) => [r.photo_id, r]));
+const isMultiBee = (p) => {
+  const l = located.get(p.photo_id);
+  if (!l) return false;
+  return l.raw_box_count >= 3 || (l.bees ?? []).filter((b) => b.in_focus).length >= 2;
+};
+console.log(`${located.size} photos have locate data; multi-bee suspects among them: ${[...located.keys()].filter((id) => isMultiBee({ photo_id: id })).length}`);
 
 // species key in the manifest is properly cased; candidates carry lowercase canonical_name
 const manifestByLower = new Map(Object.entries(manifest.species).map(([k, v]) => [k.toLowerCase(), { key: k, entry: v }]));
@@ -72,19 +95,36 @@ for (const [speciesLower, cands] of Object.entries(bySpecies)) {
   const cover = Object.fromEntries(PART_KEYS.map((k) => [k, 0]));
   const usedObs = new Set();
 
-  while (chosen.length < SLOTS) {
-    let best = null, bestGain = -1;
+  /**
+   * NO-PHOTO RELAXATION (beeatlas-a2u, Peter 2026-08-09). One photo per observation exists
+   * so three photos mean three bees, not three frames of one. Six of the eight first-photo
+   * species have a SINGLE vetted observation, and for them the rule picks between a bare
+   * page and a one-photo page when the observation holds six good frames. When the entry
+   * ships NO photo, exhaust distinct observations first, then allow further photos from an
+   * already-used observation — coverage gain and the top-up guard still apply, so this
+   * never pads. Species that already ship photos keep the hard rule.
+   */
+  const relaxObs = shippedIds.length === 0;
+
+  const pickBest = (eligible) => {
+    let best = null, bestGain = 0;
     for (const p of pool) {
-      if (chosen.includes(p) || usedObs.has(p.observation_id)) continue;
+      if (chosen.includes(p) || isMultiBee(p) || !eligible(p)) continue;
       const gain = PART_KEYS.reduce((a, k) => a + Math.max(0, Math.min(p[k], 3) - Math.max(cover[k], READABLE - 1)), 0);
       if (gain > bestGain || (gain === bestGain && gain > 0 && best && p.information > best.information)) { best = p; bestGain = gain; }
     }
-    if (!best || bestGain <= 0) break;
+    return best;
+  };
+
+  while (chosen.length < SLOTS) {
+    const best = pickBest((p) => !usedObs.has(p.observation_id))
+      ?? (relaxObs ? pickBest(() => true) : null);
+    if (!best) break;
     chosen.push(best); usedObs.add(best.observation_id);
     for (const k of PART_KEYS) cover[k] = Math.max(cover[k], best[k]);
   }
   // Fallback: never propose an empty set for a species that has candidates.
-  if (!chosen.length && pool.length) chosen.push(pool[0]);
+  if (!chosen.length && pool.length) chosen.push(pool.find((p) => !isMultiBee(p)) ?? pool[0]);
 
   /**
    * FLOOR (Peter, 2026-08-08). Pure coverage gave 135 species a single photo, because one
@@ -97,12 +137,15 @@ for (const [speciesLower, cands] of Object.entries(bySpecies)) {
    * DIFFERENT observation, and only if they clear the quality guard. Species with fewer
    * good candidates still ship fewer -- the ceiling was never a quota and neither is this.
    */
-  for (const p of pool) {
-    if (chosen.length >= FLOOR) break;
-    if (chosen.includes(p) || usedObs.has(p.observation_id)) continue;
-    if (p.information < GUARD) continue;
-    chosen.push(p); usedObs.add(p.observation_id);
-    for (const k of PART_KEYS) cover[k] = Math.max(cover[k], p[k]);
+  for (const allowUsedObs of relaxObs ? [false, true] : [false]) {
+    for (const p of pool) {
+      if (chosen.length >= FLOOR) break;
+      if (chosen.includes(p) || isMultiBee(p)) continue;
+      if (!allowUsedObs && usedObs.has(p.observation_id)) continue;
+      if (p.information < GUARD) continue;
+      chosen.push(p); usedObs.add(p.observation_id);
+      for (const k of PART_KEYS) cover[k] = Math.max(cover[k], p[k]);
+    }
   }
 
   const shippedCover = coverageOf(shippedScored);
@@ -122,6 +165,7 @@ for (const [speciesLower, cands] of Object.entries(bySpecies)) {
       photo_id: c.photo_id, observation_id: c.observation_id, quality_grade: c.quality_grade,
       ...Object.fromEntries(PART_KEYS.map((k) => [k, c[k]])), information: c.information,
       url: meta.get(c.photo_id)?.url, license: meta.get(c.photo_id)?.license, attribution: meta.get(c.photo_id)?.attribution,
+      subject_fraction: located.get(c.photo_id)?.subject_fraction ?? null,
     })),
     shipped_cover: shippedCover, proposed_cover: propCover,
   });

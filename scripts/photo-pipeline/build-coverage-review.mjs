@@ -5,13 +5,21 @@
  *
  * Shows only species whose set would CHANGE. Per-part scores are shown under each photo
  * because the decision is visual and the numbers are a claim, not a verdict.
+ *
+ * --only <file>  Restrict to the species named in a JSON array — for a targeted pass
+ *                (e.g. beeatlas-a2u), so a scoped review is not buried in 200 cards.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import TOML from '@iarna/toml';
 import { OUT, DATA, IMAGES, MANIFEST, PART_KEYS } from './config.mjs';
 
-const { results, readable } = JSON.parse(readFileSync(path.join(OUT, 'coverage-proposals.json'), 'utf8'));
+const onlyIdx = process.argv.indexOf('--only');
+const only = onlyIdx === -1 ? null
+  : new Set(JSON.parse(readFileSync(process.argv[onlyIdx + 1], 'utf8')).map((s) => s.toLowerCase()));
+
+let { results, readable } = JSON.parse(readFileSync(path.join(OUT, 'coverage-proposals.json'), 'utf8'));
+if (only) results = results.filter((r) => only.has(r.species.toLowerCase()));
 const scored = new Map(readFileSync(path.join(OUT, 'candidate-parts.jsonl'), 'utf8')
   .split('\n').filter(Boolean).map(JSON.parse).filter((r) => !r.error).map((r) => [r.photo_id, r]));
 const manifest = TOML.parse(readFileSync(MANIFEST, 'utf8'));

@@ -53,13 +53,28 @@ const haveObs = new Set(photos.map((p) => p.observation_id));
 const todoObs = [...obsToSpecies.keys()].filter((id) => !haveObs.has(id));
 console.log(`${haveObs.size} observations already enumerated, ${todoObs.length} to fetch`);
 
+/**
+ * A non-OK response must NOT drop its batch silently. The 2026-08-08 pull lost all 61
+ * licensed photos of the 8 first-photo species (beeatlas-a2u) to exactly that: the
+ * original loop had `if (res.ok)` with no else, so one throttled or failed batch of 30
+ * observations vanished with a clean-looking log. Resume could not repair it either,
+ * because an observation whose photos were dropped is indistinguishable from one that
+ * has none. Retry with backoff, and if a batch still fails, say so loudly.
+ */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let failedBatches = 0;
 for (let i = 0; i < todoObs.length; i += 30) {
   const batch = todoObs.slice(i, i + 30);
-  try {
-    const res = await fetch(`https://api.inaturalist.org/v1/observations?${new URLSearchParams({ id: batch.join(','), per_page: String(batch.length) })}`,
-      { headers: { 'User-Agent': USER_AGENT } });
-    if (res.ok) {
+  let ok = false;
+  for (let attempt = 1; attempt <= 3 && !ok; attempt++) {
+    try {
+      const res = await fetch(`https://api.inaturalist.org/v1/observations?${new URLSearchParams({ id: batch.join(','), per_page: String(batch.length) })}`,
+        { headers: { 'User-Agent': USER_AGENT } });
+      if (!res.ok) {
+        console.warn(`  ! batch ${i / 30} attempt ${attempt}: HTTP ${res.status}`);
+        await sleep(3000 * attempt);
+        continue;
+      }
       for (const obs of (await res.json()).results ?? []) {
         for (const p of obs.photos ?? []) {
           if (!p?.license_code || !LICENSE_WHITELIST.has(p.license_code)) continue;
@@ -71,8 +86,13 @@ for (let i = 0; i < todoObs.length; i += 30) {
           });
         }
       }
+      ok = true;
+    } catch (e) {
+      console.warn(`  ! batch ${i / 30} attempt ${attempt}: ${String(e).slice(0, 60)}`);
+      await sleep(3000 * attempt);
     }
-  } catch (e) { console.warn(`  ! batch ${i / 30}: ${String(e).slice(0, 60)}`); }
+  }
+  if (!ok) { failedBatches++; console.warn(`  !! batch ${i / 30} LOST after retries: obs ${batch.join(',')}`); }
   if ((i / 30) % 20 === 0) {
     writeFileSync(PHOTOS_FILE, JSON.stringify(photos, null, 2));
     console.log(`  ${Math.min(i + 30, todoObs.length)}/${todoObs.length} observations, ${photos.length} photos`);
@@ -80,6 +100,7 @@ for (let i = 0; i < todoObs.length; i += 30) {
   await sleep(1100); // PHOTO-07: this IS the iNat API
 }
 writeFileSync(PHOTOS_FILE, JSON.stringify(photos, null, 2));
+if (failedBatches) console.warn(`\n!! ${failedBatches} batch(es) lost after retries — their observations will be retried on the next run`);
 console.log(`\n${photos.length} candidate photos from ${new Set(photos.map((p) => p.observation_id)).size} observations`);
 
 // ---- 3. download, parallel (S3 open-data bucket, not the API) ----
