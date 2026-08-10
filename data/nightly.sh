@@ -287,6 +287,15 @@ echo "sync done in $(_elapsed $_t0)"
 # progress (e.g. occurrence_links) is not lost if a later step fails. `|| true`
 # per copy so the trap preserves the script's exit code.
 trap '
+# Stelis operator build log (stelis st-9rf): refresh the served copy even when a
+# gate aborts the publish — a failed or blocked build is exactly what the page is
+# for, and it is engine state, not site data, so serving it fresh while the site
+# data stays at last-published is correct. Stelis rewrites --build; a run that
+# died before reaching the build leaves the previous page, visibly stale by its
+# own build stamp. merge-swap.sh excludes /build-log.html from its --delete.
+if [[ -f "$STELIS_STATE_DIR/build-log.html" && -d "$SITE_ROOT" ]]; then
+    cp "$STELIS_STATE_DIR/build-log.html" "$SITE_ROOT/build-log.html" || true
+fi
 if [[ -f "$DB_PATH" ]]; then
     echo "--- backing up DuckDB (trap) --- sha256=$(_hash "$DB_PATH")"
     aws --profile "$AWS_PROFILE" s3 cp --no-progress "$DB_PATH" "s3://$BACKUP_BUCKET/$DB_S3_KEY" || true

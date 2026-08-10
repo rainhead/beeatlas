@@ -41,7 +41,14 @@ rsync -a --exclude='/manifest.json' --exclude='/feeds' \
 for _dir in feeds species-maps place-maps; do
     rsync -a --delete "$REPO_ROOT/_site/data/$_dir/" "$SITE_ROOT/data/$_dir/"
 done
+# /build-log.html is the Stelis operator page (stelis st-9rf) — served from
+# SITE_ROOT but written by nightly.sh's trap, never part of _site, so the page
+# rsync's --delete would remove it without this exclude. NOTE this exclude list
+# is a hand-kept extent map of SITE_ROOT's other writers (stelis st-s8i's
+# lesson); anything else that writes into SITE_ROOT outside _site must be
+# added here or --delete reaps it on the next publish.
 rsync -a --delete --exclude='/assets' --exclude='/data' \
+    --exclude='/build-log.html' \
     "$REPO_ROOT/_site/" "$SITE_ROOT/"
 find "$SITE_ROOT/assets" -type f -mtime +30 -delete
 find "$SITE_ROOT/data" -maxdepth 1 -type f -name '*-*.*' -mtime +30 -delete
