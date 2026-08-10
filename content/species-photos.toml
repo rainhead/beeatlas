@@ -1109,6 +1109,36 @@ description = ""
 [species."Andrena microchlora"]
 description = ""
 
+  [[species."Andrena microchlora".photos]]
+  observation_id = 247_983_168
+  photo_id = 443_005_905
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/443005905/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+  provenance = "curator"
+
+  [[species."Andrena microchlora".photos]]
+  observation_id = 247_842_013
+  photo_id = 442_729_203
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/442729203/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+  provenance = "curator"
+
+  [[species."Andrena microchlora".photos]]
+  observation_id = 247_842_013
+  photo_id = 442_729_198
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/442729198/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 3
+  provenance = "curator"
+
 [species."Andrena milwaukeensis"]
 description = ""
 
@@ -4732,6 +4762,36 @@ description = ""
 [species."Coelioxys funerarius"]
 description = ""
 
+  [[species."Coelioxys funerarius".photos]]
+  observation_id = 321_973_489
+  photo_id = 582_361_171
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/582361171/large.jpg"
+  caption = ""
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+  provenance = "curator"
+
+  [[species."Coelioxys funerarius".photos]]
+  observation_id = 321_973_489
+  photo_id = 582_361_066
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/582361066/large.jpg"
+  caption = ""
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+  provenance = "curator"
+
+  [[species."Coelioxys funerarius".photos]]
+  observation_id = 321_973_489
+  photo_id = 582_361_058
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/582361058/large.jpg"
+  caption = ""
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 3
+  provenance = "curator"
+
 [species."Coelioxys gilensis"]
 description = ""
 
@@ -6259,34 +6319,34 @@ description = ""
 description = ""
 
   [[species."Eucera actuosa".photos]]
-  observation_id = 10_583_399
-  photo_id = 14_750_950
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/14750950/large.jpg"
+  observation_id = 322_879_107
+  photo_id = 584_173_420
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/584173420/large.jpg"
   caption = ""
-  attribution = "(c) Robin Gwen Agarwal, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
-  provenance = "seeder"
+  provenance = "curator"
 
   [[species."Eucera actuosa".photos]]
-  observation_id = 10_583_398
-  photo_id = 14_750_939
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/14750939/large.jpg"
+  observation_id = 329_898_286
+  photo_id = 598_094_031
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/598094031/large.jpg"
   caption = ""
-  attribution = "(c) Robin Gwen Agarwal, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 2
-  provenance = "seeder"
+  provenance = "curator"
 
   [[species."Eucera actuosa".photos]]
-  observation_id = 10_583_400
-  photo_id = 14_750_959
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/14750959/large.jpg"
+  observation_id = 322_878_475
+  photo_id = 584_171_675
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/584171675/large.jpg"
   caption = ""
-  attribution = "(c) Robin Gwen Agarwal, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
-  provenance = "seeder"
+  provenance = "curator"
 
 [species."Eucera amsinckiae"]
 description = ""
@@ -7295,6 +7355,36 @@ description = ""
 [species."Hoplitis uvulalis"]
 description = ""
 
+  [[species."Hoplitis uvulalis".photos]]
+  observation_id = 243_004_209
+  photo_id = 433_265_150
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/433265150/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+  provenance = "curator"
+
+  [[species."Hoplitis uvulalis".photos]]
+  observation_id = 243_004_209
+  photo_id = 433_264_776
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/433264776/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+  provenance = "curator"
+
+  [[species."Hoplitis uvulalis".photos]]
+  observation_id = 243_004_209
+  photo_id = 433_265_153
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/433265153/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 3
+  provenance = "curator"
+
 [species."Hoplitis viridimicans"]
 description = ""
 
@@ -7567,6 +7657,46 @@ description = ""
 [species."Hylaeus nevadensis"]
 description = ""
 
+  [[species."Hylaeus nevadensis".photos]]
+  observation_id = 249_526_870
+  photo_id = 446_068_447
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/446068447/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+  provenance = "curator"
+
+  [[species."Hylaeus nevadensis".photos]]
+  observation_id = 249_518_754
+  photo_id = 446_052_477
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/446052477/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+  provenance = "curator"
+
+  [[species."Hylaeus nevadensis".photos]]
+  observation_id = 249_518_754
+  photo_id = 446_052_552
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/446052552/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 3
+  provenance = "curator"
+
+  [[species."Hylaeus nevadensis".photos]]
+  observation_id = 249_526_870
+  photo_id = 446_068_479
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/446068479/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 4
+  provenance = "curator"
+
 [species."Hylaeus punctatus"]
 description = ""
 
@@ -7770,6 +7900,36 @@ description = ""
 [species."Lasioglossum anhypops"]
 description = ""
 
+  [[species."Lasioglossum anhypops".photos]]
+  observation_id = 247_493_043
+  photo_id = 442_035_775
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/442035775/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+  provenance = "curator"
+
+  [[species."Lasioglossum anhypops".photos]]
+  observation_id = 247_493_043
+  photo_id = 442_035_773
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/442035773/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+  provenance = "curator"
+
+  [[species."Lasioglossum anhypops".photos]]
+  observation_id = 247_493_043
+  photo_id = 442_035_771
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/442035771/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 3
+  provenance = "curator"
+
 [species."Lasioglossum argemonis"]
 description = ""
 
@@ -7883,6 +8043,26 @@ description = ""
 
 [species."Lasioglossum cordleyi"]
 description = ""
+
+  [[species."Lasioglossum cordleyi".photos]]
+  observation_id = 247_843_963
+  photo_id = 442_733_338
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/442733338/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+  provenance = "curator"
+
+  [[species."Lasioglossum cordleyi".photos]]
+  observation_id = 247_843_963
+  photo_id = 442_733_384
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/442733384/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+  provenance = "curator"
 
 [species."Lasioglossum cressonii"]
 description = ""
@@ -8130,6 +8310,26 @@ description = ""
 [species."Lasioglossum knereri"]
 description = ""
 
+  [[species."Lasioglossum knereri".photos]]
+  observation_id = 247_541_212
+  photo_id = 442_131_276
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/442131276/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+  provenance = "curator"
+
+  [[species."Lasioglossum knereri".photos]]
+  observation_id = 247_541_212
+  photo_id = 442_131_222
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/442131222/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+  provenance = "curator"
+
 [species."Lasioglossum laevissimum"]
 description = ""
 
@@ -8338,34 +8538,34 @@ description = ""
 description = ""
 
   [[species."Lasioglossum nevadense".photos]]
+  observation_id = 331_475_785
+  photo_id = 601_337_310
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/601337310/large.jpg"
+  caption = ""
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+  provenance = "curator"
+
+  [[species."Lasioglossum nevadense".photos]]
+  observation_id = 248_686_989
+  photo_id = 444_406_371
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/444406371/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+  provenance = "curator"
+
+  [[species."Lasioglossum nevadense".photos]]
   observation_id = 248_679_252
   photo_id = 444_389_656
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/444389656/large.jpg"
   caption = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 1
-  provenance = "seeder"
-
-  [[species."Lasioglossum nevadense".photos]]
-  observation_id = 248_686_989
-  photo_id = 444_406_316
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/444406316/large.jpg"
-  caption = ""
-  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 2
-  provenance = "seeder"
-
-  [[species."Lasioglossum nevadense".photos]]
-  observation_id = 279_076_796
-  photo_id = 501_124_645
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/501124645/large.jpg"
-  caption = ""
-  attribution = "(c) Luann Wright, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
   ordering = 3
-  provenance = "seeder"
+  provenance = "curator"
 
 [species."Lasioglossum nigroviride"]
 description = ""
@@ -9856,16 +10056,26 @@ description = ""
 
   [[species."Megachile umatillensis".photos]]
   observation_id = 323_129_042
-  photo_id = 584_655_908
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/584655908/large.jpg"
+  photo_id = 584_655_939
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/584655939/large.jpg"
   caption = ""
   attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
-  provenance = "seeder"
+  provenance = "curator"
 
 [species."Megachile wheeleri"]
 description = ""
+
+  [[species."Megachile wheeleri".photos]]
+  observation_id = 325_442_613
+  photo_id = 589_237_406
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/589237406/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+  provenance = "curator"
 
   [[species."Megachile wheeleri".photos]]
   observation_id = 328_235_418
@@ -9874,18 +10084,18 @@ description = ""
   caption = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 1
-  provenance = "seeder"
+  ordering = 2
+  provenance = "curator"
 
   [[species."Megachile wheeleri".photos]]
-  observation_id = 7_409_186
-  photo_id = 9_623_464
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/9623464/large.jpeg"
+  observation_id = 326_428_921
+  photo_id = 591_200_246
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/591200246/large.jpg"
   caption = ""
-  attribution = "(c) Bill Rodstrom, some rights reserved (CC BY-NC)"
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 2
-  provenance = "seeder"
+  ordering = 3
+  provenance = "curator"
 
 [species.Megachilidae]
 description = ""
@@ -11205,6 +11415,36 @@ description = ""
 [species."Osmia brevis"]
 description = ""
 
+  [[species."Osmia brevis".photos]]
+  observation_id = 325_970_996
+  photo_id = 590_285_302
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/590285302/large.jpg"
+  caption = ""
+  attribution = "(c) Karla Salp, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+  provenance = "curator"
+
+  [[species."Osmia brevis".photos]]
+  observation_id = 242_560_746
+  photo_id = 432_424_450
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432424450/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+  provenance = "curator"
+
+  [[species."Osmia brevis".photos]]
+  observation_id = 242_560_194
+  photo_id = 432_423_075
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432423075/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 3
+  provenance = "curator"
+
 [species."Osmia bruneri"]
 description = ""
 
@@ -11281,24 +11521,34 @@ description = ""
 description = ""
 
   [[species."Osmia californica".photos]]
+  observation_id = 241_394_013
+  photo_id = 430_214_195
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/430214195/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+  provenance = "curator"
+
+  [[species."Osmia californica".photos]]
+  observation_id = 241_211_714
+  photo_id = 429_860_733
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/429860733/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+  provenance = "curator"
+
+  [[species."Osmia californica".photos]]
   observation_id = 241_203_656
   photo_id = 429_845_634
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/429845634/large.jpg"
   caption = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 1
-  provenance = "seeder"
-
-  [[species."Osmia californica".photos]]
-  observation_id = 90_195_679
-  photo_id = 241_308_960
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/241308960/large.jpg"
-  caption = ""
-  attribution = "(c) csuebpollinators, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 2
-  provenance = "seeder"
+  ordering = 3
+  provenance = "curator"
 
 [species."Osmia calla"]
 description = ""
@@ -11568,7 +11818,17 @@ description = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
-  provenance = "seeder"
+  provenance = "curator"
+
+  [[species."Osmia juxta".photos]]
+  observation_id = 242_705_987
+  photo_id = 432_697_488
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432697488/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+  provenance = "curator"
 
   [[species."Osmia juxta".photos]]
   observation_id = 242_715_314
@@ -11577,8 +11837,8 @@ description = ""
   caption = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 2
-  provenance = "seeder"
+  ordering = 3
+  provenance = "curator"
 
 [species."Osmia kincaidii"]
 description = ""
@@ -11808,34 +12068,34 @@ description = ""
 description = ""
 
   [[species."Osmia pentstemonis".photos]]
-  observation_id = 241_177_477
-  photo_id = 429_795_210
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/429795210/large.jpg"
-  caption = ""
-  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 1
-  provenance = "seeder"
-
-  [[species."Osmia pentstemonis".photos]]
   observation_id = 241_331_141
   photo_id = 430_091_457
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/430091457/large.jpg"
   caption = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 2
-  provenance = "seeder"
+  ordering = 1
+  provenance = "curator"
 
   [[species."Osmia pentstemonis".photos]]
-  observation_id = 242_710_931
-  photo_id = 432_706_784
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432706784/large.jpg"
+  observation_id = 241_192_046
+  photo_id = 429_821_927
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/429821927/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+  provenance = "curator"
+
+  [[species."Osmia pentstemonis".photos]]
+  observation_id = 242_564_460
+  photo_id = 432_431_273
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432431273/large.jpg"
   caption = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 3
-  provenance = "seeder"
+  provenance = "curator"
 
 [species."Osmia phaceliae"]
 description = ""
@@ -11847,14 +12107,24 @@ description = ""
 description = ""
 
   [[species."Osmia proxima".photos]]
-  observation_id = 241_375_769
-  photo_id = 430_177_843
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/430177843/large.jpg"
+  observation_id = 242_708_784
+  photo_id = 432_702_792
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432702792/large.jpg"
   caption = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
-  provenance = "seeder"
+  provenance = "curator"
+
+  [[species."Osmia proxima".photos]]
+  observation_id = 242_719_165
+  photo_id = 432_721_745
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432721745/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+  provenance = "curator"
 
   [[species."Osmia proxima".photos]]
   observation_id = 242_717_564
@@ -11863,18 +12133,8 @@ description = ""
   caption = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 2
-  provenance = "seeder"
-
-  [[species."Osmia proxima".photos]]
-  observation_id = 242_708_784
-  photo_id = 432_702_792
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432702792/large.jpg"
-  caption = ""
-  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
   ordering = 3
-  provenance = "seeder"
+  provenance = "curator"
 
 [species."Osmia pulsatillae"]
 description = ""
@@ -11974,14 +12234,24 @@ description = ""
 description = ""
 
   [[species."Osmia subaustralis".photos]]
+  observation_id = 241_372_203
+  photo_id = 430_170_606
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/430170606/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 1
+  provenance = "curator"
+
+  [[species."Osmia subaustralis".photos]]
   observation_id = 242_522_742
   photo_id = 432_352_686
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432352686/large.jpg"
   caption = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 1
-  provenance = "seeder"
+  ordering = 2
+  provenance = "curator"
 
   [[species."Osmia subaustralis".photos]]
   observation_id = 242_526_790
@@ -11990,18 +12260,8 @@ description = ""
   caption = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 2
-  provenance = "seeder"
-
-  [[species."Osmia subaustralis".photos]]
-  observation_id = 241_372_203
-  photo_id = 430_170_606
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/430170606/large.jpg"
-  caption = ""
-  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
   ordering = 3
-  provenance = "seeder"
+  provenance = "curator"
 
 [species."Osmia tanneri"]
 description = ""
@@ -12069,7 +12329,17 @@ description = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
-  provenance = "seeder"
+  provenance = "curator"
+
+  [[species."Osmia tristella".photos]]
+  observation_id = 240_185_161
+  photo_id = 427_876_221
+  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/427876221/large.jpg"
+  caption = ""
+  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
+  license = "cc-by-nc"
+  ordering = 2
+  provenance = "curator"
 
   [[species."Osmia tristella".photos]]
   observation_id = 241_386_048
@@ -12078,8 +12348,8 @@ description = ""
   caption = ""
   attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 2
-  provenance = "seeder"
+  ordering = 3
+  provenance = "curator"
 
 [species."Osmia unca"]
 description = ""
