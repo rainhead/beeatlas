@@ -1,8 +1,8 @@
 -- occurrence_trust mart: the published trusted-taxon artifact (beeatlas-nyr,
 -- ADR 0033). One row per occ_id with at least one current expert assertion —
--- DELIBERATELY SEPARATE from marts/occurrences, so shipping it avoids the
--- occurrences-contract release sequence entirely (no schema change there;
--- folding columns in is Peter's explicit follow-up decision, not assumed).
+-- SEPARATE from marts/occurrences BY DECISION (ADR 0034): trust-model changes
+-- never touch the occurrences contract or its release sequence, and the
+-- derived-judgement provenance boundary stays visible.
 --
 -- JOIN CONTRACT: occ_id is the synthetic canonical occurrence identity —
 -- 'ecdysis:N' | 'inat:N' | 'inat_obs:N' | 'checklist:N' — the same CASE

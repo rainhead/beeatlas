@@ -286,8 +286,8 @@ models:
     # beeatlas-nyr (ADR 0033): the published trusted-taxon artifact, keyed by
     # occ_id (same synthetic identity as occurrence_places / occIdFromRow).
     # One row per occ_id with >=1 current expert assertion; absence means "no
-    # trust computed", never distrust. Deliberately separate from occurrences —
-    # folding columns in is Peter's explicit follow-up decision.
+    # trust computed", never distrust. Separate from occurrences by decision
+    # (ADR 0034) — do not fold these columns into the occurrences contract.
     config:
       contract:
         enforced: true
