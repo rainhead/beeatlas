@@ -99,8 +99,11 @@ Supporting definitions, all binding:
    attribution and supersession history, and route the 544 discrepancy rows to
    the anomalies report.
 8. **Sentinels.** 'undetermined' placeholder rows and "Nomenclatural
-   Adjustment" are excluded at staging. There are no anonymous determinations
-   to weigh (evidence above).
+   Adjustment" are excluded in the identifications-arm intermediate
+   (`int_ecdysis_identifications`), not at staging —
+   `stg_ecdysis__identifications` stays unfiltered because `int_id_modified`
+   aggregates MAX(modified) over ALL rows including sentinels (beeatlas-fc4).
+   There are no anonymous determinations to weigh (evidence above).
 
 ### Boundaries
 

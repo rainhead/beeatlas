@@ -7,8 +7,9 @@
 -- person in the data is a curation task, not a broken build (ADR 0010 posture: a curator
 -- reviews and adds the row; never auto-matched).
 --
--- Sentinels excluded here, matching the staging filter: blank names, the 'undetermined'
--- placeholder rows, and the 'Nomenclatural Adjustment' process actor.
+-- Sentinels excluded here, matching the identifications-arm filter in
+-- int_ecdysis_identifications (staging stays unfiltered for int_id_modified): blank names,
+-- the 'undetermined' placeholder rows, and the 'Nomenclatural Adjustment' process actor.
 -- PASS semantics: 0 rows.
 
 WITH register_names AS (

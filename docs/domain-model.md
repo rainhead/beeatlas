@@ -224,7 +224,9 @@ Facts about the Ecdysis identification data that any consumer must respect (veri
   observation's identifications.
 - **No anonymous determinations.** Every current identification bearing a real taxon name is
   attributed to a named person (28,920) or the "Nomenclatural Adjustment" process actor (17).
-  The 'undetermined' placeholder rows and the process actor are sentinels, excluded at staging.
+  The 'undetermined' placeholder rows and the process actor are sentinels, excluded in the
+  identifications-arm intermediate (`int_ecdysis_identifications`) — NOT at staging, which stays
+  unfiltered so `int_id_modified`'s MAX(modified) sees every row (beeatlas-fc4).
 - **`taxon_rank` is empty on all rows** — rank derives from name shape
   (`data/canonical_name.py`), including `Lasioglossum (Dialictus)` parenthetical-subgenus forms.
 

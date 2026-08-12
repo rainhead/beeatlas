@@ -10,8 +10,10 @@
 --
 -- canonical_name is materialized at load time by
 -- checklist_pipeline._update_identifications_canonical_name (data/canonical_name.py
--- normalization — the single parsing authority; subgenus parens, authority strings,
--- and trinomials are its job, never SQL's).
+-- — the single NORMALIZATION authority: stripping subgenus parens, authority
+-- strings, and trinomial tails is its job, never SQL's. Downstream SQL may still
+-- inspect name SHAPE — e.g. int_ecdysis_identifications' rank derivation — but
+-- never re-derives the canonical form).
 --
 -- taxon_rank is deliberately NOT projected: it is empty on all 87,205 source rows
 -- (verified 2026-08-11, beeatlas-0o1); rank derives from name shape downstream.

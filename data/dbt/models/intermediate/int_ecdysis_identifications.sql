@@ -20,11 +20,20 @@
 -- upstream is a curation task, not a broken build.
 --
 -- taxon_rank: derived from name shape — the source column is empty on all
--- 87,205 rows. canonical_name (data/canonical_name.py, materialized at load)
--- owns all parsing; this CASE only counts tokens and recognizes the
--- 'Lasioglossum (Dialictus)' parenthetical-subgenus form (no epithet, no
--- authority year inside the parens). Monomials stay 'genus_or_higher':
--- shape alone cannot split 'Andrena' (genus) from 'Coleoptera' (order).
+-- 87,205 rows. canonical_name (data/canonical_name.py normalization, materialized
+-- at load) owns name PARSING; this CASE derives rank from the parsed result
+-- plus one shape check, each branch reading the name that carries its meaning:
+--   • 'species' reads the POST-SYNONYM canonical (a synonym remap decides what
+--     taxon the assertion lands on, so it decides the rank too);
+--   • 'subgenus' reads the RAW asserted name — the parenthetical-subgenus form
+--     records the PRECISION of the determiner's assertion, which no synonym
+--     remap can change. regexp_matches (contains, not full-match) so trailing
+--     text never silently demotes a subgenus form, and the letters-only paren
+--     pattern can never match authority parens like '(Latreille, 1802)'
+--     (comma + digits). Only monomial canonicals reach this branch — binomials
+--     already took 'species'.
+-- Monomials otherwise stay 'genus_or_higher': shape alone cannot split
+-- 'Andrena' (genus) from 'Coleoptera' (order).
 {{ config(materialized='table') }}
 
 WITH register_names AS (
@@ -51,7 +60,7 @@ SELECT
     CASE
         WHEN len(string_split(COALESCE(syn.accepted_name, i.canonical_name), ' ')) = 2
             THEN 'species'
-        WHEN regexp_full_match(TRIM(i.scientific_name), '[A-Z][A-Za-z]+\s*\(\s*[A-Z][A-Za-zæ-]+\s*\)')
+        WHEN regexp_matches(i.scientific_name, '\(\s*[A-Z][A-Za-zæ-]+\s*\)')
             THEN 'subgenus'
         ELSE 'genus_or_higher'
     END                                                   AS taxon_rank,
