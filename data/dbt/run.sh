@@ -36,6 +36,22 @@ mkdir -p "$DIR/target/sandbox"
 # Also pass explicit flags for commands that accept them (belt-and-suspenders per
 # dbt-core profile-search-order pitfall; --version passes without them via the env vars).
 case "${1:-}" in
+  --identity)
+    # Stelis's runtime-identity probe (stelis st-kbi): CACHE-ONLY (--offline) —
+    # the probe runs at PLAN time, which must never reach the network; a cold
+    # uvx cache fails it and stelis falls back to a conservative rerun. Lives
+    # here so the pins stay the single source of truth.
+    #
+    # Deliberately NOT `dbt --version`: its output embeds "latest: X - Update
+    # available!", a string that moves whenever dbt RELEASES — an upstream press
+    # release is not a change to this pipeline. The dbt/adapter pins above are
+    # exact and ride stelis's code hash of this file (intent); the probe observes
+    # only what those pins leave FREE: the CPython patch inside the 3.13 range,
+    # and the transitive duckdb ENGINE, which dbt-duckdb floats and which owns
+    # the output bytes.
+    exec uvx --offline --python 3.13 --from dbt-core==1.10.1 --with dbt-duckdb==1.10.1 \
+        python -c 'import sys, duckdb; print(sys.version); print("duckdb", duckdb.__version__)'
+    ;;
   --version|--help|-h|"")
     exec uvx --python 3.13 --from dbt-core==1.10.1 --with dbt-duckdb==1.10.1 dbt "$@"
     ;;
