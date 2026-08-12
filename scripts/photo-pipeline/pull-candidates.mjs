@@ -11,8 +11,15 @@
  *      this pool's SQL has no record_type predicate.)
  *   2. EVERY license-clean photo of each observation, not the first. 79% of shipped photos
  *      come from an observation with 2+, and the first is an arbitrary choice.
- *   3. No quality_grade filter, because these are OUR determinations: an Ecdysis specimen
- *      record is a stronger claim than iNat's two-agreeing-community-IDs.
+ *   3. No quality_grade filter — and no other filter HERE. Determination trust is ADR 0033
+ *      (expert-trust-with-veto) and is applied at SELECTION (select-coverage.mjs), not at
+ *      the pull: specimen/waba_specimen-arm observations are trusted by ingestion
+ *      provenance, while inat_expert-arm ones need a compatible expert ID with no expert
+ *      veto — the roster only guarantees an expert LOOKED (see data/raw/inat_expert_obs.sh
+ *      and domain-model.md Category 4), so "these are OUR determinations" was never true
+ *      for that arm. This stage's job is to capture the evidence the gate reads: per-arm
+ *      membership (candidate-arms.json) and the identifications array that rides the
+ *      observation response anyway (candidate-identifications.json).
  *
  * Resumable at photo granularity. 512px copies go to .cache (needed for scoring);
  * originals go to an external volume when one is mounted, since they are only wanted for
@@ -33,18 +40,28 @@ if (keepOriginals && !existsSync(ORIGINALS)) mkdirSync(ORIGINALS, { recursive: t
 console.log(keepOriginals ? `originals -> ${ORIGINALS}` : 'originals -> discarded (external volume not mounted)');
 
 // ---- 1. vetted observations per species, ALL arms ----
+// arms per observation feed the ADR 0033 gate in select-coverage.mjs: specimen and
+// waba_specimen rows are trusted by provenance and bypass it. Rewritten fresh each run so
+// the arms file always covers the whole current pool, not just newly-fetched observations.
 const sql = `
-  SELECT canonical_name, list(DISTINCT specimen_observation_id) AS ids
+  SELECT canonical_name, specimen_observation_id AS obs_id, list(DISTINCT record_type) AS arms
   FROM read_parquet('public/data/occurrences.parquet')
   WHERE specimen_observation_id IS NOT NULL AND canonical_name IS NOT NULL
-  GROUP BY 1`.replace(/\n\s+/g, ' ').trim();
-const bySpecies = JSON.parse(execSync(`duckdb -json -c "${sql}"`, { encoding: 'utf8', maxBuffer: 1 << 28 }));
-const obsToSpecies = new Map();
-let capped = 0;
-for (const row of bySpecies) {
-  for (const id of (row.ids ?? []).slice(0, CAP)) { obsToSpecies.set(id, row.canonical_name); capped++; }
+  GROUP BY 1, 2`.replace(/\n\s+/g, ' ').trim();
+const obsRows = JSON.parse(execSync(`duckdb -json -c "${sql}"`, { encoding: 'utf8', maxBuffer: 1 << 28 }));
+const rowsBySpecies = new Map();
+for (const row of obsRows) {
+  if (!rowsBySpecies.has(row.canonical_name)) rowsBySpecies.set(row.canonical_name, []);
+  rowsBySpecies.get(row.canonical_name).push(row);
 }
-console.log(`${bySpecies.length} species, ${capped} observations after cap of ${CAP}/species`);
+const obsToSpecies = new Map();
+const obsArms = {};
+let capped = 0;
+for (const [species, rows] of rowsBySpecies) {
+  for (const row of rows.slice(0, CAP)) { obsToSpecies.set(row.obs_id, species); obsArms[row.obs_id] = row.arms; capped++; }
+}
+writeFileSync(path.join(OUT, 'candidate-arms.json'), JSON.stringify(obsArms));
+console.log(`${rowsBySpecies.size} species, ${capped} observations after cap of ${CAP}/species`);
 
 // ---- 2. every license-clean photo of each observation (resumable) ----
 const PHOTOS_FILE = path.join(OUT, 'candidate-photos.json');
@@ -52,6 +69,12 @@ let photos = existsSync(PHOTOS_FILE) ? JSON.parse(readFileSync(PHOTOS_FILE, 'utf
 const haveObs = new Set(photos.map((p) => p.observation_id));
 const todoObs = [...obsToSpecies.keys()].filter((id) => !haveObs.has(id));
 console.log(`${haveObs.size} observations already enumerated, ${todoObs.length} to fetch`);
+
+// Identifications ride the same response; the ADR 0033 gate reads this file. Observations
+// enumerated before this capture existed have no entry, and the gate is deliberately inert
+// for them until a re-pull — resumability must not silently change past selections.
+const IDENTS_FILE = path.join(OUT, 'candidate-identifications.json');
+const idents = existsSync(IDENTS_FILE) ? JSON.parse(readFileSync(IDENTS_FILE, 'utf8')) : {};
 
 /**
  * A non-OK response must NOT drop its batch silently. The 2026-08-08 pull lost all 61
@@ -76,6 +99,15 @@ for (let i = 0; i < todoObs.length; i += 30) {
         continue;
       }
       for (const obs of (await res.json()).results ?? []) {
+        idents[obs.id] = {
+          taxon_id: obs.taxon?.id ?? null,
+          idents: (obs.identifications ?? []).map((i) => ({
+            login: i.user?.login, taxon_id: i.taxon?.id, name: i.taxon?.name,
+            rank: i.taxon?.rank, ancestor_ids: i.taxon?.ancestor_ids ?? [],
+            current: i.current !== false, category: i.category ?? null,
+            own: i.own_observation === true,
+          })),
+        };
         for (const p of obs.photos ?? []) {
           if (!p?.license_code || !LICENSE_WHITELIST.has(p.license_code)) continue;
           photos.push({
@@ -95,11 +127,13 @@ for (let i = 0; i < todoObs.length; i += 30) {
   if (!ok) { failedBatches++; console.warn(`  !! batch ${i / 30} LOST after retries: obs ${batch.join(',')}`); }
   if ((i / 30) % 20 === 0) {
     writeFileSync(PHOTOS_FILE, JSON.stringify(photos, null, 2));
+    writeFileSync(IDENTS_FILE, JSON.stringify(idents));
     console.log(`  ${Math.min(i + 30, todoObs.length)}/${todoObs.length} observations, ${photos.length} photos`);
   }
   await sleep(1100); // PHOTO-07: this IS the iNat API
 }
 writeFileSync(PHOTOS_FILE, JSON.stringify(photos, null, 2));
+writeFileSync(IDENTS_FILE, JSON.stringify(idents));
 if (failedBatches) console.warn(`\n!! ${failedBatches} batch(es) lost after retries — their observations will be retried on the next run`);
 console.log(`\n${photos.length} candidate photos from ${new Set(photos.map((p) => p.observation_id)).size} observations`);
 

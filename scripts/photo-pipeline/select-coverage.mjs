@@ -20,7 +20,9 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import TOML from '@iarna/toml';
-import { OUT, MANIFEST, PART_KEYS } from './config.mjs';
+import { ROOT, OUT, MANIFEST, PART_KEYS } from './config.mjs';
+import { loadExpertLogins, loadSynonyms, observationTrust, loadTaxonAncestry } from './trust-gate.mjs';
+import { loadTaxonIds, normalizeName } from '../seed-species-photos.mjs';
 
 const flag = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i === -1 ? Number(d) : Number(process.argv[i + 1]); };
 const strFlag = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i === -1 ? d : process.argv[i + 1]; };
@@ -75,6 +77,66 @@ for (const r of scored) {
   (bySpecies[r.species] ??= []).push(r);
 }
 console.log(`${skippedNonPage} scored photos ignored: taxon has no species page (subgenera, and non-bees from the inat_expert arm)\n`);
+
+/**
+ * DETERMINATION TRUST GATE (ADR 0033, beeatlas-r2u). specimen/waba_specimen-arm
+ * observations bypass: their determination is ours, trusted by ingestion provenance. An
+ * inat_expert-arm observation qualifies only with >=1 current EXPERT identification
+ * compatible with the query taxon and no expert identification incompatible with it — the
+ * roster behind that arm only guarantees an expert LOOKED. Non-expert IDs never gate.
+ *
+ * DELIBERATELY INERT where evidence is missing (observation pulled before identification
+ * capture existed, no arms file, unresolvable taxon id, no local duckdb): the gate must
+ * never silently change past selections; a re-pull arms it.
+ */
+const trustByObs = new Map();
+{
+  const armsFile = path.join(OUT, 'candidate-arms.json');
+  const identsFile = path.join(OUT, 'candidate-identifications.json');
+  const dbPath = path.join(ROOT, 'data', 'beeatlas.duckdb');
+  if (!existsSync(identsFile)) {
+    console.log('trust gate INERT: no candidate-identifications.json (re-pull to capture identifications)\n');
+  } else if (!existsSync(dbPath)) {
+    console.log('trust gate INERT: data/beeatlas.duckdb missing (needed for query-taxon ids)\n');
+  } else {
+    const obsArms = existsSync(armsFile) ? JSON.parse(readFileSync(armsFile, 'utf8')) : {};
+    const obsIdents = JSON.parse(readFileSync(identsFile, 'utf8'));
+    const expertLogins = loadExpertLogins();
+    const synonyms = loadSynonyms();
+    const taxa = loadTaxonIds(dbPath);
+    const trustedArm = (obs) => { const a = obsArms[String(obs)]; return !!a && (a.includes('specimen') || a.includes('waba_specimen')); };
+
+    const needAncestry = new Set();
+    for (const [species, cands] of Object.entries(bySpecies)) {
+      const tid = taxa.get(normalizeName(species));
+      if (tid && cands.some((r) => !trustedArm(r.observation_id) && obsIdents[String(r.observation_id)])) needAncestry.add(tid);
+    }
+    const ancestry = await loadTaxonAncestry([...needAncestry], path.join(OUT, 'taxon-ancestry.json'));
+
+    const stats = { bypassed: 0, noData: 0, noTaxon: 0, trusted: 0, vetoed: 0, noExpert: 0 };
+    for (const [species, cands] of Object.entries(bySpecies)) {
+      const tid = taxa.get(normalizeName(species));
+      bySpecies[species] = cands.filter((r) => {
+        const obs = String(r.observation_id);
+        if (trustedArm(obs)) { stats.bypassed++; return true; }
+        const data = obsIdents[obs];
+        if (!data) { stats.noData++; return true; }
+        if (!tid) { stats.noTaxon++; return true; }
+        const t = observationTrust(data.idents, {
+          expertLogins, synonyms, queryTaxonId: tid, queryName: species,
+          queryAncestorIds: ancestry.get(tid) ?? [],
+        });
+        trustByObs.set(r.observation_id, t);
+        stats[t.status === 'trusted' ? 'trusted' : t.status === 'vetoed' ? 'vetoed' : 'noExpert']++;
+        return t.status === 'trusted';
+      });
+      if (!bySpecies[species].length) delete bySpecies[species];
+    }
+    console.log(`trust gate (per scored photo): ${stats.bypassed} trusted-arm bypass, ${stats.trusted} expert-trusted, ` +
+      `${stats.vetoed} VETOED, ${stats.noExpert} no supporting expert ID, ` +
+      `${stats.noData} without identification data (inert), ${stats.noTaxon} unresolvable taxon (inert)\n`);
+  }
+}
 
 const coverageOf = (photos) => {
   const c = Object.fromEntries(PART_KEYS.map((k) => [k, 0]));
@@ -166,6 +228,8 @@ for (const [speciesLower, cands] of Object.entries(bySpecies)) {
       ...Object.fromEntries(PART_KEYS.map((k) => [k, c[k]])), information: c.information,
       url: meta.get(c.photo_id)?.url, license: meta.get(c.photo_id)?.license, attribution: meta.get(c.photo_id)?.attribution,
       subject_fraction: located.get(c.photo_id)?.subject_fraction ?? null,
+      expert_trust: trustByObs.get(c.observation_id)?.status ?? null,
+      expert_supporters: trustByObs.get(c.observation_id)?.supporters ?? null,
     })),
     shipped_cover: shippedCover, proposed_cover: propCover,
   });
