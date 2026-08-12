@@ -299,8 +299,8 @@ def _coord_flag(lat: float | None, lon: float | None) -> str:
     return "out_of_bbox"
 
 
-def _update_occurrences_canonical_name(con: duckdb.DuckDBPyConnection) -> None:
-    """Materialize canonical_name on ecdysis_data.occurrences.
+def _materialize_canonical_name(con: duckdb.DuckDBPyConnection, table: str) -> None:
+    """Materialize canonical_name on an ecdysis_data table with a scientific_name column.
 
     The ecdysis pipeline uses write_disposition='replace', so this column is
     dropped and re-added on every nightly run. The IF NOT EXISTS guard keeps
@@ -308,14 +308,13 @@ def _update_occurrences_canonical_name(con: duckdb.DuckDBPyConnection) -> None:
     Runtime State Inventory).
 
     Pure-Python canonicalize is called per DISTINCT scientific_name (~few
-    thousand distinct values out of ~45K rows), then mapped back via UPDATE.
+    thousand distinct values), then mapped back via UPDATE.
     """
     con.execute(
-        "ALTER TABLE ecdysis_data.occurrences "
-        "ADD COLUMN IF NOT EXISTS canonical_name VARCHAR"
+        f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS canonical_name VARCHAR"
     )
-    rows = con.execute("""
-        SELECT DISTINCT scientific_name FROM ecdysis_data.occurrences
+    rows = con.execute(f"""
+        SELECT DISTINCT scientific_name FROM {table}
         WHERE scientific_name IS NOT NULL AND scientific_name != ''
     """).fetchall()
     mapping: list[tuple[str | None, str]] = [
@@ -330,7 +329,7 @@ def _update_occurrences_canonical_name(con: duckdb.DuckDBPyConnection) -> None:
         try:
             con.register("_canon_map", arrow_tbl)
             con.execute(
-                "UPDATE ecdysis_data.occurrences AS o "
+                f"UPDATE {table} AS o "
                 "SET canonical_name = m.canonical_name "
                 "FROM _canon_map AS m "
                 "WHERE o.scientific_name = m.scientific_name"
@@ -338,10 +337,23 @@ def _update_occurrences_canonical_name(con: duckdb.DuckDBPyConnection) -> None:
         finally:
             con.unregister("_canon_map")
     updated = con.execute(
-        "SELECT count(*) FROM ecdysis_data.occurrences "
-        "WHERE canonical_name IS NOT NULL"
+        f"SELECT count(*) FROM {table} WHERE canonical_name IS NOT NULL"
     ).fetchone()[0]
-    print(f"occurrences canonical_name: {updated} rows updated")  # noqa: T201
+    print(f"{table} canonical_name: {updated} rows updated")  # noqa: T201
+
+
+def _update_occurrences_canonical_name(con: duckdb.DuckDBPyConnection) -> None:
+    _materialize_canonical_name(con, "ecdysis_data.occurrences")
+
+
+def _update_identifications_canonical_name(con: duckdb.DuckDBPyConnection) -> None:
+    """Canonical join keys for identification names (beeatlas-fc4).
+
+    Same normalization as occurrences so 'Lasioglossum (Dialictus)' and
+    authority-bearing forms land on the shared canonical vocabulary that
+    int_synonyms and the taxon-id bridge key on.
+    """
+    _materialize_canonical_name(con, "ecdysis_data.identifications")
 
 
 def _load_checklist_records(con: duckdb.DuckDBPyConnection) -> None:
@@ -651,6 +663,7 @@ def load_checklist(con: "duckdb.DuckDBPyConnection | None" = None) -> None:
         _load_checklist_records(con)
         _load_checklist_records_full(con)
         _update_occurrences_canonical_name(con)
+        _update_identifications_canonical_name(con)
         # D-07 / RCN-06: the old disjoint synonym step was retired here.
         # Synonym resolution now flows through occurrence_synonyms / int_synonyms.
     finally:

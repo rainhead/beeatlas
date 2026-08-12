@@ -9,6 +9,53 @@ models:
           - not_null
           - unique    # VERIFIED: 46,090 rows, 46,090 distinct coreids
 
+  - name: int_ecdysis_identifications
+    description: >
+      Ecdysis arm of the identifications model (beeatlas-fc4, ADR 0033): one row per
+      named, person-attributed identification event — the current determination plus
+      supersession history. Sentinels (placeholder names, 'Nomenclatural Adjustment')
+      filtered here; synonyms applied; person resolved via the identifier register.
+      VERIFIED 2026-08-12: 33,183 rows = 28,920 current + 4,263 superseded (beeatlas-0o1
+      provenance cross-tab).
+    columns:
+      - name: occ_id
+        description: "'ecdysis:' || coreid — the specimen occurrence this identification asserts a taxon for"
+        data_tests:
+          - not_null
+      - name: coreid
+        description: Ecdysis occurrence id (VARCHAR in source namespace)
+        data_tests:
+          - not_null
+          # Supersession-chain invariant (beeatlas-0o1): EXACTLY ONE current
+          # identification per specimen. Warn, not error — an upstream Ecdysis
+          # data change is a curation task, not a broken build (ADR 0010 posture).
+          - unique:
+              config:
+                where: "identification_is_current"
+                severity: warn
+      - name: person_key
+        description: >
+          Identifier-register person (matched on name or alt_spellings); NULL for
+          determiners not yet in the register — surfaced by the register drift test,
+          never auto-matched.
+        data_tests:
+          - relationships:
+              to: ref('identifier_register')
+              field: person_key
+      - name: canonical_name
+        description: Post-synonym canonical name (data/canonical_name.py normalization, int_synonyms applied)
+        data_tests:
+          - not_null
+      - name: taxon_rank
+        description: >
+          Derived from name shape (source taxon_rank is empty on all rows): binomial
+          canonical -> species; 'Genus (Subgenus)' -> subgenus; other monomials ->
+          genus_or_higher (shape cannot split genus from family/order).
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['species', 'subgenus', 'genus_or_higher']
+
   - name: int_provisional_waba_ids
     description: >
       D-03/D-11 corrected definition (Phase 165-02): provisional sample observations =
