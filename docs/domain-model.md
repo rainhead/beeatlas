@@ -230,9 +230,17 @@ Facts about the Ecdysis identification data that any consumer must respect (veri
 - **`taxon_rank` is empty on all rows** — rank derives from name shape
   (`data/canonical_name.py`), including `Lasioglossum (Dialictus)` parenthetical-subgenus forms.
 
-Implementation is in flight: identifier register (beeatlas-16m), widened Ecdysis staging
-(beeatlas-fc4), iNat identifications ingestion (beeatlas-9sy — no local iNat identification
-data exists yet), trusted-taxon model (beeatlas-xs1), published artifact (beeatlas-nyr).
+The trusted-taxon model is BUILT (beeatlas-xs1, 2026-08-12): `int_trusted_taxon` computes the
+per-record trusted taxon over current expert assertions — today the Ecdysis determination of
+record per specimen (29,474 records), with hedged qualifiers resolved by the hedge-target rule
+(ADR 0033 item 9: `Lasioglossum cf. pacatum` asserts the *L. viridatum* species complex, not
+bare *Lasioglossum*). The chain is `int_identification_events` (qualifier parsing) →
+`int_taxon_resolution`/`int_taxon_nodes` (local lineage from `taxa.csv.gz`) →
+`int_identification_assertions` (anchors, slash LCAs) → `int_trusted_taxon` (chain/LCA
+aggregation, self-disagreement exclusion). The agreement semantics are pinned by dbt unit
+tests (the executable spec in `intermediate/schema.yml`). The iNat arm is a zero-row contract
+placeholder (`int_inat_identifications`) until ingestion lands (beeatlas-9sy — no local iNat
+identification data exists yet); publishing the artifact is beeatlas-nyr.
 
 ---
 

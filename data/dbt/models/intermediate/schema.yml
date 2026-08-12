@@ -89,3 +89,288 @@ models:
         # wrong: ecdysis_id (INTEGER) joins to stg_ecdysis__occurrences.id (VARCHAR),
         # not catalog_number (different namespace). Replaced by singular test:
         # data/dbt/tests/test_ecdysis_id_references_source.sql
+
+  - name: int_inat_identifications
+    description: >
+      iNat arm of the identifications model — CONTRACT PLACEHOLDER (beeatlas-xs1).
+      Zero rows until beeatlas-9sy ingests the observations__identifications child
+      table; pins the column contract so the union and trusted-taxon models build
+      and unit-test now.
+
+  - name: int_identification_events
+    description: >
+      Identification events across sources, pre-taxon-resolution (beeatlas-xs1):
+      the Ecdysis determination of record per occurrence (ADR 0033 item 7) plus the
+      iNat arm placeholder. Owns qualifier parsing — the hedge-target rule (ADR 0033
+      item 9); classification and target construction are pinned by unit tests.
+    columns:
+      - name: qualifier_class
+        data_tests:
+          - accepted_values:
+              values: ['none', 'noop', 'refine_subsp', 'refine_subg', 'slash', 'hedge_epithet', 'hedge_bare']
+
+  - name: int_taxon_resolution
+    description: >
+      Canonical name -> taxon_id for every name the identification events put in
+      play (faces, hedge targets, slash alternates, subgenus refinements). Curated
+      bridge first, then unambiguous active Insecta name-match; monomials resolve
+      at the most inclusive rank (beeatlas-xs1; ADR 0030 local-lineage-only).
+    columns:
+      - name: name
+        data_tests:
+          - not_null
+          - unique
+      - name: taxon_id
+        data_tests:
+          - not_null
+
+  - name: int_taxon_nodes
+    description: >
+      One row per taxon in play plus all ancestors, with root->leaf
+      ancestor_or_self lists (compatibility = list containment) and the hedge
+      anchor (deepest ancestor above species rank; ADR 0033 item 9).
+    columns:
+      - name: taxon_id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: int_identification_assertions
+    description: >
+      Events with their asserted taxon resolved: hedge anchors, slash LCAs,
+      subgenus refinements applied (ADR 0033 item 9). iNat rows bypass local
+      resolution via per-row presolved taxon + ancestor_ids (ADR 0030).
+
+  - name: int_trusted_taxon
+    description: >
+      Per-record trusted taxon under expert-trust-with-veto (ADR 0033,
+      beeatlas-xs1): deepest taxon compatible with every current expert
+      assertion; disputes resolve to the LCA (rank-scoped veto); expert
+      self-disagreement drops that person and flags. One row per occ_id with
+      >=1 current expert assertion. A record qualifies for query taxon T iff
+      T is ancestor-or-self of trusted_taxon.
+    columns:
+      - name: occ_id
+        data_tests:
+          - not_null
+          - unique
+
+unit_tests:
+  - name: ut_qualifier_parsing_hedge_targets
+    description: >
+      Executable spec for ADR 0033 item 9 target construction: every live
+      qualifier shape classifies correctly and builds the right canonical
+      target(s); synonyms apply to face names; the register resolves person_key.
+    model: int_identification_events
+    given:
+      - input: ref('stg_ecdysis__occurrences')
+        rows:
+          - {id: '11', canonical_name: 'lasioglossum', identification_qualifier: 'cf. pacatum', identified_by: 'Karen W. Wright'}
+          - {id: '12', canonical_name: 'osmia phaceliae', identification_qualifier: '?', identified_by: 'Karen W. Wright'}
+          - {id: '13', canonical_name: 'coelioxys', identification_qualifier: 'novomexicanus/octodentatus', identified_by: 'Karen W. Wright'}
+          - {id: '14', canonical_name: 'bombus', identification_qualifier: 'subg. (Pyrobombus)', identified_by: 'Karen W. Wright'}
+          - {id: '15', canonical_name: 'perdita wyomingensis', identification_qualifier: 'subsp. segona', identified_by: 'Karen W. Wright'}
+          - {id: '16', canonical_name: 'bombus californicus', identification_qualifier: '', identified_by: 'Somebody New'}
+          - {id: '17', canonical_name: 'lasioglossum', identification_qualifier: 'n. sp. aff tenax', identified_by: 'Karen'}
+          - {id: '18', canonical_name: 'perdita', identification_qualifier: 'zonalis group', identified_by: 'Karen W. Wright'}
+          - {id: '19', canonical_name: 'stelis', identification_qualifier: 'sp.', identified_by: 'Karen W. Wright'}
+      - input: ref('int_synonyms')
+        rows:
+          - {synonym: 'bombus californicus', accepted_name: 'bombus fervidus', source: 'test'}
+      - input: ref('identifier_register')
+        rows:
+          - {name: 'Karen W. Wright', person_key: 'karen_wright', inat_login: 'karen_wright', is_expert: false, alt_spellings: 'Karen', note: ''}
+      - input: ref('int_inat_identifications')
+        rows: []
+    expect:
+      rows:
+        - {occ_id: 'ecdysis:11', qualifier_class: 'hedge_epithet', target1_name: 'lasioglossum pacatum', target2_name: null, person_key: 'karen_wright'}
+        - {occ_id: 'ecdysis:12', qualifier_class: 'hedge_bare', target1_name: 'osmia phaceliae', target2_name: null, person_key: 'karen_wright'}
+        - {occ_id: 'ecdysis:13', qualifier_class: 'slash', target1_name: 'coelioxys novomexicanus', target2_name: 'coelioxys octodentatus', person_key: 'karen_wright'}
+        - {occ_id: 'ecdysis:14', qualifier_class: 'refine_subg', target1_name: 'pyrobombus', target2_name: null, person_key: 'karen_wright'}
+        - {occ_id: 'ecdysis:15', qualifier_class: 'refine_subsp', target1_name: null, target2_name: null, person_key: 'karen_wright'}
+        - {occ_id: 'ecdysis:16', qualifier_class: 'none', target1_name: null, target2_name: null, person_key: null}
+        - {occ_id: 'ecdysis:17', qualifier_class: 'hedge_epithet', target1_name: 'lasioglossum tenax', target2_name: null, person_key: 'karen_wright'}
+        - {occ_id: 'ecdysis:18', qualifier_class: 'hedge_epithet', target1_name: 'perdita zonalis', target2_name: null, person_key: 'karen_wright'}
+        - {occ_id: 'ecdysis:19', qualifier_class: 'noop', target1_name: null, target2_name: null, person_key: 'karen_wright'}
+
+  - name: ut_synonym_face_name_applied
+    description: A synonymous face name lands on the accepted name (fervidus/californicus agreement, first half).
+    model: int_identification_events
+    given:
+      - input: ref('stg_ecdysis__occurrences')
+        rows:
+          - {id: '21', canonical_name: 'bombus californicus', identification_qualifier: '', identified_by: 'Karen W. Wright'}
+      - input: ref('int_synonyms')
+        rows:
+          - {synonym: 'bombus californicus', accepted_name: 'bombus fervidus', source: 'test'}
+      - input: ref('identifier_register')
+        rows:
+          - {name: 'Karen W. Wright', person_key: 'karen_wright', inat_login: 'karen_wright', is_expert: false, alt_spellings: '', note: ''}
+      - input: ref('int_inat_identifications')
+        rows: []
+    expect:
+      rows:
+        - {occ_id: 'ecdysis:21', face_name: 'bombus fervidus'}
+
+  # Shared fixture taxonomy for the trusted-taxon spec below:
+  #   100 Insects(order) > 1 Bombus(genus) > 2 fervidus / 3 flavifrons (species)
+  - name: ut_trusted_taxon_chain_refinement_and_ecdysis_only
+    description: >
+      ADR 0033 spec — genus + species-within-genus is agreement-plus-refinement
+      (trusted = the species, undisputed); a lone Ecdysis determination is
+      trusted at face value (provenance, no fake consensus); two experts
+      agreeing post-synonym on one species collapse to that species.
+    model: int_trusted_taxon
+    given:
+      - input: ref('int_identification_assertions')
+        format: sql
+        rows: |
+          SELECT 'ecdysis:1' AS occ_id, 'ecdysis' AS source, 'karen_wright' AS person_key,
+                 'Karen W. Wright' AS identifier_label, TRUE AS is_current, TRUE AS is_expert,
+                 'bombus' AS face_name, CAST(NULL AS VARCHAR) AS qualifier, 'none' AS qualifier_class,
+                 1 AS asserted_taxon_id, 'Bombus' AS asserted_name, 'genus' AS asserted_rank,
+                 [100,1] AS ancestor_or_self
+          UNION ALL
+          SELECT 'ecdysis:1', 'inat', 'zportman', 'zportman', TRUE, TRUE,
+                 'bombus fervidus', NULL, 'none', 2, 'Bombus fervidus', 'species', [100,1,2]
+          UNION ALL
+          SELECT 'ecdysis:2', 'ecdysis', 'karen_wright', 'Karen W. Wright', TRUE, TRUE,
+                 'bombus flavifrons', NULL, 'none', 3, 'Bombus flavifrons', 'species', [100,1,3]
+      - input: ref('int_taxon_nodes')
+        format: sql
+        rows: |
+          SELECT 100 AS taxon_id, 'Insects' AS name, 'order' AS rank, 47 AS rank_level,
+                 [100] AS ancestor_or_self, CAST(NULL AS INTEGER) AS anchor_taxon_id
+          UNION ALL SELECT 1, 'Bombus', 'genus', 20, [100,1], 1
+          UNION ALL SELECT 2, 'Bombus fervidus', 'species', 10, [100,1,2], 1
+          UNION ALL SELECT 3, 'Bombus flavifrons', 'species', 10, [100,1,3], 1
+    expect:
+      rows:
+        - {occ_id: 'ecdysis:1', trusted_taxon_id: 2, trusted_taxon_name: 'Bombus fervidus', is_disputed: false, has_expert_self_disagreement: false, expert_assertion_count: 2, identifier_count: 2}
+        - {occ_id: 'ecdysis:2', trusted_taxon_id: 3, trusted_taxon_name: 'Bombus flavifrons', is_disputed: false, has_expert_self_disagreement: false, expert_assertion_count: 1, identifier_count: 1}
+
+  - name: ut_trusted_taxon_expert_dispute_lca_and_nonexpert_no_veto
+    description: >
+      ADR 0033 spec — expert-vs-expert species dispute vetoes at species but
+      leaves genus trust intact (trusted = LCA, disputed flag); a non-expert
+      incompatible ID never vetoes (counted in identifier color only).
+    model: int_trusted_taxon
+    given:
+      - input: ref('int_identification_assertions')
+        format: sql
+        rows: |
+          SELECT 'ecdysis:3' AS occ_id, 'ecdysis' AS source, 'karen_wright' AS person_key,
+                 'Karen W. Wright' AS identifier_label, TRUE AS is_current, TRUE AS is_expert,
+                 'bombus fervidus' AS face_name, CAST(NULL AS VARCHAR) AS qualifier, 'none' AS qualifier_class,
+                 2 AS asserted_taxon_id, 'Bombus fervidus' AS asserted_name, 'species' AS asserted_rank,
+                 [100,1,2] AS ancestor_or_self
+          UNION ALL
+          SELECT 'ecdysis:3', 'inat', 'zportman', 'zportman', TRUE, TRUE,
+                 'bombus flavifrons', NULL, 'none', 3, 'Bombus flavifrons', 'species', [100,1,3]
+          UNION ALL
+          SELECT 'ecdysis:4', 'ecdysis', 'karen_wright', 'Karen W. Wright', TRUE, TRUE,
+                 'bombus fervidus', NULL, 'none', 2, 'Bombus fervidus', 'species', [100,1,2]
+          UNION ALL
+          SELECT 'ecdysis:4', 'inat', NULL, 'driveby_user', TRUE, FALSE,
+                 'bombus flavifrons', NULL, 'none', 3, 'Bombus flavifrons', 'species', [100,1,3]
+      - input: ref('int_taxon_nodes')
+        format: sql
+        rows: |
+          SELECT 100 AS taxon_id, 'Insects' AS name, 'order' AS rank, 47 AS rank_level,
+                 [100] AS ancestor_or_self, CAST(NULL AS INTEGER) AS anchor_taxon_id
+          UNION ALL SELECT 1, 'Bombus', 'genus', 20, [100,1], 1
+          UNION ALL SELECT 2, 'Bombus fervidus', 'species', 10, [100,1,2], 1
+          UNION ALL SELECT 3, 'Bombus flavifrons', 'species', 10, [100,1,3], 1
+    expect:
+      rows:
+        - {occ_id: 'ecdysis:3', trusted_taxon_id: 1, trusted_taxon_name: 'Bombus', trusted_taxon_rank: 'genus', is_disputed: true, expert_assertion_count: 2, identifier_count: 2}
+        - {occ_id: 'ecdysis:4', trusted_taxon_id: 2, trusted_taxon_name: 'Bombus fervidus', trusted_taxon_rank: 'species', is_disputed: false, expert_assertion_count: 1, identifier_count: 2}
+
+  - name: ut_trusted_taxon_expert_self_disagreement
+    description: >
+      ADR 0033 spec — an expert whose current assertions are incompatible
+      across systems is not trusted on that record: their assertions drop
+      (another expert's compatible ID still establishes trust), and a record
+      with ONLY the self-disagreeing expert surfaces flagged with no trusted
+      taxon rather than vanishing.
+    model: int_trusted_taxon
+    given:
+      - input: ref('int_identification_assertions')
+        format: sql
+        rows: |
+          SELECT 'ecdysis:5' AS occ_id, 'ecdysis' AS source, 'karen_wright' AS person_key,
+                 'Karen W. Wright' AS identifier_label, TRUE AS is_current, TRUE AS is_expert,
+                 'bombus fervidus' AS face_name, CAST(NULL AS VARCHAR) AS qualifier, 'none' AS qualifier_class,
+                 2 AS asserted_taxon_id, 'Bombus fervidus' AS asserted_name, 'species' AS asserted_rank,
+                 [100,1,2] AS ancestor_or_self
+          UNION ALL
+          SELECT 'ecdysis:5', 'inat', 'karen_wright', 'karen_wright', TRUE, TRUE,
+                 'bombus flavifrons', NULL, 'none', 3, 'Bombus flavifrons', 'species', [100,1,3]
+          UNION ALL
+          SELECT 'ecdysis:5', 'inat', 'zportman', 'zportman', TRUE, TRUE,
+                 'bombus fervidus', NULL, 'none', 2, 'Bombus fervidus', 'species', [100,1,2]
+          UNION ALL
+          SELECT 'ecdysis:6', 'ecdysis', 'karen_wright', 'Karen W. Wright', TRUE, TRUE,
+                 'bombus fervidus', NULL, 'none', 2, 'Bombus fervidus', 'species', [100,1,2]
+          UNION ALL
+          SELECT 'ecdysis:6', 'inat', 'karen_wright', 'karen_wright', TRUE, TRUE,
+                 'bombus flavifrons', NULL, 'none', 3, 'Bombus flavifrons', 'species', [100,1,3]
+      - input: ref('int_taxon_nodes')
+        format: sql
+        rows: |
+          SELECT 100 AS taxon_id, 'Insects' AS name, 'order' AS rank, 47 AS rank_level,
+                 [100] AS ancestor_or_self, CAST(NULL AS INTEGER) AS anchor_taxon_id
+          UNION ALL SELECT 1, 'Bombus', 'genus', 20, [100,1], 1
+          UNION ALL SELECT 2, 'Bombus fervidus', 'species', 10, [100,1,2], 1
+          UNION ALL SELECT 3, 'Bombus flavifrons', 'species', 10, [100,1,3], 1
+    expect:
+      rows:
+        - {occ_id: 'ecdysis:5', trusted_taxon_id: 2, trusted_taxon_name: 'Bombus fervidus', is_disputed: false, has_expert_self_disagreement: true, expert_assertion_count: 3}
+        - {occ_id: 'ecdysis:6', trusted_taxon_id: null, trusted_taxon_name: null, is_disputed: false, has_expert_self_disagreement: true, expert_assertion_count: 2}
+
+  - name: ut_assertions_hedge_anchor_and_slash_lca
+    description: >
+      ADR 0033 item 9 rank semantics on resolution: a resolvable hedge target
+      demotes to its anchor; an UNRESOLVABLE hedge target demotes to the FACE
+      name's anchor (never full species); a slash alternation asserts the LCA.
+      Fixture: 1 Bombus(genus) > 5 Pyrobombus(subgenus) > 2 fervidus / 3
+      flavifrons; 4 'Bombus lostus' resolves nowhere.
+    model: int_identification_assertions
+    given:
+      - input: ref('int_identification_events')
+        format: sql
+        rows: |
+          SELECT 'ecdysis:7' AS occ_id, 'ecdysis' AS source, 'karen_wright' AS person_key,
+                 'Karen W. Wright' AS identifier_label, TRUE AS is_current, TRUE AS is_expert,
+                 'bombus' AS face_name, 'cf. fervidus' AS qualifier, 'hedge_epithet' AS qualifier_class,
+                 'bombus fervidus' AS target1_name, CAST(NULL AS VARCHAR) AS target2_name,
+                 CAST(NULL AS INTEGER) AS presolved_taxon_id, CAST(NULL AS VARCHAR) AS presolved_rank,
+                 CAST(NULL AS INTEGER[]) AS presolved_ancestor_ids
+          UNION ALL
+          SELECT 'ecdysis:8', 'ecdysis', 'karen_wright', 'Karen W. Wright', TRUE, TRUE,
+                 'bombus fervidus', 'aff. lostus', 'hedge_epithet',
+                 'bombus lostus', NULL, NULL, NULL, NULL
+          UNION ALL
+          SELECT 'ecdysis:9', 'ecdysis', 'karen_wright', 'Karen W. Wright', TRUE, TRUE,
+                 'bombus', 'fervidus/flavifrons', 'slash',
+                 'bombus fervidus', 'bombus flavifrons', NULL, NULL, NULL
+      - input: ref('int_taxon_resolution')
+        format: sql
+        rows: |
+          SELECT 'bombus' AS name, 1 AS taxon_id
+          UNION ALL SELECT 'bombus fervidus', 2
+          UNION ALL SELECT 'bombus flavifrons', 3
+      - input: ref('int_taxon_nodes')
+        format: sql
+        rows: |
+          SELECT 1 AS taxon_id, 'Bombus' AS name, 'genus' AS rank, 20 AS rank_level,
+                 [100,1] AS ancestor_or_self, 1 AS anchor_taxon_id
+          UNION ALL SELECT 5, 'Pyrobombus', 'subgenus', 15, [100,1,5], 5
+          UNION ALL SELECT 2, 'Bombus fervidus', 'species', 10, [100,1,5,2], 5
+          UNION ALL SELECT 3, 'Bombus flavifrons', 'species', 10, [100,1,5,3], 5
+    expect:
+      rows:
+        - {occ_id: 'ecdysis:7', asserted_taxon_id: 5, asserted_name: 'Pyrobombus', asserted_rank: 'subgenus'}
+        - {occ_id: 'ecdysis:8', asserted_taxon_id: 5, asserted_name: 'Pyrobombus', asserted_rank: 'subgenus'}
+        - {occ_id: 'ecdysis:9', asserted_taxon_id: 5, asserted_name: 'Pyrobombus', asserted_rank: 'subgenus'}

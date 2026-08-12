@@ -25,7 +25,8 @@ Trust semantics and evidence are in [ADR 0033](docs/adr/0033-trust-an-expert-unl
 
 - **Identification** — a person asserting a taxon for an occurrence record. **Cross-source**: the same person identifying a bee on iNat and determining its Ecdysis specimen has made ONE identification, recorded twice. Only *current* identifications count; superseded ones never count for or against anyone.
 - **Determination of record** — for an Ecdysis specimen, the occurrence record's `scientific_name` + `identified_by`, NOT the identifications table (which is attribution/supersession history; the two disagree on 544 known reconciliation rows).
-- **Trusted taxon** — per record, the deepest assertion compatible with every current expert assertion (synonyms applied first; a finer-rank ID within a taxon is agreement, not conflict). A record qualifies for taxon T iff T is ancestor-or-self of its trusted taxon. An expert-vs-expert dispute blocks trust only at the disputed depth; non-expert disagreement never vetoes — it surfaces for curation.
+- **Trusted taxon** — per record, the deepest assertion compatible with every current expert assertion (synonyms applied first; a finer-rank ID within a taxon is agreement, not conflict). A record qualifies for taxon T iff T is ancestor-or-self of its trusted taxon. An expert-vs-expert dispute blocks trust only at the disputed depth; non-expert disagreement never vetoes — it surfaces for curation. Computed by `int_trusted_taxon` (dbt).
+- **Hedge target / anchor** — a hedged determination (`cf.`/`aff.`/`?`/`X group`/slash) asserts not its face name but its *target*'s **anchor**: the target species' deepest ancestor above species rank (complex → subgenus → genus). *Lasioglossum* `cf. pacatum` asserts the *L. viridatum* complex. ADR 0033 item 9.
 
 ## Provenance Facets (the social cut)
 

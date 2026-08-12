@@ -13,13 +13,7 @@
 -- PASS semantics: 0 rows.
 
 WITH register_names AS (
-    SELECT LOWER(TRIM(name)) AS match_name FROM {{ ref('identifier_register') }}
-    WHERE name IS NOT NULL
-    UNION ALL
-    SELECT LOWER(TRIM(alt.value)) AS match_name
-    FROM {{ ref('identifier_register') }},
-         UNNEST(STRING_SPLIT(alt_spellings, '|')) AS alt(value)
-    WHERE alt_spellings IS NOT NULL
+    {{ register_name_matches() }}
 )
 
 SELECT

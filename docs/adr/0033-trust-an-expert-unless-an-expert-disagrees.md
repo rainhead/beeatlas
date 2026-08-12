@@ -104,6 +104,32 @@ Supporting definitions, all binding:
    `stg_ecdysis__identifications` stays unfiltered because `int_id_modified`
    aggregates MAX(modified) over ALL rows including sentinels (beeatlas-fc4).
    There are no anonymous determinations to weigh (evidence above).
+9. **Qualifier semantics — the hedge-target rule** (decided 2026-08-12,
+   beeatlas-xs1; supersedes the genus default this record originally proposed
+   under Open). The qualifier census shows determiners already put their
+   *confident* rank in the name — hedged epithets ride the qualifier next to
+   a genus-only name (`Lasioglossum` + `cf. pacatum`). So the epithet always
+   points at a species: the **hedge target**. A hedged assertion asserts the
+   target's **anchor** — its deepest ancestor above species rank: species
+   complex if available, else subgenus, else genus (Peter: "why not demote to
+   complex or subgenus when available?"). One rule covers both directions:
+   - binomial + bare hedge (`?`, `nr.`) — target is the named species; the
+     assertion *demotes* to its anchor (*Heriades occidentalis* `?` →
+     subgenus *Neotrypetes*).
+   - genus name + epithet hedge (`cf. X`, `aff./af. X`, `n. sp. aff X`,
+     `X group`) — target is genus+epithet; the assertion *refines* the bare
+     genus to the target's anchor (*Lasioglossum* `cf. pacatum` → the
+     *L. viridatum* species complex, via subgenus *Dialictus*).
+   - slash alternation (`a/b`) — the assertion is the LCA of the two targets
+     (*Coelioxys* `novomexicanus/octodentatus` → subgenus *Boreocoelioxys*).
+   - refinements never demote: `subsp. X` asserts the named species;
+     `subg. (X)` asserts that subgenus. `sp.` is a no-op.
+   - unresolvable hedge target → the FACE name's anchor, so the hedge still
+     demotes (*Perdita nevadensis* `aff. molina` with no local *P. molina* →
+     *Pygoperdita*, never species-level *nevadensis*); other unresolvable
+     steps → the post-synonym name at face value.
+   Synonyms apply before target resolution; resolution uses local lineage
+   (`taxa.csv.gz` ancestry) only — never per-ID lookups (ADR 0030).
 
 ### Boundaries
 
@@ -151,9 +177,8 @@ Supporting definitions, all binding:
 
 ## Open
 
-- Qualifier semantics (`cf.`/`aff.`/`?`, 345 rows). Default: a qualified
-  species assertion supports the genus. The census is richer than `cf.`:
-  species-group assertions ("zonalis group"), alternations
-  ("novomexicanus/octodentatus"), `subsp.` refinements — groups and
-  alternations assert something *between* ranks; handle explicitly in
-  beeatlas-xs1.
+- ~~Qualifier semantics (`cf.`/`aff.`/`?`, 345 rows). Default: a qualified
+  species assertion supports the genus.~~ **Decided 2026-08-12** — the
+  hedge-target rule, decision item 9 above. The originally proposed genus
+  default was rejected as too coarse: every live hedge target resolves to a
+  subgenus or finer, and `subsp.` refinements would have been wrongly demoted.

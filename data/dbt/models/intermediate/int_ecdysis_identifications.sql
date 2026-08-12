@@ -37,14 +37,7 @@
 {{ config(materialized='table') }}
 
 WITH register_names AS (
-    SELECT person_key, LOWER(TRIM(name)) AS match_name
-    FROM {{ ref('identifier_register') }}
-    WHERE name IS NOT NULL AND TRIM(name) != ''
-    UNION ALL
-    SELECT r.person_key, LOWER(TRIM(alt.value)) AS match_name
-    FROM {{ ref('identifier_register') }} r,
-         UNNEST(STRING_SPLIT(r.alt_spellings, '|')) AS alt(value)
-    WHERE r.alt_spellings IS NOT NULL AND TRIM(r.alt_spellings) != ''
+    {{ register_name_matches() }}
 )
 
 SELECT
