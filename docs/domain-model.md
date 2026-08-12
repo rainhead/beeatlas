@@ -109,8 +109,8 @@ iNaturalist observations of bees that a trusted identifier has looked at (not WA
 work). The `EXPERTS` array in
 [`data/raw/inat_expert_obs.sh`](../data/raw/inat_expert_obs.sh) (the recorded export command
 behind the committed CSV) is the export's identifier filter and the *seed* of the curated
-identifier registry, which [ADR 0033](adr/0033-trust-an-expert-unless-an-expert-disagrees.md)
-designates as the single authority on expert status (registry in flight, beeatlas-16m; until it
+identifier register, which [ADR 0033](adr/0033-trust-an-expert-unless-an-expert-disagrees.md)
+designates as the single authority on expert status (register in flight, beeatlas-16m; until it
 lands, the array is the operative list).
 
 Two things the name overstates. The roster feeds iNat's `ident_user_id`, a filter on **who
@@ -228,7 +228,7 @@ Facts about the Ecdysis identification data that any consumer must respect (veri
 - **`taxon_rank` is empty on all rows** — rank derives from name shape
   (`data/canonical_name.py`), including `Lasioglossum (Dialictus)` parenthetical-subgenus forms.
 
-Implementation is in flight: identifier registry (beeatlas-16m), widened Ecdysis staging
+Implementation is in flight: identifier register (beeatlas-16m), widened Ecdysis staging
 (beeatlas-fc4), iNat identifications ingestion (beeatlas-9sy — no local iNat identification
 data exists yet), trusted-taxon model (beeatlas-xs1), published artifact (beeatlas-nyr).
 

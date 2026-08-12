@@ -79,12 +79,12 @@ Supporting definitions, all binding:
    expert (or with an Ecdysis determination) never suppresses trust; it lands
    in the curation anomalies report. Otherwise any drive-by ID could suppress
    an expert determination.
-5. **Expert status lives in the identifier registry** (curated seed,
+5. **Expert status lives in the identifier register** (curated seed,
    beeatlas-16m), seeded from the roster in `data/raw/inat_expert_obs.sh`; the
-   registry is the single authority. The Ecdysis side deliberately needs **no
+   register is the single authority. The Ecdysis side deliberately needs **no
    per-determiner expert classification** — determinations there are trusted by
    ingestion provenance, so the flag governs only whose *iNat* identifications
-   assert or veto. The registry extends the existing
+   assert or veto. The register extends the existing
    `inat_login ↔ recordedBy` person resolution; never a second name system.
 6. **Current assertions only.** Superseded/withdrawn identifications
    (`identification_is_current` on Ecdysis, `current` on iNat) never count for

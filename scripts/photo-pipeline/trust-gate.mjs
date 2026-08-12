@@ -30,8 +30,8 @@ export const EXPERT_ROSTER_SH = path.join(ROOT, 'data', 'raw', 'inat_expert_obs.
 const SEEDS = path.join(ROOT, 'data', 'dbt', 'seeds');
 
 /**
- * The EXPERTS array in inat_expert_obs.sh is the seed of the identifier registry and, until
- * that registry lands (beeatlas-16m), the operative expert list. Parsed from the shell
+ * The EXPERTS array in inat_expert_obs.sh is the seed of the identifier register and, until
+ * that register lands (beeatlas-16m), the operative expert list. Parsed from the shell
  * source rather than duplicated here — one list, one owner.
  */
 export function parseExpertRoster(shText) {

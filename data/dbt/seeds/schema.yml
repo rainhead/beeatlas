@@ -247,3 +247,40 @@ seeds:
         description: "Provenance tag: 'burke-wa-flora'."
         data_tests:
           - not_null
+  - name: identifier_register
+    description: >
+      Curated person register for identifications (ADR 0033, beeatlas-16m): ONE ROW PER
+      PERSON. Records each person's name in general (not only as spelled in Ecdysis), their
+      iNat login where evidence exists, and expert status — the single authority on which
+      (is_expert governs whose iNat identifications assert or veto determination trust;
+      Ecdysis determinations are trusted by ingestion provenance and need no per-determiner
+      flag). Non-preferred Ecdysis spellings live in alt_spellings, pipe-separated — never
+      as duplicate rows. Seeded from the EXPERTS array in data/raw/inat_expert_obs.sh,
+      which should eventually derive FROM this seed; until then keep the two in sync (a
+      vitest case in scripts/photo-pipeline/trust-gate.test.mjs enforces roster ⊆
+      register). ADR 0010 posture: a curator reviews every row; prefer a false split over a
+      false merge; no auto-matching.
+    columns:
+      - name: name
+        description: "The person's preferred name (null only when not yet known, e.g. a roster login with no public name)."
+        data_tests:
+          - unique
+      - name: person_key
+        description: "Stable person identifier: the iNat login where one exists, else a name slug."
+        data_tests:
+          - not_null
+          - unique
+      - name: inat_login
+        description: "iNat login, only where evidence supports the link (recordedBy match, roster comment, or Peter)."
+        data_tests:
+          - unique
+      - name: is_expert
+        description: "Whether this person's iNat identifications assert/veto determination trust (ADR 0033)."
+        data_tests:
+          - not_null
+      - name: alt_spellings
+        description: "Pipe-separated non-preferred spellings seen in Ecdysis identified_by (typos, bare first names, initial variants)."
+      - name: note
+        description: "Evidence for the mapping (recordedBy match, roster membership, variant-fold rationale)."
+        data_tests:
+          - not_null

@@ -34,6 +34,22 @@ describe('expert roster parsing', () => {
     for (const login of ['johnascher', 'swisschick', 'nmdg', 'zportman']) expect(roster).toContain(login);
     expect(roster.size).toBeGreaterThanOrEqual(15);
   });
+
+  /**
+   * TRANSITION GUARD (beeatlas-16m): the identifier register seed is the authority on
+   * expert status, but the export script's EXPERTS array cannot yet derive from it — so
+   * until it does, every roster login must appear in the register with is_expert=true.
+   * Editing one without the other fails here, at npm test, instead of silently splitting
+   * the two expert lists.
+   */
+  it('every roster login has an is_expert=true row in the identifier register', async () => {
+    const { readFileSync } = await import('node:fs');
+    const path = await import('node:path');
+    const { ROOT } = await import('./config.mjs');
+    const rows = parseCsv(readFileSync(path.join(ROOT, 'data', 'dbt', 'seeds', 'identifier_register.csv'), 'utf8')).slice(1);
+    const expertLoginsInRegister = new Set(rows.filter((r) => r[3] === 'true' && r[2]).map((r) => r[2]));
+    for (const login of loadExpertLogins()) expect(expertLoginsInRegister).toContain(login);
+  });
 });
 
 describe('synonym folding', () => {
