@@ -115,6 +115,9 @@ identified** the observation — the observer can be anyone (4,766 distinct obse
 current snapshot), and an identification by a roster member does **not** mean they agreed with
 the community taxon, which is the name the export reports and the name we ingest. The export
 also passes `quality_grade=any`, so these are not all research-grade; the roster is the filter.
+Trust semantics for these observations — requiring the expert's *actual asserted taxon*, not
+mere roster contact — are defined by [ADR 0033](adr/0033-trust-an-expert-unless-an-expert-disagrees.md)
+(expert-trust-with-veto); see "Identifications and Determination Trust" below.
 
 Sourced from a separate `inat_obs_data` pipeline. `tier = other`, `record_type = inat_expert`
 (renamed from `inat_obs` in Phase 170, D-06 — role-named). `occ_id = inat_obs:N` (the occ_id
@@ -190,6 +193,41 @@ for obs 288589692. This causes `int_samples_base` to fan out two rows, resulting
 `ecdysis:` rows with the same ID. Surfaced (severity: warn) by the Phase 165 uniqueness test;
 root cause is separate from the catalog-match gap fixed in Phase 165. Fix: deduplicate
 `field_id=9963` OFVs in `stg_inat__ofvs` or `int_samples_base`.
+
+---
+
+## Identifications and Determination Trust (ADR 0033)
+
+An **Identification** is a person asserting a taxon for an occurrence record — a
+**cross-source** concept: the same person identifying a bee on iNat and determining its Ecdysis
+specimen has made one identification, recorded twice (the sources join via
+`specimen_observation_id`). The trust rule is *trust an expert, unless an expert disagrees*:
+expert assertions establish trust, only expert disagreement vetoes it (rank-scoped — a
+species-level dispute leaves genus trust intact), Ecdysis determinations are trusted by
+ingestion provenance, and non-expert disagreement surfaces for curation instead of vetoing.
+Full semantics, evidence, and rejected alternatives:
+[ADR 0033](adr/0033-trust-an-expert-unless-an-expert-disagrees.md).
+
+Facts about the Ecdysis identification data that any consumer must respect (verified
+2026-08-11, beeatlas-0o1):
+
+- **The occurrence record is the determination of record.** 532 specimens have zero
+  *current* rows in `ecdysis_data.identifications` yet publish with names that exist only on
+  `occurrences`; 6+6 further rows disagree between the tables (reconciliation artifacts). Read
+  determinations from `occurrences`; the identifications table is attribution and supersession
+  history.
+- **Exactly one current identification per specimen** — a supersession chain, not a vote
+  record. Corroboration of an Ecdysis determination can only come from the linked iNat
+  observation's identifications.
+- **No anonymous determinations.** Every current identification bearing a real taxon name is
+  attributed to a named person (28,920) or the "Nomenclatural Adjustment" process actor (17).
+  The 'undetermined' placeholder rows and the process actor are sentinels, excluded at staging.
+- **`taxon_rank` is empty on all rows** — rank derives from name shape
+  (`data/canonical_name.py`), including `Lasioglossum (Dialictus)` parenthetical-subgenus forms.
+
+Implementation is in flight: identifier registry (beeatlas-16m), widened Ecdysis staging
+(beeatlas-fc4), iNat identifications ingestion (beeatlas-9sy — no local iNat identification
+data exists yet), trusted-taxon model (beeatlas-xs1), published artifact (beeatlas-nyr).
 
 ---
 

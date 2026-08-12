@@ -17,6 +17,15 @@ Shared vocabulary for BeeAtlas. Use these terms precisely — ambiguity here has
 - **Collector** — a volunteer, identified by their iNat handle (**self-identified, no auth** — the work half runs on public data). Resolved host-first: `COALESCE(specimen_inat_login, host_inat_login, user_login)` (the sample owner wins over a third-party specimen-photo poster). `display_name` = most-recent `recordedBy`.
 - **Roles: reader / author / curator** (v8.0 write layer) — reading is open; authoring notes is allowlist-gated; a curator can take content down without a deploy.
 - **Community note** — a free-text note contributed by an author against a species (`canonical_name`), shown on that species page. Named for who writes them, not what they contain: the content is often natural history, but nomenclature, identification tips, and local status are equally in scope. Supersedes the earlier UI label "natural history notes", which described only the commonest case. The stored entity is a **note**; "community notes" is the section as a reader sees it.
+- **Expert** — a person whose identifications assert and veto determination trust ([ADR 0033](docs/adr/0033-trust-an-expert-unless-an-expert-disagrees.md)). Status lives in the curated identifier registry (seeded from the iNat roster in `data/raw/inat_expert_obs.sh`), which is the single authority. Ecdysis determiners need no expert flag — determinations there are trusted by ingestion provenance.
+
+## Identification
+
+Trust semantics and evidence are in [ADR 0033](docs/adr/0033-trust-an-expert-unless-an-expert-disagrees.md); the rule in one line: *trust an expert, unless an expert disagrees*.
+
+- **Identification** — a person asserting a taxon for an occurrence record. **Cross-source**: the same person identifying a bee on iNat and determining its Ecdysis specimen has made ONE identification, recorded twice. Only *current* identifications count; superseded ones never count for or against anyone.
+- **Determination of record** — for an Ecdysis specimen, the occurrence record's `scientific_name` + `identified_by`, NOT the identifications table (which is attribution/supersession history; the two disagree on 544 known reconciliation rows).
+- **Trusted taxon** — per record, the deepest assertion compatible with every current expert assertion (synonyms applied first; a finer-rank ID within a taxon is agreement, not conflict). A record qualifies for taxon T iff T is ancestor-or-self of its trusted taxon. An expert-vs-expert dispute blocks trust only at the disputed depth; non-expert disagreement never vetoes — it surfaces for curation.
 
 ## Provenance Facets (the social cut)
 
