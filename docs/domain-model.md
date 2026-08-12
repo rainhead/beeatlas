@@ -106,9 +106,12 @@ categories 1 or 2.
 ### Category 4 — `inat_expert` (was `inat_obs`): expert observation
 
 iNaturalist observations of bees that a trusted identifier has looked at (not WABA collecting
-work). The roster of trusted iNat logins is the `EXPERTS` array in
-[`data/raw/inat_expert_obs.sh`](../data/raw/inat_expert_obs.sh), the recorded export command
-behind the committed CSV.
+work). The `EXPERTS` array in
+[`data/raw/inat_expert_obs.sh`](../data/raw/inat_expert_obs.sh) (the recorded export command
+behind the committed CSV) is the export's identifier filter and the *seed* of the curated
+identifier registry, which [ADR 0033](adr/0033-trust-an-expert-unless-an-expert-disagrees.md)
+designates as the single authority on expert status (registry in flight, beeatlas-16m; until it
+lands, the array is the operative list).
 
 Two things the name overstates. The roster feeds iNat's `ident_user_id`, a filter on **who
 identified** the observation — the observer can be anyone (4,766 distinct observers in the
