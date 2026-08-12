@@ -192,6 +192,10 @@ data/notes-dev.db-wal
 .dolt/
 *.db
 .beads-credential-key
+# Zero-byte flock the beads smart gate (BD_SMART_GATE migrations) creates at
+# repo root and never unlinks — per-checkout runtime state, outside .beads/ so
+# bd's managed .beads/.gitignore can't cover it.
+.beads.gate.lock
 
 # Beads: the JSONL export IS tracked (issues.jsonl / interactions.jsonl), so the
 # tracker travels with the repo and survives this checkout. What must NOT be
