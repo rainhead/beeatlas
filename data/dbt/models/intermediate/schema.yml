@@ -92,17 +92,27 @@ models:
 
   - name: int_inat_identifications
     description: >
-      iNat arm of the identifications model — CONTRACT PLACEHOLDER (beeatlas-xs1).
-      Zero rows until beeatlas-9sy ingests the observations__identifications child
-      table; pins the column contract so the union and trusted-taxon models build
-      and unit-test now.
+      iNat arm of the identifications model (beeatlas-9sy, live 2026-08-12 on
+      inat_expert_pipeline.py's ingestion): one row per iNat identification on a
+      tracked observation, person resolved via identifier_register.inat_login,
+      is_expert = the register flag (governs iNat assert/veto only — ADR 0033
+      item 5). ancestor_ids arrives per row from the API (ADR 0030).
+
+  - name: int_observation_occ_ids
+    description: >
+      iNat observation id -> occ_id linkage for identification attachment (ADR
+      0033 item 1): Ecdysis-linked specimen observations -> ecdysis:N; ARM 3/4
+      rows -> inat_obs:N. Sample (plant) observations deliberately absent.
+      Mirrors the synthetic occ_id CASE (occurrence_places / occ-id test /
+      occurrence.ts) — the four must move together.
 
   - name: int_identification_events
     description: >
       Identification events across sources, pre-taxon-resolution (beeatlas-xs1):
-      the Ecdysis determination of record per occurrence (ADR 0033 item 7) plus the
-      iNat arm placeholder. Owns qualifier parsing — the hedge-target rule (ADR 0033
-      item 9); classification and target construction are pinned by unit tests.
+      the Ecdysis determination of record per occurrence (ADR 0033 item 7) plus
+      the iNat arm (one event per identification x linked occurrence). Owns
+      qualifier parsing — the hedge-target rule (ADR 0033 item 9);
+      classification and target construction are pinned by unit tests.
     columns:
       - name: qualifier_class
         data_tests:
@@ -182,6 +192,8 @@ unit_tests:
           - {name: 'Karen W. Wright', person_key: 'karen_wright', inat_login: 'karen_wright', is_expert: false, alt_spellings: 'Karen', note: ''}
       - input: ref('int_inat_identifications')
         rows: []
+      - input: ref('int_observation_occ_ids')
+        rows: []
     expect:
       rows:
         - {occ_id: 'ecdysis:11', qualifier_class: 'hedge_epithet', target1_name: 'lasioglossum pacatum', target2_name: null, person_key: 'karen_wright'}
@@ -208,6 +220,8 @@ unit_tests:
         rows:
           - {name: 'Karen W. Wright', person_key: 'karen_wright', inat_login: 'karen_wright', is_expert: false, alt_spellings: '', note: ''}
       - input: ref('int_inat_identifications')
+        rows: []
+      - input: ref('int_observation_occ_ids')
         rows: []
     expect:
       rows:

@@ -45,6 +45,14 @@ sources:
     tables:
       - name: observations
 
+  - name: inat_expert_data   # live v2 API loader; loaded by inat_expert_pipeline.py (beeatlas-iek/9sy)
+    schema: inat_expert_data
+    tables:
+      - name: observations                                  # the expert feed (ident_user_id roster query)
+      - name: observations__identifications                 # per-observation identification detail
+      - name: specimen_linked_observations                  # WABA specimen obs linked from Ecdysis rows
+      - name: specimen_linked_observations__identifications
+
   - name: dem_data
     schema: dem_data
     tables:

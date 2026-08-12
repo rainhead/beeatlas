@@ -107,11 +107,14 @@ ecdysis_events AS (
     LEFT JOIN {{ ref('int_synonyms') }} s2 ON s2.synonym = p.target2_raw
 ),
 
--- iNat arm: zero rows until beeatlas-9sy lands the identifications child table
--- and the observation->occ_id linkage. Taxa arrive pre-resolved from the API.
+-- iNat arm (beeatlas-9sy): one event per (identification, linked occurrence).
+-- The 1:N join is deliberate — an identification on a specimen's photo
+-- observation asserts a taxon for the SPECIMEN record (ADR 0033 item 1), and
+-- an observation can back both nothing (unlinked) and exactly one occ row per
+-- linkage. Taxa arrive pre-resolved from the API (per-row ancestor_ids).
 inat_events AS (
     SELECT
-        CAST(NULL AS VARCHAR)                                 AS occ_id,
+        occ.occ_id,
         'inat'                                                AS source,
         i.person_key,
         i.inat_login                                          AS identifier_label,
@@ -126,6 +129,7 @@ inat_events AS (
         i.taxon_rank                                          AS presolved_rank,
         i.ancestor_ids                                        AS presolved_ancestor_ids
     FROM {{ ref('int_inat_identifications') }} i
+    JOIN {{ ref('int_observation_occ_ids') }} occ ON occ.observation_id = i.observation_id
     LEFT JOIN {{ ref('int_synonyms') }} syn ON syn.synonym = LOWER(i.taxon_name)
 )
 

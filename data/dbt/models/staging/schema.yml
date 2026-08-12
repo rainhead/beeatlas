@@ -79,3 +79,18 @@ models:
       - name: canonical_name
         data_tests:
           - not_null
+
+  - name: stg_inat_expert__identifications
+    description: >
+      Union of the expert-feed and specimen-linked identification child tables
+      (inat_expert_data; loaded by inat_expert_pipeline.py, beeatlas-9sy),
+      deduplicated by identification uuid; ancestor_ids split back to INTEGER[]
+      (root->leaf, matching int_taxon_nodes.ancestor_or_self).
+    columns:
+      - name: identification_uuid
+        data_tests:
+          - not_null
+          - unique
+      - name: observation_id
+        data_tests:
+          - not_null

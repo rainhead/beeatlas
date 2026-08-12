@@ -238,9 +238,16 @@ bare *Lasioglossum*). The chain is `int_identification_events` (qualifier parsin
 `int_taxon_resolution`/`int_taxon_nodes` (local lineage from `taxa.csv.gz`) →
 `int_identification_assertions` (anchors, slash LCAs) → `int_trusted_taxon` (chain/LCA
 aggregation, self-disagreement exclusion). The agreement semantics are pinned by dbt unit
-tests (the executable spec in `intermediate/schema.yml`). The iNat arm is a zero-row contract
-placeholder (`int_inat_identifications`) until ingestion lands (beeatlas-9sy — no local iNat
-identification data exists yet); publishing the artifact is beeatlas-nyr.
+tests (the executable spec in `intermediate/schema.yml`). The iNat arm is LIVE (beeatlas-9sy,
+2026-08-12): `data/inat_expert_pipeline.py` ingests the expert feed + specimen-linked
+observations with per-row identification detail from the v2 API (id_above cursor — the API's
+10k pagination window forbids page numbers; roster read from the identifier register;
+incremental on updated_at after the initial sweep), and identifications attach to occurrence
+rows via `int_observation_occ_ids` (specimen photo → `ecdysis:N`, arm-3/4 → `inat_obs:N`;
+plant/sample observations deliberately excluded). First live run: 58,737 records with a
+trusted taxon, 9,028 multi-expert, 26 expert disputes resolved rank-scoped, 0 expert
+self-disagreements. Publishing the artifact is beeatlas-nyr; arm 4's mart upstream still
+reads the committed CSV (the remainder of beeatlas-iek).
 
 ---
 
