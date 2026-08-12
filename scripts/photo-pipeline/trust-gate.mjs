@@ -26,27 +26,21 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { ROOT, USER_AGENT } from './config.mjs';
 
-export const EXPERT_ROSTER_SH = path.join(ROOT, 'data', 'raw', 'inat_expert_obs.sh');
 const SEEDS = path.join(ROOT, 'data', 'dbt', 'seeds');
+export const IDENTIFIER_REGISTER_CSV = path.join(SEEDS, 'identifier_register.csv');
 
 /**
- * The EXPERTS array in inat_expert_obs.sh is the seed of the identifier register and, until
- * that register lands (beeatlas-16m), the operative expert list. Parsed from the shell
- * source rather than duplicated here — one list, one owner.
+ * Expert logins from the identifier register — the single expert-status
+ * authority (ADR 0033 item 5): rows with is_expert=true and an inat_login.
+ * This retired the EXPERTS array in data/raw/inat_expert_obs.sh (the
+ * register's seed); data/inat_expert_pipeline.py reads the same rows for its
+ * ident_user_id filter, so the gate and the loader can never split.
  */
-export function parseExpertRoster(shText) {
-  const m = shText.match(/^EXPERTS=\(([\s\S]*?)^\)/m);
-  if (!m) throw new Error('EXPERTS=( ... ) block not found in roster script');
-  const logins = new Set();
-  for (const line of m[1].split('\n')) {
-    const token = line.replace(/#.*$/, '').trim();
-    if (token) logins.add(token);
-  }
-  return logins;
-}
-
-export function loadExpertLogins(shPath = EXPERT_ROSTER_SH) {
-  return parseExpertRoster(readFileSync(shPath, 'utf8'));
+export function loadExpertLogins(registerPath = IDENTIFIER_REGISTER_CSV) {
+  const rows = parseCsv(readFileSync(registerPath, 'utf8'));
+  const header = rows[0];
+  const login = header.indexOf('inat_login'), expert = header.indexOf('is_expert');
+  return new Set(rows.slice(1).filter((r) => r[expert] === 'true' && r[login]).map((r) => r[login]));
 }
 
 /** Minimal CSV row parser: handles quoted fields (the source columns carry commas). */

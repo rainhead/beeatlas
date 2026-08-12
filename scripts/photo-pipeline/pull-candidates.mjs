@@ -15,7 +15,7 @@
  *      (expert-trust-with-veto) and is applied at SELECTION (select-coverage.mjs), not at
  *      the pull: specimen/waba_specimen-arm observations are trusted by ingestion
  *      provenance, while inat_expert-arm ones need a compatible expert ID with no expert
- *      veto — the roster only guarantees an expert LOOKED (see data/raw/inat_expert_obs.sh
+ *      veto — the roster only guarantees an expert LOOKED (see data/inat_expert_pipeline.py
  *      and domain-model.md Category 4), so "these are OUR determinations" was never true
  *      for that arm. This stage's job is to capture the evidence the gate reads: per-arm
  *      membership (candidate-arms.json) and the identifications array that rides the

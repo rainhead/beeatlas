@@ -106,18 +106,19 @@ categories 1 or 2.
 ### Category 4 — `inat_expert` (was `inat_obs`): expert observation
 
 iNaturalist observations of bees that a trusted identifier has looked at (not WABA collecting
-work). The `EXPERTS` array in
-[`data/raw/inat_expert_obs.sh`](../data/raw/inat_expert_obs.sh) (the recorded export command
-behind the committed CSV) is the export's identifier filter and the *seed* of the curated
-identifier register, which [ADR 0033](adr/0033-trust-an-expert-unless-an-expert-disagrees.md)
-designates as the single authority on expert status (register in flight, beeatlas-16m; until it
-lands, the array is the operative list).
+work). The arm's upstream is the live v2 API loader `data/inat_expert_pipeline.py`
+(beeatlas-iek cutover, 2026-08-12 — it retired the hand-refreshed CSV export and its recorded
+command `data/raw/inat_expert_obs.sh`, recoverable from git history). The `ident_user_id`
+filter derives from the curated identifier register's `is_expert` rows, which
+[ADR 0033](adr/0033-trust-an-expert-unless-an-expert-disagrees.md) designates as the single
+authority on expert status.
 
 Two things the name overstates. The roster feeds iNat's `ident_user_id`, a filter on **who
 identified** the observation — the observer can be anyone (4,766 distinct observers in the
-current snapshot), and an identification by a roster member does **not** mean they agreed with
-the community taxon, which is the name the export reports and the name we ingest. The export
-also passes `quality_grade=any`, so these are not all research-grade; the roster is the filter.
+2026-05 snapshot), and an identification by a roster member does **not** mean they agreed with
+the community taxon, which is the name we ingest. There is also no quality-grade filter; the
+roster is the filter. (The per-identification detail the loader now ingests is what closes
+this gap — the trusted-taxon model reads actual assertions, not roster membership.)
 Trust semantics for these observations — requiring the expert's *actual asserted taxon*, not
 mere roster contact — are defined by [ADR 0033](adr/0033-trust-an-expert-unless-an-expert-disagrees.md)
 (expert-trust-with-veto); see "Identifications and Determination Trust" below.

@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  parseExpertRoster, loadExpertLogins, loadSynonyms, parseCsv, canonicalize,
+  loadExpertLogins, loadSynonyms, parseCsv, canonicalize,
   identStance, observationTrust,
 } from './trust-gate.mjs';
 
@@ -23,32 +23,19 @@ const ident = (login, taxon_id, name, ancestor_ids, extra = {}) =>
 const gate = (idents, queryTaxonId, queryName, queryAncestorIds = [], synonyms = new Map()) =>
   observationTrust(idents, { expertLogins: EXPERTS, synonyms, queryTaxonId, queryName, queryAncestorIds });
 
-describe('expert roster parsing', () => {
-  it('extracts logins from the EXPERTS block, dropping comments and blanks', () => {
-    const sh = `#!/bin/bash\nEXPERTS=(\n  johnascher        # John S. Ascher\n  swisschick        # Karla Salp\n  hadel\n)\nOTHER=(x)\n`;
-    expect(parseExpertRoster(sh)).toEqual(new Set(['johnascher', 'swisschick', 'hadel']));
-  });
-
-  it('parses the real roster file and finds the known members', () => {
+describe('expert roster (identifier register)', () => {
+  // The beeatlas-16m transition guard ("every .sh roster login must appear in the
+  // register") dissolved when the roster started DERIVING from the register —
+  // there is one list again, and this pins its shape.
+  it('reads is_expert logins from the register and finds the known members', () => {
     const roster = loadExpertLogins();
-    for (const login of ['johnascher', 'swisschick', 'nmdg', 'zportman']) expect(roster).toContain(login);
+    for (const login of ['johnascher', 'swisschick', 'nmdg', 'zportman', 'hadel']) expect(roster).toContain(login);
     expect(roster.size).toBeGreaterThanOrEqual(15);
   });
 
-  /**
-   * TRANSITION GUARD (beeatlas-16m): the identifier register seed is the authority on
-   * expert status, but the export script's EXPERTS array cannot yet derive from it — so
-   * until it does, every roster login must appear in the register with is_expert=true.
-   * Editing one without the other fails here, at npm test, instead of silently splitting
-   * the two expert lists.
-   */
-  it('every roster login has an is_expert=true row in the identifier register', async () => {
-    const { readFileSync } = await import('node:fs');
-    const path = await import('node:path');
-    const { ROOT } = await import('./config.mjs');
-    const rows = parseCsv(readFileSync(path.join(ROOT, 'data', 'dbt', 'seeds', 'identifier_register.csv'), 'utf8')).slice(1);
-    const expertLoginsInRegister = new Set(rows.filter((r) => r[3] === 'true' && r[2]).map((r) => r[2]));
-    for (const login of loadExpertLogins()) expect(expertLoginsInRegister).toContain(login);
+  it('never sweeps in non-expert register rows', () => {
+    const roster = loadExpertLogins();
+    for (const login of ['rainhead', 'karen_wright', 'clankford']) expect(roster).not.toContain(login);
   });
 });
 
