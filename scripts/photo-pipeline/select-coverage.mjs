@@ -21,7 +21,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import TOML from '@iarna/toml';
 import { ROOT, OUT, MANIFEST, PART_KEYS } from './config.mjs';
-import { loadExpertLogins, loadSynonyms, observationTrust, loadTaxonAncestry } from './trust-gate.mjs';
+import { loadExpertLogins, loadSynonyms, observationTrust, loadTaxonAncestry, resolveTrustArtifact, loadTrustArtifact, artifactTrust } from './trust-gate.mjs';
 import { loadTaxonIds, normalizeName } from '../seed-species-photos.mjs';
 
 const flag = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i === -1 ? Number(d) : Number(process.argv[i + 1]); };
@@ -79,62 +79,81 @@ for (const r of scored) {
 console.log(`${skippedNonPage} scored photos ignored: taxon has no species page (subgenera, and non-bees from the inat_expert arm)\n`);
 
 /**
- * DETERMINATION TRUST GATE (ADR 0033, beeatlas-r2u). specimen/waba_specimen-arm
+ * DETERMINATION TRUST GATE (ADR 0033/0034, beeatlas-vsrh). specimen/waba_specimen-arm
  * observations bypass: their determination is ours, trusted by ingestion provenance. An
- * inat_expert-arm observation qualifies only with >=1 current EXPERT identification
- * compatible with the query taxon and no expert identification incompatible with it — the
- * roster behind that arm only guarantees an expert LOOKED. Non-expert IDs never gate.
+ * inat_expert-arm observation qualifies through the PUBLISHED occurrence_trust artifact:
+ * its `inat_obs:<id>` row must carry the query taxon in trusted_ancestor_or_self — the dbt
+ * trusted-taxon model is the single implementation of the agreement semantics. Candidates
+ * NEWER than the artifact (no row yet) fall back to the in-response identifications
+ * captured by pull-candidates (the interim beeatlas-r2u gate, demoted to exactly that
+ * role). Non-expert IDs never gate on either path.
  *
- * DELIBERATELY INERT where evidence is missing (observation pulled before identification
- * capture existed, no arms file, unresolvable taxon id, no local duckdb): the gate must
- * never silently change past selections; a re-pull arms it.
+ * DELIBERATELY INERT where evidence is missing (no artifact and no captured
+ * identifications, unresolvable taxon id, no local duckdb): the gate must never silently
+ * change past selections.
  */
 const trustByObs = new Map();
 {
   const armsFile = path.join(OUT, 'candidate-arms.json');
   const identsFile = path.join(OUT, 'candidate-identifications.json');
   const dbPath = path.join(ROOT, 'data', 'beeatlas.duckdb');
-  if (!existsSync(identsFile)) {
-    console.log('trust gate INERT: no candidate-identifications.json (re-pull to capture identifications)\n');
-  } else if (!existsSync(dbPath)) {
+  const artifactPath = strFlag('trust', null) ?? resolveTrustArtifact();
+  if (!existsSync(dbPath)) {
     console.log('trust gate INERT: data/beeatlas.duckdb missing (needed for query-taxon ids)\n');
+  } else if (!artifactPath && !existsSync(identsFile)) {
+    console.log('trust gate INERT: no occurrence_trust.parquet found and no candidate-identifications.json\n');
   } else {
+    const artifact = artifactPath ? loadTrustArtifact(artifactPath) : new Map();
+    if (artifactPath) console.log(`trust artifact: ${path.relative(ROOT, artifactPath)} (${artifact.size} inat_obs records)`);
     const obsArms = existsSync(armsFile) ? JSON.parse(readFileSync(armsFile, 'utf8')) : {};
-    const obsIdents = JSON.parse(readFileSync(identsFile, 'utf8'));
+    const obsIdents = existsSync(identsFile) ? JSON.parse(readFileSync(identsFile, 'utf8')) : {};
     const expertLogins = loadExpertLogins();
     const synonyms = loadSynonyms();
     const taxa = loadTaxonIds(dbPath);
     const trustedArm = (obs) => { const a = obsArms[String(obs)]; return !!a && (a.includes('specimen') || a.includes('waba_specimen')); };
 
+    // Ancestry is an iNat API round-trip, so fetch it only for taxa the FALLBACK will judge.
     const needAncestry = new Set();
     for (const [species, cands] of Object.entries(bySpecies)) {
       const tid = taxa.get(normalizeName(species));
-      if (tid && cands.some((r) => !trustedArm(r.observation_id) && obsIdents[String(r.observation_id)])) needAncestry.add(tid);
+      if (tid && cands.some((r) => !trustedArm(r.observation_id) &&
+          !artifact.has(Number(r.observation_id)) && obsIdents[String(r.observation_id)])) needAncestry.add(tid);
     }
     const ancestry = await loadTaxonAncestry([...needAncestry], path.join(OUT, 'taxon-ancestry.json'));
 
-    const stats = { bypassed: 0, noData: 0, noTaxon: 0, trusted: 0, vetoed: 0, noExpert: 0 };
+    const stats = { bypassed: 0, noData: 0, noTaxon: 0, artifactTrusted: 0, artifactUntrusted: 0, trusted: 0, vetoed: 0, noExpert: 0 };
     for (const [species, cands] of Object.entries(bySpecies)) {
       const tid = taxa.get(normalizeName(species));
       bySpecies[species] = cands.filter((r) => {
         const obs = String(r.observation_id);
         if (trustedArm(obs)) { stats.bypassed++; return true; }
+        if (!tid) { stats.noTaxon++; return true; }
+        const row = artifact.get(Number(r.observation_id));
+        if (row) {
+          const t = { ...artifactTrust(row, tid, { queryName: species, synonyms }), source: 'artifact' };
+          trustByObs.set(r.observation_id, t);
+          stats[t.status === 'trusted' ? 'artifactTrusted' : 'artifactUntrusted']++;
+          return t.status === 'trusted';
+        }
         const data = obsIdents[obs];
         if (!data) { stats.noData++; return true; }
-        if (!tid) { stats.noTaxon++; return true; }
-        const t = observationTrust(data.idents, {
-          expertLogins, synonyms, queryTaxonId: tid, queryName: species,
-          queryAncestorIds: ancestry.get(tid) ?? [],
-        });
+        const t = {
+          ...observationTrust(data.idents, {
+            expertLogins, synonyms, queryTaxonId: tid, queryName: species,
+            queryAncestorIds: ancestry.get(tid) ?? [],
+          }),
+          source: 'live',
+        };
         trustByObs.set(r.observation_id, t);
         stats[t.status === 'trusted' ? 'trusted' : t.status === 'vetoed' ? 'vetoed' : 'noExpert']++;
         return t.status === 'trusted';
       });
       if (!bySpecies[species].length) delete bySpecies[species];
     }
-    console.log(`trust gate (per scored photo): ${stats.bypassed} trusted-arm bypass, ${stats.trusted} expert-trusted, ` +
-      `${stats.vetoed} VETOED, ${stats.noExpert} no supporting expert ID, ` +
-      `${stats.noData} without identification data (inert), ${stats.noTaxon} unresolvable taxon (inert)\n`);
+    console.log(`trust gate (per scored photo): ${stats.bypassed} trusted-arm bypass, ` +
+      `${stats.artifactTrusted} artifact-trusted, ${stats.artifactUntrusted} artifact-UNTRUSTED, ` +
+      `${stats.trusted} fallback-trusted, ${stats.vetoed} fallback-VETOED, ${stats.noExpert} fallback no supporting expert ID, ` +
+      `${stats.noData} without artifact row or identification data (inert), ${stats.noTaxon} unresolvable taxon (inert)\n`);
   }
 }
 
@@ -229,7 +248,9 @@ for (const [speciesLower, cands] of Object.entries(bySpecies)) {
       url: meta.get(c.photo_id)?.url, license: meta.get(c.photo_id)?.license, attribution: meta.get(c.photo_id)?.attribution,
       subject_fraction: located.get(c.photo_id)?.subject_fraction ?? null,
       expert_trust: trustByObs.get(c.observation_id)?.status ?? null,
+      trust_source: trustByObs.get(c.observation_id)?.source ?? null,
       expert_supporters: trustByObs.get(c.observation_id)?.supporters ?? null,
+      identifiers: trustByObs.get(c.observation_id)?.identifiers ?? null,
     })),
     shipped_cover: shippedCover, proposed_cover: propCover,
   });

@@ -252,9 +252,11 @@ self-disagreements. The output PUBLISHES as `marts/occurrence_trust` →
 (same synthetic identity as `occurrence_places` / `occIdFromRow`), separate from
 `marts/occurrences` by decision ([ADR 0034](adr/0034-occurrence-trust-stays-a-separate-artifact.md)); a record
 qualifies for query taxon T iff T ∈ `trusted_ancestor_or_self`, and a missing row means
-"no trust computed", never distrust. Consumers: the photo-pipeline gate repoint
-(beeatlas-vsrh) and display claims (beeatlas-kmxs). Arm 4's mart upstream is the live API
-loader (beeatlas-iek, done 2026-08-12).
+"no trust computed", never distrust. Consumers: the photo-pipeline gate (repointed
+2026-08-12, beeatlas-vsrh — `scripts/photo-pipeline/trust-gate.mjs` keeps its JS rule only
+as the fallback for candidates newer than the artifact, verified decision-identical on
+4,921 shared candidates by `trust-artifact-diff.mjs`) and display claims (beeatlas-kmxs).
+Arm 4's mart upstream is the live API loader (beeatlas-iek, done 2026-08-12).
 
 ---
 

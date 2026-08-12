@@ -11,8 +11,9 @@
 -- assertion (checklist arm, samples) simply have no row here; consumers treat
 -- absence as "no trust computed", never as distrust.
 --
--- Consumers: the photo-pipeline gate (beeatlas-vsrh — replaces the interim
--- trust-gate.mjs implementation) and display claims (beeatlas-kmxs —
+-- Consumers: the photo-pipeline gate (scripts/photo-pipeline/trust-gate.mjs,
+-- repointed here by beeatlas-vsrh — its JS rule survives only as the fallback
+-- for candidates newer than the artifact) and display claims (beeatlas-kmxs —
 -- "determined to Neolarra by five independent people"). A record qualifies
 -- for query taxon T iff T ∈ trusted_ancestor_or_self (ancestor-or-self,
 -- root->leaf, includes the trusted taxon itself).

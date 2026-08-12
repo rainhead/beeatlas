@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   loadExpertLogins, loadSynonyms, parseCsv, canonicalize,
-  identStance, observationTrust,
+  identStance, observationTrust, artifactTrust,
 } from './trust-gate.mjs';
 
 // iNat taxon ids used throughout: Bombus 52779, B. fervidus 143854, B. californicus 143853,
@@ -142,5 +142,51 @@ describe('observationTrust — expert-trust-with-veto', () => {
   it('missing identification data is inert, not a failure', () => {
     expect(gate(null, NEOLARRA, 'neolarra').status).toBe('no-data');
     expect(gate(undefined, NEOLARRA, 'neolarra').status).toBe('no-data');
+  });
+});
+
+describe('artifactTrust — the published-artifact consumption rule (ADR 0034)', () => {
+  // A row as loadTrustArtifact returns it: trusted at N. californica, ancestor-or-self
+  // root->leaf including the trusted taxon itself.
+  const row = {
+    trusted_taxon_id: N_CALIFORNICA, trusted_taxon_name: 'Neolarra californica',
+    trusted_ancestor_or_self: [48460, APIDAE, NEOLARRA, N_CALIFORNICA],
+    is_disputed: false, identifiers: ['johnascher', 'rainhead'],
+  };
+
+  it('qualifies for the trusted taxon itself and for every coarser query taxon', () => {
+    expect(artifactTrust(row, N_CALIFORNICA).status).toBe('trusted');
+    expect(artifactTrust(row, NEOLARRA).status).toBe('trusted');
+    expect(artifactTrust(row, APIDAE).status).toBe('trusted');
+  });
+
+  it('does not qualify for a disjoint query taxon', () => {
+    expect(artifactTrust(row, DIPTERA).status).toBe('untrusted');
+  });
+
+  it('trusted-at-genus does not qualify a species query (finer than the trust)', () => {
+    const genusRow = { ...row, trusted_taxon_id: NEOLARRA, trusted_taxon_name: 'Neolarra',
+      trusted_ancestor_or_self: [48460, APIDAE, NEOLARRA] };
+    expect(artifactTrust(genusRow, N_CALIFORNICA).status).toBe('untrusted');
+    expect(artifactTrust(genusRow, NEOLARRA).status).toBe('trusted');
+  });
+
+  it('a row with no resolved trusted taxon (NULL list) never qualifies', () => {
+    const nullRow = { trusted_taxon_id: null, trusted_taxon_name: null,
+      trusted_ancestor_or_self: null, is_disputed: false, identifiers: [] };
+    expect(artifactTrust(nullRow, NEOLARRA).status).toBe('untrusted');
+  });
+
+  it('name fold rescues a duplicate-active-node id mismatch (Diadasia diminuta case)', () => {
+    // trusted under one active iNat node; the query bridge resolved the SAME name to another
+    const dupRow = { ...row, trusted_taxon_name: 'Diadasia diminuta',
+      trusted_ancestor_or_self: [48460, APIDAE, 1444494] };
+    expect(artifactTrust(dupRow, 307403).status).toBe('untrusted');
+    expect(artifactTrust(dupRow, 307403, { queryName: 'diadasia diminuta' }).status).toBe('trusted');
+    // and the fold is synonym-aware on both sides, like identStance
+    const syn = new Map([['bombus californicus', 'bombus fervidus']]);
+    const synRow = { ...row, trusted_taxon_name: 'Bombus californicus',
+      trusted_ancestor_or_self: [48460, APIDAE, BOMBUS, CALIFORNICUS] };
+    expect(artifactTrust(synRow, FERVIDUS, { queryName: 'bombus fervidus', synonyms: syn }).status).toBe('trusted');
   });
 });

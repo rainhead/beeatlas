@@ -1,14 +1,21 @@
 /**
  * Determination trust for photo candidates: ADR 0033, expert-trust-with-veto.
  *
- * A candidate observation qualifies for a query taxon T when at least one current
- * identification by an EXPERT is compatible with T, and no current expert identification is
- * incompatible with T. Ecdysis-backed candidates (specimen/waba_specimen arms) never reach
- * this gate — their determination is trusted by ingestion provenance, the other half of the
- * same rule — so this module only ever judges iNat-domain identifications, where logins are
- * unique and no cross-source person merge is needed.
+ * THE AUTHORITY IS THE PUBLISHED ARTIFACT (beeatlas-vsrh): `marts/occurrence_trust` →
+ * occurrence_trust.parquet, keyed by occ_id, computed by the dbt trusted-taxon model — the
+ * single implementation of the agreement semantics (int_trusted_taxon and its unit tests).
+ * A candidate observation qualifies for query taxon T iff T ∈ trusted_ancestor_or_self on
+ * its `inat_obs:<id>` row (ADR 0034 join contract). A missing row means "no trust
+ * computed", never distrust.
  *
- * Compatibility is rank-scoped and synonym-aware:
+ * THE FALLBACK, for candidates newer than the artifact only (no row yet): observationTrust
+ * below re-derives the ADR rule from the identifications pull-candidates persists with each
+ * batch response. This is the demoted interim implementation (beeatlas-r2u) — Ecdysis-backed
+ * candidates (specimen/waba_specimen arms) never reach it (trusted by ingestion provenance),
+ * so it only ever judges iNat-domain identifications, where logins are unique and no
+ * cross-source person merge is needed.
+ *
+ * Fallback compatibility is rank-scoped and synonym-aware:
  *   supports      the ID taxon is T or a descendant (via the ID's own ancestor_ids), or its
  *                 name folds to T's under occurrence synonymy (Bombus californicus vs
  *                 fervidus IS agreement). A finer-rank ID within T is agreement, never
@@ -18,11 +25,11 @@
  *   incompatible  disjoint lineages after both checks. Only THESE veto, and only from
  *                 experts: a non-expert disagreeing is a curation anomaly, not a veto.
  *
- * This is the INTERIM implementation (beeatlas-r2u). The dbt trusted-taxon model
- * (beeatlas-xs1/nyr) supersedes it once published; keep the semantics aligned with the ADR,
- * not with this file.
+ * Keep the fallback's semantics aligned with the ADR and the dbt model, not the reverse;
+ * scripts/photo-pipeline/trust-artifact-diff.mjs measures the two against each other.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { ROOT, USER_AGENT } from './config.mjs';
 
@@ -126,6 +133,61 @@ export function observationTrust(idents, opts) {
   }
   const status = vetoers.length ? 'vetoed' : supporters.length ? 'trusted' : 'no-expert';
   return { status, supporters: [...new Set(supporters)], vetoers: [...new Set(vetoers)] };
+}
+
+/**
+ * Where the published artifact may live locally, in preference order: the pull-published /
+ * export copy in public/data, then a local dbt build's sandbox output. Returns null when
+ * neither exists — callers treat that as "artifact unavailable", not an error, so a
+ * checkout without pipeline state degrades to the fallback (and, without identification
+ * data either, to inert).
+ */
+export function resolveTrustArtifact() {
+  const candidates = [
+    path.join(ROOT, 'public', 'data', 'occurrence_trust.parquet'),
+    path.join(ROOT, 'data', 'dbt', 'target', 'sandbox', 'occurrence_trust.parquet'),
+  ];
+  return candidates.find((p) => existsSync(p)) ?? null;
+}
+
+/**
+ * Load the artifact's iNat-observation rows: Map(observation_id -> row). Only
+ * `inat_obs:<id>` occ_ids can meet photo candidates here — specimen-photo observations
+ * publish under `ecdysis:<n>` but arrive via the trusted arms, which bypass the gate.
+ * In-memory duckdb, same pattern as seed-species-photos.mjs.
+ */
+export function loadTrustArtifact(parquetPath) {
+  const sql = `SELECT occ_id, trusted_taxon_id, trusted_taxon_name, trusted_ancestor_or_self,
+    is_disputed, identifier_count, identifiers
+    FROM read_parquet('${parquetPath}') WHERE occ_id LIKE 'inat_obs:%'`.replace(/\n\s+/g, ' ');
+  const rows = JSON.parse(execSync(`duckdb -json -c "${sql}"`, { encoding: 'utf8', maxBuffer: 1 << 28 }));
+  return new Map(rows.map((r) => [Number(r.occ_id.slice('inat_obs:'.length)), r]));
+}
+
+/**
+ * The artifact-side gate decision for one row (ADR 0034 consumption rule): the record
+ * qualifies for the query taxon iff it is ancestor-or-self of the trusted taxon. A row
+ * whose trusted taxon is NULL (expert self-disagreement, unresolved-name-only) never
+ * qualifies — trusted_ancestor_or_self is NULL there too.
+ *
+ * The optional name fold is the JOIN-KEY safety net, not a second agreement rule: iNat
+ * carries duplicate ACTIVE nodes for some names (Diadasia diminuta is both 307403 and
+ * 1444494), and the query-taxon bridge can land on a different node than the experts
+ * identified under — id membership alone then misses a record trusted at exactly the query
+ * concept. When the folded trusted name equals the folded query name, that IS the query
+ * concept (occurrence synonymy applied on both sides, same as identStance). The 2026-08-12
+ * acceptance diff run: all 5 of 4,921 interim-vs-artifact divergences were this case.
+ */
+export function artifactTrust(row, queryTaxonId, { queryName, synonyms } = {}) {
+  const qualifies = (row.trusted_ancestor_or_self ?? []).includes(queryTaxonId)
+    || (queryName != null && row.trusted_taxon_name != null
+        && canonicalize(row.trusted_taxon_name, synonyms) === canonicalize(queryName, synonyms));
+  return {
+    status: qualifies ? 'trusted' : 'untrusted',
+    trustedTaxon: row.trusted_taxon_name ?? null,
+    disputed: !!row.is_disputed,
+    identifiers: row.identifiers ?? [],
+  };
 }
 
 /**
