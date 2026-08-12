@@ -247,8 +247,14 @@ incremental on updated_at after the initial sweep), and identifications attach t
 rows via `int_observation_occ_ids` (specimen photo → `ecdysis:N`, arm-3/4 → `inat_obs:N`;
 plant/sample observations deliberately excluded). First live run: 58,737 records with a
 trusted taxon, 9,028 multi-expert, 26 expert disputes resolved rank-scoped, 0 expert
-self-disagreements. Publishing the artifact is beeatlas-nyr; arm 4's mart upstream still
-reads the committed CSV (the remainder of beeatlas-iek).
+self-disagreements. The output PUBLISHES as `marts/occurrence_trust` →
+`occurrence_trust.parquet` (beeatlas-nyr) — a contract-enforced mart keyed by `occ_id`
+(same synthetic identity as `occurrence_places` / `occIdFromRow`), deliberately separate
+from `marts/occurrences` so no occurrences-contract release sequence applies; a record
+qualifies for query taxon T iff T ∈ `trusted_ancestor_or_self`, and a missing row means
+"no trust computed", never distrust. Consumers: the photo-pipeline gate repoint
+(beeatlas-vsrh) and display claims (beeatlas-kmxs). Arm 4's mart upstream is the live API
+loader (beeatlas-iek, done 2026-08-12).
 
 ---
 

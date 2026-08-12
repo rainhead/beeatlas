@@ -132,6 +132,19 @@ kind = "hashed"
 source_file = "checklist.parquet"
 hash_basename = "checklist"
 
+[artifacts.occurrence_trust]
+# beeatlas-nyr (ADR 0033): trusted-taxon artifact keyed by occ_id, SEPARATE
+# from occurrences so no contract change there. Consumers today read it from
+# EXPORT_DIR (photo pipeline, beeatlas-vsrh); client publication rides
+# beeatlas-kmxs (RUNTIME_ARTIFACTS or an occurrences.db table — that issue's
+# decision). baseline_diff intentionally omitted for the initial ship
+# (taxon_presence/wilderness precedent): a new artifact has no baseline yet.
+# Promote once one exists.
+provenance = "derived"
+kind = "hashed"
+source_file = "occurrence_trust.parquet"
+hash_basename = "occurrence_trust"
+
 [artifacts.photos]
 provenance = "derived"
 kind = "hashed"

@@ -281,3 +281,47 @@ models:
         data_type: bigint
       - name: member_taxon_ids
         data_type: varchar
+
+  - name: occurrence_trust
+    # beeatlas-nyr (ADR 0033): the published trusted-taxon artifact, keyed by
+    # occ_id (same synthetic identity as occurrence_places / occIdFromRow).
+    # One row per occ_id with >=1 current expert assertion; absence means "no
+    # trust computed", never distrust. Deliberately separate from occurrences —
+    # folding columns in is Peter's explicit follow-up decision.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: occ_id
+        data_type: varchar
+        data_tests:
+          - not_null
+          - unique
+      - name: trusted_taxon_id
+        data_type: integer
+      - name: trusted_taxon_name
+        data_type: varchar
+      - name: trusted_taxon_rank
+        data_type: varchar
+      - name: trusted_ancestor_or_self
+        data_type: integer[]
+      - name: is_disputed
+        data_type: boolean
+        data_tests:
+          - not_null
+      - name: has_expert_self_disagreement
+        data_type: boolean
+        data_tests:
+          - not_null
+      - name: has_uncomparable_assertion
+        data_type: boolean
+        data_tests:
+          - not_null
+      - name: expert_assertion_count
+        data_type: bigint
+        data_tests:
+          - not_null
+      - name: identifier_count
+        data_type: bigint
+      - name: identifiers
+        data_type: varchar[]

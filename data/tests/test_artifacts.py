@@ -63,13 +63,13 @@ def _write_toml(tmp_path, content: str):
 # 1. Real contract: load + validate
 # ---------------------------------------------------------------------------
 
-def test_load_returns_19_artifacts():
-    """Loader returns 19 artifacts from the real contract (notes retired,
+def test_load_returns_20_artifacts():
+    """Loader returns 20 artifacts from the real contract (notes retired,
     beeatlas-6x9: the per-species notes/ dir is a build-time export with no
     manifest presence, so it has no artifacts.toml entry; taxon_presence added
-    by beeatlas-0of.2)."""
+    by beeatlas-0of.2; occurrence_trust added by beeatlas-nyr)."""
     spec = load()
-    assert len(spec) == 19
+    assert len(spec) == 20
 
 
 def test_validate_passes_real_contract():
@@ -79,13 +79,13 @@ def test_validate_passes_real_contract():
 
 
 def test_artifact_order():
-    """19 artifacts are declared in manifest order (matching nightly.sh heredoc)."""
+    """20 artifacts are declared in manifest order (matching nightly.sh heredoc)."""
     spec = load()
     expected = [
         "occurrences", "occurrences_db", "species", "seasonality", "higher_taxa",
         "counties", "ecoregions", "wilderness", "places", "places_meta", "place_details",
-        "taxon_presence", "checklist", "photos", "species_hosts", "collectors",
-        "collector_event_pages",
+        "taxon_presence", "checklist", "occurrence_trust", "photos", "species_hosts",
+        "collectors", "collector_event_pages",
         "occurrences_db_tables", "generated_at",
     ]
     assert list(spec.keys()) == expected
