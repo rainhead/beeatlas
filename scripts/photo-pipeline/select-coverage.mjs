@@ -130,7 +130,7 @@ const trustByObs = new Map();
         if (!tid) { stats.noTaxon++; return true; }
         const row = artifact.get(Number(r.observation_id));
         if (row) {
-          const t = { ...artifactTrust(row, tid, { queryName: species, synonyms }), source: 'artifact' };
+          const t = { ...artifactTrust(row, tid), source: 'artifact' };
           trustByObs.set(r.observation_id, t);
           stats[t.status === 'trusted' ? 'artifactTrusted' : 'artifactUntrusted']++;
           return t.status === 'trusted';

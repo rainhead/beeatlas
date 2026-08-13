@@ -100,15 +100,22 @@ export function canonicalize(name, synonyms) {
 
 /**
  * One identification's stance toward the query taxon: 'supports' | 'coarser' | 'incompatible'.
- * `ident` is the flat shape pull-candidates.mjs persists: {taxon_id, name, ancestor_ids, ...}.
- * `queryAncestorIds` is the query taxon's own ancestry (loadTaxonAncestry), used only to
- * tell a harmless coarser ID from a disjoint one.
+ * `ident` is the flat shape pull-candidates.mjs persists: {taxon_id, name, rank, ancestor_ids, ...}.
+ * `queryAncestorIds` is the query taxon's own ancestry (loadTaxonAncestry), used to tell a
+ * harmless coarser ID from a disjoint one.
+ *
+ * Order is load-bearing: the coarser-by-id check runs BEFORE the synonym-name fold, because
+ * an iNat species COMPLEX carries the bare binomial of its nominate species (complex
+ * 'Diadasia diminuta' is the PARENT of species 'Diadasia diminuta') — by name alone a
+ * complex-level ID would wrongly support the species query. Ancestry settles it by id; the
+ * rank guard on the fold covers idents when the query's ancestry could not be fetched.
  */
 export function identStance(ident, { queryTaxonId, queryName, synonyms, queryAncestorIds }) {
   const anc = ident.ancestor_ids ?? [];
   if (ident.taxon_id === queryTaxonId || anc.includes(queryTaxonId)) return 'supports';
-  if (queryName != null && canonicalize(ident.name, synonyms) === canonicalize(queryName, synonyms)) return 'supports';
   if ((queryAncestorIds ?? []).includes(ident.taxon_id)) return 'coarser';
+  if (queryName != null && ident.rank !== 'complex'
+      && canonicalize(ident.name, synonyms) === canonicalize(queryName, synonyms)) return 'supports';
   return 'incompatible';
 }
 
@@ -166,22 +173,18 @@ export function loadTrustArtifact(parquetPath) {
 
 /**
  * The artifact-side gate decision for one row (ADR 0034 consumption rule): the record
- * qualifies for the query taxon iff it is ancestor-or-self of the trusted taxon. A row
- * whose trusted taxon is NULL (expert self-disagreement, unresolved-name-only) never
- * qualifies — trusted_ancestor_or_self is NULL there too.
+ * qualifies for the query taxon iff it is ancestor-or-self of the trusted taxon — id
+ * membership, nothing else. A row whose trusted taxon is NULL (expert self-disagreement,
+ * unresolved-name-only) never qualifies — trusted_ancestor_or_self is NULL there too.
  *
- * The optional name fold is the JOIN-KEY safety net, not a second agreement rule: iNat
- * carries duplicate ACTIVE nodes for some names (Diadasia diminuta is both 307403 and
- * 1444494), and the query-taxon bridge can land on a different node than the experts
- * identified under — id membership alone then misses a record trusted at exactly the query
- * concept. When the folded trusted name equals the folded query name, that IS the query
- * concept (occurrence synonymy applied on both sides, same as identStance). The 2026-08-12
- * acceptance diff run: all 5 of 4,921 interim-vs-artifact divergences were this case.
+ * DO NOT add a name-equality shortcut here: an iNat species COMPLEX carries the bare
+ * binomial of its nominate species (complex 'Diadasia diminuta' 1444494 is the PARENT of
+ * species 'Diadasia diminuta' 307403), so name matching silently promotes complex-level
+ * trust to the species. The 2026-08-12 acceptance diff caught the interim gate doing
+ * exactly that via its synonym fold; the artifact's id rule was the correct one.
  */
-export function artifactTrust(row, queryTaxonId, { queryName, synonyms } = {}) {
-  const qualifies = (row.trusted_ancestor_or_self ?? []).includes(queryTaxonId)
-    || (queryName != null && row.trusted_taxon_name != null
-        && canonicalize(row.trusted_taxon_name, synonyms) === canonicalize(queryName, synonyms));
+export function artifactTrust(row, queryTaxonId) {
+  const qualifies = (row.trusted_ancestor_or_self ?? []).includes(queryTaxonId);
   return {
     status: qualifies ? 'trusted' : 'untrusted',
     trustedTaxon: row.trusted_taxon_name ?? null,

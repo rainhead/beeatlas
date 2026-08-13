@@ -13,6 +13,9 @@ import {
 // Values are real but the tests only rely on the RELATIONSHIPS encoded in ancestor_ids here.
 const BOMBUS = 52779, FERVIDUS = 143854, CALIFORNICUS = 143853, FLAVIFRONS = 121517;
 const NEOLARRA = 176755, N_CALIFORNICA = 428602, APIDAE = 47221, DIPTERA = 47822;
+// Complex 'Diadasia diminuta' (1444494) is the PARENT of species 'Diadasia diminuta'
+// (307403) and shares its bare binomial — the name-collision case.
+const DIADASIA = 121512, DIADASIA_CPLX = 1444494, DIADASIA_SP = 307403;
 const ANC_BOMBUS_SP = [48460, 47221, BOMBUS];      // ancestors of a Bombus species (incl. Apidae)
 const ANC_NEOLARRA_SP = [48460, APIDAE, NEOLARRA]; // ancestors of a Neolarra species
 const EXPERTS = new Set(['johnascher', 'zportman']);
@@ -177,16 +180,37 @@ describe('artifactTrust — the published-artifact consumption rule (ADR 0034)',
     expect(artifactTrust(nullRow, NEOLARRA).status).toBe('untrusted');
   });
 
-  it('name fold rescues a duplicate-active-node id mismatch (Diadasia diminuta case)', () => {
-    // trusted under one active iNat node; the query bridge resolved the SAME name to another
-    const dupRow = { ...row, trusted_taxon_name: 'Diadasia diminuta',
-      trusted_ancestor_or_self: [48460, APIDAE, 1444494] };
-    expect(artifactTrust(dupRow, 307403).status).toBe('untrusted');
-    expect(artifactTrust(dupRow, 307403, { queryName: 'diadasia diminuta' }).status).toBe('trusted');
-    // and the fold is synonym-aware on both sides, like identStance
-    const syn = new Map([['bombus californicus', 'bombus fervidus']]);
-    const synRow = { ...row, trusted_taxon_name: 'Bombus californicus',
-      trusted_ancestor_or_self: [48460, APIDAE, BOMBUS, CALIFORNICUS] };
-    expect(artifactTrust(synRow, FERVIDUS, { queryName: 'bombus fervidus', synonyms: syn }).status).toBe('trusted');
+  it('complex-level trust never qualifies the nominate species (Diadasia diminuta case)', () => {
+    // iNat complex 1444494 carries the bare binomial 'Diadasia diminuta' and is the PARENT
+    // of species 307403 — same name string, coarser concept. Id membership must decide.
+    const complexRow = { ...row, trusted_taxon_id: DIADASIA_CPLX, trusted_taxon_name: 'Diadasia diminuta',
+      trusted_ancestor_or_self: [48460, APIDAE, DIADASIA, DIADASIA_CPLX] };
+    expect(artifactTrust(complexRow, DIADASIA_SP).status).toBe('untrusted');
+    expect(artifactTrust(complexRow, DIADASIA_CPLX).status).toBe('trusted');
+    expect(artifactTrust(complexRow, DIADASIA).status).toBe('trusted');
+  });
+});
+
+describe('complex-vs-species name collision in the fallback (Peter, 2026-08-12)', () => {
+  const cplxIdent = ident('johnascher', DIADASIA_CPLX, 'Diadasia diminuta', [48460, APIDAE, DIADASIA],
+    { rank: 'complex' });
+  const spAncestry = [48460, APIDAE, DIADASIA, DIADASIA_CPLX];
+
+  it('a complex-rank expert ID is coarser than the nominate species query, not support', () => {
+    expect(identStance(cplxIdent, { queryTaxonId: DIADASIA_SP, queryName: 'diadasia diminuta',
+      synonyms: new Map(), queryAncestorIds: spAncestry })).toBe('coarser');
+    expect(gate([cplxIdent], DIADASIA_SP, 'diadasia diminuta', spAncestry).status).toBe('no-expert');
+  });
+
+  it('the rank guard holds even when the query ancestry could not be fetched', () => {
+    expect(identStance(cplxIdent, { queryTaxonId: DIADASIA_SP, queryName: 'diadasia diminuta',
+      synonyms: new Map(), queryAncestorIds: [] })).toBe('incompatible');
+  });
+
+  it('a complex-rank ID still supports the complex itself and the genus by id', () => {
+    expect(identStance(cplxIdent, { queryTaxonId: DIADASIA_CPLX, queryName: 'diadasia diminuta',
+      synonyms: new Map(), queryAncestorIds: [48460, APIDAE, DIADASIA] })).toBe('supports');
+    expect(identStance(cplxIdent, { queryTaxonId: DIADASIA, queryName: 'diadasia',
+      synonyms: new Map(), queryAncestorIds: [48460, APIDAE] })).toBe('supports');
   });
 });

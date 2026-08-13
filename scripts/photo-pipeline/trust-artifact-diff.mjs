@@ -64,11 +64,11 @@ const artifact = loadTrustArtifact(artifactPath);
 // the two child tables can share an observation, so dedupe on identification id
 const identSql = `
   SELECT id, observation_id, current, user__login AS login, taxon__id AS taxon_id,
-         taxon__name AS name, taxon__ancestor_ids AS ancestor_ids
+         taxon__name AS name, taxon__rank AS rank, taxon__ancestor_ids AS ancestor_ids
   FROM inat_expert_data.observations__identifications
   UNION ALL
   SELECT id, observation_id, current, user__login AS login, taxon__id AS taxon_id,
-         taxon__name AS name, taxon__ancestor_ids AS ancestor_ids
+         taxon__name AS name, taxon__rank AS rank, taxon__ancestor_ids AS ancestor_ids
   FROM inat_expert_data.specimen_linked_observations__identifications`.replace(/\n\s+/g, ' ').trim();
 const identRows = JSON.parse(execSync(`duckdb "${dbPath}" -readonly -json "${identSql}"`, { encoding: 'utf8', maxBuffer: 1 << 28 }));
 const identsByObs = new Map();
@@ -78,7 +78,7 @@ for (const r of identRows) {
   seenIdent.add(r.id);
   const list = identsByObs.get(r.observation_id) ?? [];
   list.push({
-    login: r.login, taxon_id: r.taxon_id, name: r.name, current: r.current,
+    login: r.login, taxon_id: r.taxon_id, name: r.name, rank: r.rank, current: r.current,
     ancestor_ids: r.ancestor_ids ? String(r.ancestor_ids).split(',').map(Number) : [],
   });
   identsByObs.set(r.observation_id, list);
@@ -111,7 +111,7 @@ for (const { species, obs } of pairs.values()) {
   if (row && !idents) { counts.artifactOnly++; singleSided.artifactOnly.push({ species, obs }); continue; }
   if (!row && idents) { counts.interimOnly++; singleSided.interimOnly.push({ species, obs, interim: interim.status }); continue; }
   counts.shared++;
-  const a = artifactTrust(row, tid, { queryName: species, synonyms });
+  const a = artifactTrust(row, tid);
   if ((a.status === 'trusted') === (interim.status === 'trusted')) { counts.agree++; continue; }
   counts.diverge++;
   divergences.push({
