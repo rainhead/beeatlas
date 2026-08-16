@@ -78,7 +78,7 @@ Consequences that follow from it, and the choices inside it:
   it had never reached the bridge because it fell in no named place. It now would,
   and would break the bridge's `not_null(occ_id)` contract. `occurrence_places.sql`
   drops identity-less rows — they are unjoinable by construction — and the upstream
-  question is tracked separately.
+  question is beeatlas-cmsf.
 - **Shipping it needs one out-of-band step.** The geography layers are producerless
   in the Stelis graph, so the nightly never loads them: a serving host needs
   `uv run python geographies_pipeline.py ecoregions_l4` BEFORE the first nightly

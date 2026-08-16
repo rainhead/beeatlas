@@ -59,7 +59,7 @@ FROM identified
 -- the frontend resolves membership BY occ_id — so the row is dropped rather than
 -- written as a bridge entry nothing can ever reach. Dropping it is also what keeps
 -- the contract's not_null(occ_id) true (beeatlas-8gcw; the upstream identity gap is
--- tracked separately).
+-- beeatlas-cmsf).
 --
 -- This was latent until the Level IV ecoregions became places: an occurrence in no
 -- NAMED place produced no bridge row, so the one identity-less record never reached
