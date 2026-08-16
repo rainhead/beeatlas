@@ -79,6 +79,12 @@ Consequences that follow from it, and the choices inside it:
   and would break the bridge's `not_null(occ_id)` contract. `occurrence_places.sql`
   drops identity-less rows — they are unjoinable by construction — and the upstream
   question is tracked separately.
+- **Shipping it needs one out-of-band step.** The geography layers are producerless
+  in the Stelis graph, so the nightly never loads them: a serving host needs
+  `uv run python geographies_pipeline.py ecoregions_l4` BEFORE the first nightly
+  that carries this code. `places_load` degrades to zero ecoregion places when the
+  table is absent, which makes the failure a quietly incomplete publish rather than
+  an error — deliberate (a fresh checkout should still build) but worth naming.
 - The place pages for large ecoregions carry heavier SVG maps than any site does
   (Central Puget Lowland is ~584 KB raw, ~59 KB gzipped by Apache), because the map
   plots one circle per distinct coordinate.

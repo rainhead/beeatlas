@@ -339,8 +339,30 @@ def load_padus_wilderness() -> None:
     con.close()
 
 
+def load_ecoregions_l4() -> None:
+    """Load ONLY the Level IV ecoregion layer, on demand.
+
+    A targeted entry point for the same reason the wilderness one exists: these
+    tables are loaded out of band (the Stelis graph declares them producerless
+    'upstream), so bringing a new layer to a serving host would otherwise mean
+    running `load_geographies()` and re-deriving every OTHER layer with it —
+    including counties, whose GeoJSON is a drift-gated published artifact. This
+    keeps the blast radius to the one table being added.
+
+        uv run python geographies_pipeline.py ecoregions_l4
+    """
+    con = duckdb.connect(DB_PATH)
+    con.execute("INSTALL spatial; LOAD spatial;")
+    con.execute("CREATE SCHEMA IF NOT EXISTS geographies")
+    _load_ecoregions_l4(con)
+    con.close()
+
+
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "wilderness":
+    _cmd = sys.argv[1] if len(sys.argv) > 1 else None
+    if _cmd == "wilderness":
         load_padus_wilderness()
+    elif _cmd == "ecoregions_l4":
+        load_ecoregions_l4()
     else:
         load_geographies()

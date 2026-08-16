@@ -80,6 +80,20 @@ uv run python ecdysis_pipeline.py
 uv run python geographies_pipeline.py
 ```
 
+The geography layers are loaded **out of band** — the nightly never reloads them
+(the Stelis graph declares them producerless `'upstream`), so a host that needs a
+new or refreshed layer must be told to load it. Two layers have targeted
+subcommands, so bringing one up does not re-derive every other layer with it:
+
+```bash
+uv run python geographies_pipeline.py wilderness      # PAD-US (ADR 0012)
+uv run python geographies_pipeline.py ecoregions_l4   # EPA Level IV (ADR 0035)
+```
+
+Run the `ecoregions_l4` one on a serving host **before** the first nightly that
+carries the Level IV places: `places_load` degrades to zero ecoregion places when
+the table is absent, so the failure is a quietly incomplete publish, not an error.
+
 Optionally run anti-entropy to detect soft-deleted observations (defaults to sampling 200 observations):
 
 ```bash
