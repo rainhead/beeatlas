@@ -29,6 +29,20 @@
 WITH joined AS (
     SELECT ROW_NUMBER() OVER () AS _row_id, *
     FROM {{ ref('int_combined') }}
+    -- A checklist record's COORDINATE is a county-level placeholder, not a location:
+    -- 6,090 of 19,929 checklist rows sit on 45 shared points, 683 King County records
+    -- parked on one pin in downtown Seattle. Point-in-polygon against a place therefore
+    -- asserts something the checklist never said, so those rows get NO membership at all
+    -- (the same D-03 judgement src/filter.ts:515-530 already applies to the place filter
+    -- and the bounds filter; this moves it into the membership itself, where every
+    -- consumer inherits it instead of each having to re-apply it).
+    --
+    -- Latent until beeatlas-8gcw. A checklist pin rarely fell inside a curated SITE, so
+    -- the wrong rows were few; the Level IV ecoregions tile the state, so every checklist
+    -- record gained one and a county-level assertion started rendering as a specific
+    -- ecoregion on detail cards and as a dot on place maps. Note a county spans SEVERAL
+    -- Level IV ecoregions, so "large polygon" is no defence: the pin still picks one.
+    WHERE record_type <> 'checklist'
 ),
 occ_pt AS (
     SELECT *, ST_Point(lon, lat) AS pt FROM joined

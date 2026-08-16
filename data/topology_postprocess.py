@@ -1,7 +1,7 @@
 """Topology-aware cleanup of region GeoJSON via mapshaper.
 
-Layers: counties, ecoregions (EPA Level III), ecoregions_l4 (EPA Level IV, which
-arrives from places-export rather than a dbt mart) and wilderness.
+Layers: counties, ecoregions (EPA Level III), ecoregions_l4 (EPA Level IV) and
+wilderness. All four arrive as dbt marts, placed into EXPORT_DIR by place-marts.
 
 Counties (Census CB 500k) are already topology-clean and cartographically
 generalized to ~1:500k from the topology database. Don't further simplify —
@@ -62,8 +62,7 @@ _SIMPLIFY_PCT: dict[str, str | None] = {
     # Level IV ecoregions (beeatlas-8gcw) are the same EPA lineage at finer grain:
     # 57 dissolved polygons, ~7.7 MB raw, dominated by the same Puget Sound
     # coastlines. Same 3% for the same reason, landing in the same few-hundred-KB
-    # range. Unlike its siblings this file is written by places-export (the Level IV
-    # ecoregions are rows in geographies.places), not by a dbt mart.
+    # range (191,239 -> 9,077 vertices, ~374 KB).
     "ecoregions_l4.geojson": "3%",
     # Wilderness (PAD-US Designation) polygons carry dense, high-vertex
     # boundaries traced to terrain; 5% retention keeps recognizable shapes while

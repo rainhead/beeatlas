@@ -85,6 +85,29 @@ describe('buildParams -> parseParams round-trip', () => {
     expect(result.ui?.boundaryMode).toBe('counties');
   });
 
+  test('boundaryMode=ecoregions_l4: round-trips like any other mode (beeatlas-8gcw)', () => {
+    const ui = { boundaryMode: 'ecoregions_l4' as const, paneState: 'collapsed' as const };
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
+    expect(params.get('bm')).toBe('ecoregions_l4');
+    expect(parseParams(params.toString()).ui?.boundaryMode).toBe('ecoregions_l4');
+  });
+
+  test('a place= forces a place-drawing mode, and bm=ecoregions_l4 picks WHICH one', () => {
+    // parseParams cannot tell a site slug from an ecoregion slug — the slug is
+    // opaque until places.json loads — so it opens on 'places' and lets <bee-atlas>
+    // correct it. An explicit bm=ecoregions_l4 is honoured, which is what makes a
+    // shared Level IV link land on the right layer immediately.
+    expect(parseParams('place=1d-volcanics&bm=ecoregions_l4').ui?.boundaryMode).toBe('ecoregions_l4');
+    expect(parseParams('place=1d-volcanics').ui?.boundaryMode).toBe('places');
+    // Any OTHER bm= still loses to the place, as before this change.
+    expect(parseParams('place=1d-volcanics&bm=counties').ui?.boundaryMode).toBe('places');
+    expect(parseParams('place=olympic-national-park&bm=wilderness').ui?.boundaryMode).toBe('places');
+  });
+
+  test('an unknown bm= is off, not passed through', () => {
+    expect(parseParams('bm=ecoregions_l5').ui?.boundaryMode ?? 'off').toBe('off');
+  });
+
   test('boundaryMode=off (default): bm param is absent', () => {
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
     expect(params.has('bm')).toBe(false);

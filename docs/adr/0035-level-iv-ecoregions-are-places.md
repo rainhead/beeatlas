@@ -72,13 +72,30 @@ Consequences that follow from it, and the choices inside it:
 ## Consequences
 
 - Nearly every occurrence now has at least one bridge row, where before only those
-  inside a curated site did: `occurrence_places` went from ~21k rows to ~122k.
+  inside a curated site did: `occurrence_places` went from ~21k rows to ~100k.
+- **Checklist records get no place membership at all**, which this change forced a
+  decision on. A checklist record's coordinate is a county-level placeholder — 683
+  King County records sit on one pin in downtown Seattle — and `src/filter.ts` has
+  always dropped those rows from the place filter and the bounds filter for exactly
+  that reason. They were nonetheless IN the bridge, harmlessly: a placeholder pin
+  rarely lands inside a curated site, so the wrong rows were few and the two
+  consumers that read membership directly (the detail card's place list, the
+  per-place SVG) almost never saw one. Statewide ecoregion coverage ended that —
+  all 21,703 checklist rows gained a membership, and a county-level assertion
+  started rendering as one specific Level IV ecoregion. Being a *large* polygon is
+  no defence: a county spans several Level IV ecoregions, so the pin still picks
+  one. The rule now lives in the bridge, where every consumer inherits it, rather
+  than in each consumer. Seven places lose their only membership this way; all
+  seven already published zero specimens and zero samples, so no page changes.
 - That coverage surfaced a latent upstream defect. One checklist source record has
   a null `ObjectID`, so it reaches `int_combined` with no identity and no `occ_id`;
   it had never reached the bridge because it fell in no named place. It now would,
   and would break the bridge's `not_null(occ_id)` contract. `occurrence_places.sql`
   drops identity-less rows — they are unjoinable by construction — and the upstream
-  question is beeatlas-cmsf.
+  question is beeatlas-cmsf. Dropping them also retires the alarm that found it, so
+  the tripwire moved upstream of the filter:
+  `tests/assert_occurrence_identity_gap_bounded.sql` fails if the count ever exceeds
+  the one row known today.
 - **Shipping it needs one out-of-band step.** The geography layers are producerless
   in the Stelis graph, so the nightly never loads them: a serving host needs
   `uv run python geographies_pipeline.py ecoregions_l4` BEFORE the first nightly

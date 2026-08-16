@@ -202,6 +202,32 @@ describe('CLICK-01: bee-map click interaction chain', () => {
   // and this test named them. MapLibre has no addInteraction, so the chain is now
   // one ordered hit-test — the priority ORDER is the thing worth pinning, since a
   // reordering silently changes which of two overlapping layers wins a click.
+  test('the Level IV label layer reads the DERIVED point source, not the polygons', () => {
+    // The bug polygon-label.ts exists for: MapLibre anchors a polygon label to every
+    // POLYGON of a MultiPolygon, so labelling the dissolved ecoregions stamped the
+    // state with 58 copies of "Loess Islands". Wiring the label layer back to the
+    // polygon source would bring that back silently — nothing throws, the map just
+    // gets unreadable — so the two sources are pinned apart here (beeatlas-8gcw).
+    const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+    expect(src).toMatch(/placeLabelLayerSpec\(\s*ecoL4Vis,\s*'ecoregions_l4_labels'/);
+    expect(src).toMatch(/getSource\('ecoregions_l4_labels'\)[\s\S]{0,120}labelAnchors\(/);
+    // The FILL and LINE layers must keep reading the polygons — a point source
+    // would silently stop drawing and stop hit-testing.
+    expect(src).toMatch(/placeFillLayerSpec\(\s*ecoL4Vis,\s*'ecoregions_l4',/);
+    expect(src).toMatch(/placeLineLayerSpec\(\s*ecoL4Vis,\s*'ecoregions_l4',/);
+  });
+
+  test('the Level IV layers toggle and highlight with the boundary mode', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+    for (const layer of ['ecoregion-l4-fill', 'ecoregion-l4-line', 'ecoregion-l4-label']) {
+      expect(src).toMatch(new RegExp(`setLayoutProperty\\('${layer}', 'visibility', ecoL4Vis\\)`));
+    }
+    // Selection is slug-keyed feature-state, and the source must be cleared with
+    // the others or a stale highlight survives a mode switch.
+    expect(src).toMatch(/removeFeatureState\(\{ source: 'ecoregions_l4' \}\)/);
+    expect(src).toMatch(/setFeatureState\(\{ source: 'ecoregions_l4', id \}/);
+  });
+
   test('bee-map.ts hit-tests clusters, points, then county/ecoregion/place, in that order', () => {
     const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
     const start = src.indexOf('private readonly _clickTargets');
