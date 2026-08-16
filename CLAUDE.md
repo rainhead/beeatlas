@@ -96,7 +96,10 @@ linked ADR — read it before changing anything an entry calls load-bearing.
   sites in `content/places.toml`, and one place per EPA Level IV ecoregion out of
   `geographies.ecoregions_l4`. Everything downstream — the bridge, `/places/` pages,
   place-maps, the `place=` filter, search — treats them identically; only `land_owner`
-  (null for ecoregions) and the `/places.html` sections differ. **Level III ecoregions
+  (null for ecoregions) and the INDEX differ. The two kinds index on separate pages —
+  sites at `/places.html`, ecoregions at `/ecoregions.html`, an `inline-nav` switching
+  between them — while BOTH kinds' detail pages stay under `/places/<slug>.html`, which
+  is why `bee-header`'s Places icon lights on either prefix. **Level III ecoregions
   are NOT places** and stay a scalar `occurrences.ecoregion_l3` column with its own
   multi-select filter, so "filter by ecoregion" means two different things — read
   CONTEXT.md before touching either. Because the Level IV places tile the whole state,

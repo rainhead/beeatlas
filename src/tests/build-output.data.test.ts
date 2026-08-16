@@ -710,4 +710,18 @@ describe.skipIf(SKIP_BUILD)('build output', () => {
   // the BUILT worker just above, ADR 0001's retention is asserted in the test before
   // that, and "mark superseded records, don't delete them" is a standing convention in
   // CLAUDE.md's Product Memory rather than something to re-pin per record.
+
+  test('emits _site/ecoregions.html, with the places nav pointing both ways (beeatlas-na5u)', () => {
+    // The pair of index pages only works as a pair: a permalink typo, or a template
+    // dropped from the build, leaves a nav item that 404s. Assert the built pages,
+    // because that is the only place the permalink actually resolves.
+    const eco = readFileSync(resolve(ROOT, '_site/ecoregions.html'), 'utf-8');
+    const places = readFileSync(resolve(ROOT, '_site/places.html'), 'utf-8');
+    expect(eco).toMatch(/<a href="\/places\.html">/);
+    expect(eco).toMatch(/<a href="\/ecoregions\.html" aria-current="page">/);
+    expect(places).toMatch(/<a href="\/ecoregions\.html">/);
+    expect(places).toMatch(/<a href="\/places\.html" aria-current="page">/);
+    // Ecoregion DETAIL pages stay under /places/ — both kinds share one template.
+    expect(eco).toMatch(/href="\/places\/[\w-]+\.html"/);
+  });
 });

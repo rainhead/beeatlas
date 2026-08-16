@@ -8,6 +8,7 @@ eleventyComputed:
   title: "{{ collector.display_name }} — BeeAtlas"
 layout: default.njk
 ---
+{% from "inline-nav.njk" import inlineNav %}
 {% viteAssets "src/styles/places.css" %}
 {%- if collector.atom_feed_url %}<link rel="alternate" type="application/atom+xml" title="{{ collector.display_name }} — recent determinations" href="{{ collector.atom_feed_url }}">{% endif %}
 {#- Phase 172 GC2: per-collector CSS highlight blocks.
@@ -43,13 +44,26 @@ layout: default.njk
       today, but the guard keeps the link honest if a name-less waba_specimen-only one appears. -#}
   <a href="/?collectors={{ collector.recordedBy | urlencode }}:{{ collector.host_inat_login | urlencode }}">View on the atlas →</a>
   {%- endif -%}
+  {#- Jump nav. A prolific collector's page is a long scroll — 60+ species behind
+      collapsed genus groups, then a 50-row event table — so the top of the page needs
+      a way past it. Each item is conditional on its own section rendering, and the nav
+      as a whole only appears when there is something below the maps to skip TO: with
+      no species and no events, "Coverage" alone would just point at what is already
+      on screen. -#}
+  {%- if (collector.species_by_genus and collector.species_by_genus.length > 0) or collector.total_event_count > 0 -%}
+  {{ inlineNav([
+    ({ href: "#coverage", label: "Coverage" } if collector.county_count > 0 or collector.ecoregion_count > 0),
+    ({ href: "#species", label: "Species collected" } if collector.species_by_genus and collector.species_by_genus.length > 0),
+    ({ href: "#events", label: "Recent identifications" } if collector.total_event_count > 0)
+  ], "On this page") }}
+  {%- endif -%}
   {#- Phase 172 GC2: Inline shared base maps with per-collector CSS highlight.
       Replaced per-collector <img src="/data/collector-maps/..."> (248 files, ~122 MB)
       with two committed SVG partials highlighted per-collector via <style> blocks above.
       The wrapping div carries role="img" aria-label="..." for accessibility since the
       inline SVG has aria-hidden="true" (it's decorative — the label carries the info). -#}
   {%- if collector.county_count > 0 or collector.ecoregion_count > 0 -%}
-  <section class="coverage-section">
+  <section class="coverage-section" id="coverage">
     <div class="coverage-maps">
       {%- if collector.county_count > 0 -%}
       <div class="map-block coverage-county"
@@ -73,7 +87,7 @@ layout: default.njk
   {#- Species list: uses sp.name (cased scientificName) + sp.count (atlas records of
       that species), rendered as "— N specimens" (operator chose the explicit unit). -#}
   {%- if collector.species_by_genus and collector.species_by_genus.length > 0 -%}
-  <section class="species-section">
+  <section class="species-section" id="species">
     <h2>Species collected</h2>
     <div class="species-by-genus">
     {%- for genus_group in collector.species_by_genus -%}
@@ -93,7 +107,7 @@ layout: default.njk
   {%- endif -%}
   {#- Phase 171: Event feed section (STREAM-01/02/03) -#}
   {%- if collector.total_event_count > 0 -%}
-  <section class="event-feed-section">
+  <section class="event-feed-section" id="events">
     <h2>Recently identified specimens{%- if collector.atom_feed_url %} <a class="feed-link" type="application/atom+xml" href="{{ collector.atom_feed_url }}">Subscribe to recent determinations</a>{% endif %}</h2>
     <div class="event-feed-wrap">
     <table class="event-feed">
@@ -147,7 +161,7 @@ layout: default.njk
     {%- endif -%}
   </section>
   {%- else -%}
-  <section class="event-feed-section">
+  <section class="event-feed-section" id="events">
     <h2>Collection history{%- if collector.atom_feed_url %} <a class="feed-link" type="application/atom+xml" href="{{ collector.atom_feed_url }}">Subscribe to recent determinations</a>{% endif %}</h2>
     <p class="metadata">No specimen events recorded yet.</p>
   </section>

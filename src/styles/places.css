@@ -16,6 +16,11 @@
   max-width: 600px;
 }
 
+/* Jump-nav targets: without this the heading lands flush against the viewport top. */
+.places-page section[id] {
+  scroll-margin-top: 1rem;
+}
+
 .places-page .metadata {
   font-size: 0.85rem;
   color: var(--text-muted, #666);
@@ -55,12 +60,9 @@
   color: var(--text-muted, #666);
 }
 
-/* Level IV ecoregion section on the index (beeatlas-8gcw) */
-.ecoregions-section {
-  margin-top: 2rem;
-}
-
-.ecoregions-section .ecoregion-l3 {
+/* Level III grouping headings on /ecoregions.html (beeatlas-8gcw). Sized down to
+   1rem: they subdivide a list, and at <h2>'s default size they out-shout the h1. */
+.ecoregion-l3 {
   margin: 1.25rem 0 0.25rem;
   font-size: 1rem;
 }

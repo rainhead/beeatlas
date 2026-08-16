@@ -1342,7 +1342,10 @@ export class BeeHeader extends LitElement {
         <a href="/species/index.html" class="icon-btn ${(window.location?.pathname ?? '').startsWith('/species') ? 'active' : ''}" aria-label="Species index" title="Species index">
           ${taxonomyIcon()}
         </a>
-        <a href="/places.html" class="icon-btn ${(window.location?.pathname ?? '').startsWith('/places') ? 'active' : ''}" aria-label="Places" title="Places">
+        <!-- /ecoregions.html is the second half of this section (beeatlas-na5u): Level IV
+             ecoregions ARE places, listed on their own page but with detail pages still
+             under /places/, so the icon stays lit on both. -->
+        <a href="/places.html" class="icon-btn ${['/places', '/ecoregions'].some((p) => (window.location?.pathname ?? '').startsWith(p)) ? 'active' : ''}" aria-label="Places" title="Places">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/>

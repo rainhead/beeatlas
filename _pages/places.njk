@@ -1,11 +1,18 @@
 ---
 layout: default.njk
 permalink: /places.html
-title: Places — BeeAtlas
+title: Collecting sites — BeeAtlas
 ---
+{% from "inline-nav.njk" import inlineNav %}
 {% viteAssets "src/styles/places.css" %}
 <article class="places-page places-index">
-  <h1>Places</h1>
+  <h1>Collecting sites</h1>
+  {#- The two kinds of place (CONTEXT.md, ADR 0035) read as different things, so they
+      list on separate pages and this nav is the switch between them. -#}
+  {{ inlineNav([
+    { href: "/places.html", label: "Collecting sites", current: true },
+    { href: "/ecoregions.html", label: "Ecoregions" }
+  ], "Places") }}
   <ul class="places-list">
     {%- for place in places.sites -%}
     <li>
@@ -15,25 +22,4 @@ title: Places — BeeAtlas
     </li>
     {%- endfor -%}
   </ul>
-
-  {#- Level IV ecoregions (beeatlas-8gcw). Places in every pipeline sense — records,
-      pages, filtering — but a different kind of thing to read, so they list on their
-      own, each under the Level III ecoregion it subdivides. -#}
-  {%- if places.ecoregionGroups and places.ecoregionGroups.length > 0 -%}
-  <section class="ecoregions-section">
-    <h2>Ecoregions</h2>
-    <p class="metadata">EPA Level IV ecoregions, grouped by the Level III ecoregion each subdivides. Unlike the collecting sites above, these cover the whole state — every record sits inside one.</p>
-    {%- for group in places.ecoregionGroups -%}
-    <h3 class="ecoregion-l3">{{ group.l3_name }}</h3>
-    <ul class="places-list">
-      {%- for eco in group.ecoregions -%}
-      <li>
-        <a href="/places/{{ eco.slug }}.html">{{ eco.name }}</a>
-        <span class="count">{{ eco.specimen_count | quantify("specimen") }}</span>
-      </li>
-      {%- endfor -%}
-    </ul>
-    {%- endfor -%}
-  </section>
-  {%- endif -%}
 </article>

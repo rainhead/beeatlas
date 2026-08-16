@@ -62,3 +62,60 @@ describe('_pages/collector-events-page.njk (Phase 171 — sub-page template)', (
     expect(detailSrc).not.toMatch(/\|\s*safe/);
   });
 });
+
+// beeatlas-na5u — the shared inline nav (_includes/inline-nav.njk) and the
+// /places.html ÷ /ecoregions.html split it was built for.
+describe('inline nav', () => {
+  const read = (p: string) => readFileSync(resolve(ROOT, p), 'utf-8');
+  const macro = read('_includes/inline-nav.njk');
+  const placesSrc = read('_pages/places.njk');
+  const ecoSrc = read('_pages/ecoregions.njk');
+  const collectorSrc = read('_pages/collector-detail.njk');
+
+  test('marks the current item with aria-current="page", and nothing else', () => {
+    // The whole "you are here" affordance — visual AND assistive — hangs off this one
+    // attribute: src/index.css styles `.inline-nav [aria-current="page"]`, so losing it
+    // silently drops both, leaving two links that look identical on both pages.
+    const markup = macro.replace(/\{#[\s\S]*?#\}/g, '');   // the comments say it too
+    expect(markup).toMatch(/<a href="\{\{ item\.href \}\}" aria-current="page">/);
+    expect(markup.match(/aria-current/g)).toHaveLength(1);
+  });
+
+  test('skips falsy items, so a caller can inline a conditional', () => {
+    // collector-detail.njk builds its list with `({...} if cond)` expressions, which
+    // yield undefined when the section is absent. Without this guard those render as
+    // empty <li>s — a nav of stray bullets pointing nowhere.
+    expect(macro).toMatch(/\{%-?\s*if item\s*-?%\}/);
+  });
+
+  test('/ecoregions.html and /places.html each link the other, and flag themselves', () => {
+    expect(ecoSrc).toMatch(/permalink:\s*\/ecoregions\.html/);
+    expect(placesSrc).toMatch(/permalink:\s*\/places\.html/);
+    for (const [self, other, src] of [
+      ['/places.html', '/ecoregions.html', placesSrc],
+      ['/ecoregions.html', '/places.html', ecoSrc],
+    ] as const) {
+      expect(src, `${self} links ${other}`).toContain(`href: "${other}"`);
+      expect(src, `${self} flags itself current`).toMatch(
+        new RegExp(`href: "${self.replace('.', '\\.')}"[^}]*current: true`),
+      );
+    }
+  });
+
+  test('the two index pages list one kind each — no ecoregions left on /places.html', () => {
+    expect(placesSrc).toContain('places.sites');
+    expect(placesSrc).not.toContain('ecoregionGroups');
+    expect(ecoSrc).toContain('places.ecoregionGroups');
+    expect(ecoSrc).not.toContain('places.sites');
+  });
+
+  test('every collector jump link points at a section id that exists (beeatlas-na5u)', () => {
+    // The failure this guards is silent: rename a section's id and the nav still
+    // renders, still looks right, and does nothing when clicked.
+    const targets = [...collectorSrc.matchAll(/href: "#([\w-]+)"/g)].map((m) => m[1]);
+    expect(targets).toEqual(['coverage', 'species', 'events']);
+    for (const id of targets) {
+      expect(collectorSrc, `#${id} has a target`).toMatch(new RegExp(`<section[^>]*id="${id}"`));
+    }
+  });
+});

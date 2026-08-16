@@ -62,3 +62,58 @@ body {
   height: 100dvh;
   margin: 0;
 }
+
+/* Inline nav (_includes/inline-nav.njk) — a row of peer links with bullets between
+   them. Lives here rather than in a page stylesheet because src/entries/bee-header.ts
+   imports this file, so every default.njk page already carries it.
+
+   The bullet is CSS punctuation between links, not content, so it stays out of the DOM
+   and out of the copied text. It hangs off the END of each item but the last, rather
+   than the start of each but the first: the row wraps on a phone, and a leading
+   separator puts a stray "·" at the head of the second line, reading as a list marker.
+   Trailing, it stays glued to the item it follows and the wrap looks deliberate. */
+/* Own margins: on the collector page this row follows a bare "View on the atlas" link,
+   and with no break above it the two read as one four-link paragraph. */
+.inline-nav {
+  margin: 0.75rem 0 0.5rem;
+}
+
+.inline-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+.inline-nav li:not(:last-child)::after {
+  content: "·";
+  margin: 0 0.5rem;
+  color: var(--text-muted);
+}
+
+/* The current page stays a link — a self-link is the accessible convention and keeps
+   the row's rhythm — but reads as text, so the choice on offer is the OTHER item. */
+.inline-nav [aria-current="page"] {
+  color: var(--text-body);
+  font-weight: 600;
+}
+
+.inline-nav [aria-current="page"]:hover {
+  color: var(--text-body);
+}
+
+.inline-nav a {
+  /* Vertical padding only: an inline-block would break the baseline alignment the
+     bullets sit on. It buys a ~28px tap target without moving anything. */
+  display: inline-block;
+  padding: 0.25rem 0;
+}
+
+.inline-nav a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}

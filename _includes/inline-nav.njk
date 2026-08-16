@@ -1,0 +1,40 @@
+{# Horizontal inline nav: one line of links separated by bullets, with an optional
+   "you are here" item. Deliberately plain — it is a row of links, not a tab bar or a
+   segmented control, because both callers use it for a handful of peer destinations
+   that read as a sentence.
+
+   Two shapes of nav, one component:
+     - page switch (/places.html <-> /ecoregions.html) — mark the current page with
+       `current: true`, which renders aria-current="page" and drops the link colour.
+     - in-page jumps (collector detail) — plain fragment hrefs, nothing current.
+
+   `items` is a list of { href, label, current? }. Callers build it inline and are
+   expected to omit entries whose target section does not render, so an item never
+   points at a heading that is not on the page. Falsy entries are skipped so a caller
+   can write a conditional straight into the list literal.
+
+   `label` is the nav's accessible name (aria-label on the <nav>) and is REQUIRED:
+   the collector page has two navs (this one and .event-pagination), and an unnamed
+   landmark is indistinguishable from the other in a screen reader's landmark list.
+
+   Styles live in src/index.css, not a page stylesheet — src/entries/bee-header.ts
+   imports it, so every page in _layouts/default.njk already has it and a shared
+   component costs no extra request. #}
+
+{% macro inlineNav(items, label) %}
+<nav class="inline-nav" aria-label="{{ label }}">
+  <ul>
+    {%- for item in items -%}
+    {%- if item -%}
+    <li>
+      {%- if item.current -%}
+      <a href="{{ item.href }}" aria-current="page">{{ item.label }}</a>
+      {%- else -%}
+      <a href="{{ item.href }}">{{ item.label }}</a>
+      {%- endif -%}
+    </li>
+    {%- endif -%}
+    {%- endfor -%}
+  </ul>
+</nav>
+{% endmacro %}
