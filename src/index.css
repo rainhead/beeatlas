@@ -89,7 +89,12 @@ body {
 }
 
 .inline-nav li:not(:last-child)::after {
+  /* Two declarations, not one: generated content IS announced by JAWS, NVDA and
+     VoiceOver, so an unqualified "·" reads as "middle dot" between every item. The
+     `/ ""` gives it empty alt text. A browser that doesn't know that syntax drops
+     the second declaration as invalid and keeps the first — the bullet still draws. */
   content: "·";
+  content: "·" / "";
   margin: 0 0.5rem;
   color: var(--text-muted);
 }

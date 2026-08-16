@@ -102,6 +102,26 @@ describe('inline nav', () => {
     }
   });
 
+  test('the switcher precedes its h1; the collector jump nav follows one', () => {
+    // The asymmetry is deliberate and looks like an oversight, so pin it. The switcher
+    // NAMES the page — reading it first is reading the title. The jump nav does not:
+    // above the h1 it would announce three section links before the person whose
+    // sections they are, and it is the affordance assistive tech needs LEAST (heading
+    // navigation already jumps between those sections), so it should not be what
+    // delays the h1 for the people who gain nothing from it.
+    for (const [page, src] of [['places', placesSrc], ['ecoregions', ecoSrc]] as const) {
+      expect(src.indexOf('inlineNav('), `${page}: nav before h1`).toBeLessThan(src.indexOf('<h1>'));
+    }
+    expect(collectorSrc.indexOf('inlineNav(')).toBeGreaterThan(collectorSrc.indexOf('<h1>'));
+  });
+
+  test('the bullet separator carries empty alt text, so AT does not read it', () => {
+    // Generated content IS announced by JAWS/NVDA/VoiceOver. Both declarations must
+    // stay: the bare one is the fallback for browsers without the `/ ""` alt syntax.
+    const css = read('src/index.css');
+    expect(css).toMatch(/content:\s*"·";\s*\n\s*content:\s*"·"\s*\/\s*"";/);
+  });
+
   test('the two index pages list one kind each — no ecoregions left on /places.html', () => {
     expect(placesSrc).toContain('places.sites');
     expect(placesSrc).not.toContain('ecoregionGroups');

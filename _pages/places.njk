@@ -6,13 +6,15 @@ title: Collecting sites — BeeAtlas
 {% from "inline-nav.njk" import inlineNav %}
 {% viteAssets "src/styles/places.css" %}
 <article class="places-page places-index">
-  <h1>Collecting sites</h1>
   {#- The two kinds of place (CONTEXT.md, ADR 0035) read as different things, so they
-      list on separate pages and this nav is the switch between them. -#}
+      list on separate pages and this nav is the switch between them. It sits ABOVE the
+      h1: it names which of the two you are on, so reading it first — by eye or by
+      screen reader — is reading the title. -#}
   {{ inlineNav([
     { href: "/places.html", label: "Collecting sites", current: true },
     { href: "/ecoregions.html", label: "Ecoregions" }
   ], "Places") }}
+  <h1>Collecting sites</h1>
   <ul class="places-list">
     {%- for place in places.sites -%}
     <li>

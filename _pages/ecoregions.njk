@@ -10,11 +10,12 @@ title: Ecoregions — BeeAtlas
     thing to read, and 57 of them, so they get their own page rather than a section at
     the bottom of the collecting-sites list. Their detail pages stay under /places/. -#}
 <article class="places-page places-index">
-  <h1>Ecoregions</h1>
+  {#- Above the h1, matching /places.html — see the note there. -#}
   {{ inlineNav([
     { href: "/places.html", label: "Collecting sites" },
     { href: "/ecoregions.html", label: "Ecoregions", current: true }
   ], "Places") }}
+  <h1>Ecoregions</h1>
   <p class="metadata">EPA Level IV ecoregions, grouped by the Level III ecoregion each subdivides. Unlike the collecting sites, these cover the whole state — every record sits inside one.</p>
   {%- for group in places.ecoregionGroups -%}
   <h2 class="ecoregion-l3">{{ group.l3_name }}</h2>
