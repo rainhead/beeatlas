@@ -66,11 +66,31 @@ describe('labelAnchors', () => {
         // because @types/geojson types Feature.geometry as non-nullable.
         { type: 'Feature', properties: { name: 'nothing' }, geometry: null as never },
         { type: 'Feature', properties: { name: 'a point' }, geometry: { type: 'Point', coordinates: [1, 2] } },
+        // An EMPTY ring is the case that actually reached (0, 0): `[]` is truthy,
+        // so it passed the presence check, then averaged nothing.
+        { type: 'Feature', properties: { name: 'empty ring' }, geometry: { type: 'Polygon', coordinates: [[]] } },
+        { type: 'Feature', properties: { name: 'empty multi' }, geometry: { type: 'MultiPolygon', coordinates: [[[]]] } },
         { type: 'Feature', properties: { name: 'real' }, geometry: { type: 'Polygon', coordinates: [square(0, 0, 2)] } },
       ],
     };
     const out = labelAnchors(fc);
     expect(out.features.map(f => f.properties!['name'])).toEqual(['real']);
+    for (const f of out.features) expect(f.geometry.coordinates).not.toEqual([0, 0]);
+  });
+
+  test('an empty part does not win the largest-ring contest', () => {
+    // The real shape of the bug: a valid feature carrying one degenerate part.
+    const fc: FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        properties: { name: 'one good part' },
+        geometry: { type: 'MultiPolygon', coordinates: [[[]], [square(10, 10, 4)]] },
+      }],
+    };
+    const [lon, lat] = labelAnchors(fc).features[0]!.geometry.coordinates;
+    expect(lon).toBeCloseTo(12, 6);
+    expect(lat).toBeCloseTo(12, 6);
   });
 
   test('an empty collection stays an empty collection', () => {

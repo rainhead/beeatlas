@@ -617,6 +617,28 @@ describe('PMAP-02/04: place filter wiring in bee-atlas', () => {
     }
   });
 
+  test('a place selection only survives onto the layer that can draw it (beeatlas-8gcw)', () => {
+    // Two place-drawing layers exist now, and a place belongs to exactly one of
+    // them. Clearing on "left BOTH place layers" would strand an ecoregion filter
+    // active with nothing outlined when the user switched to Places — the state the
+    // clearing exists to prevent.
+    const start = src.indexOf('private _applyBoundaryMode(');
+    expect(start).toBeGreaterThan(-1);
+    const body = src.slice(start, src.indexOf('\n  }', start));
+    expect(body).toMatch(/newMode !== this\._boundaryModeForPlace\(/);
+    expect(body).not.toMatch(/newMode !== 'ecoregions_l4'/);
+  });
+
+  test('history restore reclassifies a place onto its own layer (beeatlas-8gcw)', () => {
+    // parseParams answers 'places' for any place=, because a slug does not say
+    // which kind it is. A shared /?place=<l4-slug> link sits in the back stack
+    // exactly as sent, so popstate has to redo what _loadPlaces does at boot.
+    const start = src.indexOf('private _onPopState');
+    expect(start).toBeGreaterThan(-1);
+    const body = src.slice(start, src.indexOf('\n  };', start));
+    expect(body).toMatch(/_boundaryModeForPlace\(/);
+  });
+
   test('_onFilterChanged passes selectedPlace through from FilterChangedEvent', () => {
     const methodStart = src.indexOf('private _onFilterChanged(');
     expect(methodStart).toBeGreaterThan(-1);

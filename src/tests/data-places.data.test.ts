@@ -20,7 +20,12 @@ describe('_data/places.js (PPAGE-01, PPAGE-02)', () => {
       expect(typeof p.name, `name of ${p.slug}`).toBe('string');
       // land_owner is null for the Level IV ecoregion places (beeatlas-8gcw) —
       // nobody owns an ecoregion — and a string for every collecting site.
-      expect(['string', 'object'], `land_owner of ${p.slug}`).toContain(typeof p.land_owner);
+      // Assert null explicitly: `typeof null === 'object'` would have let any
+      // object through, which is not the contract.
+      expect(
+        p.land_owner === null || typeof p.land_owner === 'string',
+        `land_owner of ${p.slug}`,
+      ).toBe(true);
       if (p.kind !== 'ecoregion_l4') expect(typeof p.land_owner, `land_owner of ${p.slug}`).toBe('string');
       expect(typeof p.specimen_count, `specimen_count of ${p.slug}`).toBe('number');
       expect(typeof p.sample_count, `sample_count of ${p.slug}`).toBe('number');
@@ -31,9 +36,13 @@ describe('_data/places.js (PPAGE-01, PPAGE-02)', () => {
     const { placesArray, sites, ecoregionGroups } = places as any;
     expect(Array.isArray(sites)).toBe(true);
     expect(Array.isArray(ecoregionGroups)).toBe(true);
-    // Every place lands in exactly one of the two, and nowhere twice.
+    // Every place lands in exactly one of the two, and nowhere twice. Compare the
+    // SLUG SETS, not the counts: matching totals would still pass if one place were
+    // duplicated across the two lists while another went missing.
     const grouped = ecoregionGroups.flatMap((g: any) => g.ecoregions);
-    expect(sites.length + grouped.length).toBe(placesArray.length);
+    const indexSlugs = [...sites, ...grouped].map((p: any) => p.slug);
+    expect(new Set(indexSlugs)).toEqual(new Set(placesArray.map((p: any) => p.slug)));
+    expect(indexSlugs).toHaveLength(new Set(indexSlugs).size);
     for (const s of sites) expect(s.kind).not.toBe('ecoregion_l4');
     for (const g of ecoregionGroups) {
       expect(typeof g.l3_name).toBe('string');

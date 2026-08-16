@@ -1978,8 +1978,16 @@ bee-map {
     // cache is already loaded by the time history navigation fires.
     this._resolveTaxonDisplayName();
 
-    // Restore UI state
-    this._boundaryMode = parsed.ui?.boundaryMode ?? 'off';
+    // Restore UI state. A `place=` in the URL makes parseParams say 'places',
+    // because nothing there can tell a site slug from an ecoregion slug — the same
+    // reason _loadPlaces corrects the boot path. History navigation needs the same
+    // correction: a shared `/?place=<l4-slug>` link sits in the back stack exactly
+    // as the sender wrote it, with no `bm=`, so returning to it would put an
+    // ecoregion selection on the layer that cannot draw it (beeatlas-8gcw).
+    const restoredMode = parsed.ui?.boundaryMode ?? 'off';
+    this._boundaryMode = (restoredMode === 'places' && this._filterState.selectedPlace !== null)
+      ? this._boundaryModeForPlace(this._filterState.selectedPlace)
+      : restoredMode;
     const paneState = parsed.ui?.paneState ?? 'collapsed';
     this._tablePage = 1;
 
@@ -2645,10 +2653,14 @@ bee-map {
   // place when leaving 'places' (re-running filter/table queries), and sync URL.
   private _applyBoundaryMode(newMode: BoundaryMode) {
     this._boundaryMode = newMode;
-    // "Leaving places" means leaving BOTH layers that draw places — switching
-    // between them keeps the selection, since the place is still on screen.
-    const leavingPlaces = newMode !== 'places' && newMode !== 'ecoregions_l4'
-      && this._filterState.selectedPlace !== null;
+    // The selection survives only onto the layer that can actually DRAW it, which
+    // since beeatlas-8gcw is one specific layer per place kind — not "either of the
+    // two that draw places". Switching from Ecoregions IV to Places with an
+    // ecoregion selected leaves the filter active with nothing outlined anywhere,
+    // which is the state the clearing exists to prevent.
+    const selectedPlace = this._filterState.selectedPlace;
+    const leavingPlaces = selectedPlace !== null
+      && newMode !== this._boundaryModeForPlace(selectedPlace);
     if (leavingPlaces) {
       this._filterState = { ...this._filterState, selectedPlace: null };
       this._tablePage = 1;

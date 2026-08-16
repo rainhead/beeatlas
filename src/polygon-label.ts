@@ -47,11 +47,16 @@ function ringCentroid(ring: Ring): [number, number] {
   return [cx / (6 * area), cy / (6 * area)];
 }
 
-/** Every OUTER ring of a Polygon or MultiPolygon; holes are irrelevant to placement. */
+/** Every non-empty OUTER ring of a Polygon or MultiPolygon; holes are irrelevant
+ *  to placement. An EMPTY ring has to be dropped here rather than tolerated
+ *  downstream: `[]` is truthy, so it would reach ringCentroid, take the zero-area
+ *  fallback, and average nothing into (0, 0) — a label in the Gulf of Guinea,
+ *  which is the one outcome labelAnchors promises not to produce. */
 function outerRings(geometry: Polygon | MultiPolygon): Ring[] {
-  return geometry.type === 'Polygon'
-    ? (geometry.coordinates[0] ? [geometry.coordinates[0]] : [])
-    : geometry.coordinates.map(poly => poly[0]).filter((r): r is Ring => !!r);
+  const rings = geometry.type === 'Polygon'
+    ? [geometry.coordinates[0]]
+    : geometry.coordinates.map(poly => poly[0]);
+  return rings.filter((r): r is Ring => !!r && r.length > 0);
 }
 
 /**
