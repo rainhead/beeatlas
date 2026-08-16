@@ -4,6 +4,7 @@ import { isFilterActive } from './filter.ts';
 import type { FilterState, CollectorEntry, PlaceOption } from './filter.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
 import type { TaxonCacheEntry } from './taxa.ts';
+import { taxonomyIcon } from './icons.ts';
 import { quantify } from './lib/quantify.js';
 import './bee-occurrence-detail.ts';
 import './bee-table.ts';
@@ -915,15 +916,7 @@ export class BeePane extends LitElement {
     const hasTaxon = this._selectedTaxon !== null;
     return html`
       <div class="filter-row">
-        <!-- bee icon -->
-        <svg class="row-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true">
-          <ellipse cx="8" cy="10.5" rx="3" ry="4"/>
-          <ellipse cx="4.5" cy="7" rx="2.5" ry="1.2" transform="rotate(-25 4.5 7)"/>
-          <ellipse cx="11.5" cy="7" rx="2.5" ry="1.2" transform="rotate(25 11.5 7)"/>
-          <circle cx="8" cy="5.5" r="1.3"/>
-          <line x1="6.8" y1="4.4" x2="5.5" y2="2.5"/>
-          <line x1="9.2" y1="4.4" x2="10.5" y2="2.5"/>
-        </svg>
+        ${taxonomyIcon({ size: 16, strokeWidth: 2.25, className: 'row-icon' })}
         <div class="input-group">
           <div class="input-wrap">
             <input
@@ -1190,7 +1183,7 @@ export class BeePane extends LitElement {
     return html`
       <div class="sidebar-header">
         <span class="sidebar-title">Filters</span>
-        <button class="expand-btn" @click=${this._onShowTaxa} aria-label="Show taxonomy of these results" title="Taxonomy">🜎</button>
+        <button class="expand-btn" @click=${this._onShowTaxa} aria-label="Show taxonomy of these results" title="Taxonomy">${taxonomyIcon({ size: 20 })}</button>
         <button class="expand-btn" @click=${this._onExpand} aria-label="Expand to table view">⊞</button>
         <button class="pane-close" @click=${this._onToggle} aria-label="Close pane">&#x2715;</button>
       </div>

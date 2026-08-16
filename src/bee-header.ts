@@ -3,6 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { AuthState } from './auth-client.ts';
 import type { BasemapOfflineState } from './basemap-prime.ts';
 import type { SearchCandidate, SearchKind } from './search.ts';
+import { taxonomyIcon } from './icons.ts';
 
 /**
  * What came of the last submitted search, reported back by whoever resolves it.
@@ -1339,14 +1340,7 @@ export class BeeHeader extends LitElement {
           </svg>
         </a>
         <a href="/species/index.html" class="icon-btn ${(window.location?.pathname ?? '').startsWith('/species') ? 'active' : ''}" aria-label="Species index" title="Species index">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24">
-            <g transform="translate(0, 2.25)">
-              <rect x="8.5" y="2" width="7" height="4.5" rx="0.75"/>
-              <path stroke-linecap="round" d="M12 6.5v3M6.5 9.5H17.5M6.5 9.5v3.5M17.5 9.5v3.5"/>
-              <rect x="3" y="13" width="7" height="4.5" rx="0.75"/>
-              <rect x="14" y="13" width="7" height="4.5" rx="0.75"/>
-            </g>
-          </svg>
+          ${taxonomyIcon()}
         </a>
         <a href="/places.html" class="icon-btn ${(window.location?.pathname ?? '').startsWith('/places') ? 'active' : ''}" aria-label="Places" title="Places">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24">
