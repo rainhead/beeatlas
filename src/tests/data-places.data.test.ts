@@ -18,9 +18,32 @@ describe('_data/places.js (PPAGE-01, PPAGE-02)', () => {
     for (const p of (places as any).placesArray) {
       expect(typeof p.slug, `slug of ${p.name}`).toBe('string');
       expect(typeof p.name, `name of ${p.slug}`).toBe('string');
-      expect(typeof p.land_owner, `land_owner of ${p.slug}`).toBe('string');
+      // land_owner is null for the Level IV ecoregion places (beeatlas-8gcw) —
+      // nobody owns an ecoregion — and a string for every collecting site.
+      expect(['string', 'object'], `land_owner of ${p.slug}`).toContain(typeof p.land_owner);
+      if (p.kind !== 'ecoregion_l4') expect(typeof p.land_owner, `land_owner of ${p.slug}`).toBe('string');
       expect(typeof p.specimen_count, `specimen_count of ${p.slug}`).toBe('number');
       expect(typeof p.sample_count, `sample_count of ${p.slug}`).toBe('number');
+    }
+  });
+
+  test('the index splits places by kind: sites, and ecoregions nested under Level III (beeatlas-8gcw)', () => {
+    const { placesArray, sites, ecoregionGroups } = places as any;
+    expect(Array.isArray(sites)).toBe(true);
+    expect(Array.isArray(ecoregionGroups)).toBe(true);
+    // Every place lands in exactly one of the two, and nowhere twice.
+    const grouped = ecoregionGroups.flatMap((g: any) => g.ecoregions);
+    expect(sites.length + grouped.length).toBe(placesArray.length);
+    for (const s of sites) expect(s.kind).not.toBe('ecoregion_l4');
+    for (const g of ecoregionGroups) {
+      expect(typeof g.l3_name).toBe('string');
+      for (const e of g.ecoregions) {
+        expect(e.kind).toBe('ecoregion_l4');
+        expect(e.l3_name).toBe(g.l3_name);
+      }
+      // Codes read in numeric order — 2f before 10a, not the other way round.
+      const nums = g.ecoregions.map((e: any) => parseInt(String(e.code).match(/\d+/)?.[0] ?? '0', 10));
+      expect([...nums].sort((a: number, b: number) => a - b)).toEqual(nums);
     }
   });
 

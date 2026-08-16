@@ -153,7 +153,8 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
     """)
     con.execute("""
         CREATE TABLE geographies.places (
-            slug VARCHAR, name VARCHAR, land_owner VARCHAR, geom GEOMETRY
+            slug VARCHAR, name VARCHAR, kind VARCHAR, land_owner VARCHAR,
+            l3_name VARCHAR, code VARCHAR, geom GEOMETRY
         )
     """)
 
@@ -520,7 +521,7 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
     # Bounding box: lon -121.1..-120.7, lat 47.4..47.8
     con.execute("""
         INSERT INTO geographies.places VALUES (
-            'test-place', 'Test Place', 'DNR',
+            'test-place', 'Test Place', 'site', 'DNR', NULL, NULL,
             ST_GeomFromText('POLYGON((-121.1 47.4, -120.7 47.4, -120.7 47.8, -121.1 47.8, -121.1 47.4))')
         )
     """)

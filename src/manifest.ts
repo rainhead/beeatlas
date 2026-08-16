@@ -17,6 +17,7 @@ interface Manifest {
   occurrences_db: string; // points to hashed occurrences.db (SQLite engine)
   counties: string;
   ecoregions: string;
+  ecoregions_l4: string; // points to hashed ecoregions_l4.geojson (Level IV overlay)
   wilderness: string;    // points to hashed wilderness.geojson (no-collect overlay)
   places: string;        // points to hashed places.geojson
   places_meta: string;   // points to hashed places.json

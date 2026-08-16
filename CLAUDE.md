@@ -91,6 +91,17 @@ linked ADR — read it before changing anything an entry calls load-bearing.
   here drifts (the previous one silently did). `elevation_dem_m` is DEM-*derived* and
   deliberately never COALESCEd into the *recorded* `elevation_m` (ADR 0015). Place
   membership is many-to-many via the `marts/occurrence_places` bridge, not a scalar.
+- **A place has a `kind`** ([ADR 0035](docs/adr/0035-level-iv-ecoregions-are-places.md)).
+  `geographies.places` has TWO sources, both loaded by `places_load`: the hand-authored
+  sites in `content/places.toml`, and one place per EPA Level IV ecoregion out of
+  `geographies.ecoregions_l4`. Everything downstream — the bridge, `/places/` pages,
+  place-maps, the `place=` filter, search — treats them identically; only `land_owner`
+  (null for ecoregions) and the `/places.html` sections differ. **Level III ecoregions
+  are NOT places** and stay a scalar `occurrences.ecoregion_l3` column with its own
+  multi-select filter, so "filter by ecoregion" means two different things — read
+  CONTEXT.md before touching either. Because the Level IV places tile the whole state,
+  nearly every occurrence now has a bridge row; that is what made the bridge's
+  `not_null(occ_id)` fire on the one identity-less checklist record it now filters out.
 - **Basemap: self-hosted MapLibre** ([ADR 0026](docs/adr/0026-self-hosted-basemap.md),
   supersedes 0001). No map API key anywhere; mapbox-gl is gone from the tree. The
   PMTiles archives live at `$BASE_DIR/basemap` on maderas, served by an Apache `Alias`

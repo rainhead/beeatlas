@@ -210,6 +210,9 @@ describe('CLICK-01: bee-map click interaction chain', () => {
     const order = [...list.matchAll(/layerId:\s*'([^']+)'/g)].map(m => m[1]);
     expect(order).toEqual([
       'clusters', 'unclustered-point', 'county-fill', 'ecoregion-fill', 'place-fill',
+      // Level IV ecoregions are places, so they hit-test through the place handler
+      // (beeatlas-8gcw) — last, because only one of the two place layers is ever visible.
+      'ecoregion-l4-fill',
     ]);
     // Each layer is queried on its own so the first hit wins outright, which is
     // what preventDefault() did in the Mapbox chain.
@@ -598,11 +601,20 @@ describe('PMAP-02/04: place filter wiring in bee-atlas', () => {
     expect(methodBody).toContain('null');
   });
 
-  test('bee-atlas.ts _applyBoundaryMode parameter type includes places', () => {
+  test('bee-atlas.ts _applyBoundaryMode takes the shared BoundaryMode union', () => {
     // the boundary-mode side effects moved from the _onBoundaryModeChanged
     // event handler into a shared _applyBoundaryMode method (the relocated region
     // menu calls it directly, no event round-trip through <bee-map>).
-    expect(src).toMatch(/_applyBoundaryMode\(newMode:\s*'off'\s*\|\s*'counties'\s*\|\s*'ecoregions'\s*\|\s*'places'\s*\|\s*'wilderness'\)/);
+    //
+    // The union used to be respelled inline here and in three source files, so
+    // adding a mode meant finding every copy; it now has one home, which is what
+    // this pins (beeatlas-8gcw).
+    expect(src).toMatch(/_applyBoundaryMode\(newMode:\s*BoundaryMode\)/);
+    expect(src).toMatch(/import type \{ BoundaryMode \} from '\.\/boundary-mode\.ts'/);
+    const modes = readFileSync(resolve(__dirname, '../boundary-mode.ts'), 'utf-8');
+    for (const mode of ['off', 'counties', 'ecoregions', 'ecoregions_l4', 'places', 'wilderness']) {
+      expect(modes).toContain(`'${mode}'`);
+    }
   });
 
   test('_onFilterChanged passes selectedPlace through from FilterChangedEvent', () => {

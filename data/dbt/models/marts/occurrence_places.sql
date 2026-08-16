@@ -38,15 +38,31 @@ with_place AS (
     SELECT occ_pt._row_id, p.slug AS place_slug
     FROM occ_pt
     JOIN wa_places p ON ST_Within(occ_pt.pt, p.geom)
+),
+identified AS (
+    SELECT
+        CASE
+            WHEN j.ecdysis_id IS NOT NULL THEN 'ecdysis:' || j.ecdysis_id
+            WHEN j.observation_id IS NOT NULL THEN 'inat:' || j.observation_id
+            WHEN j.specimen_observation_id IS NOT NULL THEN 'inat_obs:' || j.specimen_observation_id
+            WHEN j.checklist_id IS NOT NULL THEN 'checklist:' || j.checklist_id
+        END AS occ_id,
+        wp.place_slug
+    FROM joined j
+    JOIN with_place wp ON wp._row_id = j._row_id
 )
-SELECT
-    CASE
-        WHEN j.ecdysis_id IS NOT NULL THEN 'ecdysis:' || j.ecdysis_id
-        WHEN j.observation_id IS NOT NULL THEN 'inat:' || j.observation_id
-        WHEN j.specimen_observation_id IS NOT NULL THEN 'inat_obs:' || j.specimen_observation_id
-        WHEN j.checklist_id IS NOT NULL THEN 'checklist:' || j.checklist_id
-    END AS occ_id,
-    wp.place_slug
-FROM joined j
-JOIN with_place wp ON wp._row_id = j._row_id
+SELECT occ_id, place_slug
+FROM identified
+-- An int_combined row can match NO branch of the CASE above: the checklist arm keys
+-- on the source's ObjectID, and one upstream checklist record has a null one, so it
+-- arrives here with no identity at all. A null occ_id is unjoinable by construction —
+-- the frontend resolves membership BY occ_id — so the row is dropped rather than
+-- written as a bridge entry nothing can ever reach. Dropping it is also what keeps
+-- the contract's not_null(occ_id) true (beeatlas-8gcw; the upstream identity gap is
+-- tracked separately).
+--
+-- This was latent until the Level IV ecoregions became places: an occurrence in no
+-- NAMED place produced no bridge row, so the one identity-less record never reached
+-- this table. Ecoregions tile the whole state, so now every occurrence does.
+WHERE occ_id IS NOT NULL
 ORDER BY occ_id, place_slug

@@ -1,10 +1,11 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js';
 import type { BeeMap } from './bee-map.ts';
-import { type FilterState, type CollectorEntry, type PlaceOption, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, getOccurrencePlaceSlugs, queryTaxaTree, type OccurrenceProperties, emptyFilterState, lookupByCatalogSuffix } from './filter.ts';
+import { type FilterState, type CollectorEntry, type PlaceOption, type PlaceKind, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, getOccurrencePlaceSlugs, queryTaxaTree, type OccurrenceProperties, emptyFilterState, lookupByCatalogSuffix } from './filter.ts';
 import type { TaxonNode } from './taxa-tree.ts';
 import { parseOccId, occIdFromRow } from './occurrence.ts';
 import { buildParams, parseParams, type TierKey } from './url-state.ts';
+import type { BoundaryMode } from './boundary-mode.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
 import { markTaxaReady, taxaReady } from './ready.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
@@ -157,7 +158,7 @@ export class BeeAtlas extends LitElement {
   @state() private _visibleIds: Set<string> | null = null;
   @state() private _filteredGeoJSON: FeatureCollection<Point, OccurrenceProperties> | null = null;
   @state() private _filteredRowCount: number | null = null;
-  @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' | 'wilderness' = 'off';
+  @state() private _boundaryMode: BoundaryMode = 'off';
   // Region control menu open/close (relocated from <bee-map> in Phase 157).
   @state() private _regionMenuOpen = false;
   @state() private _paneState: 'collapsed' | 'list' | 'table' | 'taxa' = 'collapsed';
@@ -255,6 +256,10 @@ export class BeeAtlas extends LitElement {
 
   @state() private _placeOptions: PlaceOption[] = [];
   @state() private _placeNameBySlug: Map<string, string> = new Map();
+  // Slug -> kind, for EVERY place (like the name map, not the option list): the
+  // boundary layer that highlights a selected place depends on its kind, and a
+  // place restored from the URL may have no records at all (beeatlas-8gcw).
+  private _placeKindBySlug: Map<string, PlaceKind> = new Map();
   // One in-flight fetch, shared. The boot path and the D-04 detail path both want
   // places.json and used to fetch it separately (this component lazily for member
   // -place names, <bee-pane> eagerly-ish for its own options) — two requests for one
@@ -628,6 +633,7 @@ bee-map {
     const regionLabel = this._boundaryMode === 'off' ? 'Regions'
       : this._boundaryMode === 'counties' ? 'Counties'
       : this._boundaryMode === 'ecoregions' ? 'Ecoregions'
+      : this._boundaryMode === 'ecoregions_l4' ? 'Ecoregions IV'
       : this._boundaryMode === 'wilderness' ? 'Wilderness'
       : 'Places';
     return html`
@@ -698,6 +704,7 @@ bee-map {
                 <button class=${this._boundaryMode === 'off' ? 'active' : ''} @click=${() => this._selectBoundaryMode('off')}>Off</button>
                 <button class=${this._boundaryMode === 'counties' ? 'active' : ''} @click=${() => this._selectBoundaryMode('counties')}>Counties</button>
                 <button class=${this._boundaryMode === 'ecoregions' ? 'active' : ''} @click=${() => this._selectBoundaryMode('ecoregions')}>Ecoregions</button>
+                <button class=${this._boundaryMode === 'ecoregions_l4' ? 'active' : ''} @click=${() => this._selectBoundaryMode('ecoregions_l4')}>Ecoregions IV</button>
                 <button class=${this._boundaryMode === 'places' ? 'active' : ''} @click=${() => this._selectBoundaryMode('places')}>Places</button>
                 <button class=${this._boundaryMode === 'wilderness' ? 'active' : ''} @click=${() => this._selectBoundaryMode('wilderness')}>Wilderness</button>
               </div>
@@ -1396,20 +1403,26 @@ bee-map {
         const resp = await fetch(url);
         if (!resp.ok) return;
         const records = await resp.json() as {
-          slug?: string; name?: string; land_owner?: string | null;
+          slug?: string; name?: string; kind?: string; land_owner?: string | null;
           specimen_count?: number; sample_count?: number;
         }[];
         const nameMap = new Map<string, string>();
+        const kindMap = new Map<string, PlaceKind>();
         const options: PlaceOption[] = [];
         for (const r of records) {
           if (!r.slug || !r.name) continue;
           nameMap.set(r.slug, r.name);
+          // A places.json published before the ecoregion places existed carries no
+          // kind; every place in it was a site, so that is the honest default.
+          const kind: PlaceKind = r.kind === 'ecoregion_l4' ? 'ecoregion_l4' : 'site';
+          kindMap.set(r.slug, kind);
           const specimenCount = r.specimen_count ?? 0;
           const sampleCount = r.sample_count ?? 0;
           if (specimenCount > 0 || sampleCount > 0) {
             options.push({
               slug: r.slug,
               name: r.name,
+              kind,
               landOwner: r.land_owner ?? null,
               specimenCount,
               sampleCount,
@@ -1417,7 +1430,15 @@ bee-map {
           }
         }
         this._placeNameBySlug = nameMap;
+        this._placeKindBySlug = kindMap;
         this._placeOptions = options;
+        // A place= in the URL opened the map on the 'places' layer, because nothing
+        // could tell a site slug from an ecoregion slug before these records landed
+        // (url-state.ts). Now it can — move the selection onto the layer that draws it.
+        const selected = this._filterState.selectedPlace;
+        if (selected !== null && this._boundaryMode === 'places') {
+          this._boundaryMode = this._boundaryModeForPlace(selected);
+        }
       } catch {
         // Leave both empty — see above. Memoized either way: a failed fetch is not
         // retried, which is what the D-04 loader did before and keeps a dead
@@ -2332,7 +2353,7 @@ bee-map {
     // or the filter is invisible on the map.
     if (c.kind === 'county') this._boundaryMode = 'counties';
     else if (c.kind === 'ecoregion') this._boundaryMode = 'ecoregions';
-    else if (c.kind === 'place') this._boundaryMode = 'places';
+    else if (c.kind === 'place') this._boundaryMode = this._boundaryModeForPlace(c.slug);
 
     // Reported, not inferred — the header cannot tell "resolved" from "nothing has
     // been searched for yet", and it closes the popover on a hit (ADR 0021).
@@ -2387,7 +2408,7 @@ bee-map {
     } else if (detail.selectedEcoregions.size > prev.selectedEcoregions.size) {
       this._boundaryMode = 'ecoregions';
     } else if (detail.selectedPlace !== null && prev.selectedPlace === null) {
-      this._boundaryMode = 'places';
+      this._boundaryMode = this._boundaryModeForPlace(detail.selectedPlace);
     }
 
     // Clear record selections when filter changes (D-05: bounds is preserved above)
@@ -2593,7 +2614,16 @@ bee-map {
     this._regionMenuOpen = !this._regionMenuOpen;
   }
 
-  private _selectBoundaryMode(mode: 'off' | 'counties' | 'ecoregions' | 'places' | 'wilderness') {
+  /**
+   * The boundary layer that DRAWS a given place — 'places' for a collecting site,
+   * 'ecoregions_l4' for a Level IV ecoregion. Unknown slugs fall back to 'places',
+   * which is what every place was before the ecoregion layer existed.
+   */
+  private _boundaryModeForPlace(slug: string): BoundaryMode {
+    return this._placeKindBySlug.get(slug) === 'ecoregion_l4' ? 'ecoregions_l4' : 'places';
+  }
+
+  private _selectBoundaryMode(mode: BoundaryMode) {
     this._regionMenuOpen = false;
     if (mode === this._boundaryMode) return;
     this._applyBoundaryMode(mode);
@@ -2613,9 +2643,12 @@ bee-map {
   // Shared boundary-mode side effects (extracted from the former
   // _onBoundaryModeChanged event handler). Set the mode, clear the selected
   // place when leaving 'places' (re-running filter/table queries), and sync URL.
-  private _applyBoundaryMode(newMode: 'off' | 'counties' | 'ecoregions' | 'places' | 'wilderness') {
+  private _applyBoundaryMode(newMode: BoundaryMode) {
     this._boundaryMode = newMode;
-    const leavingPlaces = newMode !== 'places' && this._filterState.selectedPlace !== null;
+    // "Leaving places" means leaving BOTH layers that draw places — switching
+    // between them keeps the selection, since the place is still on screen.
+    const leavingPlaces = newMode !== 'places' && newMode !== 'ecoregions_l4'
+      && this._filterState.selectedPlace !== null;
     if (leavingPlaces) {
       this._filterState = { ...this._filterState, selectedPlace: null };
       this._tablePage = 1;

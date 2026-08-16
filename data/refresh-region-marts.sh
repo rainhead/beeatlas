@@ -50,6 +50,9 @@ fi
 EXPORT_DIR="${EXPORT_DIR:-$REPO_ROOT/public/data}"
 SANDBOX_DIR="${SANDBOX_DIR:-$SCRIPT_DIR/dbt/target/sandbox}"
 
+# ecoregions_l4.geojson is deliberately absent: the Level IV ecoregions are rows in
+# geographies.places, so places-export writes that file straight to EXPORT_DIR —
+# there is no sandbox mart to place (beeatlas-8gcw).
 MARTS=(counties.geojson ecoregions.geojson wilderness.geojson)
 
 echo "sandbox: $SANDBOX_DIR"

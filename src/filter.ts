@@ -725,10 +725,19 @@ export interface TaxonOption {
 export interface PlaceOption {
   slug: string;
   name: string;
+  /**
+   * Which family of place this is (beeatlas-8gcw). 'site' is a curated collecting
+   * location out of content/places.toml; 'ecoregion_l4' is an EPA Level IV
+   * ecoregion. It decides which boundary layer highlights the place when it is
+   * picked, and it is the reason `landOwner` is nullable — nobody owns an ecoregion.
+   */
+  kind: PlaceKind;
   landOwner: string | null;
   specimenCount: number;
   sampleCount: number;
 }
+
+export type PlaceKind = 'site' | 'ecoregion_l4';
 
 // Custom event payload
 export interface FilterChangedEvent {

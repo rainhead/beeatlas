@@ -2,8 +2,8 @@
 places.json record/count shape (PPIPE-04).
 
 Covers:
-    test_places_geojson_structure: GeoJSON FeatureCollection with one feature, slug property, Polygon geometry
-    test_places_json_structure: JSON array with 5 required keys per record (no permits — not a per-place property)
+    test_places_geojson_structure: GeoJSON FeatureCollection of the SITE places, slug property, Polygon geometry
+    test_places_json_structure: JSON array with the required keys per record, both kinds (no permits — not a per-place property)
     test_places_json_counts: specimen_count and sample_count derived correctly from occurrences.parquet
 """
 
@@ -24,6 +24,9 @@ import pytest
 _PLACE_A_WKT = "POLYGON((-121.0 47.0, -120.9 47.0, -120.9 47.1, -121.0 47.1, -121.0 47.0))"
 # place-b overlaps place-a at lon -120.95..-120.9 (same band as test_occurrence_places).
 _PLACE_B_WKT = "POLYGON((-120.95 47.0, -120.85 47.0, -120.85 47.1, -120.95 47.1, -120.95 47.0))"
+# The Level IV ecoregion place covers both site polygons, as the real ones cover the
+# whole state — every occurrence in the fixture is inside it.
+_ECOREGION_WKT = "POLYGON((-121.5 46.5, -120.0 46.5, -120.0 47.5, -121.5 47.5, -121.5 46.5))"
 
 
 def _seed_places_db(db_path: Path) -> None:
@@ -35,7 +38,10 @@ def _seed_places_db(db_path: Path) -> None:
         CREATE OR REPLACE TABLE geographies.places (
             slug VARCHAR,
             name VARCHAR,
+            kind VARCHAR,
             land_owner VARCHAR,
+            l3_name VARCHAR,
+            code VARCHAR,
             geom GEOMETRY
         )
     """)
@@ -44,32 +50,18 @@ def _seed_places_db(db_path: Path) -> None:
         ("place-b", "Place B", _PLACE_B_WKT),
     ]:
         con.execute(
-            "INSERT INTO geographies.places VALUES (?, ?, ?, ST_GeomFromText(?))",
+            "INSERT INTO geographies.places VALUES (?, ?, 'site', ?, NULL, NULL, ST_GeomFromText(?))",
             [slug, name, "DNR", wkt],
         )
+    # One Level IV ecoregion place (beeatlas-8gcw): no land owner, a parent Level III
+    # name and an EPA code, and its own GeoJSON file rather than a place polygon.
+    con.execute(
+        "INSERT INTO geographies.places VALUES "
+        "('9z-test-ecoregion', '9z. Test Ecoregion', 'ecoregion_l4', NULL, "
+        "'Test Level III', '9z', ST_GeomFromText(?))",
+        [_ECOREGION_WKT],
+    )
     con.close()
-
-
-def _write_test_toml(tmp_path: Path) -> Path:
-    """Write a places.toml with two overlapping entries (place-a, place-b). Returns path."""
-    content = f"""\
-[[places]]
-slug = "place-a"
-name = "Place A"
-land_owner = "DNR"
-geometry_wkt = "{_PLACE_A_WKT}"
-permits = [{{issuing_authority = "DNR", type = "project-level"}}]
-
-[[places]]
-slug = "place-b"
-name = "Place B"
-land_owner = "DNR"
-geometry_wkt = "{_PLACE_B_WKT}"
-permits = [{{issuing_authority = "DNR", type = "project-level"}}]
-"""
-    path = tmp_path / "places.toml"
-    path.write_text(content, encoding="utf-8")
-    return path
 
 
 def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
@@ -188,7 +180,6 @@ def _setup_env(tmp_path: Path, monkeypatch) -> object:
     _write_test_occurrences_parquet(tmp_path)
     _write_test_bridge_parquet(tmp_path)
     _write_test_species_parquet(tmp_path)
-    monkeypatch.setattr(places_export, "_PLACES_TOML_PATH", _write_test_toml(tmp_path))
 
     # Deterministic target-host seed fixture (isolates the test from the real seed).
     th = tmp_path / "target_hosts.csv"
@@ -217,12 +208,14 @@ def test_places_geojson_structure(tmp_path, monkeypatch):
 
     fc = json.loads(out.read_text())
     assert fc["type"] == "FeatureCollection"
+    # Sites only — the Level IV ecoregion is a place, but its geometry ships on the
+    # other overlay, from the marts/ecoregions_l4_geo dbt mart (beeatlas-8gcw).
     assert len(fc["features"]) == 2
+    assert {f["properties"]["slug"] for f in fc["features"]} == {"place-a", "place-b"}
 
     feat = fc["features"][0]
     assert feat["type"] == "Feature"
     assert "slug" in feat["properties"]
-    assert feat["properties"]["slug"] in ("place-a", "place-b")
     assert feat["geometry"]["type"] in ("Polygon", "MultiPolygon")
 
 
@@ -236,15 +229,28 @@ def test_places_json_structure(tmp_path, monkeypatch):
 
     records = json.loads(out.read_text())
     assert isinstance(records, list)
-    assert len(records) == 2
+    # BOTH kinds — places.json is the index every place page paginates from.
+    assert len(records) == 3
 
-    r = records[0]
-    required_keys = {"slug", "name", "land_owner", "specimen_count", "sample_count"}
-    assert required_keys <= set(r.keys()), f"Missing keys: {required_keys - set(r.keys())}"
-    assert "permits" not in r, "permits must not appear in places.json (not a per-place property)"
+    by_slug = {r["slug"]: r for r in records}
+    required_keys = {"slug", "name", "kind", "land_owner", "l3_name", "code",
+                     "specimen_count", "sample_count"}
+    for r in records:
+        assert required_keys <= set(r.keys()), f"Missing keys: {required_keys - set(r.keys())}"
+        assert "permits" not in r, "permits must not appear in places.json (not a per-place property)"
+        assert isinstance(r["specimen_count"], int)
+        assert isinstance(r["sample_count"], int)
 
-    assert isinstance(r["specimen_count"], int)
-    assert isinstance(r["sample_count"], int)
+    site = by_slug["place-a"]
+    assert site["kind"] == "site"
+    assert site["land_owner"] == "DNR"
+    assert site["l3_name"] is None and site["code"] is None
+
+    eco = by_slug["9z-test-ecoregion"]
+    assert eco["kind"] == "ecoregion_l4"
+    assert eco["land_owner"] is None, "nobody owns an ecoregion"
+    assert eco["l3_name"] == "Test Level III"
+    assert eco["code"] == "9z"
 
 
 def test_places_json_counts(tmp_path, monkeypatch):
@@ -269,7 +275,7 @@ def test_places_json_counts(tmp_path, monkeypatch):
     pe_mod.export_places_step()
 
     records = json.loads((tmp_path / "places.json").read_text())
-    assert len(records) == 2
+    assert len(records) == 3  # two sites + one Level IV ecoregion
     by_slug = {r["slug"]: r for r in records}
 
     assert by_slug["place-a"]["specimen_count"] == 1, (

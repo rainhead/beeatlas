@@ -1,7 +1,13 @@
 """Export per-place artifacts for the frontend (PPIPE-04).
 
-Writes ASSETS_DIR/places.geojson (slim — Mapbox source) and
+Writes ASSETS_DIR/places.geojson (slim — map source for the Places overlay) and
 ASSETS_DIR/places.json (rich — Eleventy _data).
+
+places.geojson carries the SITE places only. The Level IV ecoregions are places
+too, but they draw on their own overlay — 57 statewide polygons under the 181
+small collecting sites would bury them — and their geometry ships from the
+marts/ecoregions_l4_geo dbt mart alongside the other region layers (beeatlas-8gcw).
+places.json keeps BOTH kinds: it is the index every place page paginates from.
 
 Runs AFTER dbt-build because specimen/sample counts come from
 ASSETS_DIR/occurrences.parquet (Pitfall 5 — NOT from DBT_SANDBOX_DIR).
@@ -12,18 +18,16 @@ Usage:
 
 import json
 import os
-import tomllib
 from pathlib import Path
 
 import duckdb
+
+from places_load import KIND_SITE
 
 
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb"))
 _default_assets = str(Path(__file__).parent.parent / "public" / "data")
 ASSETS_DIR = Path(os.environ.get("EXPORT_DIR", _default_assets))
-
-# Overridable for testing (tests monkeypatch this constant).
-_PLACES_TOML_PATH = Path(__file__).parent.parent / "content" / "places.toml"
 
 # Committed WA-native/endemic target-host seed (build_target_hosts.py). Joined to
 # per-place sample hosts by name for the "target hosts collected here" panel.
@@ -33,13 +37,6 @@ _TARGET_HOSTS_CSV = Path(__file__).parent / "dbt" / "seeds" / "target_hosts.csv"
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
-
-def _load_place_metadata(toml_path: Path) -> dict[str, dict]:
-    """Load places.toml and return a slug→place-dict mapping."""
-    with open(toml_path, "rb") as f:
-        data = tomllib.load(f)
-    return {p["slug"]: p for p in data.get("places", [])}
-
 
 def _query_counts(
     con: duckdb.DuckDBPyConnection,
@@ -269,14 +266,19 @@ def _write_place_details(
     )
 
 
-def _write_places_geojson(con: duckdb.DuckDBPyConnection, out_path: Path) -> None:
-    """Write compact GeoJSON FeatureCollection (slug + geometry) to out_path.
+def _write_places_geojson(con: duckdb.DuckDBPyConnection, out_path: Path, kind: str) -> None:
+    """Write compact GeoJSON FeatureCollection (slug + geometry) for one place kind.
 
     Uses separators=(',', ':') to match counties.geojson / ecoregions.geojson
     pattern — compact output suitable for a Mapbox source with promoteId: 'slug'.
+
+    Both overlays carry the same {slug, name} properties, so <bee-map> drives them
+    through the same click handler and the same slug→feature-state highlight.
     """
     rows = con.execute(
-        "SELECT slug, name, ST_AsGeoJSON(geom) FROM geographies.places ORDER BY slug"
+        "SELECT slug, name, ST_AsGeoJSON(geom) FROM geographies.places "
+        "WHERE kind = ? ORDER BY slug",
+        [kind],
     ).fetchall()
     features = [
         {
@@ -288,26 +290,40 @@ def _write_places_geojson(con: duckdb.DuckDBPyConnection, out_path: Path) -> Non
     ]
     fc = {"type": "FeatureCollection", "features": features}
     out_path.write_text(json.dumps(fc, separators=(",", ":")), encoding="utf-8")
-    print(f"  places.geojson: {len(features):,} features, {out_path.stat().st_size:,} bytes")  # noqa: T201
+    print(f"  {out_path.name}: {len(features):,} features, {out_path.stat().st_size:,} bytes")  # noqa: T201
 
 
 def _write_places_json(
-    places_meta: dict[str, dict],
+    con: duckdb.DuckDBPyConnection,
     counts: dict[str, dict[str, int]],
     out_path: Path,
 ) -> None:
     """Write pretty-printed JSON array of place records (no geometry) to out_path.
 
+    Metadata comes from geographies.places, not content/places.toml: the table is
+    the only place both place kinds exist side by side (places_load loads the TOML
+    sites AND the Level IV ecoregions into it), and the TOML's remaining field —
+    permits — was never a per-place property here.
+
+    `land_owner` is null for ecoregions and `l3_name`/`code` are null for sites;
+    both are emitted either way so the consumer branches on `kind`, not on absence.
+
     Uses indent=2 to match species.json (Eleventy _data consumer convention).
     """
+    rows = con.execute(
+        "SELECT slug, name, kind, land_owner, l3_name, code FROM geographies.places ORDER BY slug"
+    ).fetchall()
     records = []
-    for slug, meta in sorted(places_meta.items()):
+    for slug, name, kind, land_owner, l3_name, code in rows:
         c = counts.get(slug, {"specimen_count": 0, "sample_count": 0})
         records.append(
             {
                 "slug": slug,
-                "name": meta["name"],
-                "land_owner": meta["land_owner"],
+                "name": name,
+                "kind": kind,
+                "land_owner": land_owner,
+                "l3_name": l3_name,
+                "code": code,
                 "specimen_count": c["specimen_count"],
                 "sample_count": c["sample_count"],
             }
@@ -337,10 +353,9 @@ def export_places(con: duckdb.DuckDBPyConnection | None = None) -> None:
         ASSETS_DIR.mkdir(parents=True, exist_ok=True)
         occ_parquet = ASSETS_DIR / "occurrences.parquet"
         bridge_parquet = ASSETS_DIR / "occurrence_places.parquet"
-        places_meta = _load_place_metadata(_PLACES_TOML_PATH)
         counts = _query_counts(con, occ_parquet, bridge_parquet)
-        _write_places_geojson(con, ASSETS_DIR / "places.geojson")
-        _write_places_json(places_meta, counts, ASSETS_DIR / "places.json")
+        _write_places_geojson(con, ASSETS_DIR / "places.geojson", KIND_SITE)
+        _write_places_json(con, counts, ASSETS_DIR / "places.json")
 
         # Heavy per-place feed (species + collection timing) — separate
         # build_time_fetch artifact, NOT the committed places.json.

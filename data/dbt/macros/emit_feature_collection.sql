@@ -26,6 +26,14 @@
 --   pre-constructed FeatureCollection as a JSON string, and COPY emits it byte-for-byte.
 --   The output is byte-comparable to public/data/counties.geojson and
 --   public/data/ecoregions.geojson; test_dbt_diff.py confirms parity.
+-- Two macros, one COPY trick. emit_feature_collection projects ONE property from a
+-- column literally named `name`, which is all counties/ecoregions/wilderness need.
+-- emit_place_feature_collection (beeatlas-8gcw) projects {slug, name} for the region
+-- layers whose features are PLACES — the Level IV ecoregions — because the frontend
+-- resolves a place by slug on click and labels it by name. Kept as a separate macro
+-- rather than generalizing the first: counties.geojson and ecoregions.geojson are
+-- byte-compared against their published copies by test_dbt_diff, and a property-list
+-- refactor of the shared macro is exactly the kind of change that moves those bytes.
 {% macro emit_feature_collection(model_relation, property_name, out_path) %}
 COPY (
   SELECT json_object(
@@ -34,6 +42,22 @@ COPY (
       SELECT to_json(list({
         'type': 'Feature',
         'properties': {{ "{" }} {{ "'" ~ property_name ~ "'" }}: name {{ "}" }},
+        'geometry': ST_AsGeoJSON(geom)::JSON
+      }))
+      FROM {{ model_relation }}
+    )
+  )::VARCHAR
+) TO '{{ out_path }}' (FORMAT CSV, DELIMITER '', QUOTE '', HEADER false)
+{% endmacro %}
+
+{% macro emit_place_feature_collection(model_relation, out_path) %}
+COPY (
+  SELECT json_object(
+    'type', 'FeatureCollection',
+    'features', (
+      SELECT to_json(list({
+        'type': 'Feature',
+        'properties': {'slug': slug, 'name': name},
         'geometry': ST_AsGeoJSON(geom)::JSON
       }))
       FROM {{ model_relation }}

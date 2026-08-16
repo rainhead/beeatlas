@@ -80,8 +80,8 @@ registerRoute(
 );
 
 // GeoJSON runtime cache — CacheFirst, no entry cap.
-// counties/ecoregions/places GeoJSON use stable URLs that overwrite in place
-// each nightly pipeline run; three files total, <5 MB combined.
+// counties/ecoregions/ecoregions_l4/places GeoJSON use stable URLs that overwrite
+// in place each nightly pipeline run; a handful of files, <5 MB combined.
 // No ExpirationPlugin — sharing maxEntries: 1 with the DB route would cause
 // GeoJSON entries to be evicted when the DB is cached (RESEARCH Pitfall 1).
 // Both routes share the data-artifacts cache name; ExpirationPlugin scopes

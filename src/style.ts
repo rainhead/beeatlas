@@ -193,12 +193,21 @@ export function boundaryLineLayerSpec(source: string, id: string, visibility: Vi
   };
 }
 
-// place boundaries use warm amber to distinguish from blue boundary layers
-export function placeFillLayerSpec(visibility: Visibility): FillLayerSpecification {
+// place boundaries use warm amber to distinguish from blue boundary layers.
+//
+// The three specs below are parameterized by source+id because the Level IV
+// ecoregion overlay reuses them verbatim (beeatlas-8gcw): those features are
+// places too — same {slug, name} properties, same click-to-select, same amber —
+// they just live in their own source so they can be toggled separately.
+export function placeFillLayerSpec(
+  visibility: Visibility,
+  source = 'places',
+  id = 'place-fill',
+): FillLayerSpecification {
   return {
-    id: 'place-fill',
+    id,
     type: 'fill',
-    source: 'places',
+    source,
     layout: { visibility },
     paint: {
       'fill-color': [
@@ -211,11 +220,15 @@ export function placeFillLayerSpec(visibility: Visibility): FillLayerSpecificati
   };
 }
 
-export function placeLineLayerSpec(visibility: Visibility): LineLayerSpecification {
+export function placeLineLayerSpec(
+  visibility: Visibility,
+  source = 'places',
+  id = 'place-line',
+): LineLayerSpecification {
   return {
-    id: 'place-line',
+    id,
     type: 'line',
-    source: 'places',
+    source,
     layout: { visibility, 'line-join': 'round', 'line-cap': 'round' },
     paint: {
       'line-color': [
@@ -234,11 +247,15 @@ export function placeLineLayerSpec(visibility: Visibility): LineLayerSpecificati
   };
 }
 
-export function placeLabelLayerSpec(visibility: Visibility): SymbolLayerSpecification {
+export function placeLabelLayerSpec(
+  visibility: Visibility,
+  source = 'places',
+  id = 'place-label',
+): SymbolLayerSpecification {
   return {
-    id: 'place-label',
+    id,
     type: 'symbol',
-    source: 'places',
+    source,
     layout: {
       visibility,
       'text-field': ['get', 'name'],

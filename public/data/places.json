@@ -1,1261 +1,2381 @@
 [
   {
+    "slug": "10a-channeled-scablands",
+    "name": "10a. Channeled Scablands",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Plateau",
+    "code": "10a",
+    "specimen_count": 3989,
+    "sample_count": 21
+  },
+  {
+    "slug": "10b-loess-islands",
+    "name": "10b. Loess Islands",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Plateau",
+    "code": "10b",
+    "specimen_count": 307,
+    "sample_count": 15
+  },
+  {
+    "slug": "10d-okanogan-drift-hills",
+    "name": "10d. Okanogan Drift Hills",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Plateau",
+    "code": "10d",
+    "specimen_count": 181,
+    "sample_count": 10
+  },
+  {
+    "slug": "10e-pleistocene-lake-basins",
+    "name": "10e. Pleistocene Lake Basins",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Plateau",
+    "code": "10e",
+    "specimen_count": 4923,
+    "sample_count": 28
+  },
+  {
+    "slug": "10f-dissected-loess-uplands",
+    "name": "10f. Dissected Loess Uplands",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Plateau",
+    "code": "10f",
+    "specimen_count": 89,
+    "sample_count": 8
+  },
+  {
+    "slug": "10g-yakima-folds",
+    "name": "10g. Yakima Folds",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Plateau",
+    "code": "10g",
+    "specimen_count": 8101,
+    "sample_count": 23
+  },
+  {
+    "slug": "10h-palouse-hills",
+    "name": "10h. Palouse Hills",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Plateau",
+    "code": "10h",
+    "specimen_count": 806,
+    "sample_count": 34
+  },
+  {
+    "slug": "10i-deep-loess-foothills",
+    "name": "10i. Deep Loess Foothills",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Plateau",
+    "code": "10i",
+    "specimen_count": 19,
+    "sample_count": 3
+  },
+  {
+    "slug": "10l-lower-snake-and-clearwater-canyons",
+    "name": "10l. Lower Snake and Clearwater Canyons",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Plateau",
+    "code": "10l",
+    "specimen_count": 428,
+    "sample_count": 10
+  },
+  {
+    "slug": "10m-okanogan-valley",
+    "name": "10m. Okanogan Valley",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Plateau",
+    "code": "10m",
+    "specimen_count": 574,
+    "sample_count": 8
+  },
+  {
+    "slug": "11c-maritime-influenced-zone",
+    "name": "11c. Maritime-Influenced Zone",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Blue Mountains",
+    "code": "11c",
+    "specimen_count": 0,
+    "sample_count": 7
+  },
+  {
+    "slug": "11f-canyons-and-dissected-highlands",
+    "name": "11f. Canyons and Dissected Highlands",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Blue Mountains",
+    "code": "11f",
+    "specimen_count": 115,
+    "sample_count": 12
+  },
+  {
+    "slug": "11g-canyons-and-dissected-uplands",
+    "name": "11g. Canyons and Dissected Uplands",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Blue Mountains",
+    "code": "11g",
+    "specimen_count": 218,
+    "sample_count": 13
+  },
+  {
+    "slug": "11l-mesic-forest-zone",
+    "name": "11l. Mesic Forest Zone",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Blue Mountains",
+    "code": "11l",
+    "specimen_count": 148,
+    "sample_count": 12
+  },
+  {
+    "slug": "11m-subalpine-alpine-zone",
+    "name": "11m. Subalpine-Alpine Zone",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Blue Mountains",
+    "code": "11m",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "15g-western-okanogan-semiarid-foothills",
+    "name": "15g. Western Okanogan Semiarid Foothills",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Mountains/Northern Rockies",
+    "code": "15g",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "15h-high-northern-rockies",
+    "name": "15h. High Northern Rockies",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Mountains/Northern Rockies",
+    "code": "15h",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "15r-okanogan-colville-xeric-valleys-and-foothills",
+    "name": "15r. Okanogan-Colville Xeric Valleys and Foothills",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Mountains/Northern Rockies",
+    "code": "15r",
+    "specimen_count": 641,
+    "sample_count": 17
+  },
+  {
+    "slug": "15s-spokane-valley-outwash-plains",
+    "name": "15s. Spokane Valley Outwash Plains",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Mountains/Northern Rockies",
+    "code": "15s",
+    "specimen_count": 94,
+    "sample_count": 14
+  },
+  {
+    "slug": "15u-inland-maritime-foothills-and-valleys",
+    "name": "15u. Inland Maritime Foothills and Valleys",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Mountains/Northern Rockies",
+    "code": "15u",
+    "specimen_count": 40,
+    "sample_count": 9
+  },
+  {
+    "slug": "15v-northern-idaho-hills-and-low-relief-mountains",
+    "name": "15v. Northern Idaho Hills and Low Relief Mountains",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Mountains/Northern Rockies",
+    "code": "15v",
+    "specimen_count": 2,
+    "sample_count": 1
+  },
+  {
+    "slug": "15w-western-selkirk-maritime-forest",
+    "name": "15w. Western Selkirk Maritime Forest",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Mountains/Northern Rockies",
+    "code": "15w",
+    "specimen_count": 94,
+    "sample_count": 9
+  },
+  {
+    "slug": "15x-okanogan-highland-dry-forest",
+    "name": "15x. Okanogan Highland Dry Forest",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Mountains/Northern Rockies",
+    "code": "15x",
+    "specimen_count": 22,
+    "sample_count": 5
+  },
+  {
+    "slug": "15y-selkirk-mountains",
+    "name": "15y. Selkirk Mountains",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Columbia Mountains/Northern Rockies",
+    "code": "15y",
+    "specimen_count": 402,
+    "sample_count": 12
+  },
+  {
+    "slug": "1a-coastal-lowlands",
+    "name": "1a. Coastal Lowlands",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Coast Range",
+    "code": "1a",
+    "specimen_count": 50,
+    "sample_count": 7
+  },
+  {
+    "slug": "1b-coastal-uplands",
+    "name": "1b. Coastal Uplands",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Coast Range",
+    "code": "1b",
+    "specimen_count": 147,
+    "sample_count": 13
+  },
+  {
+    "slug": "1c-low-olympics",
+    "name": "1c. Low Olympics",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Coast Range",
+    "code": "1c",
+    "specimen_count": 1140,
+    "sample_count": 15
+  },
+  {
+    "slug": "1d-volcanics",
+    "name": "1d. Volcanics",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Coast Range",
+    "code": "1d",
+    "specimen_count": 102,
+    "sample_count": 10
+  },
+  {
+    "slug": "1e-outwash",
+    "name": "1e. Outwash",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Coast Range",
+    "code": "1e",
+    "specimen_count": 10,
+    "sample_count": 7
+  },
+  {
+    "slug": "1f-willapa-hills",
+    "name": "1f. Willapa Hills",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Coast Range",
+    "code": "1f",
+    "specimen_count": 40,
+    "sample_count": 11
+  },
+  {
+    "slug": "2a-fraser-lowland",
+    "name": "2a. Fraser Lowland",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Strait of Georgia/Puget Lowland",
+    "code": "2a",
+    "specimen_count": 187,
+    "sample_count": 5
+  },
+  {
+    "slug": "2b-eastern-puget-riverine-lowlands",
+    "name": "2b. Eastern Puget Riverine Lowlands",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Strait of Georgia/Puget Lowland",
+    "code": "2b",
+    "specimen_count": 356,
+    "sample_count": 9
+  },
+  {
+    "slug": "2c-san-juan-islands",
+    "name": "2c. San Juan Islands",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Strait of Georgia/Puget Lowland",
+    "code": "2c",
+    "specimen_count": 523,
+    "sample_count": 10
+  },
+  {
+    "slug": "2d-olympic-rainshadow",
+    "name": "2d. Olympic Rainshadow",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Strait of Georgia/Puget Lowland",
+    "code": "2d",
+    "specimen_count": 3879,
+    "sample_count": 23
+  },
+  {
+    "slug": "2e-eastern-puget-uplands",
+    "name": "2e. Eastern Puget Uplands",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Strait of Georgia/Puget Lowland",
+    "code": "2e",
+    "specimen_count": 410,
+    "sample_count": 10
+  },
+  {
+    "slug": "2f-central-puget-lowland",
+    "name": "2f. Central Puget Lowland",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Strait of Georgia/Puget Lowland",
+    "code": "2f",
+    "specimen_count": 1861,
+    "sample_count": 10
+  },
+  {
+    "slug": "2g-southern-puget-prairies",
+    "name": "2g. Southern Puget Prairies",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Strait of Georgia/Puget Lowland",
+    "code": "2g",
+    "specimen_count": 670,
+    "sample_count": 12
+  },
+  {
+    "slug": "2h-cowlitz-chehalis-foothills",
+    "name": "2h. Cowlitz/Chehalis Foothills",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Strait of Georgia/Puget Lowland",
+    "code": "2h",
+    "specimen_count": 3,
+    "sample_count": 1
+  },
+  {
+    "slug": "2i-cowlitz-newaukum-prairie-floodplains",
+    "name": "2i. Cowlitz/Newaukum Prairie Floodplains",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Strait of Georgia/Puget Lowland",
+    "code": "2i",
+    "specimen_count": 71,
+    "sample_count": 9
+  },
+  {
+    "slug": "3a-portland-vancouver-basin",
+    "name": "3a. Portland/Vancouver Basin",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Willamette Valley",
+    "code": "3a",
+    "specimen_count": 6235,
+    "sample_count": 16
+  },
+  {
+    "slug": "3d-valley-foothills",
+    "name": "3d. Valley Foothills",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Willamette Valley",
+    "code": "3d",
+    "specimen_count": 129,
+    "sample_count": 8
+  },
+  {
+    "slug": "4a-western-cascades-lowlands-and-valleys",
+    "name": "4a. Western Cascades Lowlands and Valleys",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Cascades",
+    "code": "4a",
+    "specimen_count": 197,
+    "sample_count": 16
+  },
+  {
+    "slug": "4b-western-cascades-montane-highlands",
+    "name": "4b. Western Cascades Montane Highlands",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Cascades",
+    "code": "4b",
+    "specimen_count": 81,
+    "sample_count": 12
+  },
+  {
+    "slug": "4c-cascade-crest-montane-forest",
+    "name": "4c. Cascade Crest Montane Forest",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Cascades",
+    "code": "4c",
+    "specimen_count": 56,
+    "sample_count": 6
+  },
+  {
+    "slug": "4d-cascade-subalpine-alpine",
+    "name": "4d. Cascade Subalpine/Alpine",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Cascades",
+    "code": "4d",
+    "specimen_count": 495,
+    "sample_count": 16
+  },
+  {
+    "slug": "77a-north-cascades-lowland-forests",
+    "name": "77a. North Cascades Lowland Forests",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "North Cascades",
+    "code": "77a",
+    "specimen_count": 87,
+    "sample_count": 6
+  },
+  {
+    "slug": "77b-north-cascades-highland-forests",
+    "name": "77b. North Cascades Highland Forests",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "North Cascades",
+    "code": "77b",
+    "specimen_count": 497,
+    "sample_count": 22
+  },
+  {
+    "slug": "77c-north-cascades-subalpine-alpine",
+    "name": "77c. North Cascades Subalpine/Alpine",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "North Cascades",
+    "code": "77c",
+    "specimen_count": 366,
+    "sample_count": 25
+  },
+  {
+    "slug": "77d-pasayten-sawtooth-highlands",
+    "name": "77d. Pasayten/Sawtooth Highlands",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "North Cascades",
+    "code": "77d",
+    "specimen_count": 312,
+    "sample_count": 23
+  },
+  {
+    "slug": "77e-okanogan-pine-fir-hills",
+    "name": "77e. Okanogan Pine/Fir Hills",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "North Cascades",
+    "code": "77e",
+    "specimen_count": 805,
+    "sample_count": 24
+  },
+  {
+    "slug": "77f-chelan-tephra-hills",
+    "name": "77f. Chelan Tephra Hills",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "North Cascades",
+    "code": "77f",
+    "specimen_count": 22,
+    "sample_count": 8
+  },
+  {
+    "slug": "77g-wenatchee-chelan-highlands",
+    "name": "77g. Wenatchee/Chelan Highlands",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "North Cascades",
+    "code": "77g",
+    "specimen_count": 96,
+    "sample_count": 11
+  },
+  {
+    "slug": "77h-chiwaukum-hills-and-lowlands",
+    "name": "77h. Chiwaukum Hills and Lowlands",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "North Cascades",
+    "code": "77h",
+    "specimen_count": 1263,
+    "sample_count": 17
+  },
+  {
+    "slug": "77i-high-olympics",
+    "name": "77i. High Olympics",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "North Cascades",
+    "code": "77i",
+    "specimen_count": 1147,
+    "sample_count": 19
+  },
+  {
+    "slug": "9a-yakima-plateau-and-slopes",
+    "name": "9a. Yakima Plateau and Slopes",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Eastern Cascades Slopes and Foothills",
+    "code": "9a",
+    "specimen_count": 1937,
+    "sample_count": 20
+  },
+  {
+    "slug": "9b-grand-fir-mixed-forest",
+    "name": "9b. Grand Fir Mixed Forest",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Eastern Cascades Slopes and Foothills",
+    "code": "9b",
+    "specimen_count": 787,
+    "sample_count": 26
+  },
+  {
+    "slug": "9c-oak-conifer-foothills",
+    "name": "9c. Oak/Conifer Foothills",
+    "kind": "ecoregion_l4",
+    "land_owner": null,
+    "l3_name": "Eastern Cascades Slopes and Foothills",
+    "code": "9c",
+    "specimen_count": 527,
+    "sample_count": 14
+  },
+  {
     "slug": "alta-lake-state-park",
     "name": "Alta Lake State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "anderson-lake-state-park",
     "name": "Anderson Lake State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "asotin-creek-wildlife-area",
     "name": "Asotin Creek",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 140,
     "sample_count": 8
   },
   {
     "slug": "beacon-rock-state-park",
     "name": "Beacon Rock State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "big-bend-wildlife-area",
     "name": "Big Bend",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 98,
     "sample_count": 9
   },
   {
     "slug": "big-four-ice-caves-trail",
     "name": "Big Four Ice Caves",
+    "kind": "site",
     "land_owner": "USDA Forest Service \u2014 Mt. Baker-Snoqualmie National Forest",
-    "specimen_count": 0,
-    "sample_count": 0
+    "l3_name": null,
+    "code": null,
+    "specimen_count": 6,
+    "sample_count": 3
   },
   {
     "slug": "birch-bay-state-park",
     "name": "Birch Bay State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 3
   },
   {
     "slug": "blake-island-marine-state-park",
     "name": "Blake Island Marine State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "bloomberg-hill-park",
     "name": "Bloomberg Hill Park",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "blyth-park",
     "name": "Blyth Park",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "bogachiel-state-park",
     "name": "Bogachiel State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "bottle-beach-state-park",
     "name": "Bottle Beach State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "boulder-de-roux-trail",
     "name": "Boulder\u2013De Roux",
+    "kind": "site",
     "land_owner": "USDA Forest Service \u2014 Okanogan-Wenatchee National Forest",
-    "specimen_count": 0,
-    "sample_count": 0
+    "l3_name": null,
+    "code": null,
+    "specimen_count": 4,
+    "sample_count": 6
   },
   {
     "slug": "bracketts-landing",
     "name": "Brackett's Landing",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "brickyard-road-park",
     "name": "Brickyard Road Park",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "bridgeport-state-park",
     "name": "Bridgeport State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "brooks-memorial-state-park",
     "name": "Brooks Memorial State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 1,
     "sample_count": 1
   },
   {
     "slug": "cape-disappointment-state-park",
     "name": "Cape Disappointment State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
-    "sample_count": 0
+    "sample_count": 1
   },
   {
     "slug": "catherine-creek-loop-trail",
     "name": "Catherine Creek Loop",
+    "kind": "site",
     "land_owner": "USDA Forest Service \u2014 Columbia River Gorge NSA",
-    "specimen_count": 0,
-    "sample_count": 0
+    "l3_name": null,
+    "code": null,
+    "specimen_count": 213,
+    "sample_count": 14
   },
   {
     "slug": "cedar-grove-park",
     "name": "Cedar Grove Park",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "centennial-park",
     "name": "Centennial Park",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 55,
     "sample_count": 5
   },
   {
     "slug": "chehalis-wildlife-area",
     "name": "Chehalis",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "chelan-wildlife-area",
     "name": "Chelan",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 55,
     "sample_count": 6
   },
   {
     "slug": "chief-joseph-wildlife-area",
     "name": "Chief Joseph",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 191,
     "sample_count": 13
   },
   {
     "slug": "colockum-wildlife-area",
     "name": "Colockum",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 39,
     "sample_count": 9
   },
   {
     "slug": "columbia-basin-wildlife-area",
     "name": "Columbia Basin",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 1115,
     "sample_count": 23
   },
   {
     "slug": "columbia-hills-state-park",
     "name": "Columbia Hills State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
-    "sample_count": 2
+    "sample_count": 6
   },
   {
     "slug": "conboy-lake-nwr",
     "name": "Conboy Lake National Wildlife Refuge",
+    "kind": "site",
     "land_owner": "US Fish & Wildlife Service",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 628,
     "sample_count": 11
   },
   {
     "slug": "conconully-state-park",
     "name": "Conconully State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "conifer-view-park",
     "name": "Conifer View Park",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "cougar-mountain-regional-wildland-park",
     "name": "Cougar Mountain Regional Wildland Park",
+    "kind": "site",
     "land_owner": "King County Parks",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "cowiche-canyon-conservancy",
     "name": "Cowiche Canyon Conservancy",
+    "kind": "site",
     "land_owner": "Cowiche Canyon Conservancy",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 188,
     "sample_count": 12
   },
   {
     "slug": "cowlitz-wildlife-area",
     "name": "Cowlitz",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "crawford-state-park",
     "name": "Crawford State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "curlew-lake-state-park",
     "name": "Curlew Lake State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 1
   },
   {
     "slug": "daroga-state-park",
     "name": "Daroga State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "deception-pass-goose-rock-trail",
     "name": "Deception Pass\u2013Goose Rock",
+    "kind": "site",
     "land_owner": "Washington State Parks",
-    "specimen_count": 0,
-    "sample_count": 0
+    "l3_name": null,
+    "code": null,
+    "specimen_count": 36,
+    "sample_count": 7
   },
   {
     "slug": "deception-pass-state-park",
     "name": "Deception Pass State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 89,
     "sample_count": 7
   },
   {
     "slug": "discovery-park",
     "name": "Discovery Park",
+    "kind": "site",
     "land_owner": "Seattle Parks and Recreation",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 114,
     "sample_count": 10
   },
   {
     "slug": "dosewallips-state-park",
     "name": "Dosewallips State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "doug-allen-sportsfields",
     "name": "Doug Allen Sportsfields",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "east-norway-hill-park",
     "name": "East Norway Hill Park",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "fields-spring-state-park",
     "name": "Fields Spring State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "former-wayne-golf-course",
     "name": "Former Wayne Golf Course",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 1,
     "sample_count": 1
   },
   {
     "slug": "fort-flagler-state-park",
     "name": "Fort Flagler State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 155,
     "sample_count": 15
   },
   {
     "slug": "fort-simcoe-state-park",
     "name": "Fort Simcoe State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "fort-townsend-state-park",
     "name": "Fort Townsend State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 1
   },
   {
     "slug": "fort-worden-state-park",
     "name": "Fort Worden State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 15,
     "sample_count": 10
   },
   {
     "slug": "fortune-creek-pass-trail",
     "name": "Fortune Creek Pass",
+    "kind": "site",
     "land_owner": "USDA Forest Service \u2014 Okanogan-Wenatchee National Forest",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "geyser-valley-trail",
     "name": "Geyser Valley",
+    "kind": "site",
     "land_owner": "National Park Service \u2014 Olympic National Park",
-    "specimen_count": 0,
-    "sample_count": 0
+    "l3_name": null,
+    "code": null,
+    "specimen_count": 26,
+    "sample_count": 4
   },
   {
     "slug": "ginkgo-petrified-forest-state-park",
     "name": "Ginkgo Petrified Forest State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 8,
     "sample_count": 19
   },
   {
     "slug": "grayland-beach-state-park",
     "name": "Grayland Beach State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 1
   },
   {
     "slug": "griffiths-priday-state-park",
     "name": "Griffiths-Priday State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "hanford-reach-national-monument",
     "name": "Hanford Reach National Monument",
+    "kind": "site",
     "land_owner": "US Fish & Wildlife Service",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 531,
     "sample_count": 21
   },
   {
     "slug": "haynes-open-space",
     "name": "Haynes Open Space",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "helen-mccabe-state-park",
     "name": "Helen McCabe State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 51,
     "sample_count": 2
   },
   {
     "slug": "horse-creek-plaza",
     "name": "Horse Creek Plaza",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "icicle-gorge-loop-trail",
     "name": "Icicle Gorge Loop",
+    "kind": "site",
     "land_owner": "USDA Forest Service \u2014 Okanogan-Wenatchee National Forest",
-    "specimen_count": 0,
-    "sample_count": 0
+    "l3_name": null,
+    "code": null,
+    "specimen_count": 1,
+    "sample_count": 3
   },
   {
     "slug": "illahee-state-park",
     "name": "Illahee State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "iron-peak-trail",
     "name": "Iron Peak",
+    "kind": "site",
     "land_owner": "USDA Forest Service \u2014 Okanogan-Wenatchee National Forest",
-    "specimen_count": 0,
-    "sample_count": 0
+    "l3_name": null,
+    "code": null,
+    "specimen_count": 82,
+    "sample_count": 20
   },
   {
     "slug": "johns-river-wildlife-area",
     "name": "Johns River",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "jones-island-marine-state-park",
     "name": "Jones Island Marine State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "kinney-point-state-park",
     "name": "Kinney Point State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "klickitat-trail-state-park",
     "name": "Klickitat Trail State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "klickitat-wildlife-area",
     "name": "Klickitat",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 1,
     "sample_count": 1
   },
   {
     "slug": "l-t-murray-wildlife-area",
     "name": "L.T. Murray",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 2038,
     "sample_count": 15
   },
   {
     "slug": "lake-easton-state-park",
     "name": "Lake Easton State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "lake-sammamish-state-park",
     "name": "Lake Sammamish State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "lake-sylvia-state-park",
     "name": "Lake Sylvia State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "lake-wenatchee-state-park",
     "name": "Lake Wenatchee State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 7,
     "sample_count": 1
   },
   {
     "slug": "larrabee-state-park",
     "name": "Larrabee State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 15,
     "sample_count": 4
   },
   {
     "slug": "leclerc-wildlife-area",
     "name": "LeClerc",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "lewis-creek-park",
     "name": "Lewis Creek Park",
+    "kind": "site",
     "land_owner": "City of Bellevue",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 74,
     "sample_count": 8
   },
   {
     "slug": "lincoln-rock-state-park",
     "name": "Lincoln Rock State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "little-pend-oreille-nwr",
     "name": "Little Pend Oreille National Wildlife Refuge",
+    "kind": "site",
     "land_owner": "US Fish & Wildlife Service",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 406,
     "sample_count": 17
   },
   {
     "slug": "lummi-island-heritage-trust",
     "name": "Lummi Island Heritage Trust",
+    "kind": "site",
     "land_owner": "Lummi Island Heritage Trust",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 9,
     "sample_count": 4
   },
   {
     "slug": "magnuson-park",
     "name": "Warren G. Magnuson Park",
+    "kind": "site",
     "land_owner": "Seattle Parks and Recreation",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 166,
     "sample_count": 8
   },
   {
     "slug": "methow-wildlife-area",
     "name": "Methow",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 113,
-    "sample_count": 6
+    "sample_count": 8
   },
   {
     "slug": "miller-peninsula-state-park",
     "name": "Miller Peninsula State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "monte-cristo-trail",
     "name": "Monte Cristo",
+    "kind": "site",
     "land_owner": "USDA Forest Service \u2014 Mt. Baker-Snoqualmie National Forest",
-    "specimen_count": 0,
-    "sample_count": 0
+    "l3_name": null,
+    "code": null,
+    "specimen_count": 8,
+    "sample_count": 2
   },
   {
     "slug": "moran-state-park",
     "name": "Moran State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 18,
     "sample_count": 2
   },
   {
     "slug": "mount-pilchuck-state-park",
     "name": "Mount Pilchuck State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "mount-rainier-national-park",
     "name": "Mount Rainier National Park",
+    "kind": "site",
     "land_owner": "National Park Service",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 6,
     "sample_count": 2
   },
   {
     "slug": "mount-saint-helens-wildlife-area",
     "name": "Mount Saint Helens",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "mount-spokane-state-park",
     "name": "Mount Spokane State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 72,
     "sample_count": 9
   },
   {
     "slug": "naches-peak-loop-trail",
     "name": "Naches Peak Loop",
+    "kind": "site",
     "land_owner": "National Park Service / USDA Forest Service",
-    "specimen_count": 0,
-    "sample_count": 0
+    "l3_name": null,
+    "code": null,
+    "specimen_count": 108,
+    "sample_count": 10
   },
   {
     "slug": "nisqually-national-wildlife-refuge",
     "name": "Billy Frank Jr. Nisqually National Wildlife Refuge",
+    "kind": "site",
     "land_owner": "US Fish & Wildlife Service",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 37,
     "sample_count": 5
   },
   {
     "slug": "north-creek-forest",
     "name": "North Creek Forest",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "north-creek-sportsfields",
     "name": "North Creek Sportsfields",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "north-olympic-wildlife-area",
     "name": "North Olympic",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 311,
     "sample_count": 11
   },
   {
     "slug": "oak-creek-wildlife-area",
     "name": "Oak Creek",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 342,
-    "sample_count": 11
+    "sample_count": 12
   },
   {
     "slug": "ocean-city-state-park",
     "name": "Ocean City State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 3
   },
   {
     "slug": "olmstead-place-state-park",
     "name": "Olmstead Place State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "olympic-national-park",
     "name": "Olympic National Park",
+    "kind": "site",
     "land_owner": "National Park Service",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 1256,
     "sample_count": 19
   },
   {
     "slug": "olympic-wildlife-area",
     "name": "Olympic",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 30,
     "sample_count": 5
   },
   {
     "slug": "pacific-beach-state-park",
     "name": "Pacific Beach State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "padilla-bay-nerr",
     "name": "Padilla Bay National Estuarine Research Reserve",
+    "kind": "site",
     "land_owner": "Washington Department of Ecology",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 109,
     "sample_count": 4
   },
   {
     "slug": "palouse-falls-state-park",
     "name": "Palouse Falls State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "park-at-bothell-landing",
     "name": "Park at Bothell Landing",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "pearrygin-lake-state-park",
     "name": "Pearrygin Lake State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 2
   },
   {
     "slug": "perry-creek-trail",
     "name": "Perry Creek",
+    "kind": "site",
     "land_owner": "USDA Forest Service \u2014 Mt. Baker-Snoqualmie National Forest",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
-    "sample_count": 0
+    "sample_count": 6
   },
   {
     "slug": "peshastin-pinnacles-state-park",
     "name": "Peshastin Pinnacles State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "pioneer-cemetery",
     "name": "Pioneer Cemetery",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "potholes-state-park",
     "name": "Potholes State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 290,
     "sample_count": 8
   },
   {
     "slug": "potlatch-state-park",
     "name": "Potlatch State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "rattlesnake-ledge",
     "name": "Rattlesnake Ledge Recreation Area",
+    "kind": "site",
     "land_owner": "Washington Department of Natural Resources",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "red-brick-road",
     "name": "Red Brick Road",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "revere-wildlife-area",
     "name": "Revere",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "ridgefield-nwr",
     "name": "Ridgefield National Wildlife Refuge",
+    "kind": "site",
     "land_owner": "US Fish & Wildlife Service",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 999,
     "sample_count": 13
   },
   {
     "slug": "riverside-state-park",
     "name": "Riverside State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 1,
-    "sample_count": 1
+    "sample_count": 4
   },
   {
     "slug": "royal-oaks-park",
     "name": "Royal Oaks Park",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sagebrush-flat-wildlife-area",
     "name": "Sagebrush Flat",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
-    "sample_count": 14
+    "sample_count": 15
   },
   {
     "slug": "sammamish-river-park",
     "name": "Sammamish River Park",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "scatter-creek-wildlife-area",
     "name": "Scatter Creek",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 431,
     "sample_count": 12
   },
   {
     "slug": "schafer-state-park",
     "name": "Schafer State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "scotch-creek-wildlife-area",
     "name": "Scotch Creek",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 1
   },
   {
     "slug": "sequim-bay-state-park",
     "name": "Sequim Bay State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "seward-park",
     "name": "Seward Park",
+    "kind": "site",
     "land_owner": "Seattle Parks and Recreation",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 23,
     "sample_count": 7
   },
   {
     "slug": "sherman-creek-wildlife-area",
     "name": "Sherman Creek",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 88,
     "sample_count": 11
   },
   {
     "slug": "shillapoo-wildlife-area",
     "name": "Shillapoo",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "shine-tidelands-state-park",
     "name": "Shine Tidelands State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sinlahekin-wildlife-area",
     "name": "Sinlahekin",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 17,
     "sample_count": 4
   },
   {
     "slug": "sjcclb-beaverton-marsh",
     "name": "Beaverton Marsh Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-cady-mountain",
     "name": "Cady Mountain Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-channel",
     "name": "Channel Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-coffelt-farm",
     "name": "Coffelt Farm Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 7,
     "sample_count": 1
   },
   {
     "slug": "sjcclb-coho",
     "name": "Coho Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-crescent-beach",
     "name": "Crescent Beach Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 2,
     "sample_count": 1
   },
   {
     "slug": "sjcclb-deer-harbor",
     "name": "Deer Harbor Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-diamond-hill",
     "name": "Diamond Hill Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-driggs-park",
     "name": "Driggs Park Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-eastsound-waterfront-park",
     "name": "Eastsound Waterfront Park",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-entrance-mountain",
     "name": "Entrance Mountain Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-false-bay-creek",
     "name": "False Bay Creek Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-fisherman-bay",
     "name": "Fisherman Bay Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 15,
     "sample_count": 2
   },
   {
     "slug": "sjcclb-frazer-homestead",
     "name": "Frazer Homestead Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-hummel-lake",
     "name": "Hummel Lake Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-judd-cove",
     "name": "Judd Cove Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-kellett-bluff",
     "name": "Kellett Bluff Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-limekiln",
     "name": "Limekiln Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-lopez-hill",
     "name": "Lopez Hill Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-middlewood",
     "name": "Middlewood Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-mount-grant",
     "name": "Mount Grant Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 11,
     "sample_count": 3
   },
   {
     "slug": "sjcclb-richardson-marsh",
     "name": "Richardson Marsh Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-spencer-spit",
     "name": "Spencer Spit Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-stonebridge-terrill",
     "name": "Stonebridge Terrill Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-third-lagoon",
     "name": "Third Lagoon Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-turtleback-mountain",
     "name": "Turtleback Mountain Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 62,
     "sample_count": 4
   },
   {
     "slug": "sjcclb-upright-head",
     "name": "Upright Head Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-watmough-bay",
     "name": "Watmough Bay Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 8,
     "sample_count": 3
   },
   {
     "slug": "sjcclb-westside",
     "name": "Westside Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sjcclb-zylstra-lake",
     "name": "Zylstra Lake Preserve",
+    "kind": "site",
     "land_owner": "San Juan County Land Bank",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 10,
     "sample_count": 2
   },
   {
     "slug": "skagit-wildlife-area",
     "name": "Skagit",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 38,
     "sample_count": 4
   },
   {
     "slug": "snoqualmie-wildlife-area",
     "name": "Snoqualmie",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sourdough-ridge-trail",
+    "name": "Sourdough Ridge",
+    "kind": "site",
+    "land_owner": "National Park Service \u2014 Mount Rainier National Park",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "south-puget-sound-wildlife-area",
     "name": "South Puget Sound",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "squilchuck-state-park",
     "name": "Squilchuck State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "steamboat-rock-state-park",
     "name": "Steamboat Rock State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 240,
     "sample_count": 8
   },
   {
     "slug": "steptoe-butte-state-park",
     "name": "Steptoe Butte State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 39,
     "sample_count": 9
   },
   {
     "slug": "stipek-park",
     "name": "Stipek Park",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "sun-lakes-dry-falls-state-park",
     "name": "Sun Lakes-Dry Falls State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 546,
     "sample_count": 19
   },
   {
     "slug": "sunnyside-snake-river-wildlife-area",
     "name": "Sunnyside-Snake River",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 38,
     "sample_count": 8
   },
   {
     "slug": "swanson-lakes-wildlife-area",
     "name": "Swanson Lakes",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 214,
     "sample_count": 7
   },
   {
     "slug": "swedish-cemetery",
     "name": "Swedish Cemetery",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "tall-tree-park",
     "name": "Tall Tree Park",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "tiger-mountain",
     "name": "Tiger Mountain State Forest",
+    "kind": "site",
     "land_owner": "Washington Department of Natural Resources",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "tomyhoi-lake-trail",
     "name": "Tomyhoi Lake",
+    "kind": "site",
     "land_owner": "USDA Forest Service \u2014 Mt. Baker-Snoqualmie National Forest",
-    "specimen_count": 0,
-    "sample_count": 0
+    "l3_name": null,
+    "code": null,
+    "specimen_count": 34,
+    "sample_count": 8
   },
   {
     "slug": "toppenish-nwr",
     "name": "Toppenish National Wildlife Refuge",
+    "kind": "site",
     "land_owner": "US Fish & Wildlife Service",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 60,
     "sample_count": 2
   },
   {
     "slug": "triton-cove-state-park",
     "name": "Triton Cove State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "twin-harbors-state-park",
     "name": "Twin Harbors State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "umtanum-creek-canyon-trail",
     "name": "Umtanum Creek Canyon",
+    "kind": "site",
     "land_owner": "Bureau of Land Management",
-    "specimen_count": 0,
-    "sample_count": 0
+    "l3_name": null,
+    "code": null,
+    "specimen_count": 1150,
+    "sample_count": 17
   },
   {
     "slug": "volunteer-park",
     "name": "Volunteer Park",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "w-t-wooten-wildlife-area",
     "name": "W.T. Wooten",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 34,
     "sample_count": 4
   },
   {
     "slug": "wells-wildlife-area",
     "name": "Wells",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 2,
     "sample_count": 4
   },
   {
     "slug": "wenas-wildlife-area",
     "name": "Wenas",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 2087,
     "sample_count": 18
   },
   {
     "slug": "wenatchee-confluence-state-park",
     "name": "Wenatchee Confluence State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "westport-light-state-park",
     "name": "Westport Light State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   },
   {
     "slug": "whatcom-wildlife-area",
     "name": "Whatcom",
+    "kind": "site",
     "land_owner": "Washington Department of Fish & Wildlife",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 1
   },
   {
     "slug": "willapa-hills-trail-state-park",
     "name": "Willapa Hills Trail State Park",
+    "kind": "site",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 13,
     "sample_count": 3
   },
   {
     "slug": "willapa-nwr",
     "name": "Willapa National Wildlife Refuge",
+    "kind": "site",
     "land_owner": "US Fish & Wildlife Service",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 27,
     "sample_count": 6
   },
   {
     "slug": "william-penn-park",
     "name": "William Penn Park",
+    "kind": "site",
     "land_owner": "City of Bothell",
+    "l3_name": null,
+    "code": null,
     "specimen_count": 0,
     "sample_count": 0
   }

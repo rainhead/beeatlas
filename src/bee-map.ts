@@ -8,6 +8,8 @@ import { Protocol } from 'pmtiles';
 import { loadOccurrenceGeoJSON } from './features.ts';
 import { markMapReady } from './ready.ts';
 import { type FilterState, emptyFilterState, getOccurrences, type OccurrenceProperties } from './filter.ts';
+import type { BoundaryMode } from './boundary-mode.ts';
+import { labelAnchors } from './polygon-label.ts';
 import type { FeatureCollection, Point } from 'geojson';
 import {
   RECENCY_COLORS,
@@ -131,7 +133,7 @@ export class BeeMap extends LitElement {
   mapElement!: HTMLDivElement;
 
   // --- @property inputs from bee-atlas ---
-  @property({ attribute: false }) boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' | 'wilderness' = 'off';
+  @property({ attribute: false }) boundaryMode: BoundaryMode = 'off';
   @property({ attribute: false }) visibleIds: Set<string> | null = null;
   @property({ attribute: false }) filteredGeoJSON: FeatureCollection<Point, OccurrenceProperties> | null = null;
   @property({ attribute: false }) selectedOccIds: Set<string> | null = null;
@@ -195,6 +197,7 @@ export class BeeMap extends LitElement {
   private _countyIdMap: Map<number, string> = new Map();
   private _ecoregionIdMap: Map<number, string> = new Map();
   private _placeIdMap: Map<number, string> = new Map();
+  private _ecoregionL4IdMap: Map<number, string> = new Map();
   private _clickConsumed = false;
 
 
@@ -222,8 +225,10 @@ export class BeeMap extends LitElement {
     { layerId: 'unclustered-point', handle: f => void this._handlePointClick(f) },
     { layerId: 'county-fill',       handle: (f, e) => this._handleRegionClick(f, 'NAME', e) },
     { layerId: 'ecoregion-fill',    handle: (f, e) => this._handleRegionClick(f, 'NA_L3NAME', e) },
-    // emits 'place-selected' with { slug }.
+    // emits 'place-selected' with { slug }. Level IV ecoregions ARE places, so
+    // they go through the same handler rather than 'map-click-region'.
     { layerId: 'place-fill',        handle: f => this._handlePlaceClick(f) },
+    { layerId: 'ecoregion-l4-fill', handle: f => this._handlePlaceClick(f) },
   ];
 
   // Shift-drag rectangle gesture (SEL-01, SEL-02)
@@ -768,6 +773,19 @@ export class BeeMap extends LitElement {
       data: { type: 'FeatureCollection', features: [] },
       generateId: true,
     });
+    this._map!.addSource('ecoregions_l4', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+      generateId: true,
+    });
+    // Label-ONLY companion to the source above: one derived Point per ecoregion.
+    // MapLibre anchors a polygon label to every POLYGON of a MultiPolygon, and these
+    // are dissolved from the EPA's per-patch source — "Loess Islands" is 58 patches,
+    // so labelling the polygons stamped the state with 58 copies of its name.
+    this._map!.addSource('ecoregions_l4_labels', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    });
     // Wilderness no-collect overlay: no generateId — it has no click-to-select
     // feature-state (a constant warning fill), unlike the boundary sources above.
     this._map!.addSource('wilderness', {
@@ -782,12 +800,19 @@ export class BeeMap extends LitElement {
     const countyVis = this.boundaryMode === 'counties' ? 'visible' as const : 'none' as const;
     const ecoVis = this.boundaryMode === 'ecoregions' ? 'visible' as const : 'none' as const;
     const placesVis = this.boundaryMode === 'places' ? 'visible' as const : 'none' as const;
+    const ecoL4Vis = this.boundaryMode === 'ecoregions_l4' ? 'visible' as const : 'none' as const;
     const wildernessVis = this.boundaryMode === 'wilderness' ? 'visible' as const : 'none' as const;
 
     this._map!.addLayer(boundaryFillLayerSpec('ecoregions', 'ecoregion-fill', ecoVis));
     this._map!.addLayer(boundaryLineLayerSpec('ecoregions', 'ecoregion-line', ecoVis));
     this._map!.addLayer(boundaryFillLayerSpec('counties', 'county-fill', countyVis));
     this._map!.addLayer(boundaryLineLayerSpec('counties', 'county-line', countyVis));
+    // Level IV ecoregions render UNDER the collecting sites: they tile the whole
+    // state, so a site polygon drawn beneath one would be invisible on the rare
+    // occasion both are on.
+    this._map!.addLayer(placeFillLayerSpec(ecoL4Vis, 'ecoregions_l4', 'ecoregion-l4-fill'));
+    this._map!.addLayer(placeLineLayerSpec(ecoL4Vis, 'ecoregions_l4', 'ecoregion-l4-line'));
+    this._map!.addLayer(placeLabelLayerSpec(ecoL4Vis, 'ecoregions_l4_labels', 'ecoregion-l4-label'));
     this._map!.addLayer(placeFillLayerSpec(placesVis));
     this._map!.addLayer(placeLineLayerSpec(placesVis));
     this._map!.addLayer(placeLabelLayerSpec(placesVis));
@@ -997,16 +1022,23 @@ export class BeeMap extends LitElement {
 
   private async _loadBoundaryData() {
     try {
-      const [countiesResp, ecoregionsResp, placesUrl, wildernessUrl] = await Promise.all([
+      const [countiesResp, ecoregionsResp, placesUrl, ecoregionsL4Url, wildernessUrl] = await Promise.all([
         resolveDataUrl('counties').then(url => fetch(url!)),
         resolveDataUrl('ecoregions').then(url => fetch(url!)),
         resolveDataUrl('places'),
+        resolveDataUrl('ecoregions_l4'),
         resolveDataUrl('wilderness'),
       ]);
       const countiesData = await countiesResp.json();
       const ecoregionsData = await ecoregionsResp.json();
       const placesData = placesUrl
         ? await fetch(placesUrl).then(r => r.json())
+        : { type: 'FeatureCollection', features: [] };
+      // Absent key = a manifest published before this overlay existed; the layer
+      // stays empty and its toggle draws nothing, rather than the whole boundary
+      // load failing and taking counties/ecoregions/places down with it.
+      const ecoregionsL4Data = ecoregionsL4Url
+        ? await fetch(ecoregionsL4Url).then(r => r.json())
         : { type: 'FeatureCollection', features: [] };
       const wildernessData = wildernessUrl
         ? await fetch(wildernessUrl).then(r => r.json())
@@ -1029,10 +1061,18 @@ export class BeeMap extends LitElement {
           (f, i) => [i, f.properties?.slug ?? '']
         )
       );
+      this._ecoregionL4IdMap = new Map(
+        (ecoregionsL4Data.features as { properties?: { slug?: string } }[]).map(
+          (f, i) => [i, f.properties?.slug ?? '']
+        )
+      );
 
       (this._map!.getSource('counties') as maplibregl.GeoJSONSource).setData(countiesData);
       (this._map!.getSource('ecoregions') as maplibregl.GeoJSONSource).setData(ecoregionsData);
       (this._map!.getSource('places') as maplibregl.GeoJSONSource).setData(placesData);
+      (this._map!.getSource('ecoregions_l4') as maplibregl.GeoJSONSource).setData(ecoregionsL4Data);
+      (this._map!.getSource('ecoregions_l4_labels') as maplibregl.GeoJSONSource)
+        .setData(labelAnchors(ecoregionsL4Data));
       (this._map!.getSource('wilderness') as maplibregl.GeoJSONSource).setData(wildernessData);
 
       // Apply visibility and selection for URL-restored state
@@ -1048,6 +1088,7 @@ export class BeeMap extends LitElement {
     const countyVis = this.boundaryMode === 'counties' ? 'visible' : 'none';
     const ecoVis = this.boundaryMode === 'ecoregions' ? 'visible' : 'none';
     const placesVis = this.boundaryMode === 'places' ? 'visible' : 'none';
+    const ecoL4Vis = this.boundaryMode === 'ecoregions_l4' ? 'visible' : 'none';
     const wildernessVis = this.boundaryMode === 'wilderness' ? 'visible' : 'none';
     this._map.setLayoutProperty('county-fill', 'visibility', countyVis);
     this._map.setLayoutProperty('county-line', 'visibility', countyVis);
@@ -1056,6 +1097,9 @@ export class BeeMap extends LitElement {
     this._map.setLayoutProperty('place-fill', 'visibility', placesVis);
     this._map.setLayoutProperty('place-line', 'visibility', placesVis);
     this._map.setLayoutProperty('place-label', 'visibility', placesVis);
+    this._map.setLayoutProperty('ecoregion-l4-fill', 'visibility', ecoL4Vis);
+    this._map.setLayoutProperty('ecoregion-l4-line', 'visibility', ecoL4Vis);
+    this._map.setLayoutProperty('ecoregion-l4-label', 'visibility', ecoL4Vis);
     this._map.setLayoutProperty('wilderness-fill', 'visibility', wildernessVis);
     this._map.setLayoutProperty('wilderness-line', 'visibility', wildernessVis);
     this._map.setLayoutProperty('wilderness-label', 'visibility', wildernessVis);
@@ -1068,6 +1112,7 @@ export class BeeMap extends LitElement {
     this._map.removeFeatureState({ source: 'counties' });
     this._map.removeFeatureState({ source: 'ecoregions' });
     this._map.removeFeatureState({ source: 'places' });
+    this._map.removeFeatureState({ source: 'ecoregions_l4' });
 
     if (this.boundaryMode === 'counties') {
       for (const [id, name] of this._countyIdMap.entries()) {
@@ -1086,6 +1131,13 @@ export class BeeMap extends LitElement {
       for (const [id, slug] of this._placeIdMap.entries()) {
         if (this.filterState.selectedPlace === slug) {
           this._map.setFeatureState({ source: 'places', id }, { selected: true });
+        }
+      }
+    } else if (this.boundaryMode === 'ecoregions_l4') {
+      // same slug-keyed highlight — a Level IV ecoregion is a place (beeatlas-8gcw)
+      for (const [id, slug] of this._ecoregionL4IdMap.entries()) {
+        if (this.filterState.selectedPlace === slug) {
+          this._map.setFeatureState({ source: 'ecoregions_l4', id }, { selected: true });
         }
       }
     }

@@ -17,6 +17,7 @@
 // and not part of the cross-route contract.
 
 import type { FilterState, CollectorEntry } from './filter.ts';
+import { VALID_BOUNDARY_MODES, type BoundaryMode } from './boundary-mode.ts';
 
 export interface ViewState {
   lon: number;   // WGS84 longitude
@@ -53,7 +54,7 @@ const TIER_OF: Record<SourceKey, TierKey> = {
 };
 
 export interface UiState {
-  boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' | 'wilderness';
+  boundaryMode: BoundaryMode;
   paneState: 'list' | 'table' | 'taxa' | 'collapsed';
   hiddenTiers?: Set<TierKey>;
 }
@@ -340,11 +341,18 @@ export function parseParams(search: string): ParsedParams {
 
   // UI state
   const bmRaw = p.get('bm') ?? '';
-  // any non-empty place= forces boundaryMode='places', overriding bm=
+  // any non-empty place= forces a place-drawing mode, overriding bm=. Which ONE
+  // depends on the place's kind, and nothing here knows it — the slug is opaque
+  // until places.json loads. So honour an explicit bm=ecoregions_l4 when the URL
+  // carries it, and otherwise open on 'places'; <bee-atlas> corrects a Level IV
+  // slug to its own layer once the place records arrive.
   const placeImplied = selectedPlace !== null && selectedPlace !== '';
-  const boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' | 'wilderness' = placeImplied
-    ? 'places'
-    : (bmRaw === 'counties' || bmRaw === 'ecoregions' || bmRaw === 'places' || bmRaw === 'wilderness') ? bmRaw : 'off';
+  const bm = (VALID_BOUNDARY_MODES as readonly string[]).includes(bmRaw)
+    ? bmRaw as BoundaryMode
+    : 'off';
+  const boundaryMode: BoundaryMode = placeImplied
+    ? (bm === 'ecoregions_l4' ? 'ecoregions_l4' : 'places')
+    : bm;
   const paneRaw = p.get('pane') ?? '';
   const viewRaw = p.get('view') ?? '';
   // Option A precedence: pane= wins; view=table is legacy alias when pane= absent

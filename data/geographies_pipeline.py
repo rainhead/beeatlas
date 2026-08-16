@@ -3,6 +3,8 @@
 Sources:
 - EPA Level III Ecoregions (North America): CEC / EPA
   https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/cec_na/NA_CEC_Eco_Level3.zip
+- EPA Level IV Ecoregions (per US state): EPA
+  https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/wa/wa_eco_l4.zip
 - US States: US Census Bureau TIGER 2024
   https://www2.census.gov/geo/tiger/TIGER2024/STATE/tl_2024_us_state.zip
 - US Counties: US Census Bureau Cartographic Boundary 2024 (1:500k)
@@ -54,6 +56,27 @@ PADUS_STATES = ("WA",)
 # does NOT exist in the state download. If a future PAD-US release renames it,
 # pyogrio.list_layers(<gdb>) fails loudly and shows the current names.
 PADUS_LAYER_TEMPLATE = "PADUS4_1Designation_State_{state}"
+
+# --- EPA Level IV Ecoregions ---------------------------------------------------
+# Level III above is the CEC's North America file; Level IV is a US-only
+# refinement of it, distributed per state as <st>/<st>_eco_l4.zip. The state
+# files carry NA_L3NAME verbatim, which is what nests each L4 under the Level III
+# layer the map already draws — join on the name, not on the L3 code (the CEC
+# and US code spaces differ).
+#
+# Keyed by state code like PADUS_STATES, for the same reason: add codes here as
+# BeeAtlas expands beyond WA (project_multi_state_expansion). An L4 that spans a
+# state line arrives once per state file; load_ecoregions_l4 dissolves on
+# US_L4CODE across every loaded state, so the stored polygon is the union.
+ECOREGION_L4_STATES = ("wa",)
+
+
+def _ecoregion_l4_url(state: str) -> str:
+    return (
+        "https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/"
+        f"{state}/{state}_eco_l4.zip"
+    )
+
 
 SOURCES = {
     "ecoregions": "https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/cec_na/NA_CEC_Eco_Level3.zip",
@@ -141,6 +164,8 @@ def load_geographies() -> None:
     """, [prj_wkt, f"/vsizip/{path}/NA_CEC_Eco_Level3.shp"])
     print("  ecoregions: done")  # noqa: T201
 
+    _load_ecoregions_l4(con)
+
     # --- us_states (geographic NAD83, no transform needed) ---
     path = _download("us_states", SOURCES["us_states"])
     print("  Loading us_states...")  # noqa: T201
@@ -186,6 +211,56 @@ def load_geographies() -> None:
     print("  ca_census_divisions: done")  # noqa: T201
 
     con.close()
+
+
+def _load_ecoregions_l4(con: duckdb.DuckDBPyConnection) -> None:
+    """Load EPA Level IV ecoregions into `geographies.ecoregions_l4`, one row per L4.
+
+    The source ships one feature per contiguous patch — WA has 330 features for 57
+    ecoregions, and "Loess Islands" alone accounts for 58 of them — so the load
+    DISSOLVES on US_L4CODE. One row per ecoregion is what the rest of the pipeline
+    wants: places_load turns each into a named place, which is a page and a filter,
+    and 58 pages named "Loess Islands" is not a thing anyone wants.
+
+    ST_MakeValid before the union: a handful of source polygons self-intersect, and
+    ST_Union_Agg propagates that into a geometry ST_Within later rejects.
+
+    No clip to the state outline (unlike the Level III mart): these ARE the per-state
+    files, so the EPA's own state edge is authoritative here, and clipping to the
+    Census WA polygon instead would open coastal slivers where the two disagree —
+    slivers that read as occurrences belonging to no ecoregion at all.
+    """
+    con.execute("""
+        CREATE OR REPLACE TEMP TABLE _l4_patches (
+            l4_code VARCHAR, l4_name VARCHAR, l3_name VARCHAR, geom GEOMETRY
+        )
+    """)
+    for state in ECOREGION_L4_STATES:
+        name = f"ecoregions_l4_{state}"
+        path = _download(name, _ecoregion_l4_url(state))
+        shp_stem = f"{state}_eco_l4"
+        print(f"  Loading {name}...")  # noqa: T201
+        prj_wkt = _read_prj(path, shp_stem)
+        con.execute("""
+            INSERT INTO _l4_patches
+            SELECT
+                US_L4CODE, US_L4NAME, NA_L3NAME,
+                ST_MakeValid(ST_Transform(geom, ?, 'EPSG:4326', true))
+            FROM ST_Read(?)
+        """, [prj_wkt, f"/vsizip/{path}/{shp_stem}.shp"])
+    # One dissolve over every state's patches, so an ecoregion straddling a state
+    # line becomes ONE polygon rather than one per file it appeared in.
+    con.execute("""
+        CREATE OR REPLACE TABLE geographies.ecoregions_l4 AS
+        SELECT l4_code,
+               any_value(l4_name) AS l4_name,
+               any_value(l3_name) AS l3_name,
+               ST_Union_Agg(geom) AS geom
+        FROM _l4_patches GROUP BY l4_code
+    """)
+    con.execute("DROP TABLE _l4_patches")
+    total = con.execute("SELECT COUNT(*) FROM geographies.ecoregions_l4").fetchone()[0]
+    print(f"  ecoregions_l4: {total} ecoregions across {len(ECOREGION_L4_STATES)} state file(s)")  # noqa: T201
 
 
 def _padus_url(state: str) -> str:

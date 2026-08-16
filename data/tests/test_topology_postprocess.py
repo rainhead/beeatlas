@@ -35,12 +35,13 @@ def test_empty_wilderness_skips_mapshaper(tmp_path, monkeypatch):
     # counties/ecoregions have features (mapshaper runs); wilderness is empty (skipped).
     _write(tmp_path / "counties.geojson", [{"type": "Feature", "geometry": None, "properties": {}}])
     _write(tmp_path / "ecoregions.geojson", [{"type": "Feature", "geometry": None, "properties": {}}])
+    _write(tmp_path / "ecoregions_l4.geojson", [{"type": "Feature", "geometry": None, "properties": {}}])
     _write(tmp_path / "wilderness.geojson", [])
 
     topology_postprocess.main()
 
     assert "wilderness.geojson" not in called, "mapshaper must be skipped for a 0-feature file"
-    assert set(called) == {"counties.geojson", "ecoregions.geojson"}
+    assert set(called) == {"counties.geojson", "ecoregions.geojson", "ecoregions_l4.geojson"}
     # The cleaned sibling is written (not the raw input); _meta is stamped on the
     # empty overlay's .clean.geojson so provenance is present downstream.
     assert "_meta" in json.loads((tmp_path / "wilderness.clean.geojson").read_text())
@@ -94,6 +95,7 @@ def test_input_carrying_meta_is_rejected(tmp_path, monkeypatch):
                         lambda src, dst: dst.write_text(src.read_text()))
 
     _write(tmp_path / "counties.geojson", [_poly(4)])
+    _write(tmp_path / "ecoregions_l4.geojson", [_poly(4)])
     # ecoregions.geojson is this step's own output fed back in
     (tmp_path / "ecoregions.geojson").write_text(json.dumps({
         "type": "FeatureCollection", "features": [_poly(4)],
@@ -115,7 +117,7 @@ def test_clean_dbt_mart_is_accepted(tmp_path, monkeypatch):
     monkeypatch.setattr(topology_postprocess, "_EXPORT_DIR", tmp_path)
     monkeypatch.setattr(topology_postprocess, "_run_mapshaper",
                         lambda src, dst: dst.write_text(src.read_text()))
-    for name in ("counties.geojson", "ecoregions.geojson"):
+    for name in ("counties.geojson", "ecoregions.geojson", "ecoregions_l4.geojson"):
         _write(tmp_path / name, [_poly(4)])
     _write(tmp_path / "wilderness.geojson", [])
 
@@ -145,7 +147,7 @@ def test_vertex_counts_are_reported(tmp_path, monkeypatch, capsys):
         dst.write_text(json.dumps(obj))
 
     monkeypatch.setattr(topology_postprocess, "_run_mapshaper", _halve)
-    for name in ("counties.geojson", "ecoregions.geojson"):
+    for name in ("counties.geojson", "ecoregions.geojson", "ecoregions_l4.geojson"):
         _write(tmp_path / name, [_poly(10)])
     _write(tmp_path / "wilderness.geojson", [])
 

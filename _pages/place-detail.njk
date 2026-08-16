@@ -18,7 +18,12 @@ layout: default.njk
            alt="Occurrence map for {{ place.name }}">
     {%- endif -%}
   </div>
-  <p class="metadata">{{ place.specimen_count | quantify("specimen") }} · {{ place.land_owner }}</p>
+  {#- Ecoregion places carry no land owner — nobody owns an ecoregion — so the
+      second half of the line names what it is and what it sits inside instead. -#}
+  <p class="metadata">{{ place.specimen_count | quantify("specimen") }}
+    {%- if place.kind == "ecoregion_l4" %} · Level IV ecoregion{% if place.l3_name %} within {{ place.l3_name }}{% endif %}
+    {%- elif place.land_owner %} · {{ place.land_owner }}{% endif -%}
+  </p>
   <a href="/?place={{ place.slug }}">View occurrences on the atlas →</a>
 
   {#- Phase 1 (cyv): collection-timing histogram — retrospective 'when have bees

@@ -38,3 +38,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0032](0032-species-universe-includes-expert-identified-observations.md) | The species universe includes expert-identified observations | Accepted |
 | [0033](0033-trust-an-expert-unless-an-expert-disagrees.md) | Determination trust: trust an expert, unless an expert disagrees | Accepted |
 | [0034](0034-occurrence-trust-stays-a-separate-artifact.md) | occurrence_trust stays a separate artifact | Accepted |
+| [0035](0035-level-iv-ecoregions-are-places.md) | Level IV ecoregions are places, not a second ecoregion column | Accepted |

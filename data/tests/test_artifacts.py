@@ -63,13 +63,14 @@ def _write_toml(tmp_path, content: str):
 # 1. Real contract: load + validate
 # ---------------------------------------------------------------------------
 
-def test_load_returns_20_artifacts():
-    """Loader returns 20 artifacts from the real contract (notes retired,
+def test_load_returns_21_artifacts():
+    """Loader returns 21 artifacts from the real contract (notes retired,
     beeatlas-6x9: the per-species notes/ dir is a build-time export with no
     manifest presence, so it has no artifacts.toml entry; taxon_presence added
-    by beeatlas-0of.2; occurrence_trust added by beeatlas-nyr)."""
+    by beeatlas-0of.2; occurrence_trust added by beeatlas-nyr; ecoregions_l4 by
+    beeatlas-8gcw)."""
     spec = load()
-    assert len(spec) == 20
+    assert len(spec) == 21
 
 
 def test_validate_passes_real_contract():
@@ -83,7 +84,8 @@ def test_artifact_order():
     spec = load()
     expected = [
         "occurrences", "occurrences_db", "species", "seasonality", "higher_taxa",
-        "counties", "ecoregions", "wilderness", "places", "places_meta", "place_details",
+        "counties", "ecoregions", "ecoregions_l4", "wilderness", "places", "places_meta",
+        "place_details",
         "taxon_presence", "checklist", "occurrence_trust", "photos", "species_hosts",
         "collectors", "collector_event_pages",
         "occurrences_db_tables", "generated_at",

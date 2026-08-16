@@ -55,6 +55,16 @@
   color: var(--text-muted, #666);
 }
 
+/* Level IV ecoregion section on the index (beeatlas-8gcw) */
+.ecoregions-section {
+  margin-top: 2rem;
+}
+
+.ecoregions-section .ecoregion-l3 {
+  margin: 1.25rem 0 0.25rem;
+  font-size: 1rem;
+}
+
 /* Phase 171: event feed */
 
 .event-feed-section {

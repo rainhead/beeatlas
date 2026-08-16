@@ -1,5 +1,8 @@
 """Topology-aware cleanup of region GeoJSON via mapshaper.
 
+Layers: counties, ecoregions (EPA Level III), ecoregions_l4 (EPA Level IV, which
+arrives from places-export rather than a dbt mart) and wilderness.
+
 Counties (Census CB 500k) are already topology-clean and cartographically
 generalized to ~1:500k from the topology database. Don't further simplify —
 mapshaper's -simplify at any aggressive retention chops small islands like
@@ -56,6 +59,12 @@ _MAPSHAPER_BIN = _DATA_DIR / "node_modules" / ".bin" / "mapshaper"
 _SIMPLIFY_PCT: dict[str, str | None] = {
     "counties.geojson": None,
     "ecoregions.geojson": "3%",
+    # Level IV ecoregions (beeatlas-8gcw) are the same EPA lineage at finer grain:
+    # 57 dissolved polygons, ~7.7 MB raw, dominated by the same Puget Sound
+    # coastlines. Same 3% for the same reason, landing in the same few-hundred-KB
+    # range. Unlike its siblings this file is written by places-export (the Level IV
+    # ecoregions are rows in geographies.places), not by a dbt mart.
+    "ecoregions_l4.geojson": "3%",
     # Wilderness (PAD-US Designation) polygons carry dense, high-vertex
     # boundaries traced to terrain; 5% retention keeps recognizable shapes while
     # holding the file to the tens-of-KB range like ecoregions.
@@ -216,7 +225,8 @@ def main() -> None:
     tuned for, and the only way to land far below it is to feed it its own output
     (see _assert_not_our_own_output).
     """
-    for name in ("counties.geojson", "ecoregions.geojson", "wilderness.geojson"):
+    for name in ("counties.geojson", "ecoregions.geojson", "ecoregions_l4.geojson",
+                 "wilderness.geojson"):
         src = _EXPORT_DIR / name
         dst = _EXPORT_DIR / _clean_name(name)
         if not src.exists():
