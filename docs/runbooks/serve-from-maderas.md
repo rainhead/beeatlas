@@ -380,3 +380,35 @@ anything stored before the switch. The PMTiles archive, fetched by range request
 shows the current protocol on the same page at the same moment. Disable the cache
 or hard-reload before believing a mixed reading. Same lesson as §10: measure at the
 server.
+
+## 12. Remove mod_evasive (one-time, sudo — ADR 0037)
+
+There is no WAF in front of this site, and that is a decision rather than an
+oversight — read [ADR 0037](../adr/0037-no-waf-in-front-of-a-static-site.md) before
+putting one back. mod_evasive counts requests per URI per client IP, which does not
+describe this traffic: the read path is a handful of very large immutable artifacts
+(a 238 MB tile archive, a 34 MB database) fetched as hundreds of ranges against one
+URL by one client. Any threshold is either below normal use — that was beeatlas-cit,
+a live outage where panning the map 403'd the page and the database — or so far above
+it that it stops nothing.
+
+```sh
+ssh -t maderas 'sudo bash ~/dev/beeatlas/infra/maderas/remove-evasive.sh'
+```
+
+Idempotent, and it purges as well as disables: a disabled-but-installed module is
+the same "enabled but inert" ambiguity as §11, in reverse. It also removes the
+`DOSLogDir`, which had never worked — `/var/log/apache2/evasive` was `root:root
+0755` while Apache runs as `www-data`, so the `dos-<ip>` lock files could never be
+created and the directory's emptiness was never evidence of anything.
+
+Verify:
+
+```sh
+ssh maderas 'apache2ctl -M 2>/dev/null | grep -i evasive || echo "gone"'
+# and the case that used to break: many ranges against the one archive URI
+ssh maderas 'dpkg -l libapache2-mod-evasive 2>/dev/null | grep ^ii || echo "purged"'
+```
+
+`mod_reqtimeout` stays enabled — it bounds slow request bodies rather than counting
+fast ones, which is the one generic protection whose shape fits this site.

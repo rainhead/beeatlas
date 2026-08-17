@@ -62,14 +62,15 @@ connections. h2 multiplexes them onto one. Range semantics are untouched: the
 archive still answers `206` with a correct `Content-Range`, which is the thing that
 had to be verified rather than assumed.
 
-**`mod_evasive` now measures something different.** Its hash table is per child
-process. Under prefork, one client's requests spread across many children and no
-counter ever saw the client's true rate — `evasive.conf` says so explicitly, and it
-is why the beeatlas-cit failures were intermittent. Under event there are few
-children, and h2 puts all of a client's multiplexed requests on ONE connection
-served by ONE child. The thresholds still have headroom (worst measured legitimate
-case 75 req/s against `DOSPageCount 300`), but that headroom is now real rather than
-accidental dilution. Tracked in beeatlas-hjdq.
+**`mod_evasive` measured something different — and was then removed.** Its hash
+table is per child process. Under prefork, one client's requests spread across many
+children and no counter ever saw the client's true rate, which is why the
+beeatlas-cit failures were intermittent. Under event there are few children, and h2
+puts all of a client's multiplexed requests on ONE connection served by ONE child,
+so the counters saw the real rate for the first time — the thresholds' headroom
+became exactly as wide as it measured and no wider. That, plus fifteen days of logs
+showing the module had never blocked anything, is part of what settled
+**[ADR 0037](0037-no-waf-in-front-of-a-static-site.md)**: mod_evasive is gone.
 
 **Cached immutable assets will lie about this.** `/assets/*` is served
 `max-age=31536000, immutable`, so a browser answers those requests out of its own

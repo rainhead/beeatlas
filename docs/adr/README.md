@@ -40,3 +40,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0034](0034-occurrence-trust-stays-a-separate-artifact.md) | occurrence_trust stays a separate artifact | Accepted |
 | [0035](0035-level-iv-ecoregions-are-places.md) | Level IV ecoregions are places, not a second ecoregion column | Accepted |
 | [0036](0036-http2-needs-a-threaded-mpm.md) | HTTP/2 needs a threaded MPM, so maderas runs mpm_event | Accepted |
+| [0037](0037-no-waf-in-front-of-a-static-site.md) | mod_evasive comes out; a static site does not want a WAF in front of it | Accepted |
