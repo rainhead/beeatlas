@@ -48,7 +48,7 @@ serves one of them under the artifact's own URL when `Accept-Encoding` allows, a
 hands everything small and text-shaped to `mod_deflate` on the fly.
 
 **Why not just add the types to `mod_deflate` and be done.** Compressing 32 MB per
-request costs real CPU, on a prefork server that also runs the nightly pipeline, and it
+request costs real CPU, on a two-core server that also runs the nightly pipeline, and it
 is paid again for every cold load — while the artifact is content-hashed and immutable,
 so the answer is identical every time. Doing it once per publish is free at request
 time and buys a level the live path could never afford: brotli q9 gets the database to

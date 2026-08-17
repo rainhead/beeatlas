@@ -339,3 +339,44 @@ the SQLite Web Worker, so it never appears in the page's Resource Timing — a
 cold load measured from `performance.getEntriesByType('resource')` omits the
 largest item by an order of magnitude and reads as ~5 MB. Byte-count the access
 log (`%b` is the response body size) or use `curl` as above.
+
+## 11. HTTP/2 (one-time, sudo — ADR 0036)
+
+`a2enmod http2` is **not sufficient and does not look insufficient**. `mod_http2`
+requires a threaded MPM; under `mpm_prefork` it loads, answers `apache2ctl -M`,
+accepts `Protocols h2 h2c http/1.1` from `mods-available/http2.conf` — and then
+serves HTTP/1.1 to everyone, logging one warning at startup. The module list and
+the directive both read as correct, so the symptom gets blamed on the reverse
+proxy, on TLS, or on the browser.
+
+The MPM is the whole fix:
+
+```sh
+ssh -t maderas 'sudo bash ~/dev/beeatlas/infra/maderas/apply-http2.sh'
+```
+
+The script is idempotent and rolls the MPM back if `configtest` fails. It also
+moves `cgi` → `cgid`, because `mod_cgi` is prefork-only. Unlike §10 this is a
+**restart, not a graceful reload** — changing the MPM swaps a module built against
+a different process model. Expect a second or two of downtime on every vhost on the
+box, not just beeatlas.net.
+
+Verify at the server:
+
+```sh
+curl -sI --http2 https://beeatlas.net/ -o /dev/null -w 'site: %{http_version}\n'
+curl -sI --http2 https://api.beeatlas.net/health -o /dev/null -w 'api:  %{http_version}\n'
+# ranges must still work — this is the basemap's entire access pattern
+curl -s --http2 -r 0-99 "https://beeatlas.net/basemap/tiles/$(
+  curl -s https://beeatlas.net/basemap/tiles/manifest.json |
+    sed -n 's/.*"archive": "\([^"]*\)".*/\1/p' | head -1
+)" -o /dev/null -w 'range: %{http_version} %{http_code} %{size_download}b\n'
+```
+
+**A browser will disagree, and the browser is wrong.** `/assets/*` is served
+`max-age=31536000, immutable`, so those requests never reach the network and
+devtools reports the protocol recorded when the entry was cached — HTTP/1.1 for
+anything stored before the switch. The PMTiles archive, fetched by range request,
+shows the current protocol on the same page at the same moment. Disable the cache
+or hard-reload before believing a mixed reading. Same lesson as §10: measure at the
+server.

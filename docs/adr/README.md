@@ -39,3 +39,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0033](0033-trust-an-expert-unless-an-expert-disagrees.md) | Determination trust: trust an expert, unless an expert disagrees | Accepted |
 | [0034](0034-occurrence-trust-stays-a-separate-artifact.md) | occurrence_trust stays a separate artifact | Accepted |
 | [0035](0035-level-iv-ecoregions-are-places.md) | Level IV ecoregions are places, not a second ecoregion column | Accepted |
+| [0036](0036-http2-needs-a-threaded-mpm.md) | HTTP/2 needs a threaded MPM, so maderas runs mpm_event | Accepted |
