@@ -23,9 +23,9 @@ layout: default.njk
 {% endif %}{% endfor %} { fill: #b0cfe8; }
 </style>
 {%- endif -%}
-{%- if collector.ecoregion_names and collector.ecoregion_names.length > 0 -%}
+{%- if collector.ecoregion_l4_names and collector.ecoregion_l4_names.length > 0 -%}
 <style>
-{% for e in collector.ecoregion_names %}.coverage-eco [data-region="{{ e }}"]{% if not loop.last %},
+{% for e in collector.ecoregion_l4_names %}.coverage-eco [data-region="{{ e }}"]{% if not loop.last %},
 {% endif %}{% endfor %} { fill: #b0cfe8; }
 </style>
 {%- endif -%}
@@ -52,7 +52,7 @@ layout: default.njk
       on screen. -#}
   {%- if (collector.species_by_genus and collector.species_by_genus.length > 0) or collector.total_event_count > 0 -%}
   {{ inlineNav([
-    ({ href: "#coverage", label: "Coverage" } if collector.county_count > 0 or collector.ecoregion_count > 0),
+    ({ href: "#coverage", label: "Coverage" } if collector.county_count > 0 or collector.ecoregion_l4_count > 0),
     ({ href: "#species", label: "Species collected" } if collector.species_by_genus and collector.species_by_genus.length > 0),
     ({ href: "#events", label: "Recent identifications" } if collector.total_event_count > 0)
   ], "On this page") }}
@@ -62,7 +62,7 @@ layout: default.njk
       with two committed SVG partials highlighted per-collector via <style> blocks above.
       The wrapping div carries role="img" aria-label="..." for accessibility since the
       inline SVG has aria-hidden="true" (it's decorative — the label carries the info). -#}
-  {%- if collector.county_count > 0 or collector.ecoregion_count > 0 -%}
+  {%- if collector.county_count > 0 or collector.ecoregion_l4_count > 0 -%}
   <section class="coverage-section" id="coverage">
     <div class="coverage-maps">
       {%- if collector.county_count > 0 -%}
@@ -73,12 +73,15 @@ layout: default.njk
         <p class="metadata">{{ collector.county_count | quantify("county", "counties") }}</p>
       </div>
       {%- endif -%}
-      {%- if collector.ecoregion_count > 0 -%}
+      {#- Level IV, not Level III (beeatlas-dflu). The count says which level
+          because "ecoregion" alone is ambiguous here — CONTEXT.md — and because
+          "7 ecoregions" meaning L3 and meaning L4 are very different claims. -#}
+      {%- if collector.ecoregion_l4_count > 0 -%}
       <div class="map-block coverage-eco"
            role="img"
-           aria-label="Ecoregion coverage map for {{ collector.display_name }} — {{ collector.ecoregion_count | quantify('ecoregion') }}">
-        {% include "maps/ecoregions-base.svg" %}
-        <p class="metadata">{{ collector.ecoregion_count | quantify("ecoregion") }}</p>
+           aria-label="Level IV ecoregion coverage map for {{ collector.display_name }} — {{ collector.ecoregion_l4_count }} of {{ places.ecoregionCount }} ecoregions">
+        {% include "maps/ecoregions-l4-base.svg" %}
+        <p class="metadata">{{ collector.ecoregion_l4_count }} of {{ places.ecoregionCount }} Level IV ecoregions</p>
       </div>
       {%- endif -%}
     </div>

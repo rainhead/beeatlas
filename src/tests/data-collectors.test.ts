@@ -229,22 +229,22 @@ describe('Phase 172 — accomplishment fields (ACCOM-01..04)', () => {
     }
   });
 
-  test('every fixture entry has county_count and ecoregion_count as numbers (ACCOM-01/03)', () => {
+  test('every fixture entry has county_count and ecoregion_l4_count as numbers (ACCOM-01/03)', () => {
     for (const c of fixtureData) {
       expect(typeof c.county_count, `county_count of ${c.login}`).toBe('number');
-      expect(typeof c.ecoregion_count, `ecoregion_count of ${c.login}`).toBe('number');
+      expect(typeof c.ecoregion_l4_count, `ecoregion_l4_count of ${c.login}`).toBe('number');
     }
   });
 
-  test('every fixture entry has county_names and ecoregion_names as sorted arrays (FIX A)', () => {
+  test('every fixture entry has county_names and ecoregion_l4_names as sorted arrays (FIX A)', () => {
     for (const c of fixtureData) {
       expect(
         Array.isArray(c.county_names),
         `county_names of ${c.login} must be an Array`,
       ).toBe(true);
       expect(
-        Array.isArray(c.ecoregion_names),
-        `ecoregion_names of ${c.login} must be an Array`,
+        Array.isArray(c.ecoregion_l4_names),
+        `ecoregion_l4_names of ${c.login} must be an Array`,
       ).toBe(true);
       // Counts must match the length of the name arrays
       expect(
@@ -252,20 +252,34 @@ describe('Phase 172 — accomplishment fields (ACCOM-01..04)', () => {
         `county_count must equal county_names.length for ${c.login}`,
       ).toBe((c.county_names as string[]).length);
       expect(
-        c.ecoregion_count,
-        `ecoregion_count must equal ecoregion_names.length for ${c.login}`,
-      ).toBe((c.ecoregion_names as string[]).length);
+        c.ecoregion_l4_count,
+        `ecoregion_l4_count must equal ecoregion_l4_names.length for ${c.login}`,
+      ).toBe((c.ecoregion_l4_names as string[]).length);
       // Arrays must be sorted alphabetically
       const sortedCounties = [...(c.county_names as string[])].sort();
       expect(
         c.county_names,
         `county_names must be sorted alphabetically for ${c.login}`,
       ).toEqual(sortedCounties);
-      const sortedEcoregions = [...(c.ecoregion_names as string[])].sort();
+      const sortedEcoregions = [...(c.ecoregion_l4_names as string[])].sort();
       expect(
-        c.ecoregion_names,
-        `ecoregion_names must be sorted alphabetically for ${c.login}`,
+        c.ecoregion_l4_names,
+        `ecoregion_l4_names must be sorted alphabetically for ${c.login}`,
       ).toEqual(sortedEcoregions);
+    }
+  });
+
+  // beeatlas-dflu: the names are matched against the base map's data-region
+  // attribute by CSS, so they must be the CODED Level IV form. A bare "Cascades"
+  // is a Level III name and matches nothing in ecoregions-l4-base.svg — the map
+  // renders, highlights nothing, and reads as a collector with no coverage.
+  test('ecoregion_l4_names are coded Level IV names, not Level III ones', () => {
+    for (const c of fixtureData) {
+      for (const name of c.ecoregion_l4_names as string[]) {
+        expect(name, `${c.login}: "${name}" is not a coded Level IV name`).toMatch(
+          /^\d+[a-z]\. /,
+        );
+      }
     }
   });
 

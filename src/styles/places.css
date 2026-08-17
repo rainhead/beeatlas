@@ -177,6 +177,20 @@ table.event-feed td {
   margin-top: 1.5rem;
 }
 
+/* Hairline the Level IV ecoregion outlines (beeatlas-dflu). This is legibility,
+   not decoration: the map carries 57 regions where the Level III one carried 9,
+   and at the base SVG's own #888/0.5 that many outlines read as a mosaic — the
+   coverage shape disappears into the lattice. Scoped to .coverage-eco so the
+   39-county map keeps the heavier line it needs.
+
+   Sets ONLY stroke properties. The per-collector highlight blocks in
+   collector-detail.njk set only `fill` at equal specificity, so keeping the two
+   rules on disjoint properties is what stops them racing on source order. */
+.coverage-eco .region {
+  stroke: #bbb;
+  stroke-width: 0.25;
+}
+
 .coverage-maps {
   display: flex;
   flex-direction: column;

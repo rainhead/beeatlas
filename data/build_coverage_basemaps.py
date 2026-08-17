@@ -7,25 +7,43 @@ Each polygon becomes <path class="region" data-region="<name>" d="..."/> so
 collector pages can highlight contributed regions via a per-collector CSS
 <style> block without any JavaScript.
 
-Ecoregion geometry is aggressively simplified (ST_SimplifyPreserveTopology
-tolerance ECO_TOLERANCE ≈ 0.05°, ~5 km) so the partial stays well under
-150 KB. County polygons use the species_maps.py moderate tolerance (0.005°).
+County polygons use the species_maps.py moderate tolerance (0.005°).
 
 Outputs (committed to _includes/maps/):
     _includes/maps/counties-base.svg
-    _includes/maps/ecoregions-base.svg
+    _includes/maps/ecoregions-l4-base.svg
 
 Usage:
     cd data && uv run python build_coverage_basemaps.py
 
 The script reads:
     - County polygons from geographies.us_counties in beeatlas.duckdb (DB_PATH)
-    - Ecoregion polygons from public/data/ecoregions.clean.geojson (ECO_GEOJSON)
-      keyed by NA_L3NAME (NOT "name" — Pitfall 2 from collector_maps.py).
-      This is topology-postprocess's cleaned output (beeatlas-hyq) — the file the
-      pipeline and scripts/fetch-data.sh actually produce locally; the raw
-      ecoregions.geojson mart copy is an intermediate and is not published/fetched.
-      Re-simplifying an already-cleaned file is fine (it only drops more vertices).
+    - Level IV ecoregion polygons from public/data/ecoregions_l4.clean.geojson
+      (ECO_L4_GEOJSON), keyed by the "name" property — already the coded display
+      form ("1d. Volcanics"), which is also what `geographies.places.name` holds
+      for kind='ecoregion_l4', so the CSS attribute selector matches what
+      collectors_export.py emits. These are topology-postprocess's cleaned outputs
+      (beeatlas-hyq) — the files the pipeline and scripts/fetch-data.sh actually
+      produce locally; the raw *.geojson mart copies are intermediates and are
+      neither published nor fetched.
+
+WHY LEVEL IV, AND WHY 0.02° (beeatlas-dflu). The coverage map used the 9 Level
+III ecoregions and saturated: one L3 region is up to a third of the state, so a
+collector with a single region got a map that said "somewhere in eastern
+Washington". The 57 Level IV places locate the same records. Two numbers govern
+the swap, both measured rather than guessed:
+
+  * ECO_L4_TOLERANCE = 0.02°, NOT the 0.05° the Level III map used.
+    ST_SimplifyPreserveTopology preserves each FEATURE's topology, not the
+    borders it SHARES with its neighbours, so adjacent polygons drift apart and
+    leave white slivers between them. Level IV has far more shared border per
+    unit area than Level III, which is why an artifact invisible at 9 regions
+    dominates at 57. At 0.02° (~2 km, well under a pixel at the ~530 px the map
+    renders) the slivers are gone. Cost: 73 KB, against 44 KB for the counties
+    map already inlined on the same page.
+  * The stroke drops to a hairline in src/styles/places.css. 57 outlines at the
+    Level III weight (#888 / 0.5) read as a mosaic; that CSS is load-bearing for
+    legibility, not decoration.
 
 Geometry helpers copied from species_maps.py / collector_maps.py rather than
 imported to avoid runtime coupling with those modules.
@@ -45,6 +63,9 @@ DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb
 _repo_root = Path(__file__).parent.parent
 _default_eco = str(_repo_root / "public" / "data" / "ecoregions.clean.geojson")
 ECO_GEOJSON = Path(os.environ.get("ECO_GEOJSON", _default_eco))
+
+_default_eco_l4 = str(_repo_root / "public" / "data" / "ecoregions_l4.clean.geojson")
+ECO_L4_GEOJSON = Path(os.environ.get("ECO_L4_GEOJSON", _default_eco_l4))
 
 _default_out = str(_repo_root / "_includes" / "maps")
 OUT_DIR = Path(os.environ.get("BASEMAP_OUT_DIR", _default_out))
@@ -68,6 +89,12 @@ COUNTY_TOLERANCE = 0.005
 # most tiny island features collapse and the Puget Sound coastline is still
 # recognizable. Target: well under 150 KB for the committed partial.
 ECO_TOLERANCE = 0.05
+
+# Level IV tolerance. Deliberately gentler than ECO_TOLERANCE — see the module
+# docstring: at 0.05° the per-feature simplification tears shared borders apart
+# and the map fills with white slivers. Moving this number without re-checking
+# the rendered map is how that comes back.
+ECO_L4_TOLERANCE = 0.02
 
 # Default fill for all base-map polygons. Per-collector highlights are applied
 # via page-level CSS using [data-region="<name>"] attribute selectors.
@@ -216,11 +243,17 @@ def build_ecoregions_base(
     eco_geojson_path: Path,
     out_path: Path,
     tolerance: float = ECO_TOLERANCE,
+    name_key: str = "NA_L3NAME",
 ) -> int:
-    """Emit ecoregions-base.svg with one <path> per ecoregion feature.
+    """Emit an ecoregion base map with one <path> per ecoregion feature.
 
-    Features are keyed by NA_L3NAME (NOT "name" — Pitfall 2). Multiple
-    features may carry the same NA_L3NAME (e.g. Puget Lowland islands) —
+    `name_key` is the feature property to read the region name from, and it is
+    the whole difference between the two levels: Level III files key on
+    NA_L3NAME (NOT "name" — Pitfall 2), Level IV's cleaned file keys on "name".
+    Whatever comes out lands in data-region="…", so it must byte-match the names
+    collectors_export.py puts in ecoregion_l4_names or nothing highlights.
+
+    Multiple features may carry the same name (e.g. Puget Lowland islands) —
     each is rendered as a separate <path data-region="<name>"> so the
     CSS attribute selector can highlight all polygons for a given region.
 
@@ -242,7 +275,7 @@ def build_ecoregions_base(
     written = 0
     skipped = 0
     for feature in fc["features"]:
-        name = feature["properties"]["NA_L3NAME"]   # NOT "name" — Pitfall 2
+        name = feature["properties"][name_key]
         geom_json = json.dumps(feature["geometry"])
 
         try:
@@ -281,7 +314,7 @@ def build_ecoregions_base(
     )
     size = out_path.stat().st_size
     print(
-        f"  ecoregions-base.svg: {written} paths written, {skipped} features "
+        f"  {out_path.name}: {written} paths written, {skipped} features "
         f"simplified away, {size:,} bytes"
     )
     return size
@@ -293,17 +326,21 @@ def build_ecoregions_base(
 
 def build_basemaps(
     db_path: str | None = None,
-    eco_geojson_path: Path | None = None,
+    eco_l4_geojson_path: Path | None = None,
     out_dir: Path | None = None,
 ) -> dict[str, int]:
-    """Build both county and ecoregion base-map SVG partials.
+    """Build the county and Level IV ecoregion base-map SVG partials.
 
-    Returns a dict with keys 'counties' and 'ecoregions' mapping to byte sizes.
+    Returns a dict with keys 'counties' and 'ecoregions_l4' mapping to byte sizes.
+
+    A Level III partial is NOT emitted: no template includes one since the
+    coverage map moved to Level IV (beeatlas-dflu). build_ecoregions_base still
+    takes name_key, so pass ECO_GEOJSON / "NA_L3NAME" to get one back.
     """
     if db_path is None:
         db_path = DB_PATH
-    if eco_geojson_path is None:
-        eco_geojson_path = ECO_GEOJSON
+    if eco_l4_geojson_path is None:
+        eco_l4_geojson_path = ECO_L4_GEOJSON
     if out_dir is None:
         out_dir = OUT_DIR
 
@@ -311,11 +348,17 @@ def build_basemaps(
     try:
         con.execute("INSTALL spatial; LOAD spatial;")
         county_size = build_counties_base(con, out_dir / "counties-base.svg")
-        eco_size = build_ecoregions_base(con, eco_geojson_path, out_dir / "ecoregions-base.svg")
+        eco_l4_size = build_ecoregions_base(
+            con,
+            eco_l4_geojson_path,
+            out_dir / "ecoregions-l4-base.svg",
+            tolerance=ECO_L4_TOLERANCE,
+            name_key="name",
+        )
     finally:
         con.close()
 
-    return {"counties": county_size, "ecoregions": eco_size}
+    return {"counties": county_size, "ecoregions_l4": eco_l4_size}
 
 
 def main() -> None:
@@ -324,7 +367,7 @@ def main() -> None:
     sizes = build_basemaps()
     print(
         f"Done — counties: {sizes['counties']:,} bytes, "
-        f"ecoregions: {sizes['ecoregions']:,} bytes"
+        f"ecoregions_l4: {sizes['ecoregions_l4']:,} bytes"
     )
 
 

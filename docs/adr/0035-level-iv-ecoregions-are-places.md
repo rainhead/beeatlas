@@ -73,6 +73,17 @@ Consequences that follow from it, and the choices inside it:
 
 - Nearly every occurrence now has at least one bridge row, where before only those
   inside a curated site did: `occurrence_places` went from ~21k rows to ~100k.
+- **The collector coverage map moved to Level IV** (beeatlas-dflu, 2026-08-16), which
+  this record made possible and the Level III map's saturation made worth doing: one
+  L3 region is up to a third of the state, so a collector in a single region got a map
+  that said "somewhere in eastern Washington". Coverage now comes from the bridge
+  rather than the `ecoregion_l3` column, and the fields are named `ecoregion_l4_*` so
+  the level is on the face of them. Two measured constraints came with it — the
+  simplification tolerance has to be gentler than Level III's (per-feature
+  simplification tears shared borders, and 57 regions have far more shared border than
+  9), and the stroke has to be a hairline (57 outlines at the old weight read as a
+  mosaic). Both are documented where they live, in `data/build_coverage_basemaps.py`
+  and `src/styles/places.css`.
 - **Checklist records get no place membership at all**, which this change forced a
   decision on. A checklist record's coordinate is a county-level placeholder — 683
   King County records sit on one pin in downtown Seattle — and `src/filter.ts` has

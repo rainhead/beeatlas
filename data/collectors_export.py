@@ -13,9 +13,12 @@ Query split:
                     status split).  Predicate: ecdysis_id IS NOT NULL OR
                     record_type IN ('waba_specimen', 'provisional_sample').
     _ACCOM_QUERY  — accomplishment aggregations (active_since, seasons_count,
-                    county/ecoregion names + counts).  Predicate: tier='atlas',
+                    county names + count).  Predicate: tier='atlas',
                     which includes uncatalogued atlas specimens (record_type=
                     'specimen', ecdysis_id IS NULL) that the old predicate drops.
+    _ECOREGION_L4_QUERY — Level IV ecoregion coverage, via the
+                    occurrence_places bridge (they are PLACES, not a column).
+                    Also needs ASSETS_DIR/occurrence_places.parquet.
     _SPECIES_QUERY — species-rank species list grouped by genus.
                     Predicate: tier='atlas'.  Uses cased scientificName.
 
@@ -103,12 +106,54 @@ _ACCOM_QUERY = """
         -- Sorted distinct non-null county and ecoregion name lists for display.
         list_sort(array_agg(DISTINCT o.county) FILTER (WHERE o.county IS NOT NULL))
                                                                             AS county_names,
-        list_sort(array_agg(DISTINCT o.ecoregion_l3) FILTER (WHERE o.ecoregion_l3 IS NOT NULL))
-                                                                            AS ecoregion_names,
-        COUNT(DISTINCT o.county) FILTER (WHERE o.county IS NOT NULL)        AS county_count,
-        COUNT(DISTINCT o.ecoregion_l3) FILTER (WHERE o.ecoregion_l3 IS NOT NULL)
-                                                                            AS ecoregion_count
+        COUNT(DISTINCT o.county) FILTER (WHERE o.county IS NOT NULL)        AS county_count
     FROM read_parquet(?) o
+    WHERE o.collector_inat_login IS NOT NULL
+      AND o.tier = 'atlas'
+    GROUP BY o.collector_inat_login
+"""
+
+
+# Level IV ecoregion coverage (beeatlas-dflu). NOT a column on occurrences: a
+# Level IV ecoregion is a PLACE (ADR 0035), so membership lives in the
+# occurrence_places bridge and the join goes through geographies.places to pick
+# the ecoregion_l4 rows out of the sites. Level III — o.ecoregion_l3, a scalar
+# column with its own filter dimension — is a DIFFERENT mechanism for a
+# different thing; read CONTEXT.md before conflating them.
+#
+# The coverage map used Level III and saturated: one L3 region is up to a third
+# of the state. Level IV locates the same records without ever filling the map —
+# the widest-ranging collector covers 33 of 57.
+#
+# p.name is the coded display form ("1d. Volcanics"), which must byte-match the
+# data-region attribute build_coverage_basemaps.py writes from the geojson's
+# "name" property. They come from the same upstream, but nothing enforces it at
+# build time — a mismatch highlights nothing and looks like "no coverage".
+#
+# The occ_id CASE mirrors occIdFromRow (src/occurrence.ts) and the copies in
+# places_export.py / places_maps.py / marts/occurrence_places.sql. Copied rather
+# than imported, per this package's convention of avoiding runtime coupling
+# between export modules; the priority order is what must stay in step.
+_ECOREGION_L4_QUERY = """
+    WITH occ AS (
+        SELECT *,
+            CASE
+                WHEN ecdysis_id IS NOT NULL THEN 'ecdysis:' || ecdysis_id
+                WHEN observation_id IS NOT NULL THEN 'inat:' || observation_id
+                WHEN specimen_observation_id IS NOT NULL THEN 'inat_obs:' || specimen_observation_id
+                WHEN checklist_id IS NOT NULL THEN 'checklist:' || checklist_id
+            END AS occ_id
+        FROM read_parquet(?)
+    )
+    SELECT
+        o.collector_inat_login                                              AS login,
+        list_sort(array_agg(DISTINCT p.name))                               AS ecoregion_l4_names,
+        COUNT(DISTINCT p.slug)                                              AS ecoregion_l4_count
+    FROM occ o
+    JOIN read_parquet(?) op ON op.occ_id = o.occ_id
+    JOIN geographies.places p
+      ON p.slug = op.place_slug
+     AND p.kind = 'ecoregion_l4'
     WHERE o.collector_inat_login IS NOT NULL
       AND o.tier = 'atlas'
     GROUP BY o.collector_inat_login
@@ -164,6 +209,7 @@ def export_collectors(con: duckdb.DuckDBPyConnection | None = None) -> None:
 
         occ_parquet = ASSETS_DIR / "occurrences.parquet"
         species_parquet = ASSETS_DIR / "species.parquet"
+        bridge_parquet = ASSETS_DIR / "occurrence_places.parquet"
 
         if not occ_parquet.exists():
             raise FileNotFoundError(
@@ -172,6 +218,11 @@ def export_collectors(con: duckdb.DuckDBPyConnection | None = None) -> None:
         if not species_parquet.exists():
             raise FileNotFoundError(
                 f"{species_parquet} not found — run species-export before collectors-export"
+            )
+        if not bridge_parquet.exists():
+            raise FileNotFoundError(
+                f"{bridge_parquet} not found — run dbt before collectors-export "
+                "(Level IV ecoregion coverage reads the occurrence_places bridge)"
             )
 
         rows = con.execute(
@@ -213,9 +264,7 @@ def export_collectors(con: duckdb.DuckDBPyConnection | None = None) -> None:
             "active_since": None,
             "seasons_count": 0,
             "county_names": [],
-            "ecoregion_names": [],
             "county_count": 0,
-            "ecoregion_count": 0,
         }
         accom_rows = con.execute(
             _ACCOM_QUERY,
@@ -225,19 +274,36 @@ def export_collectors(con: duckdb.DuckDBPyConnection | None = None) -> None:
         for row in accom_rows:
             (
                 login_ac, active_since, seasons_count,
-                county_names, ecoregion_names,
-                county_count, ecoregion_count,
+                county_names, county_count,
             ) = row
             accom_by_login[login_ac] = {
                 "active_since": int(active_since) if active_since is not None else None,
                 "seasons_count": int(seasons_count),
                 "county_names": list(county_names) if county_names is not None else [],
-                "ecoregion_names": list(ecoregion_names) if ecoregion_names is not None else [],
                 "county_count": int(county_count),
-                "ecoregion_count": int(ecoregion_count),
             }
         for rec in records:
             rec.update(accom_by_login.get(rec["login"], _ACCOM_DEFAULT))
+
+        # Level IV ecoregion coverage — its own query because it joins the
+        # occurrence_places bridge, not the occurrences columns (see the comment
+        # on _ECOREGION_L4_QUERY). A collector with no bridge row gets the empty
+        # default and the template omits their ecoregion map entirely.
+        eco_rows = con.execute(
+            _ECOREGION_L4_QUERY,
+            [str(occ_parquet), str(bridge_parquet)],
+        ).fetchall()
+        eco_by_login = {
+            login_eco: {
+                "ecoregion_l4_names": list(names) if names is not None else [],
+                "ecoregion_l4_count": int(count),
+            }
+            for login_eco, names, count in eco_rows
+        }
+        for rec in records:
+            rec.update(eco_by_login.get(
+                rec["login"], {"ecoregion_l4_names": [], "ecoregion_l4_count": 0}
+            ))
 
         # ACCOM-02 / D-04: species-rank species list grouped by genus.
         # Run _SPECIES_QUERY with the same parquet parameters, then group:

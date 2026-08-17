@@ -23,6 +23,7 @@ import pytest
 
 import build_coverage_basemaps as bm_module
 from build_coverage_basemaps import (
+    ECO_L4_TOLERANCE,
     SVG_NS,
     build_counties_base,
     build_ecoregions_base,
@@ -310,23 +311,67 @@ _REAL_ECO = Path(
     os.environ.get("EXPORT_DIR", str(Path(__file__).parent.parent.parent / "public" / "data"))
 ) / "ecoregions.geojson"
 
+# The Level IV partial is built from the CLEANED file (topology-postprocess's
+# output), which is what build_coverage_basemaps.py reads and what the pipeline
+# and scripts/fetch-data.sh actually produce.
+_REAL_ECO_L4 = Path(
+    os.environ.get("EXPORT_DIR", str(Path(__file__).parent.parent.parent / "public" / "data"))
+) / "ecoregions_l4.clean.geojson"
+
 
 @pytest.mark.skipif(
-    not _REAL_ECO.exists(),
-    reason="ecoregions.geojson not present (gitignored in CI)",
+    not _REAL_ECO_L4.exists(),
+    reason="ecoregions_l4.clean.geojson not present (gitignored in CI)",
 )
-def test_ecoregions_base_weight_regression(tmp_path):
-    """ecoregions-base.svg from the real ecoregions.geojson stays under 200 KB.
+def test_ecoregions_l4_base_weight_regression(tmp_path):
+    """The partial that actually ships stays under 200 KB.
 
-    Regression guard for the UAT weight complaint (Phase 172 — 1.3 MB per-collector
-    SVG). The base map must be aggressively simplified to stay well under 150 KB;
-    we allow 200 KB with a comfortable margin.
+    Regression guard descended from the Phase 172 UAT weight complaint (a 1.3 MB
+    per-collector SVG). This asserts the LEVEL IV file because that is the one
+    collector-detail.njk inlines (beeatlas-dflu); it is the heavier of the two at
+    ~73 KB, so the threshold binds here and nowhere else.
+
+    If this fires, raising ECO_L4_TOLERANCE is the obvious fix and the wrong one
+    past about 0.03: per-feature simplification pulls shared borders apart, and at
+    57 regions the resulting slivers are what the map looks like. Drop coordinate
+    precision or split the partial before loosening the tolerance.
     """
     con = _fresh_con()
-    out = tmp_path / "ecoregions-base.svg"
-    size = build_ecoregions_base(con, _REAL_ECO, out)
+    out = tmp_path / "ecoregions-l4-base.svg"
+    size = build_ecoregions_base(
+        con, _REAL_ECO_L4, out, tolerance=ECO_L4_TOLERANCE, name_key="name"
+    )
     con.close()
     assert size < 200_000, (
-        f"ecoregions-base.svg is {size:,} bytes — exceeds 200 KB threshold. "
-        "Raise ECO_TOLERANCE in build_coverage_basemaps.py to simplify further."
+        f"ecoregions-l4-base.svg is {size:,} bytes — exceeds the 200 KB threshold."
     )
+
+
+@pytest.mark.skipif(
+    not _REAL_ECO_L4.exists(),
+    reason="ecoregions_l4.clean.geojson not present (gitignored in CI)",
+)
+def test_ecoregions_l4_base_names_are_the_coded_form(tmp_path):
+    """data-region values must be the coded names ("1d. Volcanics").
+
+    They are one half of a join whose other half is collectors_export.py's
+    ecoregion_l4_names, matched by CSS attribute selector at page render. Nothing
+    checks it at build time, and a mismatch degrades to a map that highlights
+    nothing — which looks exactly like a collector with no coverage.
+    """
+    con = _fresh_con()
+    out = tmp_path / "ecoregions-l4-base.svg"
+    build_ecoregions_base(
+        con, _REAL_ECO_L4, out, tolerance=ECO_L4_TOLERANCE, name_key="name"
+    )
+    con.close()
+    regions = {
+        el.get("data-region")
+        for el in ET.parse(out).getroot().iter(f"{{{SVG_NS}}}path")
+    }
+    assert "1d. Volcanics" in regions, (
+        f"Expected the coded Level IV name '1d. Volcanics'; got e.g. {sorted(regions)[:4]}. "
+        "A bare 'Volcanics' means the loader keyed on the wrong property — several "
+        "Level IV names name nothing standing alone (ADR 0035)."
+    )
+    assert len(regions) == 57, f"WA has 57 Level IV ecoregions; got {len(regions)}"

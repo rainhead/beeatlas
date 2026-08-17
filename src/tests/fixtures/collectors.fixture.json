@@ -51,11 +51,11 @@
       "Spokane",
       "Yakima"
     ],
-    "ecoregion_count": 3,
-    "ecoregion_names": [
-      "Cascades",
-      "Columbia Plateau",
-      "Puget Lowland Forests"
+    "ecoregion_l4_count": 3,
+    "ecoregion_l4_names": [
+      "1d. Volcanics",
+      "4a. Western Cascades Lowlands and Valleys",
+      "9a. Yakima Plateau and Slopes"
     ],
     "species_by_genus": [
       {
@@ -153,10 +153,10 @@
       "King",
       "Yakima"
     ],
-    "ecoregion_count": 2,
-    "ecoregion_names": [
-      "Columbia Plateau",
-      "Puget Lowland Forests"
+    "ecoregion_l4_count": 2,
+    "ecoregion_l4_names": [
+      "10a. Channeled Scablands",
+      "2g. Southern Puget Prairies"
     ],
     "species_by_genus": [
       {

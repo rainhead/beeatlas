@@ -73,4 +73,10 @@ const ecoregionGroups = [...byL3.entries()]
   .sort(([a], [b]) => a.localeCompare(b))
   .map(([l3_name, ecoregions]) => ({ l3_name, ecoregions: ecoregions.sort(byCode) }));
 
-export default { placesArray, sites, ecoregionGroups };
+// How many Level IV ecoregions there are to cover. The collector coverage map
+// reads it as the denominator ("19 of 57"), which is what makes the numerator
+// mean anything — and it is DERIVED rather than written down because 57 is a
+// fact about Washington, and the geographic scope is meant to widen.
+const ecoregionCount = placesArray.filter((p) => p.kind === ECOREGION_L4).length;
+
+export default { placesArray, sites, ecoregionGroups, ecoregionCount };
