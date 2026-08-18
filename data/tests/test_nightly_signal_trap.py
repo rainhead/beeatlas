@@ -98,7 +98,7 @@ def _run(harness, mode: str, sig: int | None, group: bool = False):
 
     # Output goes to a FILE, not a pipe. On a PID-only signal the stand-in gate
     # is orphaned and keeps running; if it held the read end of a pipe, reading
-    # it would block until that orphan exited, which is the whole 20s it sleeps.
+    # it would block until that orphan exited — the whole of its SLEEP.
     log = script.parent / f"out-{mode}-{sig}-{group}.log"
     with log.open("w") as fh:
         p = subprocess.Popen(
@@ -111,15 +111,24 @@ def _run(harness, mode: str, sig: int | None, group: bool = False):
             # can then be sent to the whole process group, as a terminal does.
             start_new_session=True,
         )
-        if sig is not None:
-            _wait_for_gate(p)
-            if group:
-                os.killpg(p.pid, sig)  # what ^C does
-            else:
-                p.send_signal(sig)  # what `kill -INT <pid>` does
-        p.wait(timeout=60)
-    # Reap the orphan so it cannot outlive the test session.
-    subprocess.run(["pkill", "-9", "-P", str(p.pid)], capture_output=True)
+        try:
+            if sig is not None:
+                _wait_for_gate(p)
+                if group:
+                    os.killpg(p.pid, sig)  # what ^C does
+                else:
+                    p.send_signal(sig)  # what `kill -INT <pid>` does
+            p.wait(timeout=60)
+        finally:
+            # Reap the orphan by GROUP, not by parent: bash has already exited
+            # here, so the stand-in gate is reparented and `pkill -P` would match
+            # nothing. start_new_session made bash the group leader, and the
+            # group id stays valid while any member remains. In a finally so a
+            # timed-out wait cannot leave a process behind.
+            try:
+                os.killpg(p.pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
     return p.returncode, log.read_text()
 
 
@@ -182,6 +191,38 @@ def test_a_pid_only_signal_is_honest_but_not_prompt(harness):
         "the trap fired before the gate finished — bash's deferral changed, so the "
         "note in nightly.sh about signalling the group is now wrong"
     )
+
+
+def test_the_backup_line_reports_observed_state(harness, tmp_path):
+    """The handler must not assert a backup that cannot have happened.
+
+    It is installed before the EXIT trap is, so an abort during the sync or the
+    stelis gate backs nothing up. Claiming otherwise would be the same unprovable
+    assertion this change removes from the gate below (CodeRabbit, PR #81).
+    """
+    _, out = _run(harness, "break", signal.SIGINT)  # no EXIT trap installed
+    assert "not installed yet, so nothing was backed up" in out, out
+
+    # …and once an EXIT trap exists, it says so.
+    script = tmp_path / "gate.sh"
+    script.write_text(
+        "#!/usr/bin/env bash\nset -euo pipefail\n"
+        + _trap_block()
+        + "trap 'echo BACKUP-RAN' EXIT\n"
+        + "sleep 3\n"
+    )
+    log = tmp_path / "out.log"
+    with log.open("w") as fh:
+        p = subprocess.Popen(
+            ["bash", str(script)], stdout=fh, stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+        _wait_for_gate(p)
+        p.send_signal(signal.SIGINT)
+        p.wait(timeout=30)
+    text = log.read_text()
+    assert "the backups below still run" in text, text
+    assert "BACKUP-RAN" in text, text
 
 
 def test_a_real_gate_failure_still_aborts_the_publish(harness):

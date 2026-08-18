@@ -180,7 +180,17 @@ _on_signal() {
     echo "" >&2
     echo "ABORTED BY SIG$sig during stage '${_stage:-unknown}' — no gate failed." >&2
     echo "This run was interrupted; nothing was published and no contract was" >&2
-    echo "found to be broken. Backups still run below." >&2
+    echo "found to be broken." >&2
+    # Report the backup from the observed state, not from an assumption. This
+    # handler is installed before the EXIT trap is, so during the sync and the
+    # stelis gate there is nothing to run — and asserting a backup that did not
+    # happen would be the very thing this change removes from the gate below.
+    if [[ -n "$(trap -p EXIT)" ]]; then
+        echo "The EXIT trap is installed, so the backups below still run." >&2
+    else
+        echo "The EXIT trap is not installed yet, so nothing was backed up —" >&2
+        echo "this stage writes no \$DB_PATH, so there is nothing to lose." >&2
+    fi
     trap - INT TERM HUP
     kill -"$sig" $$
 }
