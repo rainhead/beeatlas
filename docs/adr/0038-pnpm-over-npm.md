@@ -80,8 +80,10 @@ Dependabot will offer those upgrades on its own schedule, with their own review.
 a "phantom dependency" — now fails at resolution instead of working by accident.
 Exactly one did: `src/tests/basemap-precache.test.ts` imports `glob`, which it uses
 deliberately because it is *workbox's own globber*, so the precache test cannot drift
-from what ships. npm supplied it by hoisting. It is now a declared devDependency at
-`^11.1.0`, the version workbox resolves today. The coupling that made hoisting
+from what ships. npm supplied it by hoisting. It is now a declared devDependency pinned
+exactly at `11.1.0`, the version workbox resolves today — exact rather than a
+caret range precisely because the point is to track workbox's globber, not to
+float independently of it. The coupling that made hoisting
 attractive is now explicit rather than accidental, and if workbox's glob major ever
 moves, this pin has to move with it — which is visible, where before it was not.
 

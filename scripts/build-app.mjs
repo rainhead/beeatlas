@@ -72,6 +72,7 @@ const SITE = join(ROOT, '_site');
 // self-hosted as of beeatlas-q73 and no renderer asset sits behind a key.
 const BUNDLE_INPUTS = [
   'src', 'vite.config.ts', 'vite.sw.config.ts', 'package.json', 'pnpm-lock.yaml',
+  'pnpm-workspace.yaml',
   '.env', '.env.local', '.env.production', '.env.production.local',
 ];
 
@@ -142,10 +143,10 @@ const removed = cleanExceptAssets();
 
 if (why) {
   console.log(`build:app — running Vite: ${why}`);
-  // Through a shell, matching the `execSync('npm run build')` already in
+  // Through a shell, matching the `execSync('pnpm run build')` already in
   // build-output.data.test.ts: `npm` is `npm.cmd` on Windows, which execFileSync cannot
   // launch directly. The command is a fixed literal, so there is nothing to inject.
-  execSync('npm run build:bundle', { cwd: ROOT, stdio: 'inherit' });
+  execSync('pnpm run build:bundle', { cwd: ROOT, stdio: 'inherit' });
   mkdirSync(dirname(BUNDLE_RECEIPT), { recursive: true });
   writeFileSync(
     BUNDLE_RECEIPT,

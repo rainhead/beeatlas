@@ -119,7 +119,7 @@ Measured 2026-05-17 on maderas (two consecutive runs):
 
 | Stage | Typical time |
 |---|---|
-| sync + deps (npm cache hit) | ~1s |
+| sync + deps (pnpm frozen install) | ~1s |
 | DuckDB pull from S3 | ~3s |
 | ecdysis (dlt load) | 90–115s, or ~58s when the change-probe skips the ZIP build |
 | resolve-taxon-ids | ~50s |

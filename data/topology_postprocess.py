@@ -194,7 +194,7 @@ def _run_mapshaper(src: Path, dst: Path) -> None:
     if not _MAPSHAPER_BIN.exists():
         raise RuntimeError(
             f"mapshaper not installed at {_MAPSHAPER_BIN} — topology_postprocess "
-            "requires the pipeline's Node tooling. Run `npm ci` in data/."
+            "requires the pipeline's Node tooling. Run `pnpm install --frozen-lockfile` in data/."
         )
     if src.name not in _SIMPLIFY_PCT:
         raise ValueError(f"no mapshaper recipe configured for {src.name}")
