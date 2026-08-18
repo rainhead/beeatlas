@@ -20,7 +20,7 @@
 #      The notes.json roll-up is retired (beeatlas-6x9): _data/notes.js reads
 #      the dir directly, so the keyed file IS the handoff.
 #   3. The site render, SCOPED to the species whose notes moved when it can be
-#      proven sound (beeatlas-4oa), and a full `npm run build` when it cannot.
+#      proven sound (beeatlas-4oa), and a full `pnpm run build` when it cannot.
 #      Notes reach exactly one template, so this is a few pages instead of 1668.
 #   4. Merge-swap into SITE_ROOT (data/merge-swap.sh, the shared contract).
 #
@@ -188,9 +188,9 @@ if [[ -n "$_scoped" ]]; then
     # STELIS_REBUILD_KEYS convention). Empty means "no species moved" — a real
     # answer, and a legitimately empty render — not "render everything".
     echo "--- scoped render: $(printf '%s' "$_keys" | grep -c . || true) species ---"
-    BEEATLAS_RENDER_KEYS="$_keys" npm run build:content
+    BEEATLAS_RENDER_KEYS="$_keys" pnpm run build:content
 else
-    npm run build
+    pnpm run build
 fi
 echo "--- site build done in $(_elapsed $_t0) ---"
 

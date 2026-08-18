@@ -120,7 +120,7 @@ a fetch, so their only path to freshness is re‑baking HTML.
 
 - **Targeted single‑page rebake:** on a note write, render *only* the affected
   species page(s) and PUT to S3 with a scoped `/species/<slug>/` invalidation —
-  not a full `npm run build` + `/*` invalidation. Achievable in seconds‑to‑a‑
+  not a full `pnpm run build` + `/*` invalidation. Achievable in seconds‑to‑a‑
   minute (CloudFront invalidation is usually <30 s).
 - **Honest fallback if the cost isn't worth it:** no‑JS gets nightly freshness;
   JS gets seconds. Document this as an explicit PWA stance rather than pretending

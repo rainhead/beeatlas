@@ -1,8 +1,17 @@
 {
-  "app": "npm run build --silent && node dist/bin/infra.js",
+  "app": "pnpm run --silent build && node dist/bin/infra.js",
   "watch": {
-    "include": ["**"],
-    "exclude": ["README.md", "cdk*.json", "**/*.d.ts", "**/*.js", "tsconfig.json", "node_modules"]
+    "include": [
+      "**"
+    ],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "**/*.d.ts",
+      "**/*.js",
+      "tsconfig.json",
+      "node_modules"
+    ]
   },
   "context": {
     "@aws-cdk/core:bootstrapQualifier": "beeatlas",

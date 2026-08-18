@@ -1,0 +1,18 @@
+# pnpm reads its settings from this file; the `pnpm` key in package.json is no
+# longer honoured as of pnpm 11.
+#
+# There is deliberately NO `packages:` list. `data/` and `infra/` are separate
+# projects with their own lockfiles and their own pnpm-workspace.yaml, not
+# members of this one — see docs/adr/0038-pnpm-over-npm.md. pnpm finds a
+# workspace root by walking UP for a pnpm-workspace.yaml, so without a file of
+# their own this one would claim them and `pnpm install` there would report
+# "Already up to date" having installed nothing.
+
+# pnpm will not run a dependency's install script unless it is named here, so a
+# compromised transitive package cannot execute code at install time merely by
+# entering the tree. EVERY package that ships a build script must appear, as
+# either true or false — an unadjudicated one is ERR_PNPM_IGNORED_BUILDS and
+# exit 1, which fails `pnpm install --frozen-lockfile` in every workflow. That
+# friction is the point: letting a package run code at install time is a
+# decision, so it is written down.
+allowBuilds: {}

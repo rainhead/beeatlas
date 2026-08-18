@@ -16,8 +16,8 @@ each step rather than assuming the tester remembers it.
 ## Before you start
 
 ```bash
-npm run dev            # http://localhost:8080/  — the app, and the primary QA surface
-                       # note: `npm run dev` serves no /sw.js, so the offline half
+pnpm run dev            # http://localhost:8080/  — the app, and the primary QA surface
+                       # note: `pnpm run dev` serves no /sw.js, so the offline half
                        # needs a built site (see §G for the preview invocation)
 ```
 
@@ -191,7 +191,7 @@ device-level network-reachability UI and is not known to appear here.
 ## G. Regression guards worth re-running
 
 ```bash
-npm test                                                  # 54 files
+pnpm test                                                  # 54 files
 node scripts/offline-uat.mjs --browser=chromium --prime    # offline cold start
 node scripts/offline-uat.mjs --browser=webkit              # Safari-engine online half
 ```
@@ -205,14 +205,14 @@ It also defaults to **the live site**, so a change that is committed but not yet
 deployed fails it for the wrong reason. To run it against a local build instead:
 
 ```bash
-npm run build && npx vite preview --outDir _site --port 4173
+pnpm run build && pnpm exec vite preview --outDir _site --port 4173
 node scripts/offline-uat.mjs --browser=chromium --url=http://localhost:4173/ --fresh
 ```
 
 `vite preview` inherits `server.proxy` from `vite.config.ts`, so `/basemap/tiles`
 proxies to beeatlas.net and the manifest self-prime works — which is what makes a
 local run meaningful at all. `--fresh` discards the profile; without it a stale
-service worker from the previous build keeps controlling the page. `npm run dev`
+service worker from the previous build keeps controlling the page. `pnpm run dev`
 is NOT a substitute: it serves no `/sw.js`, so there is nothing to test.
 
 Both should be **green** — chromium 11/11, webkit 4/4 with the offline half

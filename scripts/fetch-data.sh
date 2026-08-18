@@ -4,8 +4,8 @@
 # the RAW, unhashed artifacts the site build reads via lib/build-data-dir.js;
 # hashing + manifest are the site build's concern, not the data engine's.
 #
-# By default exports into public/data/ — the same directory `npm run
-# pull-published` fills — so the dev server and `npm run build` pick the
+# By default exports into public/data/ — the same directory `pnpm run
+# pull-published` fills — so the dev server and `pnpm run build` pick the
 # artifacts up with no further wiring. Set EXPORT_DIR to build elsewhere
 # (the nightly uses its own export dir).
 #

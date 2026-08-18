@@ -14,11 +14,10 @@
 #      ($VAR_DIR/publish.lock) so publishes never interleave. Waits (with a
 #      note) rather than tempfailing — an interactive deploy queued behind
 #      the nightly is better than one silently skipped.
-#   2. Source NVM, `nvm use`, git pull --ff-only, npm ci only if the
-#      lockfile hash changed (the nightly's .npm-lock-hash cache).
-#   3. Gate: `npm run test:data` — the data-dependent JS suites run for real
+#   2. Source NVM, `nvm use`, git pull --ff-only, `pnpm install --frozen-lockfile`.
+#   3. Gate: `pnpm run test:data` — the data-dependent JS suites run for real
 #      here because $EXPORT_DIR exists (same gate as nightly step 4b).
-#   4. `npm run build` against $EXPORT_DIR (lib/build-data-dir.js resolves
+#   4. `pnpm run build` against $EXPORT_DIR (lib/build-data-dir.js resolves
 #      it ahead of public/data), then merge-swap (data/merge-swap.sh, the
 #      shared publish contract). SITE_ROOT absent is a FAILURE here, like
 #      the note path — a code deploy with nowhere to publish is an error.
@@ -37,7 +36,7 @@
 
 set -euo pipefail
 
-# npm-adjacent tooling installs to ~/.local/bin, which non-login shells omit.
+# pnpm-adjacent tooling installs to ~/.local/bin, which non-login shells omit.
 export PATH="$HOME/.local/bin:$PATH"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -88,17 +87,12 @@ else
     echo "WARN: $HOME/.nvm/nvm.sh not found — node tooling may not resolve" >&2
 fi
 git pull --ff-only
-# Same lockfile-keyed node_modules cache as the nightly (npm ci rebuilds the
-# msgpackr-extract native addon — a multi-minute hit when nothing changed).
-_LOCK_HASH=$(sha256sum package-lock.json | awk '{print $1}')
-_LOCK_CACHE="$REPO_ROOT/.npm-lock-hash"
-if [[ -d node_modules && -f "$_LOCK_CACHE" && "$(cat "$_LOCK_CACHE")" == "$_LOCK_HASH" ]]; then
-    echo "  npm: package-lock.json unchanged (hash $(echo "$_LOCK_HASH" | cut -c1-12)…); skipping reinstall"
-else
-    echo "  npm: lockfile changed or node_modules missing; running npm ci"
-    npm ci
-    echo "$_LOCK_HASH" > "$_LOCK_CACHE"
-fi
+# `--frozen-lockfile` is pnpm's `npm ci`: fail rather than silently rewrite the
+# lockfile. The lockfile-hash cache this used to share with the nightly is gone
+# — see the rationale in data/nightly.sh; in short, pnpm neither wipes the tree
+# nor compiles anything now, and an unconditional install verifies node_modules
+# instead of trusting a hash that could not see it.
+pnpm install --frozen-lockfile
 echo "sync done in $(_elapsed $_t0)"
 
 # 3. JS data-dependent test gate (nightly step 4b): the artifacts exist, so
@@ -107,7 +101,7 @@ echo "sync done in $(_elapsed $_t0)"
 echo "--- JS data-dependent test gate ---"
 _t0=$(date +%s)
 export EXPORT_DIR
-if ! npm run test:data; then
+if ! pnpm run test:data; then
     echo "JS DATA TEST GATE FAILED in $(_elapsed $_t0) — aborting publish" >&2
     exit 1
 fi
@@ -116,7 +110,7 @@ echo "JS data test gate passed in $(_elapsed $_t0)"
 # 4. Render against the last-published export, then merge-swap.
 echo "--- building site ---"
 _t0=$(date +%s)
-npm run build
+pnpm run build
 echo "--- site build done in $(_elapsed $_t0) ---"
 
 echo "--- publishing into $SITE_ROOT ---"

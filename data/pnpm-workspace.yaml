@@ -1,0 +1,35 @@
+# `data/` is its own pnpm project, not a member of the root workspace: it holds
+# the PIPELINE's Node tooling (mapshaper, called by topology_postprocess.py),
+# deliberately split from the site build so its 217 packages and native addons
+# stay out of the tree Vite bundles (beeatlas-dqh).
+#
+# pnpm resolves the workspace root by walking UP until it finds a
+# pnpm-workspace.yaml, so without this file the repo-root one claims `data/` and
+# `pnpm install` here reports "Already up to date" having installed nothing —
+# which surfaces only when topology_postprocess.py cannot find mapshaper.
+#
+# THIS FILE MUST CONTAIN AT LEAST ONE KEY. A comments-only YAML document parses
+# to `null`, not an empty mapping, and Dependabot's npm_and_yarn file fetcher
+# indexes it unguarded, so a comments-only file crashes its update job before it
+# fetches anything. pnpm is happy either way, so no local check catches it.
+# See docs/adr/0038-pnpm-over-npm.md.
+# pnpm will not run a dependency's install script unless it is named here. Every
+# package that ships one must appear as either true or false — an unadjudicated
+# one is ERR_PNPM_IGNORED_BUILDS and exit 1, which fails
+# `pnpm install --frozen-lockfile` in every workflow.
+#
+# BOTH are denied, and both are reachable only through mapshaper. Verified
+# 2026-08-18 that a real `-clean -simplify -o` run over counties.clean.geojson
+# succeeds with them denied, which is the only shape this pipeline uses.
+#
+# Denying them also retires the reason data/nightly.sh caches node_modules: the
+# "multi-minute" cost that guard exists to avoid WAS these two addons compiling
+# on every `npm ci`.
+allowBuilds:
+  # mapshaper's GeoPackage (.gpkg) reader/writer, via @ngageoint/geopackage.
+  # This pipeline reads and writes GeoJSON only. Flip to true if .gpkg I/O is
+  # ever needed — the module fails to load, rather than degrading, without it.
+  better-sqlite3: false
+  # An optional native accelerator for msgpackr, which falls back to pure JS on
+  # its own. Nothing here is hot enough to care.
+  msgpackr-extract: false

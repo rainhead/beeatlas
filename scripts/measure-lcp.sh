@@ -27,10 +27,10 @@ BUDGET_MS=3000  # PERF-02
 OUT_JSON="$(mktemp -t lcp-XXXXXX.json)"
 
 echo "==> Building site"
-npm run build
+pnpm run build
 
 echo "==> Serving _site on http://localhost:${PORT}"
-npx --yes serve _site -l "${PORT}" --no-clipboard >/dev/null 2>&1 &
+pnpm dlx serve _site -l "${PORT}" --no-clipboard >/dev/null 2>&1 &
 SERVER_PID=$!
 trap "kill ${SERVER_PID} 2>/dev/null || true; rm -f ${OUT_JSON}" EXIT
 
@@ -44,7 +44,7 @@ done
 
 URL="http://localhost:${PORT}${CANARY_PATH}"
 echo "==> Lighthouse mobile run against ${URL}"
-npx --yes lighthouse "${URL}" \
+pnpm dlx lighthouse "${URL}" \
   --form-factor=mobile \
   --screenEmulation.mobile=true \
   --throttling.cpuSlowdownMultiplier=4 \

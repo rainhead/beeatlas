@@ -9,7 +9,7 @@
     "synth": "cdk synth",
     "diff": "cdk diff",
     "deploy": "cdk deploy --all",
-    "test": "npm run build --silent && node dist/test/beeatlas-stack.test.js"
+    "test": "pnpm run --silent build && node dist/test/beeatlas-stack.test.js"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.263.0",

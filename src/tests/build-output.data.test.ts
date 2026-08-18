@@ -36,7 +36,7 @@ describe.skipIf(SKIP_BUILD)('build output', () => {
       }
       return;
     }
-    execSync('npm run build', { cwd: ROOT, stdio: 'pipe' });
+    execSync('pnpm run build', { cwd: ROOT, stdio: 'pipe' });
   }, 180_000);
 
   test('emits _site/species/index.html as a tree with family nodes', () => {
@@ -295,8 +295,8 @@ describe.skipIf(SKIP_BUILD)('build output', () => {
     const nav = /<nav class="breadcrumb">([\s\S]*?)<\/nav>/.exec(html);
     expect(nav, 'no breadcrumb nav').not.toBeNull();
     const labels = (nav?.[1] ?? '')
-      .replace(/<[^>]+>/g, ' ')
-      .split(' ')
+      .replace(/<[^>]+>/g, '\u0000')
+      .split('\u0000')
       .map(s => s.trim())
       .filter(s => s && s !== '/');
     expect(labels.join(' / ')).toBe(ladder);

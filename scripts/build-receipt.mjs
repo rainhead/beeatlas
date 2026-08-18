@@ -65,7 +65,7 @@ const RECEIPT = join(ROOT, '.cache', 'beeatlas-build', 'receipt.json');
 // what a full build DOES — add a step to it and the tree the receipt vouches for was
 // made without that step.
 //
-// package-lock.json is deliberately NOT here, and the reason is the same one that
+// pnpm-lock.yaml is deliberately NOT here, and the reason is the same one that
 // makes a src/ change acceptable to a scoped render: bumping a dependency does not
 // touch _site until a build runs, and until then the manifest and the assets on disk
 // are the old ones and mutually CONSISTENT. Pages render against assets that exist.

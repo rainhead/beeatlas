@@ -56,7 +56,7 @@ NOTES_DB_PATH=$PWD/data/notes-dev.db WRITES_ENABLED=true \
   uv run --project data python -m api.serve
 
 # 2 — the site on :8080 (`.env.development` points auth at :8081)
-npm run dev
+pnpm run dev
 ```
 
 Then sign in from `http://localhost:8080` — the full PKCE round trip runs
