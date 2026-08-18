@@ -122,6 +122,82 @@ _ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 _hash() { sha256sum "$1" | awk '{print $1}'; }
 _elapsed() { echo $(( $(date +%s) - $1 ))s; }
 
+# How far the run got. Read by the EXIT trap's publish receipt (stelis st-8x1)
+# and by the signal handler below, so it is initialised HERE rather than beside
+# the receipt's other variables — the stelis gate runs long before those, and an
+# abort during it must still be able to name its stage. Free-form: stelis
+# validates OUTCOME and PATH but not STAGE (src/main.rkt --mark-publish), and
+# the pre-fetch-data stages can never reach a receipt anyway, because a receipt
+# is written only once _sb_num is captured.
+_stage="startup"
+
+# AN INTERRUPTED RUN IS NOT A FAILED GATE (beeatlas-bbo9).
+#
+# Every gate below is a plain `if ! <cmd>; then <abort>; fi`, so a signal that
+# stops <cmd> lands in the failure branch and the run reports whatever that
+# branch asserts. For the stelis gate that assertion names a CAUSE ("the engine
+# disagrees with this repo"), and pressing ^C is not that cause.
+#
+# Reading the exit code cannot fix it, so do not try: Racket HANDLES SIGINT as
+# an exn:break, prints "user break", and exits 1 — indistinguishable from a
+# failing test, and never 130 (verified 2026-08-16). Sniffing "user break" out
+# of stderr would be worse. What the shell CAN know is that it was signalled
+# too: ^C goes to the whole foreground process group, and an operator's or
+# supervisor's `kill` reaches this PID directly.
+#
+# So trap the signal and leave before any gate's failure branch is reached, then
+# re-raise from the default handler so a parent sees a genuine signal death
+# (130/143/129) rather than the gate's synthesized `exit 1`. The EXIT trap still
+# runs on this path — verified — so the backups below are never skipped.
+#
+# Except before it exists: this trap is installed here, the EXIT trap only after
+# the sync (it needs $_sb_num). An abort during the sync or the stelis gate
+# therefore backs nothing up, which is correct and not a regression — neither
+# step writes $DB_PATH, so there is nothing this run could have lost.
+#
+# TERM and HUP as well as INT: an unattended run is stopped by a timeout wrapper
+# (SIGTERM), an operator kill (either), or a session teardown (SIGHUP), and all
+# three reach the same misreporting failure branch.
+#
+# HONEST, BUT PROMPT ONLY FOR A GROUP SIGNAL. Bash will not run a trap while it
+# is waiting on a foreground command, so `kill -INT <this pid>` is not acted on
+# until the running gate finishes by itself — during the hour-long data build,
+# that is an hour. The REPORT is right either way, which is what this is for;
+# only the timing differs. To stop a run now, signal the process group:
+#
+#     kill -INT -"$(ps -o pgid= <pid> | tr -d ' ')"
+#
+# which is exactly what a terminal's ^C does, and which `timeout --foreground`
+# and systemd's KillMode=control-group also do. A bare `timeout` signals this
+# PID alone and is therefore the slow path.
+#
+# NOTE: the handler deliberately does not kill the group itself. On the ^C path
+# the child already got the signal; on a PID-only `kill` it is orphaned and runs
+# to completion, which is untidy but harmless — the publish is already
+# abandoned, and signalling our own group risks taking a supervisor down with us.
+_on_signal() {
+    local sig="$1"
+    echo "" >&2
+    echo "ABORTED BY SIG$sig during stage '${_stage:-unknown}' — no gate failed." >&2
+    echo "This run was interrupted; nothing was published and no contract was" >&2
+    echo "found to be broken." >&2
+    # Report the backup from the observed state, not from an assumption. This
+    # handler is installed before the EXIT trap is, so during the sync and the
+    # stelis gate there is nothing to run — and asserting a backup that did not
+    # happen would be the very thing this change removes from the gate below.
+    if [[ -n "$(trap -p EXIT)" ]]; then
+        echo "The EXIT trap is installed, so the backups below still run." >&2
+    else
+        echo "The EXIT trap is not installed yet, so nothing was backed up —" >&2
+        echo "this stage writes no \$DB_PATH, so there is nothing to lose." >&2
+    fi
+    trap - INT TERM HUP
+    kill -"$sig" $$
+}
+trap '_on_signal INT'  INT
+trap '_on_signal TERM' TERM
+trap '_on_signal HUP'  HUP
+
 # Copy the integration-gate baseline artifacts (artifacts.py baseline-files)
 # from $1 to $2, atomically per file. A missing source WARNs and is skipped —
 # absence-tolerant in both directions (first run has no snapshot; a partial
@@ -155,6 +231,7 @@ flock 200
 # 1. Sync source + dependencies. NVM is required for node tooling: the site build
 # (root package.json) and the pipeline's mapshaper (data/package.json, called by
 # data/topology_postprocess.py). Both trees are installed below.
+_stage="sync"
 echo "--- syncing source + dependencies ---"
 _t0=$(date +%s)
 cd "$REPO_ROOT"
@@ -236,6 +313,7 @@ fi
 #
 # 40-65s on this host across two runs (measured 2026-08-04), against an hour for
 # the data build — so it goes BEFORE that build rather than after.
+_stage="stelis-gate"
 echo "--- stelis preflight + test gate ---"
 _t0=$(date +%s)
 if [[ -n "${SKIP_STELIS_GATE:-}" ]]; then
@@ -247,8 +325,17 @@ else
     if ! (cd "$STELIS_DIR" &&           BEEATLAS_DIR="$REPO_ROOT" STELIS_STATE_DIR="$_stelis_test_state"           raco test src/*-test.rkt); then
         rm -rf "$_stelis_test_state"
         echo "STELIS TEST GATE FAILED in $(_elapsed $_t0) — aborting publish" >&2
-        echo "The engine disagrees with this repo (or with itself). Publishing now" >&2
-        echo "would build data with a pipeline whose contracts no longer hold." >&2
+        # State the outcome and the reason for ABORTING; do not name a cause.
+        # This gate knows only that raco test exited non-zero, and it used to
+        # read that as "the engine disagrees with this repo (or with itself)" —
+        # an inference that is wrong for at least one reachable cause (an
+        # interrupted run, beeatlas-bbo9) and unprovable for others (a missing
+        # package, an OOM). beeatlas-6jdo is what a gate misdescribing its own
+        # problem costs: a whole extra nightly. Its two siblings state the
+        # outcome and stop; so does this one now.
+        echo "raco test exited non-zero, so the pipeline's contracts are unverified" >&2
+        echo "and this run will not build data on them. The failures above are the" >&2
+        echo "cause — this gate cannot name it." >&2
         exit 1
     fi
     rm -rf "$_stelis_test_state"
@@ -291,7 +378,8 @@ echo "sync done in $(_elapsed $_t0)"
 # receipt. Empty capture = this run appended nothing = nothing to mark.
 _sb_num=""
 _sb_epoch=""
-_stage="startup"
+# _stage is NOT initialised here — it is set beside the signal handler at the top,
+# which needs it before the stelis gate, and is already at a later value by now.
 
 trap '
 if [[ -f "$DB_PATH" ]]; then
