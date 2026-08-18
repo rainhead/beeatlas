@@ -16,11 +16,11 @@
 #      serialize here).
 #   2. Source NVM, `nvm use` the .nvmrc-pinned node, git pull BOTH repos —
 #      this one and the stelis checkout that owns the task graph, since a
-#      change spanning the two ships only if both move (beeatlas-cwh) — npm
-#      ci (lockfile-cached), uv sync.
+#      change spanning the two ships only if both move (beeatlas-cwh) —
+#      `pnpm install --frozen-lockfile` in both Node trees, uv sync.
 #   3. Restore the integration-gate baseline (last PUBLISHED artifacts,
 #      snapshotted in step 7) into public/data/.
-#   4. `npm run fetch-data` — Stelis (github.com/rainhead/stelis) builds the
+#   4. `pnpm run fetch-data` — Stelis (github.com/rainhead/stelis) builds the
 #      data into $EXPORT_DIR. Content-addressed: unchanged work skips;
 #      partial-success (a failed task blocks only its dependents; non-zero
 #      exit aborts the publish below via `set -euo pipefail`). On success it
@@ -29,11 +29,11 @@
 #   5. Integration gate: ALL @integration tests must pass (fresh dbt sandbox
 #      vs. the step-3 baseline) or the publish is aborted — stale data stays
 #      live until fixed.
-#   6. `npm run build` — 11ty inlines the baked artifacts from $EXPORT_DIR,
+#   6. `pnpm run build` — 11ty inlines the baked artifacts from $EXPORT_DIR,
 #      Vite hashes the bundles, and the postbuild step (scripts/
 #      postbuild-data.mjs) derives _site/data: hashed runtime binaries +
 #      stable-URL dirs + the slim manifest, plus the build receipt.
-#   6b. JS data-dependent gate (`*.data.test.ts`, which `npm test` excludes):
+#   6b. JS data-dependent gate (`*.data.test.ts`, which `pnpm test` excludes):
 #      assertions against the _site just built — BEEATLAS_SITE_PREBUILT=1, so it
 #      gates the tree about to be published rather than building its own
 #      (beeatlas-b4p). A hard gate; failure aborts the publish.
@@ -342,30 +342,35 @@ else
     echo "stelis gate passed in $(_elapsed $_t0)"
 fi
 
-# Cache node_modules between runs keyed on package-lock.json hash. npm ci wipes
-# node_modules and reinstalls everything every call, which for the DATA tooling
-# means rebuilding the msgpackr-extract and better-sqlite3 native addons
-# (transitive via mapshaper) — a multi-minute hit even when nothing has changed.
-# The cache file lives outside node_modules so `npm ci` can't blow it away.
+# Install both Node trees. `--frozen-lockfile` is pnpm's `npm ci`: the same
+# contract, fail rather than silently rewrite the lockfile.
 #
-# Two npm trees since beeatlas-dqh: the root one builds the SITE, data/ holds the
-# PIPELINE's Node tooling (mapshaper). Splitting them kept 217 packages and both
-# native addons out of the site build; the root tree now has no native addon at
-# all on Linux, so its cache is just an I/O saving while data/'s is the real one.
-_npm_sync() {
-    local dir="$1" label="$2" hash cache
-    hash=$(sha256sum "$dir/package-lock.json" | awk '{print $1}')
-    cache="$dir/.npm-lock-hash"
-    if [[ -d "$dir/node_modules" && -f "$cache" && "$(cat "$cache")" == "$hash" ]]; then
-        echo "  npm[$label]: package-lock.json unchanged (hash ${hash:0:12}…); skipping reinstall"
-    else
-        echo "  npm[$label]: lockfile changed or node_modules missing; running npm ci"
-        ( cd "$dir" && npm ci )
-        echo "$hash" > "$cache"
-    fi
+# There is NO node_modules cache guard here any more, and its removal is the
+# point rather than a simplification. The old one hashed package-lock.json and
+# skipped the install when it matched, because `npm ci` WIPES node_modules and
+# so recompiled msgpackr-extract and better-sqlite3 — a multi-minute hit on
+# every run. Neither half of that is true now: pnpm reconciles an existing tree
+# instead of erasing it, resolves from a content-addressed store, and both
+# addons are denied outright in data/pnpm-workspace.yaml, so nothing compiles.
+#
+# Removing the guard also fixes something it was quietly wrong about. It keyed
+# on the LOCKFILE, so a node_modules that was corrupt, half-installed, or
+# hand-edited still matched the hash and the install was skipped — the failure
+# surfaced later, somewhere else. An unconditional frozen install verifies the
+# tree every night, which is what a publish gate should do.
+#
+# Two trees since beeatlas-dqh, and they are separate pnpm PROJECTS, not
+# workspace members (docs/adr/0038-pnpm-over-npm.md): the root one builds the
+# SITE, data/ holds the PIPELINE's Node tooling (mapshaper). Each has its own
+# pnpm-workspace.yaml, without which this root would claim data/ and the install
+# below would report "Already up to date" having installed nothing.
+_pnpm_sync() {
+    local dir="$1" label="$2"
+    echo "  pnpm[$label]: installing from lockfile"
+    ( cd "$dir" && pnpm install --frozen-lockfile )
 }
-_npm_sync "$REPO_ROOT" site
-_npm_sync "$SCRIPT_DIR" data
+_pnpm_sync "$REPO_ROOT" site
+_pnpm_sync "$SCRIPT_DIR" data
 cd "$SCRIPT_DIR"
 uv sync
 echo "sync done in $(_elapsed $_t0)"
@@ -430,7 +435,7 @@ else
     echo "  no baseline snapshot yet (first run) — diff tests will skip (not fail)"
 fi
 
-# 3. Build the data — Stelis via the site repo's own interface (npm run
+# 3. Build the data — Stelis via the site repo's own interface (pnpm run
 # fetch-data → stelis --build --all --export-dir). Cache + history persist in
 # $STELIS_STATE_DIR across nightlies (set near the top, under $VAR_DIR beside the
 # DuckDB and export dir they observe — stelis st-7wu), so an unchanged nightly is
@@ -448,7 +453,7 @@ export STELIS_EXPLAIN=1
 cd "$REPO_ROOT"
 _stage="data-build"
 _fetch_rc=0
-npm run fetch-data || _fetch_rc=$?
+pnpm run fetch-data || _fetch_rc=$?
 # stelis st-8x1: capture WHICH build the engine just appended — positively, by
 # matching its epoch against the SOURCE_DATE_EPOCH this run exported. A match
 # proves the history tail is THIS run's build (a FAILED build appended too, and
@@ -515,11 +520,11 @@ _stage="site-build"
 echo "--- building site ---"
 _t0=$(date +%s)
 cd "$REPO_ROOT"
-npm run build
+pnpm run build
 echo "--- site build done in $(_elapsed $_t0) ---"
 
 # 5b. JS suites that need the pipeline's artifacts (*.data.test.ts). These are
-# excluded from `npm test` because a clean CI checkout has no data dir — see
+# excluded from `pnpm test` because a clean CI checkout has no data dir — see
 # vite.config.ts and beeatlas-6q2, which is the CI red this split fixes. Here
 # the data exists, so they run for real: EXPORT_DIR is already exported above
 # and lib/build-data-dir.js resolves it ahead of public/data.
@@ -536,7 +541,7 @@ _stage="js-data-gate"
 echo "--- JS data-dependent test gate ---"
 _t0=$(date +%s)
 cd "$REPO_ROOT"
-if ! BEEATLAS_SITE_PREBUILT=1 npm run test:data; then
+if ! BEEATLAS_SITE_PREBUILT=1 pnpm run test:data; then
     echo "JS DATA TEST GATE FAILED in $(_elapsed $_t0) — aborting publish" >&2
     exit 1
 fi

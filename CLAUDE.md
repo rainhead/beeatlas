@@ -49,10 +49,17 @@ Config the engineering skills (`to-issues`, `to-prd`, `grill-with-docs`, `improv
 
 ## Running Locally
 
+**pnpm, not npm** ([ADR 0038](docs/adr/0038-pnpm-over-npm.md)). Three separate pnpm
+projects — the root, `data/`, and `infra/` — each with its own lockfile and its own
+`pnpm-workspace.yaml`; they are deliberately NOT a workspace. `npm install` here is a
+mistake, not a slower path to the same place. A dependency that ships an install
+script must be named in the relevant `pnpm-workspace.yaml` (`allowBuilds`) as true or
+false, or `pnpm install --frozen-lockfile` fails in every workflow.
+
 ```bash
-npm run dev      # Eleventy + Vite middleware. Serves no /sw.js, so offline needs a build.
-npm test         # Vitest. NOTE: excludes *.data.test.ts — see below.
-npm run test:data  # …which the deploy gate runs. Run it before pushing anything in src/.
+pnpm run dev      # Eleventy + Vite middleware. Serves no /sw.js, so offline needs a build.
+pnpm test         # Vitest. NOTE: excludes *.data.test.ts — see below.
+pnpm run test:data  # …which the deploy gate runs. Run it before pushing anything in src/.
 cd data && uv run pytest
 
 # Production build. Order is load-bearing (ADR 0016, Vite backend integration):
@@ -61,12 +68,12 @@ cd data && uv run pytest
 #   -> validate-bundle-size -> postbuild
 # No HTML passes through Vite. A template referencing a new module means adding it to
 # build.rollupOptions.input in vite.config.ts, or the build fails naming the entry.
-npm run build
+pnpm run build
 
 # Note-publish render (ADR 0017): writes ADDITIVELY over the last full build's _site,
 # so it is only sound when `scripts/build-receipt.mjs --check` passes —
 # data/publish-notes.sh owns that gate. Never add build:app here (emptyOutDir).
-BEEATLAS_RENDER_KEYS='agapostemon virescens' npm run build:content
+BEEATLAS_RENDER_KEYS='agapostemon virescens' pnpm run build:content
 
 # Data pipeline (Stelis — github.com/rainhead/stelis)
 ( cd ~/dev/stelis && BEEATLAS_DIR=~/dev/beeatlas \
@@ -83,7 +90,7 @@ linked ADR — read it before changing anything an entry calls load-bearing.
   where the repo is. Change deployment behaviour there, not in the crontab.
   **Stelis** is the data engine (ADR 0007 Amendment) — a content-addressed graph over
   `data/`, env-driven by `DB_PATH`/`EXPORT_DIR`/`NOTES_DB_PATH`, invoked via
-  `npm run fetch-data`. It knows nothing about S3, git, or the site render. It replaced
+  `pnpm run fetch-data`. It knows nothing about S3, git, or the site render. It replaced
   `run.py`, recoverable from git history if ever needed.
 - **dbt contract** on `marts/occurrences` is enforced at every `data/dbt/run.sh build`;
   there is no separate JS validator. **Count the columns from

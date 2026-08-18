@@ -54,7 +54,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BUNDLE_RECEIPT = join(ROOT, '.cache', 'beeatlas-build', 'bundle.json');
 const SITE = join(ROOT, '_site');
 
-// Everything the bundle is a function of. package-lock.json is here — unlike in the
+// Everything the bundle is a function of. pnpm-lock.yaml is here — unlike in the
 // site receipt, where it is deliberately absent — because here it is a direct input:
 // a dependency bump changes the emitted chunks, and this gate's whole job is to decide
 // whether those chunks would come out the same.
@@ -71,7 +71,7 @@ const SITE = join(ROOT, '_site');
 // VITE_MAPBOX_TOKEN was the original example here and is gone: the basemap is
 // self-hosted as of beeatlas-q73 and no renderer asset sits behind a key.
 const BUNDLE_INPUTS = [
-  'src', 'vite.config.ts', 'vite.sw.config.ts', 'package.json', 'package-lock.json',
+  'src', 'vite.config.ts', 'vite.sw.config.ts', 'package.json', 'pnpm-lock.yaml',
   '.env', '.env.local', '.env.production', '.env.production.local',
 ];
 

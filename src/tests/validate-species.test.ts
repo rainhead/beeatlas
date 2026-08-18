@@ -168,9 +168,9 @@ describe('isCuratorTouched (D-01: humans always win)', () => {
   });
 });
 
-describe('validate-species npm script (PHOTO-06)', () => {
-  test('npm run validate-species exits 0 on the committed manifest', () => {
-    const result = execSync('npm run validate-species --silent', {
+describe('validate-species pnpm script (PHOTO-06)', () => {
+  test('pnpm run validate-species exits 0 on the committed manifest', () => {
+    const result = execSync('pnpm run --silent validate-species', {
       cwd: REPO_ROOT,
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -178,7 +178,7 @@ describe('validate-species npm script (PHOTO-06)', () => {
     expect(result).toMatch(/ok content\/species-photos\.toml/);
   });
 
-  test('npm run validate-species exits 1 when manifest contains a bad license', () => {
+  test('pnpm run validate-species exits 1 when manifest contains a bad license', () => {
     const rigged = `
 [species."Osmia testfaker"]
 description = ""
@@ -222,12 +222,12 @@ ordering = 1
     // data-load time to emit hashed asset URLs) and build:sw must follow it
     // (vite-plugin-pwa's injectManifest globs the built site, and app/index.html
     // is Eleventy's output).
-    expect(pkg.scripts.validate).toBe('npm run validate-species && npm run validate-db && npm run typecheck');
+    expect(pkg.scripts.validate).toBe('pnpm run validate-species && pnpm run validate-db && pnpm run typecheck');
     // build-maplibre-worker bundles MapLibre's worker into one self-contained
     // file and must precede eleventy, which passthrough-copies its output.
     // It is NOT part of the app bundle — see scripts/build-maplibre-worker.mjs
     // for why the worker cannot keep its runtime sibling import.
-    expect(pkg.scripts.build).toBe('npm run validate && npm run build:app && node scripts/build-maplibre-worker.mjs && eleventy && npm run build:sw && npm run validate-bundle-size');
+    expect(pkg.scripts.build).toBe('pnpm run validate && pnpm run build:app && node scripts/build-maplibre-worker.mjs && eleventy && pnpm run build:sw && pnpm run validate-bundle-size');
     // beeatlas-bon: build:app is now a gate that runs build:bundle only when the
     // bundle's inputs moved. The gate MUST stay in the `build` chain rather than being
     // hoisted out, because on a skip it also performs the cleaning that Vite's
@@ -245,7 +245,7 @@ ordering = 1
   // so it is pinned here beside the full build's.
   test('build:content renders without touching the app bundle', () => {
     const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
-    expect(pkg.scripts['build:content']).toBe('npm run validate && node scripts/build-maplibre-worker.mjs && eleventy && node scripts/postbuild-data.mjs');
+    expect(pkg.scripts['build:content']).toBe('pnpm run validate && node scripts/build-maplibre-worker.mjs && eleventy && node scripts/postbuild-data.mjs');
     // build:app must NEVER appear here. It runs Vite with emptyOutDir:true (ADR
     // 0016), which deletes _site — and a scoped render only rewrites a handful of
     // pages, so it would publish a site consisting of those pages and nothing else.

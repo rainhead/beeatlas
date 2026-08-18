@@ -559,10 +559,10 @@ describe('build-chain isolation (PHOTO-07: seed NOT in CI)', () => {
     // beeatlas-4oa: the three validations factored out as `validate`, shared with
     // build:content so the note path cannot quietly drift out of them.
     expect(pkg.scripts.validate).toBe(
-      'npm run validate-species && npm run validate-db && npm run typecheck',
+      'pnpm run validate-species && pnpm run validate-db && pnpm run typecheck',
     );
     expect(pkg.scripts.build).toBe(
-      'npm run validate && npm run build:app && node scripts/build-maplibre-worker.mjs && eleventy && npm run build:sw && npm run validate-bundle-size',
+      'pnpm run validate && pnpm run build:app && node scripts/build-maplibre-worker.mjs && eleventy && pnpm run build:sw && pnpm run validate-bundle-size',
     );
   });
 

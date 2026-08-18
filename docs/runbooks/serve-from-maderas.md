@@ -60,10 +60,10 @@ maderas data-plane profile, wrong for CDK):
 
 ```sh
 cd infra
-npx cdk diff BeeAtlasStack        # expect ONLY the four NetA*/NetAAAA* targets
+pnpm exec cdk diff BeeAtlasStack        # expect ONLY the four NetA*/NetAAAA* targets
                                   # moving off the CloudFront alias to maderas —
                                   # nothing on the bucket / distribution / IAM
-npm run deploy                    # = cdk deploy --all  (or: npx cdk deploy BeeAtlasStack)
+pnpm run deploy                    # = cdk deploy --all  (or: pnpm exec cdk deploy BeeAtlasStack)
 ```
 
 The `NetA*` records use CDK's default TTL (30 min); plan rollback timing for

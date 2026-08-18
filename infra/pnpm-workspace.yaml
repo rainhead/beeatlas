@@ -1,0 +1,17 @@
+# `infra/` is its own pnpm project, not a member of the root workspace: it has a
+# CDK-only dependency graph, its own TypeScript build, and its own deploy step.
+#
+# pnpm resolves the workspace root by walking UP until it finds a
+# pnpm-workspace.yaml, so without this file the repo-root one claims `infra` and
+# `pnpm install` here reports "Already up to date" having installed nothing.
+# That fails silently — `cdk deploy` would be the first thing to notice.
+#
+# THIS FILE MUST CONTAIN AT LEAST ONE KEY. A comments-only YAML document parses
+# to `null`, not an empty mapping, and Dependabot's npm_and_yarn file fetcher
+# indexes it unguarded, so a comments-only file crashes its update job before it
+# fetches anything. pnpm is happy either way, so no local check catches it.
+# See docs/adr/0038-pnpm-over-npm.md.
+#
+# The empty mapping is the honest value: nothing in this tree ships an install
+# script, and nothing here is permitted to run one.
+allowBuilds: {}

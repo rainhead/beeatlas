@@ -26,7 +26,16 @@ updates:
           - "minor"
           - "patch"
 
-  # npm — root package.json / package-lock.json, weekly, minor+patch grouped
+  # `npm` is also Dependabot's name for the pnpm ecosystem; what it needs from us
+  # is a lockfile format it groks, and pnpm 11 writes lockfileVersion 9, which it
+  # supports. Its handling of the pnpm 11 CLI is newer ground, so if updates go
+  # quiet after the pnpm migration (ADR 0038), check Insights → Dependency graph →
+  # Dependabot for a FAILING run rather than assuming there is nothing to update.
+  #
+  # Each directory below is its own pnpm project with its own pnpm-lock.yaml and
+  # pnpm-workspace.yaml — not a workspace, so each needs its own entry here.
+  #
+  # npm — root package.json / pnpm-lock.yaml, weekly, minor+patch grouped
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -43,7 +52,7 @@ updates:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
 
-  # npm — infra/ AWS CDK project (package.json / package-lock.json), weekly, minor+patch grouped
+  # npm — infra/ AWS CDK project (package.json / pnpm-lock.yaml), weekly, minor+patch grouped
   - package-ecosystem: "npm"
     directory: "/infra"
     schedule:

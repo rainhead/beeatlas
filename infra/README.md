@@ -39,8 +39,8 @@ profile / SSO session) — **not** `--profile beeatlas`, which is `nightly.sh`'s
 maderas data-plane profile for S3 pull/push and is wrong for CDK.
 
 ```sh
-npm run diff      # cdk diff --all   — always review first
-npm run deploy    # cdk deploy --all — or: npx cdk deploy BeeAtlasStack
+pnpm run diff      # cdk diff --all   — always review first
+pnpm run deploy    # cdk deploy --all — or: pnpm exec cdk deploy BeeAtlasStack
 ```
 
 Application deploys (the site itself) do **not** go through this stack — the
@@ -52,11 +52,11 @@ the infrastructure, not the content.
 ### Toolchain
 
 TypeScript compiles to `dist/` and CDK runs the compiled JavaScript —
-`cdk.json`'s app command is `npm run build --silent && node dist/bin/infra.js`,
+`cdk.json`'s app command is `pnpm run --silent build && node dist/bin/infra.js`,
 so every `cdk` invocation rebuilds first and can never synth stale output. There
 is no TypeScript-at-runtime loader; `ts-node` was dropped in beeatlas-fa7
 because TypeScript 7 (the native port) no longer exposes the JS API surface it
-read. `npm test` compiles the same way.
+read. `pnpm test` compiles the same way.
 
 The old `TS_NODE_TRANSPILE_ONLY=1` workaround documented here is gone with it —
 `tsconfig.json` carries `"types": ["node"]` and the type-check passes clean.

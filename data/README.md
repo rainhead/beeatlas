@@ -141,7 +141,7 @@ Dominant costs: `taxon-lineage-extended` (~2.5 min) and `ecdysis` (~1.5–2 min)
 The species page (`/species/`) has a Largest Contentful Paint budget of < 3000 ms on a mobile-throttled measurement. To re-run the measurement locally:
 
 ```bash
-npm run measure-lcp
+pnpm run measure-lcp
 ```
 
 This builds the site, serves `_site` on `localhost:8080`, runs Lighthouse with `--form-factor=mobile --throttling.cpuSlowdownMultiplier=4`, parses the `largest-contentful-paint` audit, and exits non-zero if it exceeds 3000 ms.
