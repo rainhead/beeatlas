@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       mapshaper:
-        specifier: ^0.7.51
-        version: 0.7.51(@types/geojson@7946.0.8)(@types/node@26.2.0)
+        specifier: ^0.7.53
+        version: 0.7.53(@types/geojson@7946.0.16)(@types/node@26.2.0)
 
 packages:
 
@@ -214,6 +214,9 @@ packages:
   '@turf/bbox@6.5.0':
     resolution: {integrity: sha512-RBbLaao5hXTYyyg577iuMtDB8ehxMlUqHEJiMs8jT1GHkFhr6sYre3lmLsPeYEi/ZKj5TP5tt7fkzNdJ4GIVyw==}
 
+  '@turf/bbox@7.4.0':
+    resolution: {integrity: sha512-yOX9lALc2GmjYUIE99+nRj7eZA7eDtx7Ixu/hrgIo+YqHvL1reaPVTC9rQWMHMm0pH0/WHjzk8uOpAHjptrudQ==}
+
   '@turf/bearing@6.5.0':
     resolution: {integrity: sha512-dxINYhIEMzgDOztyMZc20I7ssYVNEpSv04VbMo5YPQsqa80KO3TFvbuCahMsCAW5z8Tncc8dwBlEFrmRjJG33A==}
 
@@ -238,6 +241,9 @@ packages:
   '@turf/helpers@6.5.0':
     resolution: {integrity: sha512-VbI1dV5bLFzohYYdgqwikdMVpe7pJ9X3E+dlr425wa2/sMJqYDhTO++ec38/pcPvPE6oD9WEEeU3Xu3gza+VPw==}
 
+  '@turf/helpers@7.4.0':
+    resolution: {integrity: sha512-7PAwLZqOdRzTI5g9bHvUwlloAXPDH/mlajtryk0tw4ZwGMtmXsAyF4QundsAMfy4u48Fyd3AUqMXY0SMxqJGWg==}
+
   '@turf/intersect@6.5.0':
     resolution: {integrity: sha512-2legGJeKrfFkzntcd4GouPugoqPUjexPZnOvfez+3SfIMrHvulw8qV8u7pfVyn2Yqs53yoVCEjS5sEpvQ5YRQg==}
 
@@ -253,6 +259,9 @@ packages:
   '@turf/meta@6.5.0':
     resolution: {integrity: sha512-RrArvtsV0vdsCBegoBtOalgdSOfkBrTJ07VkpiCnq/491W67hnMWmDu7e6Ztw0C3WldRYTXkg3SumfdzZxLBHA==}
 
+  '@turf/meta@7.4.0':
+    resolution: {integrity: sha512-3cLUvlEyDuSnMSzrjhaLAEiYR8xhbfWyTVQlrlEw40xL81d4KF4PqUWbjTXKpXZStdYbet2GCurl79KMypNw6g==}
+
   '@turf/point-to-line-distance@6.5.0':
     resolution: {integrity: sha512-opHVQ4vjUhNBly1bob6RWy+F+hsZDH9SA0UW36pIRzfpu27qipU18xup0XXEePfY6+wvhF6yL/WgCO2IbrLqEA==}
 
@@ -267,6 +276,9 @@ packages:
 
   '@turf/rhumb-distance@6.5.0':
     resolution: {integrity: sha512-oKp8KFE8E4huC2Z1a1KNcFwjVOqa99isxNOwfo4g3SUABQ6NezjKDDrnvC4yI5YZ3/huDjULLBvhed45xdCrzg==}
+
+  '@types/geojson@7946.0.16':
+    resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
 
   '@types/geojson@7946.0.8':
     resolution: {integrity: sha512-1rkryxURpr6aWP7R786/UQOkJ3PcpQiWkAXBmdWc7ryFWqN6a4xfK7BtjXvFBKO9LjQ+MWQSWxYeZX1OApnArA==}
@@ -441,6 +453,9 @@ packages:
   fflate@0.8.2:
     resolution: {integrity: sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==}
 
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
+
   file-type@16.5.4:
     resolution: {integrity: sha512-/yFHK0aGjFEgDJjEKP0pWCplsPFPhwyfwevf/pVxiN0tmE4L9LmwWxWukdJSHdoCli4VgQLehjJtwQBnqmsKcw==}
     engines: {node: '>=10'}
@@ -590,8 +605,8 @@ packages:
   map-stream@0.0.7:
     resolution: {integrity: sha512-C0X0KQmGm3N2ftbTGBhSyuydQ+vV1LC3f3zPvT3RXHXNZrvfPZcoXp/N5DOa8vedX/rTMm2CjTtivFg2STJMRQ==}
 
-  mapshaper@0.7.51:
-    resolution: {integrity: sha512-iYvQJgzYaKHXshXv8hnKu+6OOp4YVkkZwWJINF/Id+NNyYiiCw4gRQJb+BXJgjZJITUk9sc6zWLtwtW96DGHVw==}
+  mapshaper@0.7.53:
+    resolution: {integrity: sha512-vHvSTUYU/ckITn79oviT2L0piLbKLFCPwECaiN9vFV0Pq7AwZVDh8z5rfUq1h1D6pJFE7iKGOvkkg38TSfMFyw==}
     engines: {node: '>=20.11.0'}
     hasBin: true
 
@@ -689,6 +704,14 @@ packages:
   process@0.11.10:
     resolution: {integrity: sha512-cdGef/drWFoydD1JsMzuFf8100nZl+GT+yacc2bEced5f9Rjk4z+WtFUTBu9PhOi9j/jfmBPu0mMEY4wIdAF8A==}
     engines: {node: '>= 0.6.0'}
+
+  proj4@2.21.0:
+    resolution: {integrity: sha512-33HfDftqw8kY+Cl1dcL16SJuqTSzYxmz4re7Nmhk+fs1/N1fFrAkkF579msQTR/4fLeJVSNne8/gpoCz0fk1uw==}
+    peerDependencies:
+      geotiff: '*'
+    peerDependenciesMeta:
+      geotiff:
+        optional: true
 
   proj4@2.8.0:
     resolution: {integrity: sha512-baC+YcD4xsSqJ+CpCZljj2gcQDhlKb+J+Zjv/2KSBwWNjk4M0pafgQsE+mWurd84tflMIsP+7j7mtIpFDHzQfQ==}
@@ -829,6 +852,9 @@ packages:
   token-types@4.2.1:
     resolution: {integrity: sha512-6udB24Q737UD/SDsKAHI9FCRP7Bqc9D/MQUV02ORQg5iskjtLJlZJNdN4kKtcdtwCeWIwIHDGaUsTsCCAa8sFQ==}
     engines: {node: '>=10'}
+
+  tslib@2.8.1:
+    resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
   tsscmp@1.0.6:
     resolution: {integrity: sha512-LxhtAkPDTkVCMQjt2h6eBVY28KCjikZqZfMcC15YBeNjkgUpdCfBu5HoiOTDu86v6smE8yOjyEktJ8hlbANHQA==}
@@ -1035,7 +1061,7 @@ snapshots:
   '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.4':
     optional: true
 
-  '@ngageoint/geopackage@4.2.8(@types/node@26.2.0)':
+  '@ngageoint/geopackage@4.2.8(@types/node@26.2.0)(geotiff@3.0.5)':
     dependencies:
       '@turf/bbox': 6.3.0
       '@turf/boolean-clockwise': 6.5.0
@@ -1053,7 +1079,7 @@ snapshots:
       image-size: 0.8.3
       lodash: 4.18.1
       proj4: 2.8.0
-      reproject: 1.2.5
+      reproject: 1.2.5(geotiff@3.0.5)
       rtree-sql.js: 1.7.0
       simplify-js: 1.2.4
       webworkify: 1.5.0
@@ -1064,6 +1090,7 @@ snapshots:
       inquirer: 14.0.2(@types/node@26.2.0)
     transitivePeerDependencies:
       - '@types/node'
+      - geotiff
 
   '@petamoriken/float16@3.9.3': {}
 
@@ -1074,9 +1101,9 @@ snapshots:
   '@rollup/rollup-linux-x64-gnu@4.62.4':
     optional: true
 
-  '@tmcw/togeojson@5.8.1(@types/geojson@7946.0.8)':
+  '@tmcw/togeojson@5.8.1(@types/geojson@7946.0.16)':
     dependencies:
-      '@types/geojson': 7946.0.8
+      '@types/geojson': 7946.0.16
 
   '@tokenizer/token@0.3.0': {}
 
@@ -1089,6 +1116,13 @@ snapshots:
     dependencies:
       '@turf/helpers': 6.5.0
       '@turf/meta': 6.5.0
+
+  '@turf/bbox@7.4.0':
+    dependencies:
+      '@turf/helpers': 7.4.0
+      '@turf/meta': 7.4.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
 
   '@turf/bearing@6.5.0':
     dependencies:
@@ -1129,6 +1163,11 @@ snapshots:
 
   '@turf/helpers@6.5.0': {}
 
+  '@turf/helpers@7.4.0':
+    dependencies:
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
   '@turf/intersect@6.5.0':
     dependencies:
       '@turf/helpers': 6.5.0
@@ -1156,6 +1195,12 @@ snapshots:
   '@turf/meta@6.5.0':
     dependencies:
       '@turf/helpers': 6.5.0
+
+  '@turf/meta@7.4.0':
+    dependencies:
+      '@turf/helpers': 7.4.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
 
   '@turf/point-to-line-distance@6.5.0':
     dependencies:
@@ -1188,6 +1233,8 @@ snapshots:
     dependencies:
       '@turf/helpers': 6.5.0
       '@turf/invariant': 6.5.0
+
+  '@types/geojson@7946.0.16': {}
 
   '@types/geojson@7946.0.8': {}
 
@@ -1377,6 +1424,9 @@ snapshots:
 
   fflate@0.8.2: {}
 
+  fflate@0.8.3:
+    optional: true
+
   file-type@16.5.4:
     dependencies:
       readable-web-to-node-stream: 3.0.4
@@ -1415,7 +1465,7 @@ snapshots:
 
   geojson-rbush@3.2.0:
     dependencies:
-      '@turf/bbox': 6.5.0
+      '@turf/bbox': 7.4.0
       '@turf/helpers': 6.5.0
       '@turf/meta': 6.5.0
       '@types/geojson': 7946.0.8
@@ -1534,12 +1584,12 @@ snapshots:
 
   map-stream@0.0.7: {}
 
-  mapshaper@0.7.51(@types/geojson@7946.0.8)(@types/node@26.2.0):
+  mapshaper@0.7.53(@types/geojson@7946.0.16)(@types/node@26.2.0):
     dependencies:
       '@bokuweb/zstd-wasm': 0.0.27
-      '@ngageoint/geopackage': 4.2.8(@types/node@26.2.0)
+      '@ngageoint/geopackage': 4.2.8(@types/node@26.2.0)(geotiff@3.0.5)
       '@placemarkio/tokml': 0.3.9
-      '@tmcw/togeojson': 5.8.1(@types/geojson@7946.0.8)
+      '@tmcw/togeojson': 5.8.1(@types/geojson@7946.0.16)
       '@xmldom/xmldom': 0.8.14
       adm-zip: 0.5.18
       commander: 14.0.3
@@ -1623,7 +1673,7 @@ snapshots:
 
   numcodecs@0.3.2:
     dependencies:
-      fflate: 0.8.2
+      fflate: 0.8.3
     optional: true
 
   ol@10.10.0:
@@ -1694,6 +1744,13 @@ snapshots:
 
   process@0.11.10: {}
 
+  proj4@2.21.0(geotiff@3.0.5):
+    dependencies:
+      mgrs: 1.0.0
+      wkt-parser: 1.5.6
+    optionalDependencies:
+      geotiff: 3.0.5
+
   proj4@2.8.0:
     dependencies:
       mgrs: 1.0.0
@@ -1757,13 +1814,15 @@ snapshots:
   reference-spec-reader@0.2.0:
     optional: true
 
-  reproject@1.2.5:
+  reproject@1.2.5(geotiff@3.0.5):
     dependencies:
       concat-stream: 2.0.0
       event-stream: 4.0.1
       geojson-stream: 0.1.0
       minimist: 1.2.8
-      proj4: 2.8.0
+      proj4: 2.21.0(geotiff@3.0.5)
+    transitivePeerDependencies:
+      - geotiff
 
   resolve-protobuf-schema@2.1.0:
     dependencies:
@@ -1858,6 +1917,8 @@ snapshots:
     dependencies:
       '@tokenizer/token': 0.3.0
       ieee754: 1.2.1
+
+  tslib@2.8.1: {}
 
   tsscmp@1.0.6: {}
 
