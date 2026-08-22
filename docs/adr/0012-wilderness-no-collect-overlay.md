@@ -1,6 +1,6 @@
 # ADR 0012: Wilderness No-Collect Overlay
 
-**Status:** Accepted (implemented 2026-07-06; issue beeatlas-2vj)
+**Status:** Accepted (implemented 2026-07-06; issue beeatlas-2vj; amended 2026-08-22 — simplification retention raised 5% → 50%)
 
 ---
 
@@ -61,8 +61,9 @@ to **Washington** (configurable for later expansion).
 - **Standard boundary chain.** `geographies.padus_wilderness` (DuckDB) →
   `stg_geo__wilderness` (Olympic carve-out) →
   `wilderness_geo` mart (dissolve by name, `emit_feature_collection` post-hook) →
-  `topology_postprocess` (mapshaper `-clean`/`-simplify` at 5%) →
-  `wilderness.geojson` → contract-driven hash/upload/manifest → runtime fetch.
+  `topology_postprocess` (mapshaper `-clean`/`-simplify` at 50%; see the 2026-08-22
+  amendment) → `wilderness.geojson` → contract-driven hash/upload/manifest →
+  runtime fetch.
 
 - **`baseline_diff = false` for the initial ship.** A brand-new artifact has no
   S3 baseline, so enrolling it in the nightly drift-diff gate would deadlock the
@@ -101,3 +102,34 @@ simply empty until this runs). If a future PAD-US release renames the layer,
   PAD-US GDB path proves brittle on maderas.
 - **PAD-US live REST (`PADUS_Public_Access`)** — drops the wilderness designation
   via overlap flattening (verified: `Des_Tp='Wilderness Area'` returns 0). Unusable.
+
+## Amendment (2026-08-22): simplification retention 5% → 50%
+
+The original 5% mapshaper retention was chosen to hold the artifact "to the
+tens-of-KB range like ecoregions". That framing was wrong for this layer:
+ecoregion boundaries are informational, but the wilderness overlay tells
+volunteers where collecting is **prohibited**, so positional error is a real
+hazard, not a cosmetic one.
+
+Measured against the raw mart (max Hausdorff deviation of the simplified
+boundary from the true PAD-US line, excluding the two offshore-island
+multipolygons where dropped islets dominate the metric):
+
+| Retention | Raw size | Gzipped | Median deviation | Worst deviation |
+|---|---|---|---|---|
+| 5% (old) | 435 KB | 174 KB | ~235 m | **~7.0 km** (Mount Rainier) |
+| 10% | 862 KB | 341 KB | ~101 m | ~470 m (Stephen Mather) |
+| 25% | 2.1 MB | 824 KB | ~22 m | ~123 m (Mount Rainier) |
+| **50% (new)** | **4.2 MB** | **1.6 MB** | **~3 m** | **~57 m** (Tatoosh, Rainier) |
+| 100% (clean only) | 8.5 MB | 3.1 MB | — | — |
+
+The 5% worst case was dominated by the large multipolygon park wildernesses
+(Mount Rainier, Stephen Mather), where `keep-shapes` preserved every piece but
+starved the big rings of vertices. At 50% the worst-case error (~57 m) is
+comparable to consumer GPS error under canopy, i.e. the map is no longer the
+weakest link. The cost — ~1.6 MB over the wire — is acceptable because the
+overlay lazy-loads only when the user selects the Wilderness regions mode and
+is not in the offline precache set (see "Not precached for offline" above).
+
+Even at 50%, the rendered line remains a display approximation of the legal
+boundary; near an edge, ground truth (signage, official GPS data) governs.

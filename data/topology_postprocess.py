@@ -65,9 +65,13 @@ _SIMPLIFY_PCT: dict[str, str | None] = {
     # range (191,239 -> 9,077 vertices, ~374 KB).
     "ecoregions_l4.geojson": "3%",
     # Wilderness (PAD-US Designation) polygons carry dense, high-vertex
-    # boundaries traced to terrain; 5% retention keeps recognizable shapes while
-    # holding the file to the tens-of-KB range like ecoregions.
-    "wilderness.geojson": "5%",
+    # boundaries traced to terrain. Unlike the other layers this one is a
+    # NO-COLLECT boundary, so positional accuracy beats file size: at 5% the
+    # simplified line strayed up to ~7 km from the true PAD-US boundary on the
+    # big park wildernesses (Mount Rainier, Stephen Mather); 50% holds worst-case
+    # deviation to ~57 m (median ~3 m) for ~4.2 MB raw / ~1.6 MB gzipped.
+    # Measurements + rationale in ADR 0012 (2026-08-22 amendment).
+    "wilderness.geojson": "50%",
 }
 
 
