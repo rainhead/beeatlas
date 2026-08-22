@@ -64,6 +64,24 @@ export class BeeAtlasStack extends cdk.Stack {
       target: route53.RecordTarget.fromIpAddresses(maderasIpv4),
     });
 
+    // ── Route 53 records: beeline.beeatlas.net → maderas ──────────────────
+    // Beeline (~/dev/beeline, the Master Melittologist specimen-cataloging
+    // rebuild) is a separate app served from the same host: a user systemd
+    // service behind an Apache ProxyPass vhost with its own certbot cert
+    // (infra/maderas/beeline.beeatlas.net.conf over there). It owns nothing in
+    // this stack but the name; dual-stack because its vhost, like the apex,
+    // listens on both.
+    new route53.ARecord(this, 'BeelineA', {
+      zone: netZone,
+      recordName: 'beeline',
+      target: route53.RecordTarget.fromIpAddresses(maderasIpv4),
+    });
+    new route53.AaaaRecord(this, 'BeelineAAAA', {
+      zone: netZone,
+      recordName: 'beeline',
+      target: route53.RecordTarget.fromIpAddresses(maderasIpv6),
+    });
+
     // ── Redirect: beeatlas.com → beeatlas.net ─────────────────────────────
     // A CloudFront Function returns a 301 at the viewer-request stage so the
     // origin (siteBucket) is never actually contacted for .com requests.
