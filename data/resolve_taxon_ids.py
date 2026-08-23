@@ -66,6 +66,35 @@ KNOWN_NON_BEES = {"cicindela pugetana", "cleridae", "encopognathus"}
 _CSV_FORMULA_TRIGGERS = ("=", "+", "-", "@")
 
 
+
+def _attempted_at() -> str:
+    """The triage timestamp written into the two unresolved CSVs (naive UTC ISO-8601).
+
+    Honors ``SOURCE_DATE_EPOCH`` (the reproducible-builds convention) when set, so
+    a caller that pins a snapshot-derived epoch — stelis's content-addressed build
+    (st-4cm/st-3mi) — gets byte-deterministic CSVs: resolve the same snapshot twice,
+    get the same file. Mirrors topology_postprocess._resolve_built_at and feeds._run_time
+    (beeatlas-8td). Falls back to wall clock otherwise (ad-hoc manual runs).
+
+    Why these two files need it and most timestamps do not: lineage_unresolved.csv and
+    inactive_unresolved.csv are what the resolution and inactive GATES read, and stelis
+    models them as derived artifacts (st-b2m). A wall-clock column would move their
+    content hash on every run that has any unresolved row — i.e. exactly when the gates
+    matter — so the gate could never cache-skip and, worse, a rebuild triggered by
+    nothing but the clock would be indistinguishable from one triggered by a new
+    unresolved name.
+    """
+    epoch = os.environ.get("SOURCE_DATE_EPOCH")
+    if epoch:
+        try:
+            ts = dt.datetime.fromtimestamp(int(epoch), dt.UTC)
+        except (ValueError, OverflowError, OSError):
+            pass  # malformed epoch → treat as unset (per the SOURCE_DATE_EPOCH spec)
+        else:
+            return ts.replace(tzinfo=None).isoformat()
+    return dt.datetime.now(dt.UTC).replace(tzinfo=None).isoformat()
+
+
 def _csv_safe(value: object) -> object:
     """Neutralize CSV formula-injection for a single cell (WR-03).
 
@@ -123,8 +152,6 @@ def generate_inactive_remaps() -> None:
     - Always writes auto_synonyms.csv with at least a header row.
     - Always overwrites inactive_unresolved.csv (stale empty file cannot mask new rows).
     """
-    import datetime as _dt
-
     con = duckdb.connect(DB_PATH)
     # Computed from __file__ at call time (not the module-level TAXA_CSV_PATH constant)
     # so the inactive-remap unit tests' __file__ monkeypatch keeps redirecting this read.
@@ -226,7 +253,7 @@ def generate_inactive_remaps() -> None:
                         "inactive_taxon_id": inactive_taxon_id,
                         "inat_name": inat_name,
                         "reason": "successor_not_in_taxa_csv",
-                        "attempted_at": _dt.datetime.now(_dt.UTC).replace(tzinfo=None).isoformat(),
+                        "attempted_at": _attempted_at(),
                     })
                     continue
 
@@ -244,7 +271,7 @@ def generate_inactive_remaps() -> None:
                         "inactive_taxon_id": inactive_taxon_id,
                         "inat_name": inat_name,
                         "reason": "duplicate_synonym_key",
-                        "attempted_at": _dt.datetime.now(_dt.UTC).replace(tzinfo=None).isoformat(),
+                        "attempted_at": _attempted_at(),
                     })
                     continue
                 seen_synonyms.add(canonical_name)
@@ -273,7 +300,7 @@ def generate_inactive_remaps() -> None:
                     "inactive_taxon_id": inactive_taxon_id,
                     "inat_name": inat_name,
                     "reason": reason,
-                    "attempted_at": _dt.datetime.now(_dt.UTC).replace(tzinfo=None).isoformat(),
+                    "attempted_at": _attempted_at(),
                 })
 
         # D-04: always write header, even when auto_rows is empty.
@@ -627,7 +654,7 @@ def _resolve_one(
         (
             canonical_name,
             last_reason,
-            dt.datetime.now(dt.UTC).replace(tzinfo=None).isoformat(),
+            _attempted_at(),
         )
     )
 

@@ -682,3 +682,50 @@ def test_lineage_coverage_threshold(fixture_con):
         "Check the Plan 01 fixture in conftest.py — 19/20 canonical_names "
         "must resolve to a taxon_lineage_extended row with non-NULL family."
     )
+
+
+# --- _attempted_at: SOURCE_DATE_EPOCH determinism (st-b2m) -------------------
+
+
+def test_attempted_at_honors_source_date_epoch(monkeypatch):
+    """SOURCE_DATE_EPOCH pins the triage timestamp instead of wall clock.
+
+    lineage_unresolved.csv and inactive_unresolved.csv are what the resolution and
+    inactive gates READ, and stelis models them as derived artifacts. A wall-clock
+    column would move their content hash on every run that has an unresolved row —
+    exactly when the gates matter — making a clock-driven rebuild indistinguishable
+    from one driven by a new unresolved name.
+    """
+    import resolve_taxon_ids
+
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "1783894618")  # 2026-07-12T22:16:58Z
+    a = resolve_taxon_ids._attempted_at()
+    b = resolve_taxon_ids._attempted_at()
+    assert a == b
+    assert a == "2026-07-12T22:16:58"
+
+
+def test_attempted_at_falls_back_to_wall_clock(monkeypatch):
+    """No SOURCE_DATE_EPOCH -> a naive UTC ISO timestamp (unchanged behavior)."""
+    import datetime as dt
+
+    import resolve_taxon_ids
+
+    monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
+    got = resolve_taxon_ids._attempted_at()
+    parsed = dt.datetime.fromisoformat(got)
+    assert parsed.tzinfo is None, "the CSV column is naive UTC, as it was before"
+    assert abs((dt.datetime.now(dt.UTC).replace(tzinfo=None) - parsed).total_seconds()) < 60
+
+
+def test_attempted_at_treats_malformed_epoch_as_unset(monkeypatch):
+    """A non-integer SOURCE_DATE_EPOCH is ignored, per the spec — never a crash.
+
+    The gate scripts run in the nightly; a malformed pin must degrade to wall clock
+    rather than take the resolution step down with it.
+    """
+    import resolve_taxon_ids
+
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", "not-a-number")
+    got = resolve_taxon_ids._attempted_at()
+    assert got  # fell back rather than raising
