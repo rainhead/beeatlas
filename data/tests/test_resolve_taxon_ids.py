@@ -723,9 +723,20 @@ def test_attempted_at_treats_malformed_epoch_as_unset(monkeypatch):
 
     The gate scripts run in the nightly; a malformed pin must degrade to wall clock
     rather than take the resolution step down with it.
+
+    "Treated as unset" is asserted as the SAME properties the unset case asserts,
+    not merely as "returned something": a regression that echoed the malformed
+    value straight through, or fell back to epoch 0, would satisfy a truthiness
+    check while writing garbage into the CSV the gates read.
     """
+    import datetime as dt
+
     import resolve_taxon_ids
 
     monkeypatch.setenv("SOURCE_DATE_EPOCH", "not-a-number")
     got = resolve_taxon_ids._attempted_at()
-    assert got  # fell back rather than raising
+    parsed = dt.datetime.fromisoformat(got)  # raises if it is not ISO-8601 at all
+    assert parsed.tzinfo is None, "the CSV column is naive UTC"
+    assert abs((dt.datetime.now(dt.UTC).replace(tzinfo=None) - parsed).total_seconds()) < 60, (
+        "a malformed pin must fall back to NOW, not to epoch 0 or the raw value"
+    )
