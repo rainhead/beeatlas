@@ -31,6 +31,17 @@ unchanged nightly is fast.
 
 ## Prereqs on maderas (all verified 2026-07-16)
 
+> **The toolchain has moved since this was written; these lines are the 2026-07-16
+> snapshot, not current truth.** As of 2026-08-23 Racket on maderas is **v9.3** from
+> the official `.sh` installer at `~/opt/racket-9.3`, symlinked into `~/.local/bin`
+> — the apt package and `/usr/bin/racket` are **gone**. The PLT PPA was dropped
+> because it had published nothing since 2026-03-03 and 9.1 was the newest it ever
+> shipped for Noble, so it could not supply the version the repo pins. Note the
+> consequence for anything you copy out of here: `~/.local/bin` is **not** on the
+> cron PATH, and the nightly only finds Racket because `nightly.sh` prepends it.
+> Current pin: `racket-version` in the stelis repo. `sha` is also required now and
+> is a *user* package (not in the full distribution). See stelis st-5oy.
+
 - Racket **v9.1 CS** at `/usr/bin/racket` (on the cron PATH) — Stelis's 440 tests
   pass on it. `datalog` is present (installation scope). `duckdb` v1.5.1, `sqlite3`.
 - Stelis checkout at `~/dev/stelis`, beeatlas at `~/dev/beeatlas` (`STELIS_DIR`
