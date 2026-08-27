@@ -139,10 +139,12 @@ describe('bee-occurrence-detail D-04 member-place rendering', () => {
     el.occurrences = [ecdysisRow(42)];
     el.placeNames = new Map([['ecdysis:42', ["Ebey's Landing", 'Whidbey WLA']]]);
     await el.updateComplete;
-    const names = [...el.shadowRoot.querySelectorAll('.member-place')].map((n: any) => n.textContent.trim());
-    expect(names).toContain("Ebey's Landing");
-    expect(names).toContain('Whidbey WLA');
-    expect(names.length).toBe(2);
+    // A lone displayed record shares every place it has with itself, so all of
+    // them ride the date line rather than repeating as chips under it.
+    const shared = el.shadowRoot.querySelector('.date-place').textContent;
+    expect(shared).toContain("Ebey's Landing");
+    expect(shared).toContain('Whidbey WLA');
+    expect(el.shadowRoot.querySelectorAll('.member-place').length).toBe(0);
   });
 
   test('occurrence in no place renders no member-place list', async () => {
@@ -154,6 +156,7 @@ describe('bee-occurrence-detail D-04 member-place rendering', () => {
     await el.updateComplete;
     expect(el.shadowRoot.querySelector('.member-places')).toBeNull();
     expect(el.shadowRoot.querySelectorAll('.member-place').length).toBe(0);
+    expect(el.shadowRoot.querySelector('.date-place')).toBeNull();
   });
 
   test('single-place occurrence lists exactly that one name', async () => {
@@ -163,16 +166,16 @@ describe('bee-occurrence-detail D-04 member-place rendering', () => {
     el.occurrences = [ecdysisRow(99)];
     el.placeNames = new Map([['ecdysis:99', ['Klickitat Trail']]]);
     await el.updateComplete;
-    const names = [...el.shadowRoot.querySelectorAll('.member-place')].map((n: any) => n.textContent.trim());
-    expect(names).toEqual(['Klickitat Trail']);
+    expect(el.shadowRoot.querySelector('.date-place').textContent.trim()).toBe('— Klickitat Trail');
   });
 });
 
 describe('bee-occurrence-detail shared-place roll-up', () => {
   // Level IV ecoregions are places (ADR 0035) and tile the whole state, so every
   // occurrence carries one. Repeating it on every species line of one selected
-  // point is noise: names shared by ALL displayed rows hoist into a single header.
-  const chips = (el: any, sel: string) =>
+  // point is noise: names shared by ALL displayed rows ride the date line instead,
+  // and only what a record adds beyond them stays a per-row chip.
+  const text = (el: any, sel: string) =>
     [...el.shadowRoot.querySelectorAll(sel)].map((n: any) => n.textContent.trim());
 
   async function mount(occurrences: any[], placeNames: Map<string, string[]>) {
@@ -185,43 +188,55 @@ describe('bee-occurrence-detail shared-place roll-up', () => {
     return el;
   }
 
-  test('a place every row shares renders once in the header, not per row', async () => {
+  test('a place every row shares rides the date line, not each row', async () => {
     const el = await mount([ecdysisRow(1), ecdysisRow(2), ecdysisRow(3)], new Map([
       ['ecdysis:1', ['Yakima Folds']],
       ['ecdysis:2', ['Yakima Folds']],
       ['ecdysis:3', ['Yakima Folds']],
     ]));
-    expect(chips(el, '.shared-places .member-place')).toEqual(['Yakima Folds']);
-    // The whole document holds exactly one chip — no per-row repeats.
-    expect(chips(el, '.member-place')).toEqual(['Yakima Folds']);
+    // One date group (all three rows share a date) → one mention.
+    expect(text(el, '.date-place')).toEqual(['— Yakima Folds']);
+    expect(el.shadowRoot.querySelector('.date-header').textContent.trim())
+      .toMatch(/^1 VI 2024\s+— Yakima Folds$/);
+    // …and no per-row chips at all.
+    expect(text(el, '.member-place')).toEqual([]);
   });
 
-  test('a place only some rows have stays on its own row', async () => {
+  test('a place only some rows have stays a chip on its own row', async () => {
     const el = await mount([ecdysisRow(1), ecdysisRow(2)], new Map([
       ['ecdysis:1', ['Klickitat Trail', 'Yakima Folds']],
       ['ecdysis:2', ['Yakima Folds']],
     ]));
-    expect(chips(el, '.shared-places .member-place')).toEqual(['Yakima Folds']);
-    expect(chips(el, '.member-places:not(.shared-places) .member-place')).toEqual(['Klickitat Trail']);
+    expect(text(el, '.date-place')).toEqual(['— Yakima Folds']);
+    expect(text(el, '.member-place')).toEqual(['Klickitat Trail']);
   });
 
-  test('rows sharing nothing keep all their own chips and get no header', async () => {
+  test('several shared places join on the one date line', async () => {
+    const el = await mount([ecdysisRow(1), ecdysisRow(2)], new Map([
+      ['ecdysis:1', ['Klickitat Trail', 'Yakima Folds']],
+      ['ecdysis:2', ['Klickitat Trail', 'Yakima Folds']],
+    ]));
+    expect(text(el, '.date-place')).toEqual(['— Klickitat Trail · Yakima Folds']);
+    expect(text(el, '.member-place')).toEqual([]);
+  });
+
+  test('rows sharing nothing leave the date line alone and keep their chips', async () => {
     const el = await mount([ecdysisRow(1), ecdysisRow(2)], new Map([
       ['ecdysis:1', ['Yakima Folds']],
       ['ecdysis:2', ['Okanogan Drift Hills']],
     ]));
-    expect(el.shadowRoot.querySelector('.shared-places')).toBeNull();
-    expect(chips(el, '.member-place').sort()).toEqual(['Okanogan Drift Hills', 'Yakima Folds']);
+    expect(el.shadowRoot.querySelector('.date-place')).toBeNull();
+    expect(text(el, '.member-place').sort()).toEqual(['Okanogan Drift Hills', 'Yakima Folds']);
   });
 
-  test('a row with no resolved membership collapses the header (no false claim)', async () => {
-    // ecdysis:2 has no bridge rows; hoisting 'Yakima Folds' above both would
+  test('a row with no resolved membership collapses the shared set (no false claim)', async () => {
+    // ecdysis:2 has no bridge rows; putting 'Yakima Folds' on the date line would
     // assert a membership we do not have for it.
     const el = await mount([ecdysisRow(1), ecdysisRow(2)], new Map([
       ['ecdysis:1', ['Yakima Folds']],
     ]));
-    expect(el.shadowRoot.querySelector('.shared-places')).toBeNull();
-    expect(chips(el, '.member-place')).toEqual(['Yakima Folds']);
+    expect(el.shadowRoot.querySelector('.date-place')).toBeNull();
+    expect(text(el, '.member-place')).toEqual(['Yakima Folds']);
   });
 });
 

@@ -76,9 +76,9 @@ export class BeeOccurrenceDetail extends LitElement {
   // invariant, CLAUDE.md). Each value is a sorted, de-duplicated name array.
   @property({ attribute: false }) placeNames: Map<string, string[]> | null = null;
 
-  // The place names EVERY displayed occurrence shares, hoisted out of the per-row
-  // chips into one header. Derived from `placeNames` at the top of render() — a
-  // render-scoped cache, not reactive state.
+  // The place names EVERY displayed occurrence shares, lifted out of the per-row
+  // chips onto the date lines. Derived from `placeNames` at the top of render() —
+  // a render-scoped cache, not reactive state.
   private _sharedPlaces: Set<string> = new Set();
 
   static styles = css`
@@ -91,6 +91,12 @@ export class BeeOccurrenceDetail extends LitElement {
       color: var(--text-secondary);
       padding: 0.5rem 1rem 0.25rem;
       font-family: 'Times New Roman', 'Georgia', serif;
+    }
+    /* The shared location, riding the date line rather than sitting in a band of
+       its own. Lighter than the date it follows so the date still leads. */
+    .date-place {
+      font-weight: 400;
+      color: var(--text-hint);
     }
     .sample {
       padding: 0.75rem 1rem;
@@ -189,11 +195,6 @@ export class BeeOccurrenceDetail extends LitElement {
       background: var(--border-subtle);
       border-radius: 3px;
       padding: 0.05rem 0.35rem;
-    }
-    .shared-places {
-      margin: 0;
-      padding: 0.75rem 1rem;
-      border-bottom: 1px solid var(--border-subtle);
     }
     .hint {
       color: var(--text-hint);
@@ -443,7 +444,7 @@ export class BeeOccurrenceDetail extends LitElement {
   private _renderDateGroup(group: DateGroup) {
     return html`
       <div class="date-group">
-        <div class="date-header">${formatRomanDate(group.date)}</div>
+        <div class="date-header">${formatRomanDate(group.date)}${this._renderSharedInline()}</div>
         ${group.collectors.map(c => this._renderCollectorGroup(c))}
       </div>
     `;
@@ -455,7 +456,7 @@ export class BeeOccurrenceDetail extends LitElement {
       : 'identification pending';
     return html`
       <div class="panel-content sample-dot-detail">
-        <div class="event-date">${formatRomanDate(row.date)} ${this._renderRecordMenu(row)}</div>
+        <div class="event-date">${formatRomanDate(row.date)}${this._renderSharedInline()} ${this._renderRecordMenu(row)}</div>
         ${row.host_inat_login != null ? html`<div class="event-observer">${row.host_inat_login}</div>` : ''}
         ${row.sample_host != null ? html`<div class="event-host"><em>${row.sample_host}</em></div>` : ''}
         <div class="event-count">${count}</div>
@@ -471,7 +472,7 @@ export class BeeOccurrenceDetail extends LitElement {
     return html`
       <div class="panel-content sample-dot-detail">
         <div class="inat-id-label">iNat ID: ${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)} ${this._renderRecordMenu(row, this._filterTaxon(row.taxon_id, row.display_name))}</div>
-        <div class="event-date">${formatRomanDate(row.date)}</div>
+        <div class="event-date">${formatRomanDate(row.date)}${this._renderSharedInline()}</div>
         ${row.host_inat_login != null ? html`<div class="event-observer">${row.host_inat_login}</div>` : ''}
         ${row.specimen_count != null && !isNaN(row.specimen_count)
           ? html`<div class="event-count">${row.specimen_count} specimen${row.specimen_count === 1 ? '' : 's'} collected</div>`
@@ -490,7 +491,7 @@ export class BeeOccurrenceDetail extends LitElement {
     return html`
       <div class="panel-content sample-dot-detail">
         <div class="inat-id-label">${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)} ${this._renderRecordMenu(row, this._filterTaxon(row.taxon_id, inatDisplayName))}</div>
-        <div class="event-date">${formatRomanDate(row.date)}</div>
+        <div class="event-date">${formatRomanDate(row.date)}${this._renderSharedInline()}</div>
         ${row.user_login != null
           ? html`<div class="event-observer">${row.user_login}</div>` : ''}
         <div class="hint">Awaiting Ecdysis catalogue entry</div>
@@ -509,7 +510,7 @@ export class BeeOccurrenceDetail extends LitElement {
     return html`
       <div class="panel-content sample-dot-detail">
         <div class="inat-id-label">${taxonEl} ${this._renderQualityBadge(row.inat_quality_grade)} ${this._renderRecordMenu(row, this._filterTaxon(row.taxon_id, inatDisplayName))}</div>
-        <div class="event-date">${formatRomanDate(row.date)}</div>
+        <div class="event-date">${formatRomanDate(row.date)}${this._renderSharedInline()}</div>
         ${row.user_login != null
           ? html`<div class="event-observer">${row.user_login}</div>` : ''}
         ${row.floralHost != null
@@ -545,7 +546,8 @@ export class BeeOccurrenceDetail extends LitElement {
       <div class="panel-content sample-dot-detail">
         <div class="inat-id-label">${taxonEl} ${this._renderRecordMenu(row, this._filterTaxon(row.taxon_id, accepted))}</div>
         ${row.recordedBy != null ? html`<div class="event-observer">${row.recordedBy}</div>` : ''}
-        ${dateStr ? html`<div class="event-date">${dateStr}</div>` : ''}
+        ${dateStr || this._sharedPlaces.size > 0
+          ? html`<div class="event-date">${dateStr}${this._renderSharedInline()}</div>` : ''}
         ${row.locality != null && row.locality !== '' ? html`<div class="event-host">${row.locality}</div>` : ''}
         ${row.collapsed_count != null && row.collapsed_count > 1
           ? html`<div class="event-count">Represents ${row.collapsed_count} collapsed records</div>` : ''}
@@ -578,12 +580,11 @@ export class BeeOccurrenceDetail extends LitElement {
     return shared ?? new Set();
   }
 
-  // The hoisted header: the shared places, once, above the date groups.
-  private _renderSharedPlaces() {
+  // The shared places as an inline continuation of a date line. Empty when the
+  // displayed rows share nothing, so the date line is unchanged in that case.
+  private _renderSharedInline() {
     if (this._sharedPlaces.size === 0) return '';
-    return html`<div class="member-places shared-places">
-      ${[...this._sharedPlaces].sort().map(name => html`<span class="member-place">${name}</span>`)}
-    </div>`;
+    return html` <span class="date-place">— ${[...this._sharedPlaces].sort().join(' · ')}</span>`;
   }
 
   // render the places this occurrence belongs to that are NOT already in the
@@ -611,7 +612,6 @@ export class BeeOccurrenceDetail extends LitElement {
       .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
     const dateGroups = groupOccurrences(specimenBacked);
     return html`
-      ${this._renderSharedPlaces()}
       ${dateGroups.map(group => this._renderDateGroup(group))}
       ${dateGroups.length > 0 && nonSpecimen.length > 0
         ? html`<hr class="separator">` : ''}
