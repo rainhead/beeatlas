@@ -76,6 +76,11 @@ export class BeeOccurrenceDetail extends LitElement {
   // invariant, CLAUDE.md). Each value is a sorted, de-duplicated name array.
   @property({ attribute: false }) placeNames: Map<string, string[]> | null = null;
 
+  // The place names EVERY displayed occurrence shares, hoisted out of the per-row
+  // chips into one header. Derived from `placeNames` at the top of render() — a
+  // render-scoped cache, not reactive state.
+  private _sharedPlaces: Set<string> = new Set();
+
   static styles = css`
     :host {
       display: block;
@@ -184,6 +189,11 @@ export class BeeOccurrenceDetail extends LitElement {
       background: var(--border-subtle);
       border-radius: 3px;
       padding: 0.05rem 0.35rem;
+    }
+    .shared-places {
+      margin: 0;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border-subtle);
     }
     .hint {
       color: var(--text-hint);
@@ -545,13 +555,45 @@ export class BeeOccurrenceDetail extends LitElement {
     `;
   }
 
-  // render the list of places this occurrence belongs to. Names come from
-  // the passed-down placeNames map (state-owner-resolved); renders nothing when
-  // the occurrence has no membership (zero rows → no sentinel).
+  // The place names shared by EVERY displayed occurrence. Level IV ecoregions are
+  // places (ADR 0035) and they tile the state, so without this hoist the same
+  // ecoregion chip repeats on every species line of a single selected point.
+  // Deliberately conservative: a displayed row whose membership is unresolved or
+  // empty collapses the intersection, so the header never claims a place that some
+  // record on screen is not in — those rows keep their own chips instead.
+  private _computeSharedPlaces(): Set<string> {
+    if (this.placeNames == null) return new Set();
+    let shared: Set<string> | null = null;
+    for (const row of this.occurrences) {
+      const occId = occIdFromRow(row);
+      // Identity-less rows carry no membership and render no chips, so they
+      // neither contribute to nor collapse the shared set.
+      if (occId == null) continue;
+      const names = this.placeNames.get(occId);
+      if (names == null || names.length === 0) return new Set();
+      if (shared == null) { shared = new Set(names); continue; }
+      for (const name of [...shared]) if (!names.includes(name)) shared.delete(name);
+      if (shared.size === 0) return shared;
+    }
+    return shared ?? new Set();
+  }
+
+  // The hoisted header: the shared places, once, above the date groups.
+  private _renderSharedPlaces() {
+    if (this._sharedPlaces.size === 0) return '';
+    return html`<div class="member-places shared-places">
+      ${[...this._sharedPlaces].sort().map(name => html`<span class="member-place">${name}</span>`)}
+    </div>`;
+  }
+
+  // render the places this occurrence belongs to that are NOT already in the
+  // hoisted header. Names come from the passed-down placeNames map
+  // (state-owner-resolved); renders nothing when the occurrence has no membership
+  // (zero rows → no sentinel) or when every place it has is shared by all rows.
   private _renderPlaceNames(row: OccurrenceRow) {
     const occId = occIdFromRow(row);
     if (occId == null || this.placeNames == null) return '';
-    const names = this.placeNames.get(occId);
+    const names = this.placeNames.get(occId)?.filter(name => !this._sharedPlaces.has(name));
     if (names == null || names.length === 0) return '';
     return html`<div class="member-places">
       ${names.map(name => html`<span class="member-place">${name}</span>`)}
@@ -559,6 +601,8 @@ export class BeeOccurrenceDetail extends LitElement {
   }
 
   render() {
+    // Derive the hoisted set before any row renders — _renderPlaceNames subtracts it.
+    this._sharedPlaces = this._computeSharedPlaces();
     const specimenBacked = this.occurrences.filter(isSpecimenBacked);
     // nonSpecimen includes BOTH sample-only and provisional rows (!isSpecimenBacked, not the narrower predicate).
     // Null-safe: checklist rows with date_quality='none' carry date=null.
@@ -567,6 +611,7 @@ export class BeeOccurrenceDetail extends LitElement {
       .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
     const dateGroups = groupOccurrences(specimenBacked);
     return html`
+      ${this._renderSharedPlaces()}
       ${dateGroups.map(group => this._renderDateGroup(group))}
       ${dateGroups.length > 0 && nonSpecimen.length > 0
         ? html`<hr class="separator">` : ''}

@@ -168,6 +168,63 @@ describe('bee-occurrence-detail D-04 member-place rendering', () => {
   });
 });
 
+describe('bee-occurrence-detail shared-place roll-up', () => {
+  // Level IV ecoregions are places (ADR 0035) and tile the whole state, so every
+  // occurrence carries one. Repeating it on every species line of one selected
+  // point is noise: names shared by ALL displayed rows hoist into a single header.
+  const chips = (el: any, sel: string) =>
+    [...el.shadowRoot.querySelectorAll(sel)].map((n: any) => n.textContent.trim());
+
+  async function mount(occurrences: any[], placeNames: Map<string, string[]>) {
+    await import('../bee-occurrence-detail.ts');
+    document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
+    const el = document.querySelector('bee-occurrence-detail') as any;
+    el.occurrences = occurrences;
+    el.placeNames = placeNames;
+    await el.updateComplete;
+    return el;
+  }
+
+  test('a place every row shares renders once in the header, not per row', async () => {
+    const el = await mount([ecdysisRow(1), ecdysisRow(2), ecdysisRow(3)], new Map([
+      ['ecdysis:1', ['Yakima Folds']],
+      ['ecdysis:2', ['Yakima Folds']],
+      ['ecdysis:3', ['Yakima Folds']],
+    ]));
+    expect(chips(el, '.shared-places .member-place')).toEqual(['Yakima Folds']);
+    // The whole document holds exactly one chip — no per-row repeats.
+    expect(chips(el, '.member-place')).toEqual(['Yakima Folds']);
+  });
+
+  test('a place only some rows have stays on its own row', async () => {
+    const el = await mount([ecdysisRow(1), ecdysisRow(2)], new Map([
+      ['ecdysis:1', ['Klickitat Trail', 'Yakima Folds']],
+      ['ecdysis:2', ['Yakima Folds']],
+    ]));
+    expect(chips(el, '.shared-places .member-place')).toEqual(['Yakima Folds']);
+    expect(chips(el, '.member-places:not(.shared-places) .member-place')).toEqual(['Klickitat Trail']);
+  });
+
+  test('rows sharing nothing keep all their own chips and get no header', async () => {
+    const el = await mount([ecdysisRow(1), ecdysisRow(2)], new Map([
+      ['ecdysis:1', ['Yakima Folds']],
+      ['ecdysis:2', ['Okanogan Drift Hills']],
+    ]));
+    expect(el.shadowRoot.querySelector('.shared-places')).toBeNull();
+    expect(chips(el, '.member-place').sort()).toEqual(['Okanogan Drift Hills', 'Yakima Folds']);
+  });
+
+  test('a row with no resolved membership collapses the header (no false claim)', async () => {
+    // ecdysis:2 has no bridge rows; hoisting 'Yakima Folds' above both would
+    // assert a membership we do not have for it.
+    const el = await mount([ecdysisRow(1), ecdysisRow(2)], new Map([
+      ['ecdysis:1', ['Yakima Folds']],
+    ]));
+    expect(el.shadowRoot.querySelector('.shared-places')).toBeNull();
+    expect(chips(el, '.member-place')).toEqual(['Yakima Folds']);
+  });
+});
+
 describe('bee-occurrence-detail per-record disclosure menu (beeatlas-k7g)', () => {
   test('specimen row exposes a details/summary menu, no inline emoji-links', async () => {
     await import('../bee-occurrence-detail.ts');
