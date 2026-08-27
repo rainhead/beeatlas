@@ -1,7 +1,7 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js';
 import type { BeeMap } from './bee-map.ts';
-import { type FilterState, type CollectorEntry, type PlaceOption, type PlaceKind, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, getOccurrencePlaceSlugs, queryTaxaTree, type OccurrenceProperties, emptyFilterState, lookupByCatalogSuffix } from './filter.ts';
+import { type FilterState, type CollectorEntry, type PlaceOption, type PlaceKind, type MemberPlace, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, getOccurrencePlaceSlugs, queryTaxaTree, type OccurrenceProperties, emptyFilterState, lookupByCatalogSuffix } from './filter.ts';
 import type { TaxonNode } from './taxa-tree.ts';
 import { parseOccId, occIdFromRow } from './occurrence.ts';
 import { buildParams, parseParams, type TierKey } from './url-state.ts';
@@ -188,7 +188,7 @@ export class BeeAtlas extends LitElement {
   // and the places_meta slug→name source, then passed DOWN through <bee-pane> to
   // <bee-occurrence-detail> as a property — presenters never query wa-sqlite
   // themselves (state-ownership invariant, CLAUDE.md).
-  @state() private _placeNamesByOccId: Map<string, string[]> = new Map();
+  @state() private _memberPlacesByOccId: Map<string, MemberPlace[]> = new Map();
   @state() private _selectionCount: number | null = null;
   @state() private _selectedOccIds: string[] | null = null;
   @state() private _selectedCluster: { lon: number; lat: number; radiusM: number } | null = null;
@@ -205,7 +205,7 @@ export class BeeAtlas extends LitElement {
   @state() private _searchStatus: SearchStatus | null = null;
   // WR-02 / CLAUDE.md "Filter race guard": the lookup awaits, so two fast Enters can
   // resolve out of order and let the slower one clobber the newer selection. Mirrors
-  // the _placeNamesGeneration / makeStaleGuard pattern.
+  // the _memberPlacesGeneration / makeStaleGuard pattern.
   private _catalogLookupGeneration = 0;
   @state() private _summary: DataSummary | null = null;
   @state() private _taxaOptions: TaxonOption[] = [];
@@ -342,9 +342,9 @@ export class BeeAtlas extends LitElement {
   private _filterGuard = makeStaleGuard<{ geojson: FeatureCollection<Point, OccurrenceProperties>; ids: Set<string>; rowCount: number } | null>();
   private _tableGuard = makeStaleGuard<{ rows: OccurrenceRow[]; total: number }>();
   private _listGuard = makeStaleGuard<{ rows: OccurrenceRow[]; total: number; selectionCount: number | null }>();
-  // Stale-result guard for the unguarded _resolvePlaceNames async chain (WR-02):
-  // bump-and-capture so a superseded resolution cannot overwrite _placeNamesByOccId.
-  private _placeNamesGeneration = 0;
+  // Stale-result guard for the unguarded _resolveMemberPlaces async chain (WR-02):
+  // bump-and-capture so a superseded resolution cannot overwrite _memberPlacesByOccId.
+  private _memberPlacesGeneration = 0;
   private _currentView: { lon: number; lat: number; zoom: number } = {
     lon: DEFAULT_LON,
     lat: DEFAULT_LAT,
@@ -737,7 +737,7 @@ bee-map {
             .summary=${this._summary}
             .specimenCount=${isFilterActive(this._filterState) ? this._filteredRowCount : null}
             .listRows=${this._listRows}
-            .placeNames=${this._placeNamesByOccId}
+            .memberPlaces=${this._memberPlacesByOccId}
             .listRowCount=${this._listRowCount}
             .listPage=${this._listPage}
             .listLoading=${this._listLoading}
@@ -1565,9 +1565,9 @@ bee-map {
     this._selectionCount = guarded.result.selectionCount;
     this._listLoading = false;
     // resolve member-place names for the freshly loaded rows. Fire-and-forget;
-    // the await chain assigns _placeNamesByOccId (a @state field) which re-renders
+    // the await chain assigns _memberPlacesByOccId (a @state field) which re-renders
     // the detail pane once membership resolves.
-    void this._resolvePlaceNames(this._listRows);
+    void this._resolveMemberPlaces(this._listRows);
   }
 
   // the slug→name map, for the member-place names that flow DOWN to
@@ -1581,24 +1581,29 @@ bee-map {
   // for each displayed occurrence, query the occurrence_places bridge
   // (getOccurrencePlaceSlugs — the wa-sqlite call lives HERE, not in a presenter)
   // and map slugs to display names, sorted/deduped for determinism.
-  private async _resolvePlaceNames(rows: OccurrenceRow[]): Promise<void> {
+  private async _resolveMemberPlaces(rows: OccurrenceRow[]): Promise<void> {
     // WR-02: guard against out-of-order resolutions. Mirrors the
     // _filterQueryGeneration / makeStaleGuard pattern — capture the generation at
     // the start; after every await point, bail if a newer call has superseded us so
-    // a slower resolution cannot clobber _placeNamesByOccId with stale membership.
-    const myGen = ++this._placeNamesGeneration;
+    // a slower resolution cannot clobber _memberPlacesByOccId with stale membership.
+    const myGen = ++this._memberPlacesGeneration;
     const occIds = [...new Set(rows.map(occIdFromRow).filter((id): id is string => id != null))];
-    if (occIds.length === 0) { this._placeNamesByOccId = new Map(); return; }
+    if (occIds.length === 0) { this._memberPlacesByOccId = new Map(); return; }
     const nameBySlug = await this._ensurePlaceNameBySlug();
-    if (myGen !== this._placeNamesGeneration) return; // superseded
-    const byOccId = new Map<string, string[]>();
+    if (myGen !== this._memberPlacesGeneration) return; // superseded
+    const byOccId = new Map<string, MemberPlace[]>();
     await Promise.all(occIds.map(async occId => {
       const slugs = await getOccurrencePlaceSlugs(occId);
-      const names = [...new Set(slugs.map(s => nameBySlug.get(s) ?? s))].sort();
-      if (names.length > 0) byOccId.set(occId, names);
+      // Slug is the identity and always present; the name falls back to it when
+      // places.json has not resolved (offline first paint), so a member place is
+      // never rendered nameless.
+      const places = [...new Set(slugs)]
+        .map(slug => ({ slug, name: nameBySlug.get(slug) ?? slug }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      if (places.length > 0) byOccId.set(occId, places);
     }));
-    if (myGen !== this._placeNamesGeneration) return; // superseded
-    this._placeNamesByOccId = byOccId;
+    if (myGen !== this._memberPlacesGeneration) return; // superseded
+    this._memberPlacesByOccId = byOccId;
   }
 
   // --- URL state ---

@@ -1,6 +1,6 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import type { OccurrenceRow, FilterState, FilterChangedEvent } from './filter.ts';
+import type { OccurrenceRow, FilterState, FilterChangedEvent, MemberPlace } from './filter.ts';
 import { isSpecimenBacked, isProvisional, occIdFromRow } from './occurrence.ts';
 import type { TaxonCacheEntry } from './taxa.ts';
 
@@ -69,17 +69,17 @@ export class BeeOccurrenceDetail extends LitElement {
   @property({ attribute: false }) occurrences: OccurrenceRow[] = [];
   @property({ attribute: false }) taxonCache: Map<number, TaxonCacheEntry> | null = null;
   @property({ attribute: false }) filterState: FilterState | null = null;
-  // per-occurrence member-place names, resolved by the state owner
-  // (<bee-atlas>) from the occurrence_places bridge and passed DOWN as a
+  // per-occurrence member places (slug + display name), resolved by the state
+  // owner (<bee-atlas>) from the occurrence_places bridge and passed DOWN as a
   // property. Keyed on the synthetic occId (occIdFromRow). This presenter
   // ONLY reads this map — it never queries wa-sqlite itself (state-ownership
-  // invariant, CLAUDE.md). Each value is a sorted, de-duplicated name array.
-  @property({ attribute: false }) placeNames: Map<string, string[]> | null = null;
+  // invariant, CLAUDE.md). Each value is sorted by name and de-duplicated.
+  @property({ attribute: false }) memberPlaces: Map<string, MemberPlace[]> | null = null;
 
-  // The place names EVERY displayed occurrence shares, lifted out of the per-row
-  // chips onto the date lines. Derived from `placeNames` at the top of render() —
-  // a render-scoped cache, not reactive state.
-  private _sharedPlaces: Set<string> = new Set();
+  // The places EVERY displayed occurrence shares, lifted out of the per-row chips
+  // onto the date lines. Derived from `memberPlaces` at the top of render() — a
+  // render-scoped cache, not reactive state.
+  private _sharedPlaces: MemberPlace[] = [];
 
   static styles = css`
     :host {
@@ -97,6 +97,19 @@ export class BeeOccurrenceDetail extends LitElement {
     .date-place {
       font-weight: 400;
       color: var(--text-hint);
+    }
+    .place-link {
+      color: inherit;
+      text-decoration: none;
+    }
+    .place-link:hover {
+      color: var(--accent, #2c7a2c);
+      text-decoration: underline;
+    }
+    .place-link:focus-visible {
+      outline: 2px solid var(--accent, #2c7a2c);
+      outline-offset: 2px;
+      border-radius: 2px;
     }
     .sample {
       padding: 0.75rem 1rem;
@@ -546,7 +559,7 @@ export class BeeOccurrenceDetail extends LitElement {
       <div class="panel-content sample-dot-detail">
         <div class="inat-id-label">${taxonEl} ${this._renderRecordMenu(row, this._filterTaxon(row.taxon_id, accepted))}</div>
         ${row.recordedBy != null ? html`<div class="event-observer">${row.recordedBy}</div>` : ''}
-        ${dateStr || this._sharedPlaces.size > 0
+        ${dateStr || this._sharedPlaces.length > 0
           ? html`<div class="event-date">${dateStr}${this._renderSharedInline()}</div>` : ''}
         ${row.locality != null && row.locality !== '' ? html`<div class="event-host">${row.locality}</div>` : ''}
         ${row.collapsed_count != null && row.collapsed_count > 1
@@ -563,46 +576,57 @@ export class BeeOccurrenceDetail extends LitElement {
   // Deliberately conservative: a displayed row whose membership is unresolved or
   // empty collapses the intersection, so the header never claims a place that some
   // record on screen is not in — those rows keep their own chips instead.
-  private _computeSharedPlaces(): Set<string> {
-    if (this.placeNames == null) return new Set();
-    let shared: Set<string> | null = null;
+  private _computeSharedPlaces(): MemberPlace[] {
+    if (this.memberPlaces == null) return [];
+    let shared: MemberPlace[] | null = null;
     for (const row of this.occurrences) {
       const occId = occIdFromRow(row);
       // Identity-less rows carry no membership and render no chips, so they
       // neither contribute to nor collapse the shared set.
       if (occId == null) continue;
-      const names = this.placeNames.get(occId);
-      if (names == null || names.length === 0) return new Set();
-      if (shared == null) { shared = new Set(names); continue; }
-      for (const name of [...shared]) if (!names.includes(name)) shared.delete(name);
-      if (shared.size === 0) return shared;
+      const places = this.memberPlaces.get(occId);
+      if (places == null || places.length === 0) return [];
+      if (shared == null) { shared = [...places]; continue; }
+      // Slug is the identity — two places could in principle share a name.
+      const slugs = new Set(places.map(p => p.slug));
+      shared = shared.filter(p => slugs.has(p.slug));
+      if (shared.length === 0) return shared;
     }
-    return shared ?? new Set();
+    return shared ?? [];
+  }
+
+  // A place name as a link to its page (/places/<slug>.html — sites and Level IV
+  // ecoregions both live there, ADR 0035). Same tab, like the header's search
+  // results: these are pages of this site, not outbound links.
+  private _renderPlaceLink(place: MemberPlace) {
+    return html`<a class="place-link" href="/places/${place.slug}.html">${place.name}</a>`;
   }
 
   // The shared places as an inline continuation of a date line. Empty when the
   // displayed rows share nothing, so the date line is unchanged in that case.
   private _renderSharedInline() {
-    if (this._sharedPlaces.size === 0) return '';
-    return html` <span class="date-place">— ${[...this._sharedPlaces].sort().join(' · ')}</span>`;
+    if (this._sharedPlaces.length === 0) return '';
+    return html` <span class="date-place">— ${this._sharedPlaces.map((place, i) =>
+      html`${i > 0 ? ' · ' : ''}${this._renderPlaceLink(place)}`)}</span>`;
   }
 
-  // render the places this occurrence belongs to that are NOT already in the
-  // hoisted header. Names come from the passed-down placeNames map
-  // (state-owner-resolved); renders nothing when the occurrence has no membership
-  // (zero rows → no sentinel) or when every place it has is shared by all rows.
+  // render the places this occurrence belongs to that are NOT already on the
+  // date line. Names come from the passed-down memberPlaces map (state-owner-resolved);
+  // renders nothing when the occurrence has no membership (zero rows → no
+  // sentinel) or when every place it has is shared by all displayed rows.
   private _renderPlaceNames(row: OccurrenceRow) {
     const occId = occIdFromRow(row);
-    if (occId == null || this.placeNames == null) return '';
-    const names = this.placeNames.get(occId)?.filter(name => !this._sharedPlaces.has(name));
-    if (names == null || names.length === 0) return '';
+    if (occId == null || this.memberPlaces == null) return '';
+    const shared = new Set(this._sharedPlaces.map(p => p.slug));
+    const places = this.memberPlaces.get(occId)?.filter(p => !shared.has(p.slug));
+    if (places == null || places.length === 0) return '';
     return html`<div class="member-places">
-      ${names.map(name => html`<span class="member-place">${name}</span>`)}
+      ${places.map(place => html`<span class="member-place">${this._renderPlaceLink(place)}</span>`)}
     </div>`;
   }
 
   render() {
-    // Derive the hoisted set before any row renders — _renderPlaceNames subtracts it.
+    // Derive the shared set before any row renders — _renderPlaceNames subtracts it.
     this._sharedPlaces = this._computeSharedPlaces();
     const specimenBacked = this.occurrences.filter(isSpecimenBacked);
     // nonSpecimen includes BOTH sample-only and provisional rows (!isSpecimenBacked, not the narrower predicate).

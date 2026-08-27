@@ -1,7 +1,7 @@
 import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { isFilterActive } from './filter.ts';
-import type { FilterState, CollectorEntry, PlaceOption } from './filter.ts';
+import type { FilterState, CollectorEntry, PlaceOption, MemberPlace } from './filter.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
 import type { TaxonCacheEntry } from './taxa.ts';
 import { taxonomyIcon } from './icons.ts';
@@ -90,7 +90,7 @@ export class BeePane extends LitElement {
   // per-occurrence member-place names, resolved by the state owner
   // (<bee-atlas>) and passed straight through to <bee-occurrence-detail>.
   // bee-pane is a pure presenter — it only forwards this map, never queries.
-  @property({ attribute: false }) placeNames: Map<string, string[]> | null = null;
+  @property({ attribute: false }) memberPlaces: Map<string, MemberPlace[]> | null = null;
 
   // Table-specific (from bee-atlas render)
   @property({ attribute: false }) rows: OccurrenceRow[] = [];
@@ -1209,7 +1209,7 @@ export class BeePane extends LitElement {
             ? html`<div class="panel-content"><p class="hint">No tiers selected. Enable at least one tier above.</p></div>`
             : this.listRows.length === 0
               ? html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`
-              : html`<bee-occurrence-detail .occurrences=${this.listRows} .taxonCache=${this.taxonCache} .filterState=${this.filterState} .placeNames=${this.placeNames}></bee-occurrence-detail>`
+              : html`<bee-occurrence-detail .occurrences=${this.listRows} .taxonCache=${this.taxonCache} .filterState=${this.filterState} .memberPlaces=${this.memberPlaces}></bee-occurrence-detail>`
         }
       </div>
       ${this.listRowCount > PAGE_SIZE ? html`

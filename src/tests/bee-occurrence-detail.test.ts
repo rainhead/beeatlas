@@ -123,11 +123,11 @@ describe('bee-occurrence-detail.ts source structure', () => {
 
 describe('bee-occurrence-detail D-04 member-place rendering', () => {
   // State-ownership invariant (CLAUDE.md): the presenter must NOT query the
-  // SQL engine itself — it only reads the passed-down placeNames property.
+  // SQL engine itself — it only reads the passed-down memberPlaces property.
   const src = readFileSync(resolve(__dirname, '../bee-occurrence-detail.ts'), 'utf-8');
 
-  test('presenter declares placeNames property and never queries wa-sqlite', () => {
-    expect(src).toMatch(/@property[^)]*\)\s+placeNames/);
+  test('presenter declares memberPlaces property and never queries wa-sqlite', () => {
+    expect(src).toMatch(/@property[^)]*\)\s+memberPlaces/);
     // No SQL-engine access inside the presenter (state-ownership invariant).
     expect(src).not.toMatch(/getOccurrencePlaceSlugs|getDB|sqlite3\.exec|tablesReady/);
   });
@@ -137,7 +137,10 @@ describe('bee-occurrence-detail D-04 member-place rendering', () => {
     document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
     const el = document.querySelector('bee-occurrence-detail') as any;
     el.occurrences = [ecdysisRow(42)];
-    el.placeNames = new Map([['ecdysis:42', ["Ebey's Landing", 'Whidbey WLA']]]);
+    el.memberPlaces = new Map([['ecdysis:42', [
+      { slug: 'ebeys-landing', name: "Ebey's Landing" },
+      { slug: 'whidbey-wla', name: 'Whidbey WLA' },
+    ]]]);
     await el.updateComplete;
     // A lone displayed record shares every place it has with itself, so all of
     // them ride the date line rather than repeating as chips under it.
@@ -152,7 +155,7 @@ describe('bee-occurrence-detail D-04 member-place rendering', () => {
     document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
     const el = document.querySelector('bee-occurrence-detail') as any;
     el.occurrences = [ecdysisRow(7)];
-    el.placeNames = new Map(); // no membership for ecdysis:7
+    el.memberPlaces = new Map(); // no membership for ecdysis:7
     await el.updateComplete;
     expect(el.shadowRoot.querySelector('.member-places')).toBeNull();
     expect(el.shadowRoot.querySelectorAll('.member-place').length).toBe(0);
@@ -164,7 +167,7 @@ describe('bee-occurrence-detail D-04 member-place rendering', () => {
     document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
     const el = document.querySelector('bee-occurrence-detail') as any;
     el.occurrences = [ecdysisRow(99)];
-    el.placeNames = new Map([['ecdysis:99', ['Klickitat Trail']]]);
+    el.memberPlaces = new Map([['ecdysis:99', [{ slug: 'klickitat-trail', name: 'Klickitat Trail' }]]]);
     await el.updateComplete;
     expect(el.shadowRoot.querySelector('.date-place').textContent.trim()).toBe('— Klickitat Trail');
   });
@@ -175,24 +178,28 @@ describe('bee-occurrence-detail shared-place roll-up', () => {
   // occurrence carries one. Repeating it on every species line of one selected
   // point is noise: names shared by ALL displayed rows ride the date line instead,
   // and only what a record adds beyond them stays a per-row chip.
+  const YAKIMA_FOLDS = { slug: '10j-yakima-folds', name: 'Yakima Folds' };
+  const KLICKITAT_TRAIL = { slug: 'klickitat-trail', name: 'Klickitat Trail' };
+  const OKANOGAN_DRIFT_HILLS = { slug: '10a-okanogan-drift-hills', name: 'Okanogan Drift Hills' };
+
   const text = (el: any, sel: string) =>
     [...el.shadowRoot.querySelectorAll(sel)].map((n: any) => n.textContent.trim());
 
-  async function mount(occurrences: any[], placeNames: Map<string, string[]>) {
+  async function mount(occurrences: any[], memberPlaces: Map<string, any[]>) {
     await import('../bee-occurrence-detail.ts');
     document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
     const el = document.querySelector('bee-occurrence-detail') as any;
     el.occurrences = occurrences;
-    el.placeNames = placeNames;
+    el.memberPlaces = memberPlaces;
     await el.updateComplete;
     return el;
   }
 
   test('a place every row shares rides the date line, not each row', async () => {
     const el = await mount([ecdysisRow(1), ecdysisRow(2), ecdysisRow(3)], new Map([
-      ['ecdysis:1', ['Yakima Folds']],
-      ['ecdysis:2', ['Yakima Folds']],
-      ['ecdysis:3', ['Yakima Folds']],
+      ['ecdysis:1', [YAKIMA_FOLDS]],
+      ['ecdysis:2', [YAKIMA_FOLDS]],
+      ['ecdysis:3', [YAKIMA_FOLDS]],
     ]));
     // One date group (all three rows share a date) → one mention.
     expect(text(el, '.date-place')).toEqual(['— Yakima Folds']);
@@ -204,8 +211,8 @@ describe('bee-occurrence-detail shared-place roll-up', () => {
 
   test('a place only some rows have stays a chip on its own row', async () => {
     const el = await mount([ecdysisRow(1), ecdysisRow(2)], new Map([
-      ['ecdysis:1', ['Klickitat Trail', 'Yakima Folds']],
-      ['ecdysis:2', ['Yakima Folds']],
+      ['ecdysis:1', [KLICKITAT_TRAIL, YAKIMA_FOLDS]],
+      ['ecdysis:2', [YAKIMA_FOLDS]],
     ]));
     expect(text(el, '.date-place')).toEqual(['— Yakima Folds']);
     expect(text(el, '.member-place')).toEqual(['Klickitat Trail']);
@@ -213,8 +220,8 @@ describe('bee-occurrence-detail shared-place roll-up', () => {
 
   test('several shared places join on the one date line', async () => {
     const el = await mount([ecdysisRow(1), ecdysisRow(2)], new Map([
-      ['ecdysis:1', ['Klickitat Trail', 'Yakima Folds']],
-      ['ecdysis:2', ['Klickitat Trail', 'Yakima Folds']],
+      ['ecdysis:1', [KLICKITAT_TRAIL, YAKIMA_FOLDS]],
+      ['ecdysis:2', [KLICKITAT_TRAIL, YAKIMA_FOLDS]],
     ]));
     expect(text(el, '.date-place')).toEqual(['— Klickitat Trail · Yakima Folds']);
     expect(text(el, '.member-place')).toEqual([]);
@@ -222,18 +229,30 @@ describe('bee-occurrence-detail shared-place roll-up', () => {
 
   test('rows sharing nothing leave the date line alone and keep their chips', async () => {
     const el = await mount([ecdysisRow(1), ecdysisRow(2)], new Map([
-      ['ecdysis:1', ['Yakima Folds']],
-      ['ecdysis:2', ['Okanogan Drift Hills']],
+      ['ecdysis:1', [YAKIMA_FOLDS]],
+      ['ecdysis:2', [OKANOGAN_DRIFT_HILLS]],
     ]));
     expect(el.shadowRoot.querySelector('.date-place')).toBeNull();
     expect(text(el, '.member-place').sort()).toEqual(['Okanogan Drift Hills', 'Yakima Folds']);
+  });
+
+  test('every place name links to its page, on the date line and in a chip', async () => {
+    // Sites and Level IV ecoregions both paginate to /places/<slug>.html (ADR 0035).
+    const el = await mount([ecdysisRow(1), ecdysisRow(2)], new Map([
+      ['ecdysis:1', [KLICKITAT_TRAIL, YAKIMA_FOLDS]],
+      ['ecdysis:2', [YAKIMA_FOLDS]],
+    ]));
+    expect(el.shadowRoot.querySelector('.date-place a').getAttribute('href'))
+      .toBe('/places/10j-yakima-folds.html');
+    expect(el.shadowRoot.querySelector('.member-place a').getAttribute('href'))
+      .toBe('/places/klickitat-trail.html');
   });
 
   test('a row with no resolved membership collapses the shared set (no false claim)', async () => {
     // ecdysis:2 has no bridge rows; putting 'Yakima Folds' on the date line would
     // assert a membership we do not have for it.
     const el = await mount([ecdysisRow(1), ecdysisRow(2)], new Map([
-      ['ecdysis:1', ['Yakima Folds']],
+      ['ecdysis:1', [YAKIMA_FOLDS]],
     ]));
     expect(el.shadowRoot.querySelector('.date-place')).toBeNull();
     expect(text(el, '.member-place')).toEqual(['Yakima Folds']);

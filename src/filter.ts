@@ -739,6 +739,18 @@ export interface PlaceOption {
 
 export type PlaceKind = 'site' | 'ecoregion_l4';
 
+/**
+ * One place an occurrence belongs to, as the detail pane needs it: the display
+ * name plus the slug its page lives at (/places/<slug>.html — every place in
+ * places.json is paginated into one, sites and Level IV ecoregions alike).
+ * The slug, not the name, is the identity: it is what the occurrence_places
+ * bridge stores and what shared-membership comparisons key on.
+ */
+export interface MemberPlace {
+  slug: string;
+  name: string;
+}
+
 // Custom event payload
 export interface FilterChangedEvent {
   taxonId: number | null;
