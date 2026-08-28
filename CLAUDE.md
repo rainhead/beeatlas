@@ -163,6 +163,17 @@ linked ADR — read it before changing anything an entry calls load-bearing.
   start. Sign-out erases locally first and persists a pending flag, so an offline
   sign-out is not undone on reconnect. The avatar is inlined by `api/avatar.py` as a
   `data:` URL — it had to be the server, because static.inaturalist.org sends no CORS.
+- **`/design` proofs components from fixtures**
+  ([ADR 0039](docs/adr/0039-design-proofing-surface.md)). Sections are registered in
+  `_data/design.js` (index + paginated pages + nav + test all read it); the states
+  live in `src/design/proofs.ts` over builders in `src/design/fixtures.ts` that the
+  unit tests share. `src/entries/design.ts` mounts them and is **presenters only**:
+  no `bee-atlas` / `app-entry` / `bee-map` / SW import, and `filter.ts` for TYPES
+  ONLY — a value import pulls `sqlite.ts` and inlines the wa-sqlite worker into a
+  page that shows fixtures. `src/tests/design.test.ts` pins both rules, checks the
+  register against `PROOFS` in both directions, and mounts every state. It ships
+  unlinked, so states can be proofed on a real phone.
+
 - **`data/artifacts.toml`** (+ tested `data/artifacts.py`) is the declarative contract
   for pipeline artifacts: each carries `derived`|`authoritative` provenance, and the two
   schema-evolution regimes are machine-enforced (ADR 0002). The *published* runtime

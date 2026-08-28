@@ -1,0 +1,124 @@
+/* Chrome for the /design proofing pages (ADR 0039).
+ *
+ * Everything here dresses the page AROUND the exhibits. Nothing in this file
+ * may style a component under proof: a proofing page that touches its subject
+ * shows you something the product does not have. The stage sets width and
+ * background only, because those come from the pane in the real app and a
+ * component seen at the wrong width proofs a layout nobody sees.
+ */
+
+.design-page {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+}
+
+.design-page h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.6rem;
+}
+
+.design-lede {
+  margin: 0 0 1.5rem;
+  color: var(--text-secondary);
+  max-width: 44rem;
+}
+
+/* Section switcher. Mirrors the inline-nav used by /places and /ecoregions:
+   it names where you are before it offers anywhere to go. */
+.design-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+  padding: 0 0 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.design-nav a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.design-nav a:hover {
+  background: var(--surface-muted);
+  color: var(--text-body);
+}
+
+.design-nav a[aria-current='page'] {
+  background: var(--surface-chip);
+  color: var(--text-body);
+  font-weight: 600;
+}
+
+.design-sections {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.design-sections li {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.9rem 1rem;
+  background: #fff;
+}
+
+.design-sections a {
+  font-size: 1.05rem;
+  color: var(--text-body);
+  text-decoration: none;
+}
+
+.design-sections a:hover { text-decoration: underline; }
+
+.design-sections p {
+  margin: 0.35rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+/* One exhibit: what is being proofed, framed so it is never mistaken for the
+   page around it. */
+.specimen {
+  margin: 0 0 2rem;
+  scroll-margin-top: 1rem;
+}
+
+.specimen-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.specimen-header h2 a {
+  color: var(--text-body);
+  text-decoration: none;
+}
+
+.specimen-header h2 a:hover { text-decoration: underline; }
+
+.specimen-note {
+  margin: 0.2rem 0 0.6rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  max-width: 44rem;
+}
+
+/* Pane-width, because the sidebar is the only place these components are ever
+   seen. The dashed edge says "this is the exhibit", and the min-height keeps a
+   state that renders nothing (there is one) from collapsing invisibly. */
+.specimen-stage {
+  width: 390px;
+  max-width: 100%;
+  min-height: 2.5rem;
+  background: #fff;
+  border: 1px dashed var(--border-input);
+  border-radius: 4px;
+  overflow: hidden;
+}

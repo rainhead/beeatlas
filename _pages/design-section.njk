@@ -1,0 +1,25 @@
+---
+pagination:
+  data: design.sections
+  size: 1
+  alias: section
+permalink: "/design/{{ section.slug }}.html"
+eleventyComputed:
+  title: "{{ section.label }} — Design — BeeAtlas"
+layout: default.njk
+---
+{% viteAssets "src/entries/design.ts" %}
+<article class="design-page">
+  <nav class="design-nav" aria-label="Design sections">
+    <a href="/design/">Overview</a>
+    {%- for s in design.sections -%}
+    <a href="/design/{{ s.slug }}.html"{% if s.slug == section.slug %} aria-current="page"{% endif %}>{{ s.label }}</a>
+    {%- endfor -%}
+  </nav>
+  <h1>{{ section.label }}</h1>
+  <p class="design-lede">{{ section.lede }}</p>
+  {#- The exhibits are built by src/entries/design.ts: a state is a typed fixture,
+      which is not something a template can describe. This container is the only
+      contract between the two — its slug picks the section out of PROOFS. -#}
+  <div data-design-section="{{ section.slug }}"></div>
+</article>

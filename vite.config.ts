@@ -185,6 +185,11 @@ export default defineConfig({
         // thing this list should make impossible.
         'src/app-entry.ts',
         'src/entries/bee-header.ts',
+        // The /design proofing pages (ADR 0039). Presenters only: this entry
+        // must never reach bee-atlas or the SW registration, for the reason
+        // spelled out above — a page that mounts components is the likeliest
+        // one to mount the map by accident. src/tests/design.test.ts pins it.
+        'src/entries/design.ts',
         'src/entries/species-index.ts',
         'src/entries/taxon-page.ts',
         'src/index.css',

@@ -41,3 +41,5 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0035](0035-level-iv-ecoregions-are-places.md) | Level IV ecoregions are places, not a second ecoregion column | Accepted |
 | [0036](0036-http2-needs-a-threaded-mpm.md) | HTTP/2 needs a threaded MPM, so maderas runs mpm_event | Accepted |
 | [0037](0037-no-waf-in-front-of-a-static-site.md) | mod_evasive comes out; a static site does not want a WAF in front of it | Accepted |
+| [0038](0038-pnpm-over-npm.md) | pnpm replaces npm, and the three projects stay separate | Accepted |
+| [0039](0039-design-proofing-surface.md) | /design proofs components from fixtures, never from the database | Accepted |

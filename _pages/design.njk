@@ -1,0 +1,20 @@
+---
+layout: default.njk
+permalink: /design/index.html
+title: Design — BeeAtlas
+---
+{% viteAssets "src/entries/design.ts" %}
+<article class="design-page">
+  <h1>Design</h1>
+  <p class="design-lede">Components in every state they can be in, built from fixtures rather than
+    from the database. If a screen needs a state that is not here, it gets added here first — and if
+    a state cannot be reached by setting properties, the component has stopped being a presenter.</p>
+  <ul class="design-sections">
+    {%- for section in design.sections -%}
+    <li>
+      <a href="/design/{{ section.slug }}.html">{{ section.label }}</a>
+      <p>{{ section.lede }}</p>
+    </li>
+    {%- endfor -%}
+  </ul>
+</article>
