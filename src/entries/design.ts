@@ -42,6 +42,15 @@ function frame(state: ProofState): HTMLElement {
   // treatment that wraps in the real thing.
   const stage = document.createElement('div');
   stage.className = 'specimen-stage';
+  if (state.expectsEmpty === true) {
+    // Say so, or an intentionally empty component is indistinguishable from a
+    // broken one — the exhibit is the ABSENCE, and absence needs a caption.
+    stage.classList.add('specimen-stage--empty');
+    const caption = document.createElement('p');
+    caption.className = 'specimen-empty';
+    caption.textContent = 'Renders nothing, by contract.';
+    stage.append(caption);
+  }
   stage.append(state.render());
   section.append(stage);
   return section;

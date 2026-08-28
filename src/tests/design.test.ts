@@ -79,8 +79,9 @@ describe('/design proof states all render', () => {
         await (el as HTMLElement & { updateComplete?: Promise<unknown> }).updateComplete;
         expect(el.shadowRoot, state.id).not.toBeNull();
         const rendered = (el.shadowRoot?.textContent ?? '').trim();
-        // 'empty' is the one state whose whole point is rendering nothing.
-        if (state.id === 'empty') expect(rendered).toBe('');
+        // A state may declare that rendering nothing IS its contract; every
+        // other one must actually put something on the page.
+        if (state.expectsEmpty === true) expect(rendered, state.id).toBe('');
         else expect(rendered, state.id).not.toBe('');
       });
     }

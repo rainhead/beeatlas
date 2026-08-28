@@ -122,3 +122,17 @@
   border-radius: 4px;
   overflow: hidden;
 }
+
+/* A state whose contract is to render nothing. Without the caption an empty
+   stage reads as a failure; with it, the emptiness is the exhibit. */
+.specimen-stage--empty {
+  border-style: dotted;
+}
+
+.specimen-empty {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  color: var(--text-hint);
+  font-size: 0.8rem;
+  font-style: italic;
+}

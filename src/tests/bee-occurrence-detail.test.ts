@@ -4,25 +4,15 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { formatRomanDate } from '../bee-occurrence-detail.ts';
 import type { OccurrenceRow } from '../filter.ts';
+import { occurrenceRow } from '../design/fixtures.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// A specimen-backed (ecdysis) row → occId 'ecdysis:42'. Only the fields the
-// detail render reads are populated; the rest default to null/false.
-function ecdysisRow(ecdysisId: number): OccurrenceRow {
-  return {
-    taxon_id: null, lat: 47.6, lon: -122.3, date: '2024-06-01',
-    county: null, ecoregion_l3: null, ecdysis_id: ecdysisId,
-    catalog_number: null, recordedBy: 'A. Collector', fieldNumber: null,
-    floralHost: null, host_observation_id: null, inat_host: null,
-    inat_quality_grade: null, modified: null, specimen_observation_id: null,
-    elevation_m: null, elevation_dem_m: null, year: 2024, month: 6, observation_id: null,
-    host_inat_login: null, is_provisional: false,
-    specimen_inat_quality_grade: null, specimen_count: null, sample_id: null,
-    sample_host: null, checklist_id: null, verbatim_name: null, locality: null,
-    collapsed_count: null, tier: 'atlas', record_type: 'specimen', image_url: null, obs_url: null,
-    user_login: null, license: null, display_name: null, display_rank: null,
-  };
+// A specimen-backed (ecdysis) row → occId 'ecdysis:N'. Built from the shared
+// /design fixture builder (ADR 0039) rather than a second hand-rolled literal,
+// so the states these tests assert on are the same ones the proofing page shows.
+function ecdysisRow(ecdysisId: number, over: Partial<OccurrenceRow> = {}): OccurrenceRow {
+  return occurrenceRow({ ecdysis_id: ecdysisId, ...over });
 }
 
 // Wave 0 Nyquist scaffold — tests target post-Plan-04 behavior.
@@ -236,6 +226,32 @@ describe('bee-occurrence-detail shared-place roll-up', () => {
     expect(text(el, '.member-place').sort()).toEqual(['Okanogan Drift Hills', 'Yakima Folds']);
   });
 
+  test('each date group names its own place, even when the list shares none', async () => {
+    // Two records in different ecoregions on different dates. The list shares
+    // nothing, but each date line still speaks for the group beneath it.
+    const el = await mount([
+      ecdysisRow(1, { date: '2024-06-01' }),
+      ecdysisRow(2, { date: '2024-06-04' }),
+    ], new Map([
+      ['ecdysis:1', [YAKIMA_FOLDS]],
+      ['ecdysis:2', [OKANOGAN_DRIFT_HILLS]],
+    ]));
+    expect(text(el, '.date-place')).toEqual(['— Okanogan Drift Hills', '— Yakima Folds']);
+    // …so nothing repeats as a chip underneath.
+    expect(text(el, '.member-place')).toEqual([]);
+  });
+
+  test('a group whose rows disagree keeps its date line clean', async () => {
+    // Same two ecoregions, now on the SAME date: one group, no shared place, so
+    // the date line claims nothing and both records carry their own chip.
+    const el = await mount([ecdysisRow(1), ecdysisRow(2)], new Map([
+      ['ecdysis:1', [YAKIMA_FOLDS]],
+      ['ecdysis:2', [OKANOGAN_DRIFT_HILLS]],
+    ]));
+    expect(el.shadowRoot.querySelector('.date-place')).toBeNull();
+    expect(text(el, '.member-place').sort()).toEqual(['Okanogan Drift Hills', 'Yakima Folds']);
+  });
+
   test('every place name links to its page, on the date line and in a chip', async () => {
     // Sites and Level IV ecoregions both paginate to /places/<slug>.html (ADR 0035).
     const el = await mount([ecdysisRow(1), ecdysisRow(2)], new Map([
@@ -256,6 +272,107 @@ describe('bee-occurrence-detail shared-place roll-up', () => {
     ]));
     expect(el.shadowRoot.querySelector('.date-place')).toBeNull();
     expect(text(el, '.member-place')).toEqual(['Yakima Folds']);
+  });
+});
+
+describe('bee-occurrence-detail card line order', () => {
+  // Every non-specimen record renders through ONE card, so the order of its
+  // lines is a property of the card rather than of the record type. Before this,
+  // five renderers each chose: three led with the determination, two with the
+  // date. The order is context first — WHEN and WHERE, then WHO, then WHAT —
+  // because a record's identity is the collecting event and the determination is
+  // a claim about it that can change without the event changing.
+  const CARD_ORDER = ['event-date', 'event-observer', 'record-determination'];
+
+  async function mountRow(row: any) {
+    await import('../bee-occurrence-detail.ts');
+    document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
+    const el = document.querySelector('bee-occurrence-detail') as any;
+    el.occurrences = [row];
+    el.taxonCache = new Map([[1, { rank: 'species', name: 'Osmia lignaria', lineagePath: null }]]);
+    await el.updateComplete;
+    return el;
+  }
+
+  const classesOf = (el: any) =>
+    [...el.shadowRoot.querySelectorAll('.panel-content > *')]
+      .map((n: any) => n.className)
+      .filter((c: string) => CARD_ORDER.includes(c));
+
+  const VARIANTS: Array<[string, () => any]> = [
+    ['sample-only', () => occurrenceRow({
+      ecdysis_id: null, observation_id: 9, record_type: null,
+      host_inat_login: 'observer', specimen_count: 3,
+    })],
+    ['provisional', () => occurrenceRow({
+      ecdysis_id: null, observation_id: 9, is_provisional: true,
+      record_type: 'provisional_sample', host_inat_login: 'observer',
+      taxon_id: 1, display_name: 'Osmia lignaria',
+    })],
+    ['waba_specimen', () => occurrenceRow({
+      ecdysis_id: null, specimen_observation_id: 9, record_type: 'waba_specimen',
+      user_login: 'observer', taxon_id: 1,
+    })],
+    ['inat_expert', () => occurrenceRow({
+      ecdysis_id: null, specimen_observation_id: 9, record_type: 'inat_expert',
+      user_login: 'observer', taxon_id: 1,
+    })],
+    ['checklist', () => occurrenceRow({
+      ecdysis_id: null, checklist_id: 9, record_type: 'checklist',
+      recordedBy: 'W. Bartholomew', verbatim_name: 'Osmia lignaria',
+    })],
+  ];
+
+  for (const [name, build] of VARIANTS) {
+    test(`${name} reads date, then who, then what`, async () => {
+      const el = await mountRow(build());
+      expect(classesOf(el)).toEqual(CARD_ORDER);
+    });
+  }
+
+  test('a standalone card puts its places on the date line, never in a chip', async () => {
+    const el = await mountRow(occurrenceRow({
+      ecdysis_id: null, checklist_id: 9, record_type: 'checklist', verbatim_name: 'Osmia lignaria',
+    }));
+    el.memberPlaces = new Map([['checklist:9', [{ slug: 'klickitat-trail', name: 'Klickitat Trail' }]]]);
+    await el.updateComplete;
+    expect(el.shadowRoot.querySelector('.date-place').textContent.trim()).toBe('— Klickitat Trail');
+    expect(el.shadowRoot.querySelectorAll('.member-place').length).toBe(0);
+  });
+});
+
+describe('bee-occurrence-detail host line', () => {
+  // "Osmia lignaria · no host" spent its longest phrase saying nothing, on the
+  // majority of specimen lines. Absence reads as absence.
+  async function mountSpecimen(over: any) {
+    await import('../bee-occurrence-detail.ts');
+    document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
+    const el = document.querySelector('bee-occurrence-detail') as any;
+    el.occurrences = [occurrenceRow({ ecdysis_id: 1, taxon_id: 1, ...over })];
+    el.taxonCache = new Map([[1, { rank: 'species', name: 'Osmia lignaria', lineagePath: null }]]);
+    await el.updateComplete;
+    return el;
+  }
+
+  test('a specimen with no host says nothing about hosts', async () => {
+    const el = await mountSpecimen({});
+    const line = el.shadowRoot.querySelector('.species-list li').textContent;
+    expect(line).not.toContain('no host');
+    // No dangling separator either — the "·" belongs to the host, not the line.
+    expect(line).not.toContain('·');
+  });
+
+  test('a host is still shown, with its separator', async () => {
+    const el = await mountSpecimen({ floralHost: 'Ribes sanguineum' });
+    expect(el.shadowRoot.querySelector('.species-list li').textContent)
+      .toMatch(/Osmia lignaria\s+· Ribes sanguineum/);
+  });
+
+  test('a grade with no host still shows its badge', async () => {
+    // The badge qualifies the observation, not the plant, so dropping the "no
+    // host" text must not take it down with it.
+    const el = await mountSpecimen({ inat_quality_grade: 'research' });
+    expect(el.shadowRoot.querySelector('.species-list li .quality-badge').textContent.trim()).toBe('RG');
   });
 });
 

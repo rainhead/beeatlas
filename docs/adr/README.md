@@ -43,3 +43,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0037](0037-no-waf-in-front-of-a-static-site.md) | mod_evasive comes out; a static site does not want a WAF in front of it | Accepted |
 | [0038](0038-pnpm-over-npm.md) | pnpm replaces npm, and the three projects stay separate | Accepted |
 | [0039](0039-design-proofing-surface.md) | /design proofs components from fixtures, never from the database | Accepted |
+| [0040](0040-a-record-card-reads-context-first.md) | A record card reads context first, and there is only one card | Accepted |

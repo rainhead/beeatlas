@@ -21,6 +21,13 @@ export interface ProofState {
   label: string;
   /** What this state is for — why it is worth looking at, not what it contains. */
   note?: string;
+  /**
+   * This state's whole point is that the component renders nothing. The frame
+   * says so rather than showing an empty box, and the test asserts emptiness
+   * instead of content — otherwise "renders nothing" and "is broken" look the
+   * same on the page and neither is caught.
+   */
+  expectsEmpty?: boolean;
   /** Build the component under proof. Called once per mount; no side effects. */
   render(): HTMLElement;
 }
@@ -228,6 +235,7 @@ const OCCURRENCE_DETAIL: ProofState[] = [
     id: 'empty',
     label: 'Nothing selected',
     note: 'The component renders nothing at all; the surrounding pane owns the "click a point" hint, and must keep owning it.',
+    expectsEmpty: true,
     render: () => detail({ occurrences: [] }),
   },
 ];

@@ -76,11 +76,6 @@ export class BeeOccurrenceDetail extends LitElement {
   // invariant, CLAUDE.md). Each value is sorted by name and de-duplicated.
   @property({ attribute: false }) memberPlaces: Map<string, MemberPlace[]> | null = null;
 
-  // The places EVERY displayed occurrence shares, lifted out of the per-row chips
-  // onto the date lines. Derived from `memberPlaces` at the top of render() — a
-  // render-scoped cache, not reactive state.
-  private _sharedPlaces: MemberPlace[] = [];
-
   static styles = css`
     :host {
       display: block;
@@ -128,10 +123,6 @@ export class BeeOccurrenceDetail extends LitElement {
     .species-list li {
       overflow-wrap: break-word;
       word-break: break-word;
-    }
-    .inat-missing {
-      color: var(--text-hint);
-      font-style: normal;
     }
     .no-determination {
       font-style: normal;
@@ -214,10 +205,16 @@ export class BeeOccurrenceDetail extends LitElement {
       font-size: 0.85rem;
       font-style: italic;
     }
-    .inat-id-label {
+    /* The determination line of a record card: what this record says was found. */
+    .record-determination {
       font-size: 0.8rem;
       color: var(--text-body);
       font-weight: 400;
+    }
+    /* "iNat ID:" — names where a determination came from, so it must not read as
+       part of the name itself. */
+    .det-source {
+      color: var(--text-muted);
     }
     hr.separator {
       border: none;
@@ -332,16 +329,24 @@ export class BeeOccurrenceDetail extends LitElement {
     }));
   }
 
+  // The floral host and the quality badge that travels with it, including the
+  // separator, so a species line can append it unconditionally.
+  //
+  // Renders NOTHING when there is no host. Most specimens have none, and a line
+  // reading "Osmia lignaria · no host" spent its longest phrase saying nothing —
+  // absence is already legible as absence. The badge still shows when the record
+  // carries a grade but no host: it qualifies the observation, not the plant.
   private _renderHostInfo(row: OccurrenceRow) {
     const grade = row.inat_quality_grade;
     const badge = grade
       ? html`<span class="quality-badge ${grade}">${grade === 'research' ? 'RG' : grade === 'needs_id' ? 'NID' : 'casual'}</span>`
       : '';
     if (row.floralHost && row.inat_host && row.floralHost !== row.inat_host) {
-      return html`<span class="host-conflict"><span class="host-label">ecdysis:</span> ${row.floralHost} · <span class="host-label">iNat:</span> ${row.inat_host}${badge}</span>`;
+      return html` · <span class="host-conflict"><span class="host-label">ecdysis:</span> ${row.floralHost} · <span class="host-label">iNat:</span> ${row.inat_host}${badge}</span>`;
     }
     const host = row.floralHost ?? row.inat_host ?? null;
-    return host ? html`${host}${badge}` : html`<span class="inat-missing">no host</span>${badge}`;
+    if (host) return html` · ${host}${badge}`;
+    return grade ? html` ${badge}` : '';
   }
 
   private _renderQualityBadge(grade: string | null) {
@@ -430,7 +435,7 @@ export class BeeOccurrenceDetail extends LitElement {
     return this._renderMenu(this._recordMenuItems(row), filterTaxon);
   }
 
-  private _renderCollectorGroup(group: CollectorGroup) {
+  private _renderCollectorGroup(group: CollectorGroup, shared: MemberPlace[]) {
     return html`
       <div class="sample">
         <div class="sample-header">${group.recordedBy || html`<span class="hint">unknown</span>`}</div>
@@ -443,10 +448,9 @@ export class BeeOccurrenceDetail extends LitElement {
               ${displayName != null
                 ? html`<span class="taxon-name">${displayName}</span>`
                 : html`<span class="no-determination">No determination</span>`
-              }
-              · ${this._renderHostInfo(row)}
+              }${this._renderHostInfo(row)}
               ${this._renderRecordMenu(row, this._filterTaxon(row.taxon_id, displayName))}
-              ${this._renderPlaceNames(row)}
+              ${this._renderPlaceNames(row, shared)}
             </li>
           `; })}
         </ul>
@@ -455,44 +459,87 @@ export class BeeOccurrenceDetail extends LitElement {
   }
 
   private _renderDateGroup(group: DateGroup) {
+    // Scoped to THIS group, not to the whole list: a date group is what the date
+    // line heads, so it is what the line may speak for. A list spanning two
+    // ecoregions shares nothing overall, but each of its groups still sits in
+    // one place, and that is worth saying once per group rather than per record.
+    const shared = this._sharedPlaces(group.collectors.flatMap(c => c.rows));
     return html`
       <div class="date-group">
-        <div class="date-header">${formatRomanDate(group.date)}${this._renderSharedInline()}</div>
-        ${group.collectors.map(c => this._renderCollectorGroup(c))}
+        <div class="date-header">${formatRomanDate(group.date)}${this._renderPlaceInline(shared)}</div>
+        ${group.collectors.map(c => this._renderCollectorGroup(c, shared))}
       </div>
     `;
   }
 
-  private _renderSampleOnly(row: OccurrenceRow) {
-    const count = row.specimen_count != null && !isNaN(row.specimen_count)
-      ? `${row.specimen_count} specimen${row.specimen_count === 1 ? '' : 's'} collected, identification pending`
-      : 'identification pending';
+  /**
+   * The one card every non-specimen record renders through.
+   *
+   * There used to be five of these — sample-only, provisional, awaiting-catalogue,
+   * community observation, checklist — each free to order its own lines, and they
+   * had drifted: three led with the determination, two with the date. Order is a
+   * property of the CARD, not of the record type, so it lives here once and the
+   * variants below say only what goes in each slot.
+   *
+   * The order is context first, the way the specimen path already read: WHEN and
+   * WHERE, then WHO, then WHAT was found, then whatever qualifies it. A record's
+   * identity is the collecting event; the determination is a claim about that
+   * event, and one that can change without the event changing.
+   */
+  private _renderRecordCard(row: OccurrenceRow, card: {
+    /** The determination line: the taxon as this record states it, plus its badge. */
+    determination: unknown;
+    /** Who: collector, observer, or sample host, depending on the record's source. */
+    attribution: string | null;
+    /** Anything qualifying the record — host plant, counts, locality, photo, provenance. */
+    extras?: unknown[];
+    filterTaxon?: { taxonId: number; displayName: string };
+  }) {
+    // A standalone card is its own group, so every place it belongs to is shared
+    // by definition and rides the date line — a lone card never shows chips.
+    const places = this._sharedPlaces([row]);
+    const dateStr = formatRomanDate(row.date);
     return html`
       <div class="panel-content sample-dot-detail">
-        <div class="event-date">${formatRomanDate(row.date)}${this._renderSharedInline()} ${this._renderRecordMenu(row)}</div>
-        ${row.host_inat_login != null ? html`<div class="event-observer">${row.host_inat_login}</div>` : ''}
-        ${row.sample_host != null ? html`<div class="event-host"><em>${row.sample_host}</em></div>` : ''}
-        <div class="event-count">${count}</div>
-        ${this._renderPlaceNames(row)}
+        ${dateStr || places.length > 0
+          ? html`<div class="event-date">${dateStr}${this._renderPlaceInline(places)}</div>` : ''}
+        ${card.attribution != null && card.attribution !== ''
+          ? html`<div class="event-observer">${card.attribution}</div>` : ''}
+        <div class="record-determination">${card.determination} ${this._renderRecordMenu(row, card.filterTaxon)}</div>
+        ${(card.extras ?? []).filter(extra => extra !== '' && extra != null)}
       </div>
     `;
+  }
+
+  /** "12 specimens collected" — the count only, never the determination status. */
+  private _renderSpecimenCount(row: OccurrenceRow) {
+    if (row.specimen_count == null || isNaN(row.specimen_count)) return '';
+    return html`<div class="event-count">${row.specimen_count} specimen${row.specimen_count === 1 ? '' : 's'} collected</div>`;
+  }
+
+  private _renderSampleOnly(row: OccurrenceRow) {
+    return this._renderRecordCard(row, {
+      attribution: row.host_inat_login,
+      determination: html`<span class="hint">Identification pending</span>`,
+      extras: [
+        row.sample_host != null ? html`<div class="event-host"><em>${row.sample_host}</em></div>` : '',
+        this._renderSpecimenCount(row),
+      ],
+    });
   }
 
   private _renderProvisional(row: OccurrenceRow) {
     const taxonEl = row.display_name
       ? html`<em>${row.display_name}</em>`
       : html`<span class="hint">identification pending</span>`;
-    return html`
-      <div class="panel-content sample-dot-detail">
-        <div class="inat-id-label">iNat ID: ${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)} ${this._renderRecordMenu(row, this._filterTaxon(row.taxon_id, row.display_name))}</div>
-        <div class="event-date">${formatRomanDate(row.date)}${this._renderSharedInline()}</div>
-        ${row.host_inat_login != null ? html`<div class="event-observer">${row.host_inat_login}</div>` : ''}
-        ${row.specimen_count != null && !isNaN(row.specimen_count)
-          ? html`<div class="event-count">${row.specimen_count} specimen${row.specimen_count === 1 ? '' : 's'} collected</div>`
-          : ''}
-        ${this._renderPlaceNames(row)}
-      </div>
-    `;
+    return this._renderRecordCard(row, {
+      attribution: row.host_inat_login,
+      // "iNat ID:" is load-bearing: this determination came from iNaturalist and
+      // has no Ecdysis specimen behind it yet.
+      determination: html`<span class="det-source">iNat ID:</span> ${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)}`,
+      filterTaxon: this._filterTaxon(row.taxon_id, row.display_name),
+      extras: [this._renderSpecimenCount(row)],
+    });
   }
 
   private _renderWabaSpecimen(row: OccurrenceRow) {
@@ -501,16 +548,12 @@ export class BeeOccurrenceDetail extends LitElement {
     const taxonEl = inatDisplayName
       ? html`<em>${inatDisplayName}</em>`
       : html`<span class="hint">identification unknown</span>`;
-    return html`
-      <div class="panel-content sample-dot-detail">
-        <div class="inat-id-label">${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)} ${this._renderRecordMenu(row, this._filterTaxon(row.taxon_id, inatDisplayName))}</div>
-        <div class="event-date">${formatRomanDate(row.date)}${this._renderSharedInline()}</div>
-        ${row.user_login != null
-          ? html`<div class="event-observer">${row.user_login}</div>` : ''}
-        <div class="hint">Awaiting Ecdysis catalogue entry</div>
-        ${this._renderPlaceNames(row)}
-      </div>
-    `;
+    return this._renderRecordCard(row, {
+      attribution: row.user_login,
+      determination: html`${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)}`,
+      filterTaxon: this._filterTaxon(row.taxon_id, inatDisplayName),
+      extras: [html`<div class="hint">Awaiting Ecdysis catalogue entry</div>`],
+    });
   }
 
   private _renderInatObs(row: OccurrenceRow) {
@@ -520,24 +563,22 @@ export class BeeOccurrenceDetail extends LitElement {
     const taxonEl = inatDisplayName
       ? html`<em>${inatDisplayName}</em>`
       : html`<span class="hint">identification unknown</span>`;
-    return html`
-      <div class="panel-content sample-dot-detail">
-        <div class="inat-id-label">${taxonEl} ${this._renderQualityBadge(row.inat_quality_grade)} ${this._renderRecordMenu(row, this._filterTaxon(row.taxon_id, inatDisplayName))}</div>
-        <div class="event-date">${formatRomanDate(row.date)}${this._renderSharedInline()}</div>
-        ${row.user_login != null
-          ? html`<div class="event-observer">${row.user_login}</div>` : ''}
-        ${row.floralHost != null
-          ? html`<div class="event-host"><em>${row.floralHost}</em></div>` : ''}
-        ${isCC && row.image_url != null ? html`
+    return this._renderRecordCard(row, {
+      attribution: row.user_login,
+      determination: html`${taxonEl} ${this._renderQualityBadge(row.inat_quality_grade)}`,
+      filterTaxon: this._filterTaxon(row.taxon_id, inatDisplayName),
+      extras: [
+        row.floralHost != null ? html`<div class="event-host"><em>${row.floralHost}</em></div>` : '',
+        // Only a CC licence lets the photo be shown at all; everything else links out.
+        isCC && row.image_url != null ? html`
           <img
             src="${row.image_url}"
             alt="Photo of ${inatDisplayName ?? 'bee'} by ${row.user_login ?? 'observer'} on iNaturalist"
             style="width:100%;max-height:200px;object-fit:cover;border-radius:4px;"
           />
-        ` : ''}
-        ${this._renderPlaceNames(row)}
-      </div>
-    `;
+        ` : '',
+      ],
+    });
   }
 
   private _renderChecklist(row: OccurrenceRow) {
@@ -554,32 +595,35 @@ export class BeeOccurrenceDetail extends LitElement {
     } else {
       taxonEl = html`<span class="hint">No determination</span>`;
     }
-    const dateStr = formatRomanDate(row.date);
-    return html`
-      <div class="panel-content sample-dot-detail">
-        <div class="inat-id-label">${taxonEl} ${this._renderRecordMenu(row, this._filterTaxon(row.taxon_id, accepted))}</div>
-        ${row.recordedBy != null ? html`<div class="event-observer">${row.recordedBy}</div>` : ''}
-        ${dateStr || this._sharedPlaces.length > 0
-          ? html`<div class="event-date">${dateStr}${this._renderSharedInline()}</div>` : ''}
-        ${row.locality != null && row.locality !== '' ? html`<div class="event-host">${row.locality}</div>` : ''}
-        ${row.collapsed_count != null && row.collapsed_count > 1
-          ? html`<div class="event-count">Represents ${row.collapsed_count} collapsed records</div>` : ''}
-        <div class="hint">Bartholomew et al. 2024</div>
-        ${this._renderPlaceNames(row)}
-      </div>
-    `;
+    return this._renderRecordCard(row, {
+      attribution: row.recordedBy,
+      determination: taxonEl,
+      filterTaxon: this._filterTaxon(row.taxon_id, accepted),
+      extras: [
+        row.locality != null && row.locality !== '' ? html`<div class="event-host">${row.locality}</div>` : '',
+        row.collapsed_count != null && row.collapsed_count > 1
+          ? html`<div class="event-count">Represents ${row.collapsed_count} collapsed records</div>` : '',
+        html`<div class="hint">Bartholomew et al. 2024</div>`,
+      ],
+    });
   }
-
-  // The place names shared by EVERY displayed occurrence. Level IV ecoregions are
-  // places (ADR 0035) and they tile the state, so without this hoist the same
-  // ecoregion chip repeats on every species line of a single selected point.
-  // Deliberately conservative: a displayed row whose membership is unresolved or
-  // empty collapses the intersection, so the header never claims a place that some
-  // record on screen is not in — those rows keep their own chips instead.
-  private _computeSharedPlaces(): MemberPlace[] {
+  /**
+   * The places shared by every row in a group — the intersection of their
+   * memberships, keyed on slug because two places could share a name.
+   *
+   * Level IV ecoregions are places (ADR 0035) and they tile the state, so every
+   * occurrence carries one; without this the same ecoregion repeats on every
+   * species line of a single point. It is computed per GROUP rather than per
+   * list: a date line speaks for the records under it and no further.
+   *
+   * Deliberately conservative: one row whose membership is unresolved or empty
+   * collapses the intersection, so a date line never claims a place that some
+   * record beneath it is not in — those rows keep their own chips instead.
+   */
+  private _sharedPlaces(rows: OccurrenceRow[]): MemberPlace[] {
     if (this.memberPlaces == null) return [];
     let shared: MemberPlace[] | null = null;
-    for (const row of this.occurrences) {
+    for (const row of rows) {
       const occId = occIdFromRow(row);
       // Identity-less rows carry no membership and render no chips, so they
       // neither contribute to nor collapse the shared set.
@@ -587,7 +631,6 @@ export class BeeOccurrenceDetail extends LitElement {
       const places = this.memberPlaces.get(occId);
       if (places == null || places.length === 0) return [];
       if (shared == null) { shared = [...places]; continue; }
-      // Slug is the identity — two places could in principle share a name.
       const slugs = new Set(places.map(p => p.slug));
       shared = shared.filter(p => slugs.has(p.slug));
       if (shared.length === 0) return shared;
@@ -602,23 +645,22 @@ export class BeeOccurrenceDetail extends LitElement {
     return html`<a class="place-link" href="/places/${place.slug}.html">${place.name}</a>`;
   }
 
-  // The shared places as an inline continuation of a date line. Empty when the
-  // displayed rows share nothing, so the date line is unchanged in that case.
-  private _renderSharedInline() {
-    if (this._sharedPlaces.length === 0) return '';
-    return html` <span class="date-place">— ${this._sharedPlaces.map((place, i) =>
+  // Places as an inline continuation of a date line. Empty in, nothing out — so
+  // a date line with nothing to say is left exactly as it was.
+  private _renderPlaceInline(places: MemberPlace[]) {
+    if (places.length === 0) return '';
+    return html` <span class="date-place">— ${places.map((place, i) =>
       html`${i > 0 ? ' · ' : ''}${this._renderPlaceLink(place)}`)}</span>`;
   }
 
-  // render the places this occurrence belongs to that are NOT already on the
-  // date line. Names come from the passed-down memberPlaces map (state-owner-resolved);
-  // renders nothing when the occurrence has no membership (zero rows → no
-  // sentinel) or when every place it has is shared by all displayed rows.
-  private _renderPlaceNames(row: OccurrenceRow) {
+  // The places this occurrence belongs to that its date line does NOT already
+  // name. Renders nothing when the occurrence has no membership (zero bridge
+  // rows → no sentinel) or when everything it has is shared by its group.
+  private _renderPlaceNames(row: OccurrenceRow, shared: MemberPlace[]) {
     const occId = occIdFromRow(row);
     if (occId == null || this.memberPlaces == null) return '';
-    const shared = new Set(this._sharedPlaces.map(p => p.slug));
-    const places = this.memberPlaces.get(occId)?.filter(p => !shared.has(p.slug));
+    const onDateLine = new Set(shared.map(p => p.slug));
+    const places = this.memberPlaces.get(occId)?.filter(p => !onDateLine.has(p.slug));
     if (places == null || places.length === 0) return '';
     return html`<div class="member-places">
       ${places.map(place => html`<span class="member-place">${this._renderPlaceLink(place)}</span>`)}
@@ -626,8 +668,6 @@ export class BeeOccurrenceDetail extends LitElement {
   }
 
   render() {
-    // Derive the shared set before any row renders — _renderPlaceNames subtracts it.
-    this._sharedPlaces = this._computeSharedPlaces();
     const specimenBacked = this.occurrences.filter(isSpecimenBacked);
     // nonSpecimen includes BOTH sample-only and provisional rows (!isSpecimenBacked, not the narrower predicate).
     // Null-safe: checklist rows with date_quality='none' carry date=null.
