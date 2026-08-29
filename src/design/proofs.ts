@@ -180,9 +180,11 @@ const OCCURRENCE_DETAIL: ProofState[] = [
   {
     id: 'waba-specimen',
     label: 'Awaiting Ecdysis catalogue entry',
+    note: 'Attributed by iNat login alone: this arm sets neither recordedBy nor user_login, so the only name it has is the collector login the pipeline resolved. The "@" marks it as a handle rather than a person\u2019s name.',
     render: () => detail({
       occurrences: [rows.wabaSpecimen({
-        taxon_id: OSMIA, user_login: 'shaigh', specimen_inat_quality_grade: 'research',
+        taxon_id: OSMIA, collector_inat_login: 'mylodon',
+        specimen_inat_quality_grade: 'research',
       })],
       taxonCache: NAMES,
     }),

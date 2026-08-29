@@ -114,6 +114,16 @@ export interface OccurrenceRow {
   obs_url: string | null;
   user_login: string | null;
   license: string | null;
+  /**
+   * The pipeline's single answer to "whose record is this": host-first
+   * COALESCE(host_inat_login, specimen_inat_login, user_login), computed once in
+   * int_combined so every arm agrees (beeatlas-167-01, host-first since
+   * 2026-06-28). Populated for every record type except checklist, which has no
+   * iNat identity and carries `recordedBy` instead.
+   *
+   * Null on a cached DB that predates the column — see collectorLoginAvailable().
+   */
+  collector_inat_login: string | null;
   // JOIN-resolved from taxa.name; null when taxon_id IS NULL (not a mart column)
   display_name: string | null;
   // JOIN-resolved from taxa.rank; null when taxon_id IS NULL (not a mart column)
@@ -241,7 +251,7 @@ export async function queryAllFiltered(
 ): Promise<Record<string, unknown>[]> {
   const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false, await demElevationAvailable());
   const orderBy = sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER;
-  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
+  const selectCols = await occurrenceSelectCols();
 
   await tablesReady;
   const { sqlite3, db } = await getDB();
@@ -285,7 +295,7 @@ export async function queryTablePage(
   const offset = (page - 1) * PAGE_SIZE;
 
   const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false, await demElevationAvailable());
-  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
+  const selectCols = await occurrenceSelectCols();
 
   await tablesReady;
   const { sqlite3, db } = await getDB();
@@ -384,6 +394,47 @@ export async function demElevationAvailable(): Promise<boolean> {
 
 /** Test-only: reset the cached elevation_dem_m probe between cases. */
 export function _resetDemElevationProbe(): void { _demElevAvailable = null; }
+
+// collector_inat_login is a newer COLUMN (2026-06-24) with the same skew exposure
+// as elevation_dem_m above: an offline session holding a DB from before it would
+// throw "no such column" and empty the sidebar list. Same probe shape — and the
+// degradation is honest, because the column is SELECTed as NULL rather than
+// omitted, so a row always has the field and attribution simply falls back to
+// recordedBy, which is what it did before this column existed.
+let _collectorLoginAvailable: boolean | null = null;
+export async function collectorLoginAvailable(): Promise<boolean> {
+  if (_collectorLoginAvailable !== null) return _collectorLoginAvailable;
+  try {
+    await tablesReady;
+    const { sqlite3, db } = await getDB();
+    let found = false;
+    await sqlite3.exec(db,
+      "SELECT 1 FROM pragma_table_info('occurrences') WHERE name='collector_inat_login' LIMIT 1",
+      () => { found = true; }
+    );
+    _collectorLoginAvailable = found;
+  } catch {
+    _collectorLoginAvailable = false; // DB not ready / probe failed → recordedBy only
+  }
+  return _collectorLoginAvailable;
+}
+
+/** Test-only: reset the cached collector_inat_login probe between cases. */
+export function _resetCollectorLoginProbe(): void { _collectorLoginAvailable = null; }
+
+/**
+ * The occurrence SELECT list, in ONE place: the contract columns, the taxa-join
+ * display fields, and collector_inat_login guarded by its probe. The three query
+ * paths (list, table page, full export) all read the same rows, so they must ask
+ * for the same columns — they used to spell this out three times.
+ */
+async function occurrenceSelectCols(): Promise<string> {
+  const collector = (await collectorLoginAvailable())
+    ? 'o.collector_inat_login'
+    : 'NULL AS collector_inat_login';
+  return OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ')
+    + `, ${collector}, t.name AS display_name, t.rank AS display_rank`;
+}
 
 // `hasPlacesBridge` gates the place-membership clause. Callers pass the cached probe
 // result so a place filter on a stale (bridge-less) DB degrades to inert instead of
@@ -795,7 +846,7 @@ export async function queryListPage(
   const fullWhere = `(${occurrenceWhere})${selFilter}`;
   const orderBy = sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER;
   const offset = (page - 1) * PAGE_SIZE;
-  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
+  const selectCols = await occurrenceSelectCols();
 
   await tablesReady;
   const { sqlite3, db } = await getDB();
@@ -826,7 +877,7 @@ export async function queryOccurrencesByBounds(
 ): Promise<OccurrenceRow[]> {
   const { west, south, east, north } = bounds;
   const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false, await demElevationAvailable());
-  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
+  const selectCols = await occurrenceSelectCols();
   await tablesReady;
   const { sqlite3, db } = await getDB();
   const rows: OccurrenceRow[] = [];
@@ -931,7 +982,7 @@ export async function lookupByCatalogSuffix(
     `AND substr(o.catalog_number, -${len}) = '${suffix}' ` +
     `AND (length(o.catalog_number) = ${len} ` +
     `OR substr(o.catalog_number, -${len + 1}, 1) NOT BETWEEN '0' AND '9')`;
-  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
+  const selectCols = await occurrenceSelectCols();
 
   await tablesReady;
   const { sqlite3, db } = await getDB();
@@ -984,7 +1035,7 @@ export async function getOccurrences(occIds: string[]): Promise<OccurrenceRow[]>
   if (checklistIds.length > 0) clauses.push(`checklist_id IN (${checklistIds.join(',')})`);
   // No recognized id prefixes → an empty WHERE would be a SQL syntax error. Return early.
   if (clauses.length === 0) return [];
-  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
+  const selectCols = await occurrenceSelectCols();
   await tablesReady;
   const { sqlite3, db } = await getDB();
   const rows: OccurrenceRow[] = [];

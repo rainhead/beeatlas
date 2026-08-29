@@ -341,6 +341,45 @@ describe('bee-occurrence-detail card line order', () => {
   });
 });
 
+describe('bee-occurrence-detail attribution', () => {
+  // beeatlas: three selected waba_specimen records showed no collector, because
+  // that card read user_login and the whole arm sets it NULL. Every card now
+  // attributes through collectorLabel, which reads the mart's one answer.
+  async function mountRows(rows: any[]) {
+    await import('../bee-occurrence-detail.ts');
+    document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
+    const el = document.querySelector('bee-occurrence-detail') as any;
+    el.occurrences = rows;
+    el.taxonCache = new Map([[1, { rank: 'species', name: 'Osmia lignaria', lineagePath: null }]]);
+    await el.updateComplete;
+    return el;
+  }
+
+  test('a waba_specimen names its collector from the login', async () => {
+    const el = await mountRows([occurrenceRow({
+      ecdysis_id: null, specimen_observation_id: 394523470, record_type: 'waba_specimen',
+      recordedBy: null, user_login: null, collector_inat_login: 'mylodon', taxon_id: 1,
+    })]);
+    expect(el.shadowRoot.querySelector('.event-observer').textContent.trim()).toBe('@mylodon');
+  });
+
+  test('a specimen known only by login groups under it, not under "unknown"', async () => {
+    const el = await mountRows([
+      occurrenceRow({ ecdysis_id: 1, recordedBy: null, collector_inat_login: 'mylodon', taxon_id: 1 }),
+      occurrenceRow({ ecdysis_id: 2, recordedBy: null, collector_inat_login: 'mylodon', taxon_id: 1 }),
+    ]);
+    const headers = [...el.shadowRoot.querySelectorAll('.sample-header')].map((n: any) => n.textContent.trim());
+    expect(headers).toEqual(['@mylodon']);
+  });
+
+  test('a record naming nobody still says unknown', async () => {
+    const el = await mountRows([occurrenceRow({
+      ecdysis_id: 1, recordedBy: null, collector_inat_login: null, taxon_id: 1,
+    })]);
+    expect(el.shadowRoot.querySelector('.sample-header').textContent.trim()).toBe('unknown');
+  });
+});
+
 describe('bee-occurrence-detail host line', () => {
   // "Osmia lignaria · no host" spent its longest phrase saying nothing, on the
   // majority of specimen lines. Absence reads as absence.

@@ -1,50 +1,19 @@
 import { describe, test, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { occIdFromRow, parseOccId, isSpecimenBacked, isSampleOnly, isProvisional, isSpecimenId } from '../occurrence.ts';
+import { occIdFromRow, parseOccId, isSpecimenBacked, isSampleOnly, isProvisional, isSpecimenId, collectorLabel } from '../occurrence.ts';
 import { OCC_ID_SQL_CASE } from '../filter.ts';
 import type { OccurrenceRow } from '../filter.ts';
+import { occurrenceRow } from '../design/fixtures.ts';
 
-// Base row with every OccurrenceRow field populated to null / 0 / false defaults.
-const BASE_ROW: OccurrenceRow = {
-  taxon_id: null,
-  lat: 47.6,
-  lon: -122.3,
-  date: '2024-06-01',
-  county: null,
-  ecoregion_l3: null,
+// Base row: the shared /design fixture builder (ADR 0039) with the fields these
+// tests care about cleared, rather than a fourth hand-written literal of the
+// occurrence contract.
+const BASE_ROW: OccurrenceRow = occurrenceRow({
   ecdysis_id: null,
-  catalog_number: null,
   recordedBy: null,
-  fieldNumber: null,
-  floralHost: null,
-  host_observation_id: null,
-  inat_host: null,
-  inat_quality_grade: null,
-  modified: null,
-  specimen_observation_id: null,
-  elevation_m: null, elevation_dem_m: null,
-  year: 2024,
-  month: 6,
-  observation_id: null,
-  host_inat_login: null,
-  is_provisional: false,
-  specimen_inat_quality_grade: null,
-  specimen_count: null,
-  sample_id: null,
-  sample_host: null,
-  checklist_id: null,
-  verbatim_name: null,
-  locality: null,
-  collapsed_count: null,
   tier: null,
   record_type: null,
-  image_url: null,
-  obs_url: null,
-  user_login: null,
-  license: null,
-  display_name: null,
-  display_rank: null,
-};
+});
 
 // Factory helpers: spread BASE_ROW with the discriminating fields set.
 
@@ -229,5 +198,39 @@ describe('occ_id CASE coupling (PROV-03)', () => {
     const filterOrder = extractCaseOrder(OCC_ID_SQL_CASE);
     expect(filterOrder).toEqual(bridgeOrder);
     expect(filterOrder).toEqual(TS_ORDER);
+  });
+});
+
+describe('collectorLabel', () => {
+  // One rule for every record type. Each card variant used to pick its own
+  // column, which left the whole waba_specimen arm — 54 records, all with
+  // user_login NULL — naming nobody while the mart knew the answer.
+  test('a name beats a handle', () => {
+    expect(collectorLabel(occurrenceRow({ recordedBy: 'S. Haigh', collector_inat_login: 'shaigh' })))
+      .toBe('S. Haigh');
+  });
+
+  test('a login-only record is attributed, marked as a handle', () => {
+    // The reported case: record_type waba_specimen, no recordedBy, no user_login.
+    expect(collectorLabel(occurrenceRow({
+      ecdysis_id: null, specimen_observation_id: 394523470, record_type: 'waba_specimen',
+      recordedBy: null, user_login: null, collector_inat_login: 'mylodon',
+    }))).toBe('@mylodon');
+  });
+
+  test('a record naming nobody returns null rather than inventing one', () => {
+    expect(collectorLabel(occurrenceRow({ recordedBy: null, collector_inat_login: null }))).toBeNull();
+  });
+
+  test('empty strings do not count as a name or a handle', () => {
+    expect(collectorLabel(occurrenceRow({ recordedBy: '', collector_inat_login: '' }))).toBeNull();
+    expect(collectorLabel(occurrenceRow({ recordedBy: '', collector_inat_login: 'mylodon' }))).toBe('@mylodon');
+  });
+
+  test('a stale DB without the column falls back to recordedBy, as before', () => {
+    // collectorLoginAvailable() SELECTs NULL for the column on such a DB, so the
+    // row shape is unchanged and attribution degrades rather than breaking.
+    expect(collectorLabel(occurrenceRow({ recordedBy: 'S. Haigh', collector_inat_login: null })))
+      .toBe('S. Haigh');
   });
 });

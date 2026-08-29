@@ -104,3 +104,28 @@ export function isProvisional(row: OccurrenceRow): boolean {
 export function isSpecimenId(occId: string): boolean {
   return occId.startsWith('ecdysis:');
 }
+
+/**
+ * The person a record is attributed to — ONE rule for every record type.
+ *
+ * Each card variant used to reach for its own column: `user_login` for community
+ * observations, `host_inat_login` for samples, `recordedBy` for checklist. That
+ * left the waba_specimen arm blank, because it sets `user_login` to NULL — all
+ * 54 of those records named nobody on screen while the mart knew the answer.
+ *
+ * `collector_inat_login` IS that answer, computed once in int_combined as a
+ * host-first COALESCE so the arms cannot disagree. `recordedBy` still wins when
+ * present: it is a person's name as the collector wrote it, and a name beats a
+ * handle. The handle is marked with a leading '@' so a login is never mistaken
+ * for a name.
+ *
+ * Returns null when the record names nobody, which is the caller's cue to say so
+ * — not to invent an attribution.
+ */
+export function collectorLabel(row: OccurrenceRow): string | null {
+  if (row.recordedBy != null && row.recordedBy !== '') return row.recordedBy;
+  if (row.collector_inat_login != null && row.collector_inat_login !== '') {
+    return `@${row.collector_inat_login}`;
+  }
+  return null;
+}

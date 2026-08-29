@@ -8,6 +8,7 @@
 import { test, expect, describe, vi, beforeEach, afterEach } from 'vitest';
 import { emptyFilterState, type CatalogLookupResult, type OccurrenceRow } from '../filter.ts';
 import { buildSearchIndex } from '../search.ts';
+import { occurrenceRow } from '../design/fixtures.ts';
 
 vi.mock('../sqlite.ts', () => ({
   getDB: vi.fn(() => Promise.resolve({ sqlite3: { exec: vi.fn(() => Promise.resolve()) }, db: 0 })),
@@ -97,23 +98,13 @@ if (typeof window !== 'undefined' && window.location?.pathname == null) {
   }
 }
 
-/** A specimen row as the lookup would return it. */
+/** A specimen row as the lookup would return it. Built from the shared /design
+    fixture builder (ADR 0039) so the contract lives in one literal. */
 function specimenRow(over: Partial<OccurrenceRow> = {}): OccurrenceRow {
-  return {
-    taxon_id: 101, lat: 47.6, lon: -122.3, date: '2024-06-01',
-    county: 'King', ecoregion_l3: null, ecdysis_id: 5001,
-    catalog_number: 'WSDA_2303966', recordedBy: 'A. Collector', fieldNumber: null,
-    floralHost: null, host_observation_id: null, inat_host: null,
-    inat_quality_grade: null, modified: null, specimen_observation_id: null,
-    elevation_m: null, elevation_dem_m: null, year: 2024, month: 6, observation_id: null,
-    host_inat_login: null, is_provisional: false,
-    specimen_inat_quality_grade: null, specimen_count: null, sample_id: null,
-    sample_host: null, checklist_id: null, verbatim_name: null, locality: null,
-    collapsed_count: null, tier: 'atlas', record_type: 'specimen', image_url: null,
-    obs_url: null, user_login: null, license: null,
-    display_name: 'Bombus vosnesenskii', display_rank: 'species',
-    ...over,
-  };
+  return occurrenceRow({
+    taxon_id: 101, county: 'King', ecdysis_id: 5001,
+    catalog_number: 'WSDA_2303966', ...over,
+  });
 }
 
 interface AtlasEl extends HTMLElement {

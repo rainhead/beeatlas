@@ -1,7 +1,7 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import type { OccurrenceRow, FilterState, FilterChangedEvent, MemberPlace } from './filter.ts';
-import { isSpecimenBacked, isProvisional, occIdFromRow } from './occurrence.ts';
+import { isSpecimenBacked, isProvisional, occIdFromRow, collectorLabel } from './occurrence.ts';
 import type { TaxonCacheEntry } from './taxa.ts';
 
 const ROMAN_MONTHS = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
@@ -49,10 +49,13 @@ function groupOccurrences(rows: OccurrenceRow[]): DateGroup[] {
   for (const row of rows) {
     const date = row.date;
     if (!dateMap.has(date)) dateMap.set(date, new Map());
-    const collKey = row.recordedBy ?? '';
+    // Grouped on the SAME label the cards attribute to, so records by one person
+    // land in one group whether the pipeline knew them by name or by iNat login.
+    // Keying on recordedBy alone swept every login-only record into "unknown".
+    const collKey = collectorLabel(row) ?? '';
     const collMap = dateMap.get(date)!;
     if (!collMap.has(collKey)) {
-      collMap.set(collKey, { date, recordedBy: row.recordedBy ?? '', rows: [] });
+      collMap.set(collKey, { date, recordedBy: collKey, rows: [] });
     }
     collMap.get(collKey)!.rows.push(row);
   }
@@ -519,7 +522,7 @@ export class BeeOccurrenceDetail extends LitElement {
 
   private _renderSampleOnly(row: OccurrenceRow) {
     return this._renderRecordCard(row, {
-      attribution: row.host_inat_login,
+      attribution: collectorLabel(row),
       determination: html`<span class="hint">Identification pending</span>`,
       extras: [
         row.sample_host != null ? html`<div class="event-host"><em>${row.sample_host}</em></div>` : '',
@@ -533,7 +536,7 @@ export class BeeOccurrenceDetail extends LitElement {
       ? html`<em>${row.display_name}</em>`
       : html`<span class="hint">identification pending</span>`;
     return this._renderRecordCard(row, {
-      attribution: row.host_inat_login,
+      attribution: collectorLabel(row),
       // "iNat ID:" is load-bearing: this determination came from iNaturalist and
       // has no Ecdysis specimen behind it yet.
       determination: html`<span class="det-source">iNat ID:</span> ${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)}`,
@@ -549,7 +552,7 @@ export class BeeOccurrenceDetail extends LitElement {
       ? html`<em>${inatDisplayName}</em>`
       : html`<span class="hint">identification unknown</span>`;
     return this._renderRecordCard(row, {
-      attribution: row.user_login,
+      attribution: collectorLabel(row),
       determination: html`${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)}`,
       filterTaxon: this._filterTaxon(row.taxon_id, inatDisplayName),
       extras: [html`<div class="hint">Awaiting Ecdysis catalogue entry</div>`],
@@ -564,7 +567,7 @@ export class BeeOccurrenceDetail extends LitElement {
       ? html`<em>${inatDisplayName}</em>`
       : html`<span class="hint">identification unknown</span>`;
     return this._renderRecordCard(row, {
-      attribution: row.user_login,
+      attribution: collectorLabel(row),
       determination: html`${taxonEl} ${this._renderQualityBadge(row.inat_quality_grade)}`,
       filterTaxon: this._filterTaxon(row.taxon_id, inatDisplayName),
       extras: [
@@ -596,7 +599,7 @@ export class BeeOccurrenceDetail extends LitElement {
       taxonEl = html`<span class="hint">No determination</span>`;
     }
     return this._renderRecordCard(row, {
-      attribution: row.recordedBy,
+      attribution: collectorLabel(row),
       determination: taxonEl,
       filterTaxon: this._filterTaxon(row.taxon_id, accepted),
       extras: [

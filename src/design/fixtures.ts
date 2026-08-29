@@ -23,7 +23,7 @@ import type { TaxonCacheEntry } from '../taxa.ts';
  * would let a card render green against a shape the database cannot produce.
  */
 export function occurrenceRow(over: Partial<OccurrenceRow> = {}): OccurrenceRow {
-  return {
+  const row: OccurrenceRow = {
     taxon_id: null, lat: 47.6, lon: -122.3, date: '2024-06-01',
     county: null, ecoregion_l3: null, ecdysis_id: 1, catalog_number: null,
     recordedBy: 'A. Collector', fieldNumber: null, floralHost: null,
@@ -35,8 +35,16 @@ export function occurrenceRow(over: Partial<OccurrenceRow> = {}): OccurrenceRow 
     sample_host: null, checklist_id: null, verbatim_name: null, locality: null,
     collapsed_count: null, tier: 'atlas', record_type: 'specimen',
     image_url: null, obs_url: null, user_login: null, license: null,
-    display_name: null, display_rank: null,
+    collector_inat_login: null, display_name: null, display_rank: null,
     ...over,
+  };
+  // Mirror the pipeline's host-first COALESCE (int_combined) unless the fixture
+  // states the login outright — as the waba_specimen arm must, since it sets
+  // neither host_inat_login nor user_login and still names a person. A fixture
+  // that contradicted that COALESCE would proof attribution the mart cannot emit.
+  return {
+    ...row,
+    collector_inat_login: row.collector_inat_login ?? row.host_inat_login ?? row.user_login,
   };
 }
 

@@ -52,6 +52,36 @@ Two consequences of the same principle:
   nothing. Absence reads as absence. The quality badge survives a missing host,
   because it qualifies the observation, not the plant.
 
+## Amendment, same day — attribution has one source too
+
+The first bug the unified card surfaced was the same defect one slot down. Each
+variant reached for its own person column: `user_login` for community
+observations, `host_inat_login` for samples, `recordedBy` for checklist. The
+`waba_specimen` arm sets `user_login` to NULL, so all 54 of those records named
+nobody on screen — while `marts/occurrences` had the answer the whole time.
+
+`collector_inat_login` IS that answer: a host-first
+`COALESCE(host_inat_login, specimen_inat_login, user_login)` computed once in
+`int_combined` (2026-06-24, host-first since 2026-06-28) precisely so the arms
+cannot disagree. The frontend simply never selected it.
+
+**Every card attributes through `collectorLabel(row)`** (`src/occurrence.ts`):
+`recordedBy` when present — a name as the collector wrote it beats a handle —
+otherwise `@` + `collector_inat_login`, otherwise null, which the caller renders
+as "unknown" rather than inventing an attribution. The specimen path groups on
+the same label, so records known only by login stop collapsing into one
+"unknown" heap (~4,900 of them).
+
+`collector_inat_login` is SELECTed through a `pragma_table_info` probe, the
+shape `elevation_dem_m` established: on a cached DB predating the column it is
+selected as `NULL`, so the row keeps its shape and attribution degrades to
+`recordedBy` instead of emptying the sidebar with "no such column".
+
+Still open: `@mylodon` is a handle where a name would read better. The
+login→display-name resolution already exists for collector pages and note
+bylines; wiring it in means passing that map down to the presenter, and is
+tracked separately (beeatlas-8a7r) rather than smuggled into this change.
+
 ## Rejected alternatives
 
 - **Keep five renderers, add a lint or a review checklist.** The drift was not
