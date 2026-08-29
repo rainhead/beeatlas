@@ -43,7 +43,7 @@
     "@types/geojson": "^7946.0.16",
     "@types/node": "^24.13.3",
     "acorn": "^8.18.0",
-    "glob": "11.1.0",
+    "glob": "13.0.6",
     "happy-dom": "^20.11.2",
     "playwright": "^1.62.1",
     "typescript": "^7.0.2",
