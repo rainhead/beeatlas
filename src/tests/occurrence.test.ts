@@ -210,6 +210,32 @@ describe('collectorLabel', () => {
       .toBe('S. Haigh');
   });
 
+  test('a published display name resolves the handle', () => {
+    // The pipeline already answers this (collectors_export display_name, arg_max
+    // recordedBy by year); the card reuses that answer rather than deriving one.
+    const names = new Map([['mylodon', 'Ellery Newcomer']]);
+    expect(collectorLabel(occurrenceRow({
+      ecdysis_id: null, specimen_observation_id: 394523470, record_type: 'waba_specimen',
+      recordedBy: null, collector_inat_login: 'mylodon',
+    }), names)).toBe('Ellery Newcomer');
+  });
+
+  test("the record's own recordedBy outranks the published name", () => {
+    // display_name is that person's MOST RECENT recorded name; this record was
+    // written under another. A card must not restate a record in a later spelling.
+    const names = new Map([['shaigh', 'Sandra Haigh-Whitfield']]);
+    expect(collectorLabel(occurrenceRow({
+      recordedBy: 'S. Haigh', collector_inat_login: 'shaigh',
+    }), names)).toBe('S. Haigh');
+  });
+
+  test('an unpublished login stays a handle', () => {
+    // 34 of 158 logins on occurrences have no collector page, so no published name.
+    expect(collectorLabel(occurrenceRow({
+      recordedBy: null, collector_inat_login: 'nobody',
+    }), new Map([['mylodon', 'Ellery Newcomer']]))).toBe('@nobody');
+  });
+
   test('a login-only record is attributed, marked as a handle', () => {
     // The reported case: record_type waba_specimen, no recordedBy, no user_login.
     expect(collectorLabel(occurrenceRow({

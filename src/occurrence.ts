@@ -122,10 +122,21 @@ export function isSpecimenId(occId: string): boolean {
  * Returns null when the record names nobody, which is the caller's cue to say so
  * — not to invent an attribution.
  */
-export function collectorLabel(row: OccurrenceRow): string | null {
+export function collectorLabel(
+  row: OccurrenceRow,
+  names?: ReadonlyMap<string, string> | null,
+): string | null {
+  // The name on THIS record wins: it is the datum, written by the collector, and
+  // a card should not restate a record in someone else's spelling.
   if (row.recordedBy != null && row.recordedBy !== '') return row.recordedBy;
-  if (row.collector_inat_login != null && row.collector_inat_login !== '') {
-    return `@${row.collector_inat_login}`;
-  }
-  return null;
+  const login = row.collector_inat_login;
+  if (login == null || login === '') return null;
+  // Otherwise the published display_name for that login — the same string the
+  // person's collector page is titled with (most recent recordedBy, arg_max by
+  // year). Re-deriving it here would be a second name system free to disagree.
+  const name = names?.get(login);
+  if (name != null && name !== '') return name;
+  // No published name (34 of 158 logins have no page at all): the handle, marked
+  // as one. This is also what the pipeline itself falls back to.
+  return `@${login}`;
 }

@@ -36,16 +36,19 @@ function detail(props: {
   occurrences: OccurrenceRow[];
   memberPlaces?: Map<string, MemberPlace[]>;
   taxonCache?: Map<number, TaxonCacheEntry>;
+  collectorNames?: Map<string, string>;
 }): HTMLElement {
   const el = document.createElement('bee-occurrence-detail') as HTMLElement & {
     occurrences: OccurrenceRow[];
     memberPlaces: Map<string, MemberPlace[]> | null;
     taxonCache: Map<number, TaxonCacheEntry> | null;
+    collectorNames: ReadonlyMap<string, string> | null;
     filterState: FilterState | null;
   };
   el.occurrences = props.occurrences;
   el.memberPlaces = props.memberPlaces ?? null;
   el.taxonCache = props.taxonCache ?? null;
+  el.collectorNames = props.collectorNames ?? null;
   // Left null on purpose. The record menu's "Filter for this species" button
   // renders either way — only ACTING on it needs a filter state — and importing
   // the real emptyFilterState() would pull filter.ts, and with it the inlined
@@ -180,13 +183,26 @@ const OCCURRENCE_DETAIL: ProofState[] = [
   {
     id: 'waba-specimen',
     label: 'Awaiting Ecdysis catalogue entry',
-    note: 'Attributed by iNat login alone: this arm sets neither recordedBy nor user_login, so the only name it has is the collector login the pipeline resolved. The "@" marks it as a handle rather than a person\u2019s name.',
+    note: 'Attributed by iNat login alone: this arm sets neither recordedBy nor user_login, and the published collector map has not arrived (it is fetched off the startup path). The "@" marks a handle rather than a name.',
     render: () => detail({
       occurrences: [rows.wabaSpecimen({
         taxon_id: OSMIA, collector_inat_login: 'mylodon',
         specimen_inat_quality_grade: 'research',
       })],
       taxonCache: NAMES,
+    }),
+  },
+  {
+    id: 'login-resolved',
+    label: 'A login resolved to a name',
+    note: 'The same record once the published collector map lands: the display name is the pipeline\u2019s own (most recent recordedBy), so the card and the person\u2019s collector page cannot call them different things.',
+    render: () => detail({
+      occurrences: [rows.wabaSpecimen({
+        taxon_id: OSMIA, collector_inat_login: 'mylodon',
+        specimen_inat_quality_grade: 'research',
+      })],
+      taxonCache: NAMES,
+      collectorNames: new Map([['mylodon', 'Ellery Newcomer']]),
     }),
   },
   {

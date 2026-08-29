@@ -372,6 +372,24 @@ describe('bee-occurrence-detail attribution', () => {
     expect(headers).toEqual(['@mylodon']);
   });
 
+  test('a resolved name replaces the handle, and groups under the name', async () => {
+    await import('../bee-occurrence-detail.ts');
+    document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
+    const el = document.querySelector('bee-occurrence-detail') as any;
+    el.occurrences = [
+      occurrenceRow({ ecdysis_id: 1, recordedBy: null, collector_inat_login: 'mylodon', taxon_id: 1 }),
+      occurrenceRow({ ecdysis_id: 2, recordedBy: null, collector_inat_login: 'mylodon', taxon_id: 1 }),
+    ];
+    el.taxonCache = new Map([[1, { rank: 'species', name: 'Osmia lignaria', lineagePath: null }]]);
+    await el.updateComplete;
+    // Before the published map lands, the handle: it is fetched off the startup path.
+    expect(el.shadowRoot.querySelector('.sample-header').textContent.trim()).toBe('@mylodon');
+    el.collectorNames = new Map([['mylodon', 'Ellery Newcomer']]);
+    await el.updateComplete;
+    const headers = [...el.shadowRoot.querySelectorAll('.sample-header')].map((n: any) => n.textContent.trim());
+    expect(headers).toEqual(['Ellery Newcomer']);
+  });
+
   test('a record naming nobody still says unknown', async () => {
     const el = await mountRows([occurrenceRow({
       ecdysis_id: 1, recordedBy: null, collector_inat_login: null, taxon_id: 1,

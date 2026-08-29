@@ -77,10 +77,23 @@ shape `elevation_dem_m` established: on a cached DB predating the column it is
 selected as `NULL`, so the row keeps its shape and attribution degrades to
 `recordedBy` instead of emptying the sidebar with "no such column".
 
-Still open: `@mylodon` is a handle where a name would read better. The
-login→display-name resolution already exists for collector pages and note
-bylines; wiring it in means passing that map down to the presenter, and is
-tracked separately (beeatlas-8a7r) rather than smuggled into this change.
+Resolved the next day (beeatlas-8a7r): `@mylodon` is now **Ellery Newcomer**.
+The name is not derived in the browser — `collectors_export` already picks a
+person's most recent `recordedBy` (arg_max by year, NULL-recordedBy rows
+filtered so a nameless row cannot mask a real name) and falls back to `@login`,
+and re-deriving that over the occurrences DB would be exactly the second name
+system this ADR is about. Instead the slim published map that already answers
+"does this person have a page" now answers "and what are they called": 123
+entries, 6 KB → 10 KB, one fetch that was already happening.
+
+`recordedBy` still outranks it. `display_name` is a person's *latest* recorded
+name; a record written under an earlier one is a datum, and a card must not
+restate it in a later spelling.
+
+The map is fetched off the startup path, so a card first renders `@login` and
+re-renders into the name when it lands — and a browser holding the pre-2026-08-29
+map (bare href strings) degrades to links-without-names rather than throwing and
+losing the links too.
 
 ## Rejected alternatives
 

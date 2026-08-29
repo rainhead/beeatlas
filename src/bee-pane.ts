@@ -91,6 +91,9 @@ export class BeePane extends LitElement {
   // (<bee-atlas>) and passed straight through to <bee-occurrence-detail>.
   // bee-pane is a pure presenter — it only forwards this map, never queries.
   @property({ attribute: false }) memberPlaces: Map<string, MemberPlace[]> | null = null;
+  // login -> display name, for attributing a record to a person rather than a
+  // handle. Resolved by the state owner from the published collector map.
+  @property({ attribute: false }) collectorNames: ReadonlyMap<string, string> | null = null;
 
   // Table-specific (from bee-atlas render)
   @property({ attribute: false }) rows: OccurrenceRow[] = [];
@@ -1209,7 +1212,7 @@ export class BeePane extends LitElement {
             ? html`<div class="panel-content"><p class="hint">No tiers selected. Enable at least one tier above.</p></div>`
             : this.listRows.length === 0
               ? html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`
-              : html`<bee-occurrence-detail .occurrences=${this.listRows} .taxonCache=${this.taxonCache} .filterState=${this.filterState} .memberPlaces=${this.memberPlaces}></bee-occurrence-detail>`
+              : html`<bee-occurrence-detail .occurrences=${this.listRows} .taxonCache=${this.taxonCache} .filterState=${this.filterState} .memberPlaces=${this.memberPlaces} .collectorNames=${this.collectorNames}></bee-occurrence-detail>`
         }
       </div>
       ${this.listRowCount > PAGE_SIZE ? html`

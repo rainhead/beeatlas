@@ -191,8 +191,15 @@ try {
 // what makes this authoritative: it is the very list Eleventy paginates over.
 //
 // Slim on purpose. collectors.json itself is ~2.8 MB and carries per-collector
-// stats, coverage and event pages the app has no use for; this is the 124 strings
-// that answer "does this person have a page".
+// stats, coverage and event pages the app has no use for; this is the two strings
+// per person that answer "does this person have a page, and what are they called".
+//
+// The NAME is published for the same reason as the href: it is not derivable in the
+// browser without re-implementing a rule that already exists. collectors_export
+// picks a person's MOST RECENT recordedBy (arg_max by year, NULL-recordedBy rows
+// filtered so a nameless row cannot mask a real name) and falls back to '@login'.
+// Re-deriving that in SQL over the occurrences DB would be a second name system
+// free to disagree with the collector pages — see ADR 0040.
 //
 // Non-fatal, like taxon_pages: no map means no links, which is the correct
 // degradation — a dead link is worse than a plain-text name.
@@ -203,7 +210,10 @@ try {
     if (!c.login) continue;
     // Mirrors _pages/collector-detail.njk's permalink exactly, index.html included
     // (subdirectory index resolution is not guaranteed — see taxonPages).
-    collectorPages[c.login] = `/collectors/${encodeURIComponent(c.login)}/index.html`;
+    collectorPages[c.login] = {
+      href: `/collectors/${encodeURIComponent(c.login)}/index.html`,
+      name: c.display_name ?? null,
+    };
   }
   const body = Buffer.from(JSON.stringify(collectorPages) + '\n');
   const hash = artifactHash(body);

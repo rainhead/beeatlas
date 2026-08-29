@@ -13,7 +13,7 @@ import { buildTaxonOptions, resolveTaxonDisplayName, type TaxonCacheEntry } from
 import type { FeatureCollection, Point } from 'geojson';
 import { makeStaleGuard } from './stale-guard.ts';
 import { loadTaxonPages } from './taxon-pages.ts';
-import { loadCollectorPages } from './collector-pages.ts';
+import { loadCollectorPages, type CollectorPage } from './collector-pages.ts';
 import { buildSearchIndex, rankCandidates, rollUpTaxonCounts, EMPTY_INDEX,
          type SearchIndex, type SearchCandidate } from './search.ts';
 import type { CachePrimeProgressDetail, CacheStateChangedDetail } from './prime-orchestrator.ts';
@@ -170,7 +170,12 @@ export class BeeAtlas extends LitElement {
   @state() private _taxonPages: Record<string, string> = {};
   // iNat login -> collector page href (beeatlas-7nx.6). Search-only, so unlike
   // _taxonPages it is not handed to any presenter.
-  private _collectorPages: Record<string, string> = {};
+  private _collectorPages: Record<string, CollectorPage> = {};
+  // login -> display name, derived from the same published map, for the detail
+  // card's attribution. A @state field because it arrives after first paint: the
+  // map is fetched lazily (never on the startup path), so cards render with the
+  // '@login' fallback and re-render into names when it lands.
+  @state() private _collectorNames: ReadonlyMap<string, string> = new Map();
   // Guards against a slow taxa query overwriting a newer one — same hazard the
   // filter-race guard addresses for queryVisibleIds (CLAUDE.md invariant).
   private _taxaQueryGeneration = 0;
@@ -738,6 +743,7 @@ bee-map {
             .specimenCount=${isFilterActive(this._filterState) ? this._filteredRowCount : null}
             .listRows=${this._listRows}
             .memberPlaces=${this._memberPlacesByOccId}
+            .collectorNames=${this._collectorNames}
             .listRowCount=${this._listRowCount}
             .listPage=${this._listPage}
             .listLoading=${this._listLoading}
@@ -1379,7 +1385,7 @@ bee-map {
         // exists for the entries in collectors.json, not for every login on an
         // occurrence — 34 of 158 have none — so this is looked up, never derived
         // (beeatlas-7nx.6).
-        href: c.host_inat_login === null ? null : (this._collectorPages[c.host_inat_login] ?? null),
+        href: c.host_inat_login === null ? null : (this._collectorPages[c.host_inat_login]?.href ?? null),
       })),
       places: this._placeOptions.map(p => ({
         slug: p.slug,
@@ -2576,7 +2582,15 @@ bee-map {
     if (Object.keys(this._taxonPages).length === 0) {
       void loadTaxonPages().then(m => { this._taxonPages = m; this._rebuildSearchIndex(); });
     }
-    void loadCollectorPages().then(m => { this._collectorPages = m; this._rebuildSearchIndex(); });
+    void loadCollectorPages().then(m => {
+      this._collectorPages = m;
+      this._collectorNames = new Map(
+        Object.entries(m)
+          .filter((e): e is [string, CollectorPage & { name: string }] => e[1].name !== null)
+          .map(([login, page]) => [login, page.name]),
+      );
+      this._rebuildSearchIndex();
+    });
     // Named places (beeatlas-7nx.3). Eager, alongside the other option lists —
     // <bee-pane> loaded this lazily and only when a place was already SELECTED, so
     // its place autocomplete was empty on a fresh session and a place could not be

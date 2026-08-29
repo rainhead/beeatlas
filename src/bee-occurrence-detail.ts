@@ -44,7 +44,7 @@ interface DateGroup {
   collectors: CollectorGroup[];
 }
 
-function groupOccurrences(rows: OccurrenceRow[]): DateGroup[] {
+function groupOccurrences(rows: OccurrenceRow[], names: ReadonlyMap<string, string> | null): DateGroup[] {
   const dateMap = new Map<string, Map<string, CollectorGroup>>();
   for (const row of rows) {
     const date = row.date;
@@ -52,7 +52,7 @@ function groupOccurrences(rows: OccurrenceRow[]): DateGroup[] {
     // Grouped on the SAME label the cards attribute to, so records by one person
     // land in one group whether the pipeline knew them by name or by iNat login.
     // Keying on recordedBy alone swept every login-only record into "unknown".
-    const collKey = collectorLabel(row) ?? '';
+    const collKey = collectorLabel(row, names) ?? '';
     const collMap = dateMap.get(date)!;
     if (!collMap.has(collKey)) {
       collMap.set(collKey, { date, recordedBy: collKey, rows: [] });
@@ -78,6 +78,13 @@ export class BeeOccurrenceDetail extends LitElement {
   // ONLY reads this map — it never queries wa-sqlite itself (state-ownership
   // invariant, CLAUDE.md). Each value is sorted by name and de-duplicated.
   @property({ attribute: false }) memberPlaces: Map<string, MemberPlace[]> | null = null;
+
+  // login -> display name, resolved by the state owner from the published
+  // collector map (the same string that titles the person's collector page).
+  // Null or missing simply means the '@login' fallback, so a card is never
+  // blocked on this arriving — it is fetched after the DB is up, off the startup
+  // path, and the attribution re-renders from handle to name when it lands.
+  @property({ attribute: false }) collectorNames: ReadonlyMap<string, string> | null = null;
 
   static styles = css`
     :host {
@@ -522,7 +529,7 @@ export class BeeOccurrenceDetail extends LitElement {
 
   private _renderSampleOnly(row: OccurrenceRow) {
     return this._renderRecordCard(row, {
-      attribution: collectorLabel(row),
+      attribution: collectorLabel(row, this.collectorNames),
       determination: html`<span class="hint">Identification pending</span>`,
       extras: [
         row.sample_host != null ? html`<div class="event-host"><em>${row.sample_host}</em></div>` : '',
@@ -536,7 +543,7 @@ export class BeeOccurrenceDetail extends LitElement {
       ? html`<em>${row.display_name}</em>`
       : html`<span class="hint">identification pending</span>`;
     return this._renderRecordCard(row, {
-      attribution: collectorLabel(row),
+      attribution: collectorLabel(row, this.collectorNames),
       // "iNat ID:" is load-bearing: this determination came from iNaturalist and
       // has no Ecdysis specimen behind it yet.
       determination: html`<span class="det-source">iNat ID:</span> ${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)}`,
@@ -552,7 +559,7 @@ export class BeeOccurrenceDetail extends LitElement {
       ? html`<em>${inatDisplayName}</em>`
       : html`<span class="hint">identification unknown</span>`;
     return this._renderRecordCard(row, {
-      attribution: collectorLabel(row),
+      attribution: collectorLabel(row, this.collectorNames),
       determination: html`${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)}`,
       filterTaxon: this._filterTaxon(row.taxon_id, inatDisplayName),
       extras: [html`<div class="hint">Awaiting Ecdysis catalogue entry</div>`],
@@ -567,7 +574,7 @@ export class BeeOccurrenceDetail extends LitElement {
       ? html`<em>${inatDisplayName}</em>`
       : html`<span class="hint">identification unknown</span>`;
     return this._renderRecordCard(row, {
-      attribution: collectorLabel(row),
+      attribution: collectorLabel(row, this.collectorNames),
       determination: html`${taxonEl} ${this._renderQualityBadge(row.inat_quality_grade)}`,
       filterTaxon: this._filterTaxon(row.taxon_id, inatDisplayName),
       extras: [
@@ -599,7 +606,7 @@ export class BeeOccurrenceDetail extends LitElement {
       taxonEl = html`<span class="hint">No determination</span>`;
     }
     return this._renderRecordCard(row, {
-      attribution: collectorLabel(row),
+      attribution: collectorLabel(row, this.collectorNames),
       determination: taxonEl,
       filterTaxon: this._filterTaxon(row.taxon_id, accepted),
       extras: [
@@ -677,7 +684,7 @@ export class BeeOccurrenceDetail extends LitElement {
     // localeCompare on a null would throw and blank the whole card; null dates sort last.
     const nonSpecimen = this.occurrences.filter(r => !isSpecimenBacked(r))
       .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
-    const dateGroups = groupOccurrences(specimenBacked);
+    const dateGroups = groupOccurrences(specimenBacked, this.collectorNames);
     return html`
       ${dateGroups.map(group => this._renderDateGroup(group))}
       ${dateGroups.length > 0 && nonSpecimen.length > 0
