@@ -1,5 +1,5 @@
 import { test, expect, describe } from 'vitest';
-import { buildParams, parseParams } from '../url-state.ts';
+import { buildParams, parseParams, defaultHiddenTiers } from '../url-state.ts';
 import type { FilterState } from '../filter.ts';
 import type { SelectionState, ParsedParams } from '../url-state.ts';
 
@@ -424,17 +424,40 @@ describe('place filter param', () => {
 });
 
 describe('PROV-02: tier filter URL param (tier=)', () => {
-  test('hiddenTiers={other}: tier param lists the visible tier (atlas)', () => {
+  test('hiddenTiers={other} is the DEFAULT view: no tier param, and no legacy src=', () => {
+    // "Other records" off is what a reader lands on, so it needs no URL to say so —
+    // and the share link of an untouched view stays clean.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
                  hiddenTiers: new Set(['other'] as const) } as any;
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    expect(params.get('tier')).toBe('atlas');
+    expect(params.has('tier')).toBe(false);
     // The legacy src= is no longer emitted.
     expect(params.has('src')).toBe(false);
   });
 
-  test('hiddenTiers empty (default): tier param is absent', () => {
+  test('hiddenTiers={atlas}: tier param lists the visible tier (other)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
+                 hiddenTiers: new Set(['atlas'] as const) } as any;
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
+    expect(params.get('tier')).toBe('other');
+    expect(params.has('src')).toBe(false);
+  });
+
+  test('hiddenTiers empty (show everything) is NOT the default: it says so explicitly', () => {
+    // Absence means the default, which hides `other`. If show-everything serialised to
+    // nothing, ticking "Other records" on and sharing the link would hand the reader back
+    // a view without them.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
+                 hiddenTiers: new Set([]) } as any;
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
+    expect(params.get('tier')).toBe('atlas,other');
+    expect(parseParams(params.toString()).filter?.hiddenTiers).toEqual(new Set());
+  });
+
+  test('a ui with no hiddenTiers at all emits no tier param', () => {
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
     expect(params.has('tier')).toBe(false);
   });
@@ -446,13 +469,25 @@ describe('PROV-02: tier filter URL param (tier=)', () => {
     expect(result.filter?.hiddenTiers).toEqual(new Set(['other']));
   });
 
-  test('tier round-trip: buildParams({hiddenTiers:{other}}) → parseParams recovers {other}', () => {
+  test('tier round-trip: the default writes no param, and an absent param reads back as the default', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
-                 hiddenTiers: new Set(['other'] as const) } as any;
+                 hiddenTiers: defaultHiddenTiers() } as any;
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
     const result = parseParams(params.toString());
-    expect(result.filter?.hiddenTiers).toEqual(new Set(['other']));
+    // Nothing to recover — the reader is on the default, and <bee-atlas> applies
+    // defaultHiddenTiers() when the URL is silent.
+    expect(result.filter?.hiddenTiers).toBeUndefined();
+    expect(defaultHiddenTiers()).toEqual(new Set(['other']));
+  });
+
+  test('tier round-trip: buildParams({hiddenTiers:{atlas}}) → parseParams recovers {atlas}', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
+                 hiddenTiers: new Set(['atlas'] as const) } as any;
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
+    const result = parseParams(params.toString());
+    expect(result.filter?.hiddenTiers).toEqual(new Set(['atlas']));
   });
 
   test('tier=atlas alone triggers result.ui and result.filter (hasFilter recognizes tier=)', () => {
@@ -514,9 +549,12 @@ describe('PROV-02: legacy src= back-compat fold (5→2 → tier, lossy by design
     expect(result.filter?.hiddenTiers).toEqual(new Set(['atlas']));
   });
 
-  test('src=ecdysis,inat_obs (both tiers visible) → hiddenTiers=∅ → no filter', () => {
+  test('src=ecdysis,inat_obs (both tiers visible) → hiddenTiers=∅ → show everything', () => {
+    // A legacy link that listed arms from both tiers asked for everything. Under the
+    // default that hides `other`, honouring it means an explicit empty hidden set —
+    // dropping to undefined would quietly narrow somebody's old bookmark.
     const result = parseParams('src=ecdysis,inat_obs');
-    expect(result.filter?.hiddenTiers ?? undefined).toBeUndefined();
+    expect(result.filter?.hiddenTiers).toEqual(new Set());
   });
 
   test('src=checklist (other arm) folds to hiddenTiers={atlas}', () => {

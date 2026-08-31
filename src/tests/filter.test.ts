@@ -1,10 +1,13 @@
 import { test, expect, describe, vi, beforeAll, afterAll } from 'vitest';
-import { buildFilterSQL, buildCsvFilename, queryTablePage, OCCURRENCE_COLUMNS, ELEV_SQL, ELEV_SQL_RECORDED_ONLY, elevSql, isFilterActive, getOccurrences, getOccurrencePlaceSlugs, occurrencePlacesAvailable, _resetOccurrencePlacesProbe } from '../filter.ts';
+import { buildFilterSQL, buildCsvFilename, queryTablePage, OCCURRENCE_COLUMNS, ELEV_SQL, ELEV_SQL_RECORDED_ONLY, elevSql, isFilterActive, isFilterNarrowed, defaultFilterState, emptyFilterState, getOccurrences, getOccurrencePlaceSlugs, occurrencePlacesAvailable, _resetOccurrencePlacesProbe } from '../filter.ts';
 import type { FilterState } from '../filter.ts';
 import { getDB } from '../sqlite.ts';
 
 vi.mock('../sqlite.ts', () => ({
-  getDB: vi.fn(() => Promise.resolve({ sqlite3: {}, db: 0 })),
+  // exec is a no-op that yields no rows: <bee-atlas> boots filter-active now (the default
+  // view hides the `other` tier, ADR 0041), so mounting it runs a map query straight away.
+  // A bare `sqlite3: {}` made that an unhandled `sqlite3.exec is not a function` rejection.
+  getDB: vi.fn(() => Promise.resolve({ sqlite3: { exec: vi.fn(() => Promise.resolve()) }, db: 0 })),
   loadOccurrencesTable: vi.fn(() => Promise.resolve()),
   tablesReady: Promise.resolve(),
 }));
@@ -438,6 +441,39 @@ describe('isFilterActive — hiddenTiers', () => {
   });
   test('emptyFilter() hiddenTiers empty: returns false', () => {
     expect(isFilterActive({ ...emptyFilter(), hiddenTiers: new Set() })).toBe(false);
+  });
+});
+
+describe('the view a reader lands on: "Other records" off by default', () => {
+  test('the default hides the other tier; the empty filter still hides nothing', () => {
+    expect(defaultFilterState().hiddenTiers).toEqual(new Set(['other']));
+    // emptyFilterState() keeps meaning "show absolutely everything" — the catalog-number
+    // lookup resets to it to reveal a record the view is hiding, tier included.
+    expect(emptyFilterState().hiddenTiers).toEqual(new Set());
+  });
+
+  test('the default view is ACTIVE for the machinery but not NARROWED for the reader', () => {
+    // Active: the tier really is excluded, so the SQL, the map query and the
+    // "is this record hidden?" catalog check all have to see it.
+    expect(isFilterActive(defaultFilterState())).toBe(true);
+    // Not narrowed: nothing has been filtered BY the reader, so the collapsed pane's
+    // "filters are on" highlight stays off until they actually filter something.
+    expect(isFilterNarrowed(defaultFilterState())).toBe(false);
+  });
+
+  test('turning "Other records" on is not narrowing either; hiding Atlas work is', () => {
+    expect(isFilterNarrowed({ ...defaultFilterState(), hiddenTiers: new Set() })).toBe(false);
+    expect(isFilterNarrowed({ ...defaultFilterState(), hiddenTiers: new Set(['atlas' as const]) })).toBe(true);
+  });
+
+  test('a narrowed dimension still shows through the default tier state', () => {
+    expect(isFilterNarrowed({ ...defaultFilterState(), taxonId: 52775 })).toBe(true);
+  });
+
+  test("the default view's SQL restricts to o.tier IN ('atlas')", () => {
+    const { occurrenceWhere } = buildFilterSQL(defaultFilterState());
+    expect(occurrenceWhere).toMatch(/o\.tier IN \('atlas'\)/);
+    expect(occurrenceWhere).not.toContain("'other'");
   });
 });
 

@@ -32,7 +32,7 @@ Trust semantics and evidence are in [ADR 0033](docs/adr/0033-trust-an-expert-unl
 
 The full arm→`tier`→`record_type` mapping, symbology, and URL params live in [docs/domain-model.md](docs/domain-model.md). The vocabulary:
 
-- **`tier`** — *whose work is this?* Two reified values: **`atlas`** (WABA's own work) and **`other`** (expert observations + published literature). Drives the map filter and symbology.
+- **`tier`** — *whose work is this?* Two reified values: **`atlas`** (WABA's own work) and **`other`** (expert observations + published literature). Drives the map filter and symbology. **`other` is OFF by default** — it is an overlay you ask for, not the view you land in ([ADR 0041](docs/adr/0041-other-records-are-an-overlay-not-the-default-view.md)); an absent `tier=` param means that default, and show-everything says so explicitly as `tier=atlas,other`.
 - **`record_type`** — the per-arm record nature (5 values). Drives the detail card. Orthogonal to `tier` in the UI, though `tier = f(record_type)` in the data.
 - **The three-tier mental model** — users think *My specimens / Atlas / Other*, but only `atlas`/`other` are reified. **"Mine" is reached via the orthogonal Collector facet, never a third tier** (no auth on a static site) — this drives the whole work half.
 - **`source` is retired** — the old overloaded enum that conflated social provenance, record type, and platform. Decomposed into `tier` + `record_type` (Phase 170); do not reintroduce it as a UI primitive.

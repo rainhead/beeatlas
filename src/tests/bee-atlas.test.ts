@@ -979,6 +979,21 @@ describe('PROV-02: tier-filter-changed event in bee-atlas', () => {
     // _filterState must reference hiddenTiers
     expect(src).toMatch(/_filterState\.hiddenTiers/);
   });
+  test('bee-atlas.ts starts from defaultFilterState() — "Other records" off before any URL is read', () => {
+    expect(src).toMatch(/_filterState:\s*FilterState\s*=\s*defaultFilterState\(\)/);
+  });
+  test('bee-atlas.ts falls back to defaultHiddenTiers() when the URL says nothing about tiers', () => {
+    // Both seeds — first paint and history navigation. A `?? new Set()` at either site
+    // would silently mean "show everything", which is no longer the default view.
+    const fallbacks = src.match(/hiddenTiers:\s*[\w.?]+\.hiddenTiers\s*\?\?[^;\n]*defaultHiddenTiers\(\)/g) ?? [];
+    expect(fallbacks.length).toBe(2);
+    expect(src).not.toMatch(/hiddenTiers:[^;\n]*\?\?\s*new Set\(\)/);
+  });
+  test('bee-atlas.ts lights the pane\'s filter affordance from isFilterNarrowed, not isFilterActive', () => {
+    // isFilterActive is true the moment you arrive (the default hides a tier), so wiring
+    // the highlight to it would leave it permanently on.
+    expect(src).toMatch(/\.filterActive=\$\{isFilterNarrowed\(this\._filterState\)\}/);
+  });
   test('bee-atlas.ts _buildCurrentParams passes _filterState.hiddenTiers to ui arg', () => {
     expect(src).toMatch(/hiddenTiers:\s*this\._filterState\.hiddenTiers/);
   });

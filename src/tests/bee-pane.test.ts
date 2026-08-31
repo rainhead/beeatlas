@@ -7,7 +7,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Mock heavy modules that have module-level side effects incompatible with happy-dom
 vi.mock('../sqlite.ts', () => ({
-  getDB: vi.fn(() => Promise.resolve({ sqlite3: {}, db: 0 })),
+  // exec is a no-op that yields no rows: <bee-atlas> boots filter-active now (the default
+  // view hides the `other` tier, ADR 0041), so mounting it runs a map query straight away.
+  // A bare `sqlite3: {}` made that an unhandled `sqlite3.exec is not a function` rejection.
+  getDB: vi.fn(() => Promise.resolve({ sqlite3: { exec: vi.fn(() => Promise.resolve()) }, db: 0 })),
   loadOccurrencesTable: vi.fn(() => Promise.resolve()),
   tablesReady: Promise.resolve(),
 }));

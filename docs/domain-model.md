@@ -48,7 +48,9 @@ SELECTs — downstream SQL/URL/UI never recompute it.
 
 The map filter (`hiddenTiers`), the `tier=` URL param (with `src=` legacy back-compat that folds
 the old 5 sources to 2 tiers, lossy by design), and the `properties.tier` map-feature attribute
-all consume `tier`. The detail card (`bee-occurrence-detail.ts`) dispatches on `record_type`.
+all consume `tier`. **`other` starts hidden** ([ADR 0041](adr/0041-other-records-are-an-overlay-not-the-default-view.md)):
+an absent `tier=` means that default view, not "no tier filter", so showing everything is written
+out as `tier=atlas,other`. The detail card (`bee-occurrence-detail.ts`) dispatches on `record_type`.
 
 ---
 
