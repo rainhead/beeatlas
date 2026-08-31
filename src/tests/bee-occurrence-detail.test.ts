@@ -578,4 +578,49 @@ describe('bee-occurrence-detail per-record disclosure menu (beeatlas-k7g)', () =
     expect(detail.taxonId).toBe(100);
     expect(detail.taxonDisplayName).toBe('Bombus vosnesenskii');
   });
+
+  test('an open menu closes when the click lands outside it, and stays open when it lands inside', async () => {
+    // A native <details> has no light-dismiss of its own: without the document
+    // handler an opened menu stays open while the reader clicks on elsewhere.
+    await import('../bee-occurrence-detail.ts');
+    document.body.innerHTML = `<div id="outside"></div><bee-occurrence-detail></bee-occurrence-detail>`;
+    const el = document.querySelector('bee-occurrence-detail') as any;
+    el.occurrences = [ecdysisRow(42), ecdysisRow(43)];
+    await el.updateComplete;
+
+    const menus = [...el.shadowRoot.querySelectorAll('details.record-menu')] as HTMLDetailsElement[];
+    expect(menus.length).toBe(2);
+    const [first, second] = menus as [HTMLDetailsElement, HTMLDetailsElement];
+
+    // A click inside the menu (a link, the summary) leaves it open.
+    first.open = true;
+    first.querySelector('.menu-items a')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, composed: true }));
+    expect(first.open).toBe(true);
+
+    // Opening the second menu (its summary's own native toggle) does not leave
+    // the first one hanging open behind it.
+    second.querySelector('summary')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, composed: true }));
+    expect(first.open).toBe(false);
+    expect(second.open).toBe(true);
+
+    // A click outside the component entirely closes it too.
+    document.getElementById('outside')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, composed: true }));
+    expect(second.open).toBe(false);
+  });
+
+  test('the document listener is dropped when the component leaves the page', async () => {
+    await import('../bee-occurrence-detail.ts');
+    document.body.innerHTML = `<bee-occurrence-detail></bee-occurrence-detail>`;
+    const el = document.querySelector('bee-occurrence-detail') as any;
+    el.occurrences = [ecdysisRow(42)];
+    await el.updateComplete;
+    const menu = el.shadowRoot.querySelector('details.record-menu') as HTMLDetailsElement;
+    menu.open = true;
+    el.remove();
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    expect(menu.open).toBe(true); // detached: the handler no longer runs
+  });
 });

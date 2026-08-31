@@ -318,6 +318,32 @@ export class BeeOccurrenceDetail extends LitElement {
     }
   `;
 
+  connectedCallback() {
+    super.connectedCallback();
+    document.addEventListener('click', this._onDocumentClick);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    document.removeEventListener('click', this._onDocumentClick);
+  }
+
+  // A native <details> never closes on its own, so an open record menu would sit
+  // there while the reader clicked elsewhere in the list — and a card can hold
+  // many of them, so several could be open at once. Close every open menu the
+  // click did not land inside. composedPath() pierces the shadow boundary, so a
+  // click on a summary or on a menu item keeps that one menu open (the summary's
+  // native toggle still does the closing there); a click anywhere else — another
+  // record, the map, the page — closes them all.
+  private _onDocumentClick = (e: Event) => {
+    const open = this.renderRoot?.querySelectorAll?.('details.record-menu[open]');
+    if (!open || open.length === 0) return;
+    const path = e.composedPath();
+    for (const details of open) {
+      if (!path.includes(details)) (details as HTMLDetailsElement).open = false;
+    }
+  };
+
   private _onTaxonClick(taxonId: number, displayName: string) {
     if (!this.filterState) return;
     this.dispatchEvent(new CustomEvent<FilterChangedEvent>('filter-changed', {
