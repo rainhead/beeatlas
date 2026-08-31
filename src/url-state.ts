@@ -42,6 +42,32 @@ export type TierKey = 'atlas' | 'other';
 
 const VALID_TIERS = new Set<TierKey>(['atlas', 'other']);
 
+/**
+ * The tiers hidden when the URL says nothing about tiers — the view a first-time
+ * visitor lands on, and the one "clear the tier filter" returns to.
+ *
+ * `other` (expert iNaturalist observations + published literature) is OFF by
+ * default: the Atlas is a record of the community's own collecting, and other
+ * people's records are an overlay you ask for, not the thing you arrive in.
+ *
+ * This is NOT the same as the empty tier set. An empty set means "show every
+ * tier" and is a state the user can reach (by ticking "Other records" on); the
+ * default is a set with `other` in it. Because the two differ, `tier=` is
+ * serialised whenever the state is not the default — including `tier=atlas,other`
+ * for show-everything, which absence would otherwise silently undo on reload.
+ * Fresh Set each call: the value is mutable and must not be shared between owners.
+ */
+export function defaultHiddenTiers(): Set<TierKey> {
+  return new Set<TierKey>(['other']);
+}
+
+/** True when `hidden` is exactly the default tier set (see defaultHiddenTiers). */
+export function isDefaultHiddenTiers(hidden: Set<TierKey> | undefined): boolean {
+  if (!hidden) return false;
+  const def = defaultHiddenTiers();
+  return hidden.size === def.size && [...def].every(t => hidden.has(t));
+}
+
 // Legacy source → tier fold: the three Atlas-work arms map to `atlas`;
 // the expert-obs + literature arms map to `other`. Used only by the `src=`
 // back-compat parse. The mapping is lossy by design (5→2).
@@ -112,11 +138,14 @@ export function buildParams(
   // Boundary mode and region filter — omit entirely when off (absence = off)
   if (ui.boundaryMode !== 'off') params.set('bm', ui.boundaryMode);
   if (ui.paneState !== 'collapsed') params.set('pane', ui.paneState);
-  if (ui.hiddenTiers && ui.hiddenTiers.size > 0) {
+  // Emitted whenever the tier state is not the default — absent tier= MEANS the
+  // default (see defaultHiddenTiers), so show-everything has to say so explicitly
+  // as `tier=atlas,other` or a reload would quietly re-hide "Other records".
+  if (ui.hiddenTiers && !isDefaultHiddenTiers(ui.hiddenTiers)) {
     const visibleTiers = [...VALID_TIERS].filter(t => !ui.hiddenTiers!.has(t)).sort();
     // WR-01 / Phase 170: when every tier is hidden, emit the explicit `tier=none`
     // sentinel so the honest-empty all-off state survives a URL round-trip/share instead of
-    // silently reverting to "show all" (absent tier= = no tier filter). We no longer emit the
+    // silently reverting to the default. We no longer emit the
     // legacy `src=` — it is parse-only back-compat now.
     params.set('tier', visibleTiers.length > 0 ? visibleTiers.join(',') : 'none');
   }
@@ -270,11 +299,13 @@ export function parseParams(search: string): ParsedParams {
   } else if (tierRaw) {
     const visible = new Set(tierRaw.split(',').filter(t => VALID_TIERS.has(t as TierKey)) as TierKey[]);
     // All-hidden is canonically tier=none above; a tier= listing only unknown tokens (visible=∅)
-    // is treated as no filter rather than all-hidden (T-170B-02 anti-blank guard) — a crafted/
-    // garbage tier= cannot blank every view.
+    // is treated as "URL said nothing about tiers" — the default — rather than all-hidden
+    // (T-170B-02 anti-blank guard): a crafted/garbage tier= cannot blank every view.
     if (visible.size > 0) {
-      const hidden = new Set([...VALID_TIERS].filter(t => !visible.has(t)));
-      hiddenTiers = hidden.size > 0 ? hidden : undefined;
+      // An explicit tier= is always honoured, INCLUDING tier=atlas,other → hidden=∅.
+      // Collapsing that to undefined would hand it back to the default (which hides
+      // `other`), so "show everything" would not survive its own share link.
+      hiddenTiers = new Set([...VALID_TIERS].filter(t => !visible.has(t)));
     }
   } else if (srcRaw === 'none') {
     // Legacy src=none — both tiers hidden (5→2 fold of the all-hidden sentinel).
@@ -287,8 +318,9 @@ export function parseParams(search: string): ParsedParams {
     const visibleSources = new Set(srcRaw.split(',').filter(s => VALID_SOURCES.has(s as SourceKey)) as SourceKey[]);
     if (visibleSources.size > 0) {
       const visibleTiers = new Set<TierKey>([...visibleSources].map(s => TIER_OF[s]));
-      const hidden = new Set([...VALID_TIERS].filter(t => !visibleTiers.has(t)));
-      hiddenTiers = hidden.size > 0 ? hidden : undefined;
+      // Honoured even when it folds to hidden=∅ — a legacy link that listed arms from
+      // both tiers asked for everything, and must keep meaning that under the new default.
+      hiddenTiers = new Set([...VALID_TIERS].filter(t => !visibleTiers.has(t)));
     }
   }
 
@@ -297,7 +329,9 @@ export function parseParams(search: string): ParsedParams {
     || months.size > 0 || selectedCounties.size > 0 || selectedEcoregions.size > 0
     || selectedCollectors.length > 0 || elevMin !== null || elevMax !== null
     || selectedPlace !== null || boundsResult !== null
-    || (hiddenTiers !== undefined && hiddenTiers.size > 0);
+    // Any explicit tier= is a filter param, empty hidden set included: `tier=atlas,other`
+    // means "show everything", which differs from the default and must be carried through.
+    || hiddenTiers !== undefined;
   if (hasFilter) {
     result.filter = {
       taxonId: resolvedTaxonId,
@@ -365,7 +399,7 @@ export function parseParams(search: string): ParsedParams {
     : viewRaw === 'table' ? 'table'
     : 'collapsed';
   // Include UI when non-default values present
-  if (boundaryMode !== 'off' || paneState !== 'collapsed' || (hiddenTiers && hiddenTiers.size > 0)) {
+  if (boundaryMode !== 'off' || paneState !== 'collapsed' || hiddenTiers !== undefined) {
     result.ui = { boundaryMode, paneState, hiddenTiers };
   }
 

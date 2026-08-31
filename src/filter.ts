@@ -3,7 +3,7 @@ import { occIdFromRow } from './occurrence.ts';
 import type { FeatureCollection, Point, Feature } from 'geojson';
 import { buildTaxaTree, countAtRank } from './taxa-tree.ts';
 import type { TaxonAgg, TaxonNode } from './taxa-tree.ts';
-import type { TierKey } from './url-state.ts';
+import { defaultHiddenTiers, isDefaultHiddenTiers, type TierKey } from './url-state.ts';
 
 // A resolved collector entry links a human name to an iNat username (either may be null).
 // Stored in FilterState.selectedCollectors and used as CollectorOption in autocomplete.
@@ -26,7 +26,7 @@ export interface FilterState {
   elevMax: number | null;
   selectedPlace: string | null;     // singular; multi-place is deferred PRICH-02
   bounds: { west: number; south: number; east: number; north: number } | null; // D-01 (phase 999.8): spatial bounding box as first-class filter field
-  hiddenTiers: Set<TierKey>; // empty Set = no tier filter (show all) — Phase 170 (PROV-02)
+  hiddenTiers: Set<TierKey>; // empty Set = no tier filter (show all) — Phase 170 (PROV-02). NB the app's DEFAULT is not the empty set: see defaultFilterState().
 }
 
 /**
@@ -54,6 +54,19 @@ export function emptyFilterState(): FilterState {
     bounds: null,
     hiddenTiers: new Set(),
   };
+}
+
+/**
+ * The filter the app starts from — everything off EXCEPT the tier facet, which
+ * starts with "Other records" (expert iNaturalist observations + published
+ * literature) hidden. See defaultHiddenTiers() in url-state.ts for why.
+ *
+ * Distinct from emptyFilterState(), which stays the honest "show absolutely
+ * everything" and is what the catalog-number lookup resets to when the record it
+ * found is hidden — including hidden by the default tier.
+ */
+export function defaultFilterState(): FilterState {
+  return { ...emptyFilterState(), hiddenTiers: defaultHiddenTiers() };
 }
 
 export interface OccurrenceProperties {
@@ -331,6 +344,20 @@ export function isFilterActive(f: FilterState): boolean {
     || f.selectedPlace !== null
     || f.bounds !== null
     || f.hiddenTiers.size > 0;
+}
+
+/**
+ * Has the reader narrowed the view BEYOND the default one they landed on?
+ *
+ * isFilterActive is the machinery's question ("does this state exclude anything?")
+ * and is true for the default state, since the default hides a tier. This is the
+ * PERSON's question, and it is what the collapsed pane's "filters are on" highlight
+ * reads: a light that is on the moment you arrive tells nobody anything.
+ */
+export function isFilterNarrowed(f: FilterState): boolean {
+  return isFilterActive(
+    isDefaultHiddenTiers(f.hiddenTiers) ? { ...f, hiddenTiers: new Set() } : f
+  );
 }
 
 // INVARIANT: the returned clause qualifies the occurrences table as `o`

@@ -1,10 +1,10 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js';
 import type { BeeMap } from './bee-map.ts';
-import { type FilterState, type CollectorEntry, type PlaceOption, type PlaceKind, type MemberPlace, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, getOccurrencePlaceSlugs, queryTaxaTree, type OccurrenceProperties, emptyFilterState, lookupByCatalogSuffix } from './filter.ts';
+import { type FilterState, type CollectorEntry, type PlaceOption, type PlaceKind, type MemberPlace, isFilterActive, isFilterNarrowed, defaultFilterState, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, getOccurrencePlaceSlugs, queryTaxaTree, type OccurrenceProperties, emptyFilterState, lookupByCatalogSuffix } from './filter.ts';
 import type { TaxonNode } from './taxa-tree.ts';
 import { parseOccId, occIdFromRow } from './occurrence.ts';
-import { buildParams, parseParams, type TierKey } from './url-state.ts';
+import { buildParams, parseParams, defaultHiddenTiers, type TierKey } from './url-state.ts';
 import type { BoundaryMode } from './boundary-mode.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
 import { markTaxaReady, taxaReady } from './ready.ts';
@@ -153,7 +153,7 @@ export function boundsFromLocation(loc: { lat: number; lon: number }): { west: n
 @customElement('bee-atlas')
 export class BeeAtlas extends LitElement {
   // App-level state — all formerly on BeeMap, now owned here
-  @state() private _filterState: FilterState = emptyFilterState();
+  @state() private _filterState: FilterState = defaultFilterState();
 
   @state() private _visibleIds: Set<string> | null = null;
   @state() private _filteredGeoJSON: FeatureCollection<Point, OccurrenceProperties> | null = null;
@@ -753,7 +753,7 @@ bee-map {
             .page=${this._tablePage}
             .loading=${this._tableLoading}
             .sortBy=${this._tableSortBy}
-            .filterActive=${isFilterActive(this._filterState)}
+            .filterActive=${isFilterNarrowed(this._filterState)}
             .selectedIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
             .hiddenTiers=${this._filterState.hiddenTiers}
             @filter-changed=${this._onFilterChanged}
@@ -845,8 +845,10 @@ bee-map {
         elevMax: initFilter.elevMax ?? null,
         selectedPlace: initFilter.selectedPlace ?? null,
         bounds: initFilter.bounds ?? null,
-        // hiddenTiers from filter (hasFilter recognizes tier=/legacy src=); belt-and-suspenders fallback to ui
-        hiddenTiers: initFilter.hiddenTiers ?? initialParams.ui?.hiddenTiers ?? new Set(),
+        // hiddenTiers from filter (hasFilter recognizes tier=/legacy src=); belt-and-suspenders fallback to ui.
+        // No tier= and no src= at all = the URL says nothing, which MEANS the default view
+        // (Other records off) — not "show everything". Every other dimension defaults to off.
+        hiddenTiers: initFilter.hiddenTiers ?? initialParams.ui?.hiddenTiers ?? defaultHiddenTiers(),
       };
     }
     // If URL contains a legacy taxon name, start the await-taxaReady resolution flow.
@@ -1975,7 +1977,7 @@ bee-map {
       elevMax: parsed.filter?.elevMax ?? null,
       selectedPlace: parsed.filter?.selectedPlace ?? null,
       bounds: parsed.filter?.bounds ?? null,
-      hiddenTiers: parsed.filter?.hiddenTiers ?? parsed.ui?.hiddenTiers ?? new Set(),
+      hiddenTiers: parsed.filter?.hiddenTiers ?? parsed.ui?.hiddenTiers ?? defaultHiddenTiers(),
     };
     // Handle legacy taxon back-compat on history navigation via the same await-taxaReady
     // flow as firstUpdated. By the time popstate fires, taxaReady is already resolved
