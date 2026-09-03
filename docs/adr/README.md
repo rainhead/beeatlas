@@ -45,3 +45,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0039](0039-design-proofing-surface.md) | /design proofs components from fixtures, never from the database | Accepted |
 | [0040](0040-a-record-card-reads-context-first.md) | A record card reads context first, and there is only one card | Accepted |
 | [0041](0041-other-records-are-an-overlay-not-the-default-view.md) | "Other records" are an overlay, not the default view | Accepted |
+| [0042](0042-beeatlas-moves-to-fly-as-one-stateful-machine.md) | BeeAtlas moves to Fly as one stateful machine | Accepted |

@@ -91,12 +91,17 @@ uv run python -c "import sqlite3,os; print(sqlite3.connect(os.path.expanduser('~
 frequency. Recommended: hourly.
 
 ```cron
-# maderas crontab — hourly notes store backup
-0 * * * * NOTES_DB_PATH=/opt/beeatlas-store/notes.db \
-           NOTES_BACKUP_BUCKET=<BackupBucketName> \
-           ~/dev/beeatlas/data/.venv/bin/python \
-           ~/dev/beeatlas/data/backup_notes.py >> /var/log/beeatlas-backup.log 2>&1
+# maderas crontab — hourly notes store backup (installed 2026-09-02)
+0 * * * * NOTES_DB_PATH=$HOME/beeatlas-store/notes.db NOTES_BACKUP_BUCKET=<BackupBucketName> $HOME/dev/beeatlas/data/.venv/bin/python $HOME/dev/beeatlas/data/backup_notes.py >> $HOME/beeatlas-backup.log 2>&1
 ```
+
+The paths above are the ones that actually work on maderas, and they are not the ones this
+runbook shipped with. The original template named `/opt/beeatlas-store/notes.db` (the store is
+under `$HOME`) and logged to `/var/log/beeatlas-backup.log` (not writable by the service user),
+and it was line-continued across five lines, which a crontab does not accept. **It was never
+installed.** From the store's creation until 2026-09-02 the only object in the backup bucket was
+`notes_20260703_211606.db.gz` — the §4 restore-drill artifact — while the store carried committed
+writes as recent as 2026-08-13. Keep this cron on one line.
 
 Replace `<BackupBucketName>` with the CDK output `BackupBucketName` from `cdk deploy`
 (plan 177-02). The script uses the `beeatlas` AWS profile (matching `nightly.sh`).
