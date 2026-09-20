@@ -251,25 +251,62 @@ const genusList = Object.values(genusMap)
       ...sp,
       hexColor: colorByCanon[sp.canonical_name] ?? '#cccccc',
     }));
-    // Append a grey "Genus sp." entry when genus-level records exist, so the
-    // key matches the grey dots rendered in the SVG map.
+    // Append grey "sp." entries for records identified no further than a genus or a
+    // subgenus, so the key matches the grey dots rendered in the SVG map.
+    //
+    // These are bucketed BY SUBGENUS, not summed into one row (beeatlas-cayq). A subgenus-rank
+    // determination (canonical_name 'cyrtocoelioxys', specific_epithet null,
+    // subgenus 'Cyrtocoelioxys') is a real identification one rank coarser than
+    // species, and rolling it into "Coelioxys sp." threw that rank away — 4,112
+    // records across 40 subgenera, of which ~1,956 Pyrobombus sat inside a single
+    // "Bombus sp." row. Subgenus-level buckets name the subgenus —
+    // "Coelioxys (Cyrtocoelioxys) sp." — and carry sp.subgenus so the partition
+    // below files them under that subgenus's heading; the genus-level bucket keeps
+    // the bare "Coelioxys sp." and no subgenus, so it stays ungrouped.
+    //
+    // All buckets stay #aaaaaa: data/species_maps.py paints every unresolved
+    // canonical_name _UNRESOLVED_COLOR in both SPECIES and SUBGENUS mode, so
+    // splitting the row does not disturb swatch<->dot parity (Pitfall 2).
     const unresolvedMembers = withOcc.filter(sp => sp.specific_epithet === null);
     const unresolvedOccurrences = unresolvedMembers.reduce((acc, sp) => acc + sp.occurrence_count, 0);
     const unresolvedSpecimenCount = unresolvedMembers.reduce((acc, sp) => acc + (sp.specimen_count || 0), 0);
     const unresolvedInatObsCount = unresolvedMembers.reduce((acc, sp) => acc + (sp.inat_obs_count || 0), 0);
+    const unresolvedBySubgenus = new Map();  // cleaned subgenus (or null) -> members
+    for (const sp of unresolvedMembers) {
+      const sg = cleanSubgenus(sp);
+      if (!unresolvedBySubgenus.has(sg)) unresolvedBySubgenus.set(sg, []);
+      unresolvedBySubgenus.get(sg).push(sp);
+    }
+    const unresolvedEntry = (subgenus, members) => {
+      const occurrence_count = members.reduce((acc, sp) => acc + sp.occurrence_count, 0);
+      const inat_obs_count = members.reduce((acc, sp) => acc + (sp.inat_obs_count || 0), 0);
+      if (occurrence_count === 0 && inat_obs_count === 0) return null;
+      return {
+        scientificName: subgenus ? `${g.genus} (${subgenus}) sp.` : `${g.genus} sp.`,
+        subgenus: subgenus ?? null,
+        hexColor: '#aaaaaa',
+        occurrence_count,
+        specimen_count: members.reduce((acc, sp) => acc + (sp.specimen_count || 0), 0),
+        inat_obs_count,
+        slug: null,
+      };
+    };
     // Alphabetical for display: merge occurrence-bearing + checklist-only species and
     // sort by name (they were two separately-sorted runs, so the concatenation looked
     // unsorted on genus/subgenus pages). Color indices stay keyed by canonical_name over
-    // `withOcc`, so display order does not affect swatch hues. The synthetic "Genus sp."
-    // entry is appended after this sort and remains last.
+    // `withOcc`, so display order does not affect swatch hues. The synthetic "sp."
+    // entries are appended after this sort, so each remains last within its group.
     const species = [...speciesOnly, ...checklistSpecies]
       .sort((a, b) => a.scientificName.localeCompare(b.scientificName));
-    if (unresolvedOccurrences > 0 || unresolvedInatObsCount > 0) {
-      species.push({ scientificName: `${g.genus} sp.`, hexColor: '#aaaaaa', occurrence_count: unresolvedOccurrences, specimen_count: unresolvedSpecimenCount, inat_obs_count: unresolvedInatObsCount, slug: null });
+    for (const [subgenus, members] of [...unresolvedBySubgenus].sort(
+      ([a], [b]) => (a ?? '').localeCompare(b ?? '')
+    )) {
+      const entry = unresolvedEntry(subgenus, members);
+      if (entry) species.push(entry);
     }
     // Partition species into subgenus groups + ungrouped (derived from the already-built species array
-    // so hexColors and object identity are preserved exactly). The synthetic "Genus sp." entry has no
-    // subgenus field and falls into ungroupedSpecies automatically.
+    // so hexColors and object identity are preserved exactly). The genus-level "Genus sp." entry has a
+    // null subgenus and falls into ungroupedSpecies automatically.
     const ungroupedSpecies = species.filter(sp => !sp.subgenus || sp.subgenus.trim() === '');
     const subgenusGroupMap = {};
     for (const sp of species) {
@@ -353,7 +390,10 @@ const subgenusList = Object.values(subgenusMap)
       ...sp,
       hexColor: colorByCanon[sp.canonical_name] ?? '#cccccc',
     }));
-    // Append a grey "Subgenus sp." entry when subgenus-level records exist.
+    // Append a grey "Genus (Subgenus) sp." entry when subgenus-level records exist.
+    // The subgenus is named even though the page is already that subgenus's: a bare
+    // "Coelioxys sp." here reads as a genus-level determination, which is exactly the
+    // rank these records are NOT at, and the genus page shows the two side by side.
     const unresolvedSubgenusMembers = withOcc.filter(sp => sp.specific_epithet === null);
     const unresolvedOccurrences = unresolvedSubgenusMembers.reduce((acc, sp) => acc + sp.occurrence_count, 0);
     const unresolvedSpecimenCount = unresolvedSubgenusMembers.reduce((acc, sp) => acc + (sp.specimen_count || 0), 0);
@@ -361,12 +401,12 @@ const subgenusList = Object.values(subgenusMap)
     // Alphabetical for display: merge occurrence-bearing + checklist-only species and
     // sort by name (they were two separately-sorted runs, so the concatenation looked
     // unsorted on genus/subgenus pages). Color indices stay keyed by canonical_name over
-    // `withOcc`, so display order does not affect swatch hues. The synthetic "Genus sp."
-    // entry is appended after this sort and remains last.
+    // `withOcc`, so display order does not affect swatch hues. The synthetic
+    // "Genus (Subgenus) sp." entry is appended after this sort and remains last.
     const species = [...speciesOnly, ...checklistSpecies]
       .sort((a, b) => a.scientificName.localeCompare(b.scientificName));
     if (unresolvedOccurrences > 0 || unresolvedInatObsCount > 0) {
-      species.push({ scientificName: `${g.genus} sp.`, hexColor: '#aaaaaa', occurrence_count: unresolvedOccurrences, specimen_count: unresolvedSpecimenCount, inat_obs_count: unresolvedInatObsCount, slug: null });
+      species.push({ scientificName: `${g.genus} (${g.subgenus}) sp.`, hexColor: '#aaaaaa', occurrence_count: unresolvedOccurrences, specimen_count: unresolvedSpecimenCount, inat_obs_count: unresolvedInatObsCount, slug: null });
     }
     const checklistCount = checklistOnly.reduce((acc, sp) => acc + (sp.checklist_count || 0), 0);
     return {

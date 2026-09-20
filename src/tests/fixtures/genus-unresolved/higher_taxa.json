@@ -1,0 +1,36 @@
+[
+ {
+  "rank": "genus",
+  "name": "Coelioxys",
+  "taxon_id": 199145,
+  "family": "Megachilidae",
+  "subfamily": "Megachilinae",
+  "tribe": "Anthidiini"
+ },
+ {
+  "rank": "genus",
+  "name": "Neolarra",
+  "taxon_id": 1,
+  "family": "Apidae",
+  "subfamily": "Nomadinae",
+  "tribe": "Neolarrini"
+ },
+ {
+  "rank": "subgenus",
+  "name": "Cyrtocoelioxys",
+  "taxon_id": 2,
+  "genus": "Coelioxys"
+ },
+ {
+  "rank": "subgenus",
+  "name": "Boreocoelioxys",
+  "taxon_id": 3,
+  "genus": "Coelioxys"
+ },
+ {
+  "rank": "subgenus",
+  "name": "Xerocoelioxys",
+  "taxon_id": 4,
+  "genus": "Coelioxys"
+ }
+]
