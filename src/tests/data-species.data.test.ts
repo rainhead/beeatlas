@@ -71,21 +71,33 @@ describe('_data/species.js', () => {
     expect(typeof agapostemon.totalOccurrences).toBe('number');
   });
 
-  test('genusList species are fully alphabetical by name, synthetic "Genus sp." last (Phase 174 gap fix)', () => {
+  test('genusList species are fully alphabetical by name, synthetic "sp." entries last (Phase 174 gap fix)', () => {
     // Display order: occurrence-bearing AND checklist-only species are merged into one
-    // alphabetical (scientificName) run on every genus page; the synthetic "Genus sp."
-    // entry (slug === null) is appended last. Previously the two groups were concatenated
+    // alphabetical (scientificName) run on every genus page; the synthetic "sp." entries
+    // (slug === null) are appended after it. Previously the two groups were concatenated
     // separately, so the combined list looked unsorted wherever a genus had both kinds.
+    //
+    // beeatlas-cayq: a genus now carries ONE synthetic entry per determination level —
+    // the bare "Andrena sp." plus an "Andrena (Subgenus) sp." for each subgenus holding
+    // subgenus-rank records — so the assertion is that they form a contiguous trailing
+    // run, not that there is exactly one of them.
     const list = (species as any).genusList;
     for (const g of list) {
       const real = g.species.filter((s: any) => s.slug !== null);
       const names = real.map((s: any) => s.scientificName);
       const sorted = [...names].sort((a: string, b: string) => a.localeCompare(b));
       expect(names, `genus ${g.genus} species not alphabetical`).toEqual(sorted);
-      // synthetic "Genus sp." (slug null) only ever appears as the final entry
-      const syntheticIdx = g.species.findIndex((s: any) => s.slug === null);
-      if (syntheticIdx !== -1) {
-        expect(syntheticIdx, `synthetic entry not last in ${g.genus}`).toBe(g.species.length - 1);
+      // Every synthetic entry sits after every real species.
+      const firstSynthetic = g.species.findIndex((s: any) => s.slug === null);
+      if (firstSynthetic !== -1) {
+        expect(
+          g.species.slice(firstSynthetic).every((s: any) => s.slug === null),
+          `a real species follows a synthetic entry in ${g.genus}`,
+        ).toBe(true);
+        for (const s of g.species.slice(firstSynthetic)) {
+          expect(s.scientificName, `unexpected synthetic name in ${g.genus}`)
+            .toMatch(new RegExp(`^${g.genus}( \\([A-Za-z]+\\))? sp\\.$`));
+        }
       }
     }
   });
