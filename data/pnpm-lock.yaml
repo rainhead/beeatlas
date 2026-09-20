@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       mapshaper:
-        specifier: ^0.7.59
-        version: 0.7.59(@types/geojson@7946.0.16)(@types/node@26.2.0)
+        specifier: ^0.7.61
+        version: 0.7.61(@types/geojson@7946.0.16)(@types/node@26.6.1)
 
 packages:
 
@@ -194,8 +194,8 @@ packages:
   '@repeaterjs/repeater@3.0.6':
     resolution: {integrity: sha512-Javneu5lsuhwNCryN+pXH93VPQ8g0dBX7wItHFgYiwQmzE1sVdg5tWHiOgHywzL2W21XQopa7IwIEnNbmeUJYA==}
 
-  '@rollup/rollup-linux-x64-gnu@4.63.1':
-    resolution: {integrity: sha512-gfI5T24WLLuFfSKw7Go/zDXjAAV0fny0swTaDv+WjK7vqcw4cRhFfdsyKL1n+ukI+ooBxn3bVQnyrn06WpI50w==}
+  '@rollup/rollup-linux-x64-gnu@4.63.3':
+    resolution: {integrity: sha512-SXagRwnI2Wlwlitllu59UK/nGVbD1CKPcNqDplHwIC4BqJcpXFjD32d1R/RbuISa95HdQrZM3/7v4bKiowFaLA==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
@@ -283,11 +283,11 @@ packages:
   '@types/geojson@7946.0.8':
     resolution: {integrity: sha512-1rkryxURpr6aWP7R786/UQOkJ3PcpQiWkAXBmdWc7ryFWqN6a4xfK7BtjXvFBKO9LjQ+MWQSWxYeZX1OApnArA==}
 
-  '@types/node@22.20.1':
-    resolution: {integrity: sha512-EANqOCF9QFyra+4pfxUcX9STKJpCLjMbObVzljIJomAWSnuSIEAvyzEU53GaajbXJEgdh0iEcPL+DGvpUd4k1Q==}
+  '@types/node@26.6.0':
+    resolution: {integrity: sha512-FWWQhDlKSnEJVe+CTJCQL8Fol7s1MKo3Ud0fjryxoOoH+hwMIPxol0MguYrLi2I0VvIFwOU2DwdWET2+px15qg==}
 
-  '@types/node@26.2.0':
-    resolution: {integrity: sha512-5IviulTZeRNp2vAJ514cc/HUlY5nZ9fCbq9DMyC52BrhFZACo3nI0R7qBxhQmo/d27NFe96ur/b7Wwxklda+kg==}
+  '@types/node@26.6.1':
+    resolution: {integrity: sha512-VqGJBMCtdhqkBUCcBLvywI0NJ+KLuVzgNnlBUNFOQjqVxzo2lxLUNg1DSey8+u2u6ktswSAxg+s68QLzWHNOuA==}
 
   '@types/proj4@2.5.2':
     resolution: {integrity: sha512-/Nmfn9p08yaYw6xo5f2b0L+2oHk2kZeOkp5v+4VCeNfq+ETlLQbmHmC97/pjDIEZy8jxwz7pdPpwNzDHM5cuJw==}
@@ -531,8 +531,8 @@ packages:
   hyparquet@1.25.6:
     resolution: {integrity: sha512-Q9W5IjkVch3ZMnYd4qFv2q8suu5Jc36yt7J+zUNM9grwnP1S189icp0jdEQKM5HJvQkTVy8NMiQ8n/dM5QAt1A==}
 
-  hyparquet@1.30.0:
-    resolution: {integrity: sha512-HlvW+Luuo2RtvTzDnTJN4F2rXxKQMcmAVNnT1khytf1MR/vDS6ALeYyWwbU1X9rrOLLIG0fjRa0Y5q3XxvOXdA==}
+  hyparquet@1.30.1:
+    resolution: {integrity: sha512-307mnGbxzx0nXPGTV6Mhp10gKIu6t+NhvBQJF+PVQsHA295sqznlVOqEAH+fohH2Rqx7NV0Myh9rmuM9E9Ch+w==}
 
   hysnappy@1.0.0:
     resolution: {integrity: sha512-MNrC4NfwDGPb889O6gIfEtbvEZCSWUsSEhsz4Oq2FRcpGtXHfeVz3KciSPp5Pnnz1NjFMgDQNfxdJozymJEDDA==}
@@ -612,8 +612,8 @@ packages:
   map-stream@0.0.7:
     resolution: {integrity: sha512-C0X0KQmGm3N2ftbTGBhSyuydQ+vV1LC3f3zPvT3RXHXNZrvfPZcoXp/N5DOa8vedX/rTMm2CjTtivFg2STJMRQ==}
 
-  mapshaper@0.7.59:
-    resolution: {integrity: sha512-zXRNJZRqTe4CjlnHJf3vY/36z3b15vYaLI7tmQ/Ora0VIONOaNphFUPxOULcK0lWiu9em+qqn2wHgbG/YKS+qQ==}
+  mapshaper@0.7.61:
+    resolution: {integrity: sha512-lyQXA1/6yWYhcfuDWjOVh/zeFFdqKJomYGKLJB/eY/Bfz8M+HqYo/pnDoOVgbeKX7mofwMaYn46FhwnMgctVdQ==}
     engines: {node: '>=20.11.0'}
     hasBin: true
 
@@ -670,8 +670,8 @@ packages:
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
 
-  open@11.0.2:
-    resolution: {integrity: sha512-RWqF+pBSkqecEvCKOn8QYhaNdRMJDZRIrlS/7rTDdLHaPcfXGCZ/h8zb413NfvdeAV0MR7T1yJcA34/q+CSm1Q==}
+  open@11.0.4:
+    resolution: {integrity: sha512-++Zlftm0kVLPmzC06t6epuWmcRMDbI4z5P3NNX979WA/k23+NtSOynEGzsVfZwguKw2mi5umVgnBlJQMwRz4Pg==}
     engines: {node: '>=20'}
 
   pako@2.2.0:
@@ -877,11 +877,8 @@ packages:
   typedarray@0.0.6:
     resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
 
-  undici-types@6.21.0:
-    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
-
-  undici-types@8.3.0:
-    resolution: {integrity: sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==}
+  undici-types@8.9.0:
+    resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
   unzipit@2.0.0:
     resolution: {integrity: sha512-DVeVIWUZCAQPNzm5sB0hpsG1GygTTdBnzNtYYEpInkttx5evkyqRgZi6rTczoySqp8hO5jHVKzrH0f23X8FZLg==}
@@ -925,136 +922,136 @@ snapshots:
   '@inquirer/ansi@2.0.8':
     optional: true
 
-  '@inquirer/checkbox@5.2.5(@types/node@26.2.0)':
+  '@inquirer/checkbox@5.2.5(@types/node@26.6.1)':
     dependencies:
       '@inquirer/ansi': 2.0.8
-      '@inquirer/core': 12.0.3(@types/node@26.2.0)
+      '@inquirer/core': 12.0.3(@types/node@26.6.1)
       '@inquirer/figures': 2.0.9
-      '@inquirer/type': 4.1.1(@types/node@26.2.0)
+      '@inquirer/type': 4.1.1(@types/node@26.6.1)
     optionalDependencies:
-      '@types/node': 26.2.0
+      '@types/node': 26.6.1
     optional: true
 
-  '@inquirer/confirm@6.3.2(@types/node@26.2.0)':
+  '@inquirer/confirm@6.3.2(@types/node@26.6.1)':
     dependencies:
-      '@inquirer/core': 12.0.3(@types/node@26.2.0)
-      '@inquirer/type': 4.1.1(@types/node@26.2.0)
+      '@inquirer/core': 12.0.3(@types/node@26.6.1)
+      '@inquirer/type': 4.1.1(@types/node@26.6.1)
     optionalDependencies:
-      '@types/node': 26.2.0
+      '@types/node': 26.6.1
     optional: true
 
-  '@inquirer/core@12.0.3(@types/node@26.2.0)':
+  '@inquirer/core@12.0.3(@types/node@26.6.1)':
     dependencies:
       '@inquirer/ansi': 2.0.8
       '@inquirer/figures': 2.0.9
-      '@inquirer/type': 4.1.1(@types/node@26.2.0)
+      '@inquirer/type': 4.1.1(@types/node@26.6.1)
       cli-width: 4.1.0
       fast-wrap-ansi: 0.2.2
       mute-stream: 3.0.0
       signal-exit: 4.1.0
     optionalDependencies:
-      '@types/node': 26.2.0
+      '@types/node': 26.6.1
     optional: true
 
-  '@inquirer/editor@5.3.3(@types/node@26.2.0)':
+  '@inquirer/editor@5.3.3(@types/node@26.6.1)':
     dependencies:
-      '@inquirer/core': 12.0.3(@types/node@26.2.0)
-      '@inquirer/external-editor': 3.0.5(@types/node@26.2.0)
-      '@inquirer/type': 4.1.1(@types/node@26.2.0)
+      '@inquirer/core': 12.0.3(@types/node@26.6.1)
+      '@inquirer/external-editor': 3.0.5(@types/node@26.6.1)
+      '@inquirer/type': 4.1.1(@types/node@26.6.1)
     optionalDependencies:
-      '@types/node': 26.2.0
+      '@types/node': 26.6.1
     optional: true
 
-  '@inquirer/expand@5.1.5(@types/node@26.2.0)':
+  '@inquirer/expand@5.1.5(@types/node@26.6.1)':
     dependencies:
-      '@inquirer/core': 12.0.3(@types/node@26.2.0)
-      '@inquirer/type': 4.1.1(@types/node@26.2.0)
+      '@inquirer/core': 12.0.3(@types/node@26.6.1)
+      '@inquirer/type': 4.1.1(@types/node@26.6.1)
     optionalDependencies:
-      '@types/node': 26.2.0
+      '@types/node': 26.6.1
     optional: true
 
-  '@inquirer/external-editor@3.0.5(@types/node@26.2.0)':
+  '@inquirer/external-editor@3.0.5(@types/node@26.6.1)':
     dependencies:
       chardet: 2.2.0
       iconv-lite: 0.7.3
     optionalDependencies:
-      '@types/node': 26.2.0
+      '@types/node': 26.6.1
     optional: true
 
   '@inquirer/figures@2.0.9':
     optional: true
 
-  '@inquirer/input@5.1.6(@types/node@26.2.0)':
+  '@inquirer/input@5.1.6(@types/node@26.6.1)':
     dependencies:
-      '@inquirer/core': 12.0.3(@types/node@26.2.0)
-      '@inquirer/type': 4.1.1(@types/node@26.2.0)
+      '@inquirer/core': 12.0.3(@types/node@26.6.1)
+      '@inquirer/type': 4.1.1(@types/node@26.6.1)
     optionalDependencies:
-      '@types/node': 26.2.0
+      '@types/node': 26.6.1
     optional: true
 
-  '@inquirer/number@4.2.3(@types/node@26.2.0)':
+  '@inquirer/number@4.2.3(@types/node@26.6.1)':
     dependencies:
-      '@inquirer/core': 12.0.3(@types/node@26.2.0)
-      '@inquirer/type': 4.1.1(@types/node@26.2.0)
+      '@inquirer/core': 12.0.3(@types/node@26.6.1)
+      '@inquirer/type': 4.1.1(@types/node@26.6.1)
     optionalDependencies:
-      '@types/node': 26.2.0
+      '@types/node': 26.6.1
     optional: true
 
-  '@inquirer/password@5.2.2(@types/node@26.2.0)':
-    dependencies:
-      '@inquirer/ansi': 2.0.8
-      '@inquirer/core': 12.0.3(@types/node@26.2.0)
-      '@inquirer/type': 4.1.1(@types/node@26.2.0)
-    optionalDependencies:
-      '@types/node': 26.2.0
-    optional: true
-
-  '@inquirer/prompts@8.7.2(@types/node@26.2.0)':
-    dependencies:
-      '@inquirer/checkbox': 5.2.5(@types/node@26.2.0)
-      '@inquirer/confirm': 6.3.2(@types/node@26.2.0)
-      '@inquirer/editor': 5.3.3(@types/node@26.2.0)
-      '@inquirer/expand': 5.1.5(@types/node@26.2.0)
-      '@inquirer/input': 5.1.6(@types/node@26.2.0)
-      '@inquirer/number': 4.2.3(@types/node@26.2.0)
-      '@inquirer/password': 5.2.2(@types/node@26.2.0)
-      '@inquirer/rawlist': 5.3.5(@types/node@26.2.0)
-      '@inquirer/search': 4.3.3(@types/node@26.2.0)
-      '@inquirer/select': 5.2.5(@types/node@26.2.0)
-    optionalDependencies:
-      '@types/node': 26.2.0
-    optional: true
-
-  '@inquirer/rawlist@5.3.5(@types/node@26.2.0)':
-    dependencies:
-      '@inquirer/core': 12.0.3(@types/node@26.2.0)
-      '@inquirer/type': 4.1.1(@types/node@26.2.0)
-    optionalDependencies:
-      '@types/node': 26.2.0
-    optional: true
-
-  '@inquirer/search@4.3.3(@types/node@26.2.0)':
-    dependencies:
-      '@inquirer/core': 12.0.3(@types/node@26.2.0)
-      '@inquirer/figures': 2.0.9
-      '@inquirer/type': 4.1.1(@types/node@26.2.0)
-    optionalDependencies:
-      '@types/node': 26.2.0
-    optional: true
-
-  '@inquirer/select@5.2.5(@types/node@26.2.0)':
+  '@inquirer/password@5.2.2(@types/node@26.6.1)':
     dependencies:
       '@inquirer/ansi': 2.0.8
-      '@inquirer/core': 12.0.3(@types/node@26.2.0)
-      '@inquirer/figures': 2.0.9
-      '@inquirer/type': 4.1.1(@types/node@26.2.0)
+      '@inquirer/core': 12.0.3(@types/node@26.6.1)
+      '@inquirer/type': 4.1.1(@types/node@26.6.1)
     optionalDependencies:
-      '@types/node': 26.2.0
+      '@types/node': 26.6.1
     optional: true
 
-  '@inquirer/type@4.1.1(@types/node@26.2.0)':
+  '@inquirer/prompts@8.7.2(@types/node@26.6.1)':
+    dependencies:
+      '@inquirer/checkbox': 5.2.5(@types/node@26.6.1)
+      '@inquirer/confirm': 6.3.2(@types/node@26.6.1)
+      '@inquirer/editor': 5.3.3(@types/node@26.6.1)
+      '@inquirer/expand': 5.1.5(@types/node@26.6.1)
+      '@inquirer/input': 5.1.6(@types/node@26.6.1)
+      '@inquirer/number': 4.2.3(@types/node@26.6.1)
+      '@inquirer/password': 5.2.2(@types/node@26.6.1)
+      '@inquirer/rawlist': 5.3.5(@types/node@26.6.1)
+      '@inquirer/search': 4.3.3(@types/node@26.6.1)
+      '@inquirer/select': 5.2.5(@types/node@26.6.1)
     optionalDependencies:
-      '@types/node': 26.2.0
+      '@types/node': 26.6.1
+    optional: true
+
+  '@inquirer/rawlist@5.3.5(@types/node@26.6.1)':
+    dependencies:
+      '@inquirer/core': 12.0.3(@types/node@26.6.1)
+      '@inquirer/type': 4.1.1(@types/node@26.6.1)
+    optionalDependencies:
+      '@types/node': 26.6.1
+    optional: true
+
+  '@inquirer/search@4.3.3(@types/node@26.6.1)':
+    dependencies:
+      '@inquirer/core': 12.0.3(@types/node@26.6.1)
+      '@inquirer/figures': 2.0.9
+      '@inquirer/type': 4.1.1(@types/node@26.6.1)
+    optionalDependencies:
+      '@types/node': 26.6.1
+    optional: true
+
+  '@inquirer/select@5.2.5(@types/node@26.6.1)':
+    dependencies:
+      '@inquirer/ansi': 2.0.8
+      '@inquirer/core': 12.0.3(@types/node@26.6.1)
+      '@inquirer/figures': 2.0.9
+      '@inquirer/type': 4.1.1(@types/node@26.6.1)
+    optionalDependencies:
+      '@types/node': 26.6.1
+    optional: true
+
+  '@inquirer/type@4.1.1(@types/node@26.6.1)':
+    optionalDependencies:
+      '@types/node': 26.6.1
     optional: true
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
@@ -1075,7 +1072,7 @@ snapshots:
   '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.4':
     optional: true
 
-  '@ngageoint/geopackage@4.2.9(@types/node@26.2.0)(geotiff@3.0.5)':
+  '@ngageoint/geopackage@4.2.9(@types/node@26.6.1)(geotiff@3.0.5)':
     dependencies:
       '@turf/bbox': 6.3.0
       '@turf/boolean-clockwise': 6.5.0
@@ -1101,7 +1098,7 @@ snapshots:
     optionalDependencies:
       better-sqlite3: 13.0.3
       chalk: 4.1.1
-      inquirer: 14.2.2(@types/node@26.2.0)
+      inquirer: 14.2.2(@types/node@26.6.1)
     transitivePeerDependencies:
       - '@types/node'
       - geotiff
@@ -1112,7 +1109,7 @@ snapshots:
 
   '@repeaterjs/repeater@3.0.6': {}
 
-  '@rollup/rollup-linux-x64-gnu@4.63.1':
+  '@rollup/rollup-linux-x64-gnu@4.63.3':
     optional: true
 
   '@tmcw/togeojson@5.8.1(@types/geojson@7946.0.16)':
@@ -1252,13 +1249,13 @@ snapshots:
 
   '@types/geojson@7946.0.8': {}
 
-  '@types/node@22.20.1':
+  '@types/node@26.6.0':
     dependencies:
-      undici-types: 6.21.0
+      undici-types: 8.9.0
 
-  '@types/node@26.2.0':
+  '@types/node@26.6.1':
     dependencies:
-      undici-types: 8.3.0
+      undici-types: 8.9.0
     optional: true
 
   '@types/proj4@2.5.2': {}
@@ -1542,7 +1539,7 @@ snapshots:
 
   hyparquet@1.25.6: {}
 
-  hyparquet@1.30.0: {}
+  hyparquet@1.30.1: {}
 
   hysnappy@1.0.0: {}
 
@@ -1568,16 +1565,16 @@ snapshots:
   ini@1.3.8:
     optional: true
 
-  inquirer@14.2.2(@types/node@26.2.0):
+  inquirer@14.2.2(@types/node@26.6.1):
     dependencies:
       '@inquirer/ansi': 2.0.8
-      '@inquirer/core': 12.0.3(@types/node@26.2.0)
-      '@inquirer/prompts': 8.7.2(@types/node@26.2.0)
-      '@inquirer/type': 4.1.1(@types/node@26.2.0)
+      '@inquirer/core': 12.0.3(@types/node@26.6.1)
+      '@inquirer/prompts': 8.7.2(@types/node@26.6.1)
+      '@inquirer/type': 4.1.1(@types/node@26.6.1)
       mute-stream: 3.0.0
       run-async: 4.0.6
     optionalDependencies:
-      '@types/node': 26.2.0
+      '@types/node': 26.6.1
     optional: true
 
   is-docker@3.0.0: {}
@@ -1608,10 +1605,10 @@ snapshots:
 
   map-stream@0.0.7: {}
 
-  mapshaper@0.7.59(@types/geojson@7946.0.16)(@types/node@26.2.0):
+  mapshaper@0.7.61(@types/geojson@7946.0.16)(@types/node@26.6.1):
     dependencies:
       '@bokuweb/zstd-wasm': 0.0.27
-      '@ngageoint/geopackage': 4.2.9(@types/node@26.2.0)(geotiff@3.0.5)
+      '@ngageoint/geopackage': 4.2.9(@types/node@26.6.1)(geotiff@3.0.5)
       '@placemarkio/tokml': 0.3.9
       '@tmcw/togeojson': 5.8.1(@types/geojson@7946.0.16)
       '@xmldom/xmldom': 0.8.15
@@ -1628,7 +1625,7 @@ snapshots:
       geographiclib-geodesic: 2.2.0
       geotiff: 3.0.5
       geotiff-geokeys-to-proj4: 2024.4.13
-      hyparquet: 1.30.0
+      hyparquet: 1.30.1
       hyparquet-compressors: 1.1.1
       hyparquet-writer: 0.14.0
       iconv-lite: 0.6.3
@@ -1637,12 +1634,12 @@ snapshots:
       kdbush: 3.0.0
       mproj: 0.1.6
       msgpackr: 1.12.1
-      open: 11.0.2
+      open: 11.0.4
       pngjs: 7.0.0
       rw: 1.3.3
       tinyqueue: 2.0.3
     optionalDependencies:
-      '@rollup/rollup-linux-x64-gnu': 4.63.1
+      '@rollup/rollup-linux-x64-gnu': 4.63.3
       better-sqlite3: 12.11.1
     transitivePeerDependencies:
       - '@types/geojson'
@@ -1718,7 +1715,7 @@ snapshots:
       wrappy: 1.0.2
     optional: true
 
-  open@11.0.2:
+  open@11.0.4:
     dependencies:
       default-browser: 5.5.1
       define-lazy-prop: 3.0.0
@@ -1956,10 +1953,7 @@ snapshots:
 
   typedarray@0.0.6: {}
 
-  undici-types@6.21.0: {}
-
-  undici-types@8.3.0:
-    optional: true
+  undici-types@8.9.0: {}
 
   unzipit@2.0.0:
     optional: true
@@ -1974,7 +1968,7 @@ snapshots:
 
   wkx@0.4.8:
     dependencies:
-      '@types/node': 22.20.1
+      '@types/node': 26.6.0
 
   wrappy@1.0.2:
     optional: true
