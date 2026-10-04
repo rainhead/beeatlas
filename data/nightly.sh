@@ -471,6 +471,19 @@ if [[ $_fetch_rc -ne 0 ]]; then
 fi
 echo "--- data build done in $(_elapsed $_t0) ---"
 
+# 3b. Compact the DuckDB. Every CREATE OR REPLACE the build does leaves the old
+# table's blocks free inside the file, which never shrinks on its own — by
+# 2026-10 it was 1.27 GB, ~40% free, all of it uploaded by the backup trap every
+# night. data/compact_duckdb.py rewrites it into a fresh file when enough is
+# free, verifies the copy, and renames it over the original. Here, not in the
+# EXIT trap: it must run while nothing else can write the database, and a
+# signal-aborted run can leave a Stelis task still writing. Housekeeping, not a
+# gate — a failure leaves the original untouched, so warn and carry on.
+_stage="compact-db"
+echo "--- compacting DuckDB ---"
+cd "$SCRIPT_DIR"
+uv run python compact_duckdb.py || echo "WARN: DuckDB compaction failed — original kept" >&2
+
 # 4. Integration (dataset-validation) gate — HARD GATE before build/publish.
 #
 # ALL @integration tests gate the publish: any single failure exits non-zero

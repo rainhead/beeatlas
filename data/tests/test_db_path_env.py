@@ -31,6 +31,7 @@ DB_USING_MODULES = [
     "species_export.py",
     "species_maps.py",
     "feeds.py",
+    "compact_duckdb.py",
 ]
 
 # Match either single- or double-quoted env-var literal. Whitespace tolerant.

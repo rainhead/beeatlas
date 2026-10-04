@@ -52,10 +52,10 @@ Loads polygon boundaries for spatial annotation from the following upstream sour
 | `geographies.ecoregions` | [EPA Level III Ecoregions (North America)](https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/cec_na/NA_CEC_Eco_Level3.zip) |
 | `geographies.us_states` | [US Census TIGER 2024](https://www2.census.gov/geo/tiger/TIGER2024/STATE/tl_2024_us_state.zip) |
 | `geographies.us_counties` | [US Census Cartographic Boundary 1:500k 2024](https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_county_500k.zip) |
-| `geographies.ca_provinces` | [Statistics Canada 2021 Census](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lpr_000b21a_e.zip) |
-| `geographies.ca_census_divisions` | [Statistics Canada 2021 Census](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lcd_000b21a_e.zip) |
+| `geographies.ca_provinces` (British Columbia only) | [Statistics Canada 2021 Census](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lpr_000b21a_e.zip) |
+| `geographies.ca_census_divisions` (British Columbia only) | [Statistics Canada 2021 Census](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lcd_000b21a_e.zip) |
 
-Geometries are stored as WKT in `geometry_wkt` columns for use with DuckDB's spatial extension. Downloads are cached in `.geography_cache/` and support resumable downloads. Expect ~8–9 minutes on first run.
+Geometries are stored in `geom` columns of DuckDB's `GEOMETRY` type. The Canadian layers keep only the provinces in `CA_PRUIDS` ([geographies_pipeline.py](geographies_pipeline.py)): the national files are ~520 MiB of Arctic coastline nothing reads. Downloads are cached in `.geography_cache/` and support resumable downloads. Expect ~8–9 minutes on first run.
 
 ### Anti-entropy (`anti_entropy_pipeline.py`)
 
@@ -100,6 +100,10 @@ Optionally run anti-entropy to detect soft-deleted observations (defaults to sam
 uv run python anti_entropy_pipeline.py
 uv run python anti_entropy_pipeline.py 500  # sample more observations
 ```
+
+### Compacting the database
+
+DuckDB never shrinks its file: each `CREATE OR REPLACE TABLE` leaves the old table's blocks free inside it. The nightly runs [compact_duckdb.py](compact_duckdb.py) after the data build, which rewrites the file when at least a quarter of it is free. Run it by hand the same way (`uv run python compact_duckdb.py`); a `DELETE` frees no blocks, so after one pass `--min-free 0`.
 
 ### Full reload
 

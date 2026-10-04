@@ -17,6 +17,7 @@ Sources:
   https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lpr_000b21a_e.zip
 - Canadian Census Divisions (county equivalent): Statistics Canada 2021 Census
   https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lcd_000b21a_e.zip
+  (Both Canadian layers are cut to British Columbia — see CA_PRUIDS.)
 """
 
 import os
@@ -77,6 +78,13 @@ def _ecoregion_l4_url(state: str) -> str:
         f"{state}/{state}_eco_l4.zip"
     )
 
+
+# Statistics Canada province/territory codes (PRUID) kept from the Canadian
+# layers. Only British Columbia borders the atlas. The national files carry every
+# Arctic island and fjord at full detail — 13 province polygons were 255 MiB and
+# the census divisions another 267 MiB, half of beeatlas.duckdb, with nothing
+# reading them. BC alone is ~90 MiB of that. Add codes here only with a reader.
+CA_PRUIDS = ("59",)  # British Columbia
 
 SOURCES = {
     "ecoregions": "https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/cec_na/NA_CEC_Eco_Level3.zip",
@@ -195,7 +203,8 @@ def load_geographies() -> None:
         SELECT PRUID AS pruid, PRENAME AS name, PREABBR AS abbreviation,
                ST_Transform(geom, ?, 'EPSG:4326', true) AS geom
         FROM ST_Read(?)
-    """, [prj_wkt, f"/vsizip/{path}/lpr_000b21a_e.shp"])
+        WHERE list_contains(?, PRUID)
+    """, [prj_wkt, f"/vsizip/{path}/lpr_000b21a_e.shp", list(CA_PRUIDS)])
     print("  ca_provinces: done")  # noqa: T201
 
     # --- ca_census_divisions (Stats Canada Lambert, needs ST_Transform to WGS84) ---
@@ -207,7 +216,8 @@ def load_geographies() -> None:
         SELECT CDUID AS cduid, CDNAME AS name, CDTYPE AS division_type, PRUID AS pruid,
                ST_Transform(geom, ?, 'EPSG:4326', true) AS geom
         FROM ST_Read(?)
-    """, [prj_wkt, f"/vsizip/{path}/lcd_000b21a_e.shp"])
+        WHERE list_contains(?, PRUID)
+    """, [prj_wkt, f"/vsizip/{path}/lcd_000b21a_e.shp", list(CA_PRUIDS)])
     print("  ca_census_divisions: done")  # noqa: T201
 
     con.close()
