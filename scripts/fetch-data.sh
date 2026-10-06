@@ -15,7 +15,11 @@
 # Env (same contract as data/nightly.sh):
 #   STELIS_DIR      stelis checkout               (default: ~/dev/stelis)
 #   EXPORT_DIR      where artifacts land          (default: <repo>/public/data)
-#   DB_PATH         the pipeline DuckDB           (default: <repo>/data/beeatlas.duckdb)
+#   DB_PATH         the pipeline DuckDB — REQUIRED. No default: stelis refuses to
+#                   build against <repo>/data/beeatlas.duckdb unless it is named
+#                   (stelis st-az9), so a local run says, from the repo root
+#                   DB_PATH="$PWD/data/beeatlas.duckdb" pnpm run fetch-data
+#                   (absolute: this script runs stelis from STELIS_DIR)
 #   NOTES_DB_PATH   the authoritative notes store (default: stelis's; unset = harvest
 #                   sees no store — fine for data-only work, wrong for notes work)
 #   STELIS_EXPLAIN  when set, log stelis's --explain plan (why each task runs/skips)
