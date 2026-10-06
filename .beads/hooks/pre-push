@@ -1,9 +1,4 @@
 #!/bin/sh
-command -v git-lfs >/dev/null 2>&1 || { printf >&2 "\n%s\n\n" "This repository is configured for Git LFS but 'git-lfs' was not found on your path. If you no longer wish to use Git LFS, remove this hook by deleting the 'pre-push' file in the hooks directory (set by 'core.hookspath'; usually '.git/hooks')."; exit 2; }
-# `|| exit` is load-bearing: beads appends its block BELOW this line, so without
-# it a failed LFS push would be masked by the beads block's exit status.
-git lfs pre-push "$@" || exit $?
-
 # --- BEGIN BEADS INTEGRATION v1.1.2 ---
 # This section is managed by beads. Do not remove these markers.
 if command -v bd >/dev/null 2>&1; then
