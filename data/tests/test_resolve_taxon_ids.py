@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import duckdb
 import pytest
+import requests
 
 
 def _fake_taxa_search_response(results: list[dict]) -> MagicMock:
@@ -271,14 +272,15 @@ def test_persistent_429_records_api_error(resolver_db):
     con.execute("INSERT INTO checklist_data.species VALUES ('foo bar')")
     con.close()
 
-    # _INAT_MAX_RETRIES = 5 → 6 attempts each call. 2-token rank ladder has 2 calls
-    # (species, then genus fallback). Provide 12 throttled responses to exhaust both.
+    # _INAT_MAX_RETRIES = 5 → 6 attempts for the species call. An api_error stops the
+    # rank ladder (beeatlas-fjzg), so the genus rung is never asked.
     import inaturalist_pipeline
 
-    n_attempts = (inaturalist_pipeline._INAT_MAX_RETRIES + 1) * 2
+    n_attempts = inaturalist_pipeline._INAT_MAX_RETRIES + 1
     responses = [_throttled_response(429, retry_after="0") for _ in range(n_attempts)]
-    with patch("inaturalist_pipeline.requests.get", side_effect=responses):
+    with patch("inaturalist_pipeline.requests.get", side_effect=responses) as mock_get:
         mod.resolve_taxon_ids()
+    assert mock_get.call_count == n_attempts
 
     con = duckdb.connect(db_path)
     bridge = con.execute(
@@ -740,3 +742,59 @@ def test_attempted_at_treats_malformed_epoch_as_unset(monkeypatch):
     assert abs((dt.datetime.now(dt.UTC).replace(tzinfo=None) - parsed).total_seconds()) < 60, (
         "a malformed pin must fall back to NOW, not to epoch 0 or the raw value"
     )
+
+
+# ---------------------------------------------------------------------------
+# beeatlas-fjzg — an outage is not an answer
+# ---------------------------------------------------------------------------
+
+
+def test_an_outage_on_the_species_rung_does_not_fall_to_genus(resolver_db):
+    """iNat refusing the species query says nothing about the species, so the genus
+    rung (for species iNat doesn't KNOW) must not answer for it."""
+    db_path, mod = resolver_db
+    con = duckdb.connect(db_path)
+    con.execute("INSERT INTO checklist_data.species VALUES ('osmia lignaria')")
+    con.close()
+
+    responses = [
+        requests.ConnectionError("refused"),
+        _fake_taxa_search_response([_matching_taxon(1000, "osmia")]),  # must not be asked
+    ]
+    with patch("inaturalist_pipeline.requests.get", side_effect=responses) as mock_get:
+        mod.resolve_taxon_ids()
+
+    assert mock_get.call_count == 1
+    con = duckdb.connect(db_path)
+    bridge = con.execute(
+        "SELECT count(*) FROM inaturalist_data.canonical_to_taxon_id"
+    ).fetchone()[0]
+    con.close()
+    assert bridge == 0
+    assert _read_unresolved_rows(mod)[1][:2] == ["osmia lignaria", "api_error"]
+
+
+def test_a_normal_run_retries_an_api_error_but_not_a_404(resolver_db):
+    db_path, mod = resolver_db
+    con = duckdb.connect(db_path)
+    con.execute(
+        "INSERT INTO checklist_data.species VALUES ('osmia lignaria'), ('bombus impatiens')"
+    )
+    con.close()
+    with mod.UNRESOLVED_CSV.open("w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["canonical_name", "reason", "attempted_at"])
+        w.writerow(["bombus impatiens", "404", "2026-05-03T00:00:00"])
+        w.writerow(["osmia lignaria", "api_error", "2026-05-03T00:00:00"])
+
+    responses = [_fake_taxa_search_response([_matching_taxon(57704, "osmia lignaria")])]
+    with patch("inaturalist_pipeline.requests.get", side_effect=responses) as mock_get:
+        mod.resolve_taxon_ids()
+
+    assert mock_get.call_count == 1
+    con = duckdb.connect(db_path)
+    rows = con.execute(
+        "SELECT canonical_name, taxon_id FROM inaturalist_data.canonical_to_taxon_id"
+    ).fetchall()
+    con.close()
+    assert rows == [("osmia lignaria", 57704)]

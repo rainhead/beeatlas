@@ -464,17 +464,17 @@ def _resolve_genus_from_taxa_csv(
     return row[0] if row else None
 
 
-def _read_unresolved_csv() -> set[str]:
-    """Return the set of canonical_names from lineage_unresolved.csv, or empty set."""
+def _read_unresolved_csv() -> dict[str, str]:
+    """Return {canonical_name: reason} from lineage_unresolved.csv, or {}."""
     if not UNRESOLVED_CSV.exists():
-        return set()
+        return {}
     with UNRESOLVED_CSV.open("r", newline="") as f:
         reader = csv.reader(f)
         try:
             next(reader)  # skip header
         except StopIteration:
-            return set()
-        return {row[0] for row in reader if row}
+            return {}
+        return {row[0]: (row[1] if len(row) > 1 else "") for row in reader if row}
 
 
 def _names_to_resolve(con: duckdb.DuckDBPyConnection, refresh: bool) -> list[str]:
@@ -482,6 +482,8 @@ def _names_to_resolve(con: duckdb.DuckDBPyConnection, refresh: bool) -> list[str
 
     Default run: skips names already recorded in lineage_unresolved.csv — they are
     known failures and retrying them nightly wastes ~1s per name with no benefit.
+    Except an api_error: that records that iNat didn't answer, not what it would say,
+    so the name is asked again (beeatlas-fjzg).
 
     When refresh=True: include those previously-failed names so they get another
     attempt (useful after iNat taxonomy updates or manual CSV edits).
@@ -519,8 +521,11 @@ def _names_to_resolve(con: duckdb.DuckDBPyConnection, refresh: bool) -> list[str
     names = [r[0] for r in con.execute(sql).fetchall()]
     previously_unresolved = _read_unresolved_csv()
     if not refresh:
-        # Skip known failures on normal runs
-        names = [n for n in names if n not in previously_unresolved]
+        # Skip known failures on normal runs; an api_error is not one
+        names = [
+            n for n in names
+            if n not in previously_unresolved or previously_unresolved[n] == "api_error"
+        ]
     else:
         # On refresh: also retry previously-failed names still absent from bridge
         bridge_names = {
@@ -529,7 +534,7 @@ def _names_to_resolve(con: duckdb.DuckDBPyConnection, refresh: bool) -> list[str
                 "SELECT canonical_name FROM inaturalist_data.canonical_to_taxon_id"
             ).fetchall()
         }
-        retry = previously_unresolved - bridge_names
+        retry = set(previously_unresolved) - bridge_names
         names = sorted(set(names) | retry)
     return names
 
@@ -606,9 +611,12 @@ def _resolve_one(
         try:
             resp = _inat_get_with_retry(INAT_TAXA_URL, params=params, timeout=30)
         except (requests.HTTPError, requests.ConnectionError, requests.Timeout):
-            # An outage is an api_error too, not a crash (beeatlas-fjzg).
+            # An outage is an api_error, not a crash — and it stops the ladder: the
+            # genus rung exists for a species iNat doesn't know, and falling to it
+            # because iNat didn't ANSWER would store the genus's id under the
+            # binomial (beeatlas-fjzg).
             last_reason = "api_error"
-            continue
+            break
         data = resp.json()
         if data.get("total_results", 0) == 0:
             last_reason = "404"
