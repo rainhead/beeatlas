@@ -13,6 +13,7 @@ import dlt
 import requests
 
 from inaturalist_pipeline import DEFAULT_FIELDS, _transform
+from source_outage import run_or_keep_last
 
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb"))
 
@@ -92,7 +93,12 @@ def run_anti_entropy(n: int = 200) -> None:
         return
 
     print(f"Sampled {len(sampled)} observations for anti-entropy check.")  # noqa: T201
-    load_info = pipeline.run(anti_entropy_source(sampled))
+    # A transform, so no receipt: a skipped sample costs one night's repair, nothing more.
+    load_info = run_or_keep_last(
+        "anti-entropy", lambda: pipeline.run(anti_entropy_source(sampled)), receipt=False
+    )
+    if load_info is None:
+        return
     load_info.raise_on_failed_jobs()
     print(load_info)  # noqa: T201
 

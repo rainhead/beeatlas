@@ -8,6 +8,8 @@ import duckdb
 import requests
 from dlt.sources.rest_api import RESTAPIConfig, rest_api_resources
 
+from source_outage import run_or_keep_last
+
 DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
 
 # iNat /v2 enforces ~60 req/min sustained; on breach it returns 429 with body
@@ -172,7 +174,13 @@ def load_observations(full_reload: bool = False) -> None:
         with pipeline.sql_client() as client:
             client.execute_sql("DELETE FROM _dlt_pipeline_state WHERE pipeline_name = 'inaturalist'")
     source = inaturalist_source(write_disposition="replace" if full_reload else "merge")
-    load_info = pipeline.run(source)
+    if full_reload:
+        # By hand, with an operator watching: an outage should fail loudly.
+        load_info = pipeline.run(source)
+    else:
+        load_info = run_or_keep_last("inaturalist", lambda: pipeline.run(source))
+        if load_info is None:
+            return
     print(load_info)  # noqa: T201
     load_info.raise_on_failed_jobs()
 

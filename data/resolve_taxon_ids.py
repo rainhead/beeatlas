@@ -201,9 +201,10 @@ def generate_inactive_remaps() -> None:
                     params={},
                     timeout=30,
                 )
-            except requests.HTTPError:
+            except (requests.HTTPError, requests.ConnectionError, requests.Timeout):
                 # CR-01: a transient/infrastructure API failure (5xx, rate-limit
-                # storm — after _inat_get_with_retry's own retry budget) is NOT one
+                # storm — after _inat_get_with_retry's own retry budget — or no
+                # connection at all, beeatlas-fjzg) is NOT one
                 # of the three sanctioned BLOCKING reasons (no_successor / split /
                 # successor_not_in_taxa_csv per D-06). Do NOT write a blocking
                 # triage row that would hard-fail the whole nightly build with an
@@ -604,7 +605,8 @@ def _resolve_one(
             params["rank"] = rank
         try:
             resp = _inat_get_with_retry(INAT_TAXA_URL, params=params, timeout=30)
-        except requests.HTTPError:
+        except (requests.HTTPError, requests.ConnectionError, requests.Timeout):
+            # An outage is an api_error too, not a crash (beeatlas-fjzg).
             last_reason = "api_error"
             continue
         data = resp.json()

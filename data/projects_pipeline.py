@@ -8,6 +8,8 @@ import duckdb
 import requests
 import dlt
 
+from source_outage import run_or_keep_last
+
 DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
 
 
@@ -70,7 +72,11 @@ def load_projects() -> None:
         destination=dlt.destinations.duckdb(DB_PATH),
         dataset_name="inaturalist_data",
     )
-    load_info = pipeline.run(inaturalist_projects_source(project_ids))
+    load_info = run_or_keep_last(
+        "projects", lambda: pipeline.run(inaturalist_projects_source(project_ids))
+    )
+    if load_info is None:
+        return
     print(load_info)  # noqa: T201
     load_info.raise_on_failed_jobs()
 

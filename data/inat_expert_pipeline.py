@@ -48,6 +48,8 @@ import dlt
 import duckdb
 import requests
 
+from source_outage import run_or_keep_last
+
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb"))
 REGISTER_PATH = Path(__file__).parent / "dbt" / "seeds" / "identifier_register.csv"
 
@@ -273,7 +275,9 @@ def load_expert_observations() -> None:
         destination=dlt.destinations.duckdb(DB_PATH),
         dataset_name="inat_expert_data",
     )
-    load_info = pipeline.run(inat_expert_source())
+    load_info = run_or_keep_last("inat-expert", lambda: pipeline.run(inat_expert_source()))
+    if load_info is None:
+        return
     print(load_info)  # noqa: T201
     load_info.raise_on_failed_jobs()
 
