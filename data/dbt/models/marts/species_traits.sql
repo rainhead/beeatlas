@@ -149,6 +149,11 @@ parasite AS (
     SELECT
         COALESCE(syn.accepted_name, p.parasite) AS parasite,
         STRING_AGG(DISTINCT p.host_taxon, ', ' ORDER BY p.host_taxon) AS host_bees,
+        -- The same hosts as a list, for a reader that needs them one at a time
+        -- rather than as display text: stelis's taxon-reasoning types each host as
+        -- an edge (st-tse). Reading them here, not from the seed, is what makes this
+        -- CTE's retraction and synonymy reach that reader too.
+        LIST(DISTINCT p.host_taxon ORDER BY p.host_taxon) AS host_bee_list,
         COUNT(DISTINCT p.host_taxon) AS host_bee_count
     FROM {{ ref('bee_parasite_hosts') }} p
     LEFT JOIN syn ON syn.synonym = p.parasite
@@ -201,6 +206,7 @@ SELECT
     -- list several hosts, some recorded only to host genus). Comma-joined for the
     -- one-row-per-species shape; the relation lives in seed bee_parasite_hosts.
     ph.host_bees,
+    ph.host_bee_list,
     ph.host_bee_count
 
 FROM {{ ref('species') }} s
