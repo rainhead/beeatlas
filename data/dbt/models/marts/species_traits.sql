@@ -118,15 +118,18 @@ beegap_corrected AS (
     LEFT JOIN corrections cx ON cx.canonical_name = b.canonical_name
 ),
 
--- Fowler specialist hosts, normalized + deduped.
+-- Fowler specialist hosts, normalized + deduped. host_plants is the same row's
+-- detail split into (family, genus) entries (int_specialist_host_plants), carried
+-- beside it so a reader can tell one genus from several (stelis st-7dm).
 specialist AS (
-    SELECT canonical_name, host_plant_family, host_plant_detail
+    SELECT canonical_name, host_plant_family, host_plant_detail, host_plants
     FROM (
         SELECT
             COALESCE(syn.accepted_name, sp.canonical_name) AS canonical_name,
-            sp.host_plant_family, sp.host_plant_detail
+            sp.host_plant_family, sp.host_plant_detail, hp.host_plants
         FROM {{ ref('bee_specialist_hosts') }} sp
         LEFT JOIN syn ON syn.synonym = sp.canonical_name
+        LEFT JOIN {{ ref('int_specialist_host_plants') }} hp ON hp.canonical_name = sp.canonical_name
     )
     QUALIFY ROW_NUMBER() OVER (
         PARTITION BY canonical_name
@@ -221,6 +224,7 @@ SELECT
     NULLIF(bg.foraging, '') AS beegap_foraging,
     NULLIF(sp.host_plant_family, '') AS host_plant_family,
     NULLIF(sp.host_plant_detail, '') AS host_plant_detail,  -- consistent nullability (CR WR-04)
+    sp.host_plants,
 
     -- Native vs introduced (Bee-Gap species-level; partial coverage).
     NULLIF(bg.native, '') AS native_status,
