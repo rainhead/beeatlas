@@ -213,6 +213,12 @@ SELECT
         WHEN sp.canonical_name IS NOT NULL THEN 'fowler'
         WHEN bg.foraging IN ('Specialist', 'Generalist') THEN 'beegap-species'
     END AS diet_breadth_source,
+    -- Bee-Gap's OWN foraging value, before Fowler is merged in above. diet_breadth
+    -- cannot disagree with Fowler (membership in the list IS 'specialist'), so a
+    -- reader that flags where the two sources disagree needs this one separately:
+    -- stelis's forage edges (stelis st-an7 D2, st-osy). Read here rather than off
+    -- the seed so synonymy applies, as for the hosts below.
+    NULLIF(bg.foraging, '') AS beegap_foraging,
     NULLIF(sp.host_plant_family, '') AS host_plant_family,
     NULLIF(sp.host_plant_detail, '') AS host_plant_detail,  -- consistent nullability (CR WR-04)
 
