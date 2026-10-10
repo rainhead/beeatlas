@@ -165,7 +165,47 @@ models:
           - not_null
           - unique
 
+  - name: int_specialist_host_plants
+    description: >
+      Fowler & Droege's host plants split into (family, genus) entries, one list
+      per bee, keyed by the seed's own spelling (stelis st-7dm). The seed packs
+      every host into one text field; the model's header gives its grammar.
+    columns:
+      - name: canonical_name
+        data_tests:
+          - not_null
+          - unique
+
 unit_tests:
+  - name: ut_specialist_host_plants_grammar
+    description: >
+      Every shape Fowler's host_plant_detail takes splits into the right
+      (family, genus) entries: a family prefix, bare genera, a family alone,
+      ';'-separated groups, a lone '?', author and synonym brackets (dropped),
+      and a doubtful bracketed alternative (kept, family unknown).
+    model: int_specialist_host_plants
+    given:
+      - input: ref('bee_specialist_hosts')
+        rows:
+          - {canonical_name: 'a prefixed', host_plant_family: 'Asteraceae', host_plant_detail: 'Asteraceae : Coreopsis L. , Engelmannia A. Gray ex Nutt. ,', host_states: '', fowler_status: ''}
+          - {canonical_name: 'b bare', host_plant_family: '', host_plant_detail: 'Cryptantha Lehm. ex G. Don , Hackelia Opiz', host_states: '', fowler_status: ''}
+          - {canonical_name: 'c family', host_plant_family: 'Fabaceae', host_plant_detail: 'Fabaceae', host_states: '', fowler_status: ''}
+          - {canonical_name: 'd groups', host_plant_family: 'Asteraceae', host_plant_detail: 'Asteraceae : Chrysothamnus Nutt. ; Eriogonum Michx.', host_states: '', fowler_status: ''}
+          - {canonical_name: 'e unknown', host_plant_family: 'Asteraceae', host_plant_detail: 'Asteraceae : ?', host_states: '', fowler_status: ''}
+          - {canonical_name: 'f brackets', host_plant_family: 'Asteraceae', host_plant_detail: 'Asteraceae : Eurybia (Cass.) Cass. , Gutierrezia Lag. ( Eriogonum Michx. ?) , Lotus L. ( Acmispon Raf.)', host_states: '', fowler_status: ''}
+          - {canonical_name: 'g doubtful', host_plant_family: '', host_plant_detail: 'Pontederia L. , Fabaceae ?', host_states: '', fowler_status: ''}
+          - {canonical_name: 'h empty', host_plant_family: '', host_plant_detail: '', host_states: '', fowler_status: ''}
+    expect:
+      format: sql
+      rows: |
+        SELECT 'a prefixed' AS canonical_name, [{'family': 'Asteraceae', 'genus': 'Coreopsis'}, {'family': 'Asteraceae', 'genus': 'Engelmannia'}] AS host_plants
+        UNION ALL SELECT 'b bare', [{'family': NULL::VARCHAR, 'genus': 'Cryptantha'}, {'family': NULL::VARCHAR, 'genus': 'Hackelia'}]
+        UNION ALL SELECT 'c family', [{'family': 'Fabaceae', 'genus': NULL::VARCHAR}]
+        UNION ALL SELECT 'd groups', [{'family': NULL::VARCHAR, 'genus': 'Eriogonum'}, {'family': 'Asteraceae', 'genus': 'Chrysothamnus'}]
+        UNION ALL SELECT 'e unknown', [{'family': 'Asteraceae', 'genus': NULL::VARCHAR}]
+        UNION ALL SELECT 'f brackets', [{'family': NULL::VARCHAR, 'genus': 'Eriogonum'}, {'family': 'Asteraceae', 'genus': 'Eurybia'}, {'family': 'Asteraceae', 'genus': 'Gutierrezia'}, {'family': 'Asteraceae', 'genus': 'Lotus'}]
+        UNION ALL SELECT 'g doubtful', [{'family': NULL::VARCHAR, 'genus': 'Pontederia'}, {'family': 'Fabaceae', 'genus': NULL::VARCHAR}]
+
   - name: ut_qualifier_parsing_hedge_targets
     description: >
       Executable spec for ADR 0033 item 9 target construction: every live
