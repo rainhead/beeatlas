@@ -138,6 +138,23 @@ specialist AS (
     ) = 1
 ),
 
+-- The HOSTS go through synonymy as well as the parasite (beeatlas-k0md). Bee-Gap
+-- spells some hosts differently from the checklist (Osmia simillina for simillima),
+-- and a host that misses its atlas species gets no species-page link here and reads
+-- as out-of-atlas to stelis, whose at-risk reasoning then withholds every claim
+-- through that parasite. host_taxon is display-cased ("Osmia simillina") and the
+-- map is lowercase, so a remapped host is re-capitalised to match the checklist's
+-- scientificName, which is what the site's host links resolve against.
+parasite_host AS (
+    SELECT
+        p.parasite,
+        CASE WHEN hsyn.accepted_name IS NULL THEN p.host_taxon
+             ELSE upper(left(hsyn.accepted_name, 1)) || substr(hsyn.accepted_name, 2)
+        END AS host_taxon
+    FROM {{ ref('bee_parasite_hosts') }} p
+    LEFT JOIN syn hsyn ON hsyn.synonym = lower(p.host_taxon)
+),
+
 -- Cuckoo host bees: normalize the parasite key, then re-aggregate (synonymy may merge
 -- two parasite spellings onto one accepted name).
 -- Cuckoo host bees are correctable too (st-t4t). A species wrongly recorded as a
@@ -155,7 +172,7 @@ parasite AS (
         -- CTE's retraction and synonymy reach that reader too.
         LIST(DISTINCT p.host_taxon ORDER BY p.host_taxon) AS host_bee_list,
         COUNT(DISTINCT p.host_taxon) AS host_bee_count
-    FROM {{ ref('bee_parasite_hosts') }} p
+    FROM parasite_host p
     LEFT JOIN syn ON syn.synonym = p.parasite
     WHERE COALESCE(syn.accepted_name, p.parasite) NOT IN (
         SELECT canonical_name FROM corrections
