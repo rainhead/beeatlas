@@ -8,3 +8,6 @@ dioxys aurifusca,dioxys aurifuscus,Dioxys gender-variant (-a->-us); aligns Bee-G
 dioxys producta,dioxys productus,Dioxys gender-variant (-a->-us); aligns Bee-Gap spelling to atlas checklist
 bombus californicus,bombus fervidus,WA Bee Atlas curatorial decision 2026-07-26 — B. californicus folded into B. fervidus (dark colour form); iNaturalist retains both as separate taxa under the B. fervidus complex (1266534)
 bombus lapponicus,bombus sylvicola,WA Bee Atlas curatorial decision 2026-07-31 — B. lapponicus is Palearctic; Nearctic material under that name is B. sylvicola. The WABA checklist's species list still said lapponicus while its 145 records were already filed under sylvicola; without this the lapponicus entry is a ghost species page with zero of everything
+megachile melanophoea,megachile melanophaea,Bee-Gap misspelling (oe->ae) of a cuckoo host; aligns bee_parasite_hosts to atlas checklist (beeatlas-k0md)
+melissodes pallidisignata,melissodes pallidisignatus,Melissodes gender-variant (-a->-us); aligns Bee-Gap spelling to atlas checklist (beeatlas-k0md)
+osmia simillina,osmia simillima,Bee-Gap misspelling (n->m) of a cuckoo host; aligns bee_parasite_hosts to atlas checklist (beeatlas-k0md)
