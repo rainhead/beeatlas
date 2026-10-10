@@ -169,7 +169,9 @@ models:
     description: >
       Fowler & Droege's host plants split into (family, genus) entries, one list
       per bee, keyed by the seed's own spelling (stelis st-7dm). The seed packs
-      every host into one text field; the model's header gives its grammar.
+      every host into one text field; the model's header gives its grammar. A
+      genus's family comes from iNaturalist's taxonomy where iNat knows the genus
+      (stelis st-d64), so every family-level claim uses one system.
     columns:
       - name: canonical_name
         data_tests:
@@ -182,9 +184,18 @@ unit_tests:
       Every shape Fowler's host_plant_detail takes splits into the right
       (family, genus) entries: a family prefix, bare genera, a family alone,
       ';'-separated groups, a lone '?', author and synonym brackets (dropped),
-      and a doubtful bracketed alternative (kept, family unknown).
+      and a doubtful bracketed alternative (kept, family from iNat only). A
+      genus iNat knows takes iNat's family over Fowler's heading; one it does
+      not know keeps the heading.
     model: int_specialist_host_plants
     given:
+      - input: ref('stg_inat__plant_genus_families')
+        rows:
+          - {genus: 'Coreopsis', family: 'Asteraceae'}
+          - {genus: 'Cryptantha', family: 'Boraginaceae'}
+          - {genus: 'Hackelia', family: 'Boraginaceae'}
+          - {genus: 'Eriogonum', family: 'Polygonaceae'}
+          - {genus: 'Cleome', family: 'Cleomaceae'}
       - input: ref('bee_specialist_hosts')
         rows:
           - {canonical_name: 'a prefixed', host_plant_family: 'Asteraceae', host_plant_detail: 'Asteraceae : Coreopsis L. , Engelmannia A. Gray ex Nutt. ,', host_states: '', fowler_status: ''}
@@ -195,16 +206,20 @@ unit_tests:
           - {canonical_name: 'f brackets', host_plant_family: 'Asteraceae', host_plant_detail: 'Asteraceae : Eurybia (Cass.) Cass. , Gutierrezia Lag. ( Eriogonum Michx. ?) , Lotus L. ( Acmispon Raf.)', host_states: '', fowler_status: ''}
           - {canonical_name: 'g doubtful', host_plant_family: '', host_plant_detail: 'Pontederia L. , Fabaceae ?', host_states: '', fowler_status: ''}
           - {canonical_name: 'h empty', host_plant_family: '', host_plant_detail: '', host_states: '', fowler_status: ''}
+          - {canonical_name: 'i misfiled', host_plant_family: 'Asteraceae', host_plant_detail: 'Asteraceae : Coreopsis L. , Eriogonum Michx.', host_states: '', fowler_status: ''}
+          - {canonical_name: 'j older system', host_plant_family: 'Capparaceae', host_plant_detail: 'Capparaceae : Cleome L.', host_states: '', fowler_status: ''}
     expect:
       format: sql
       rows: |
         SELECT 'a prefixed' AS canonical_name, [{'family': 'Asteraceae', 'genus': 'Coreopsis'}, {'family': 'Asteraceae', 'genus': 'Engelmannia'}] AS host_plants
-        UNION ALL SELECT 'b bare', [{'family': NULL::VARCHAR, 'genus': 'Cryptantha'}, {'family': NULL::VARCHAR, 'genus': 'Hackelia'}]
+        UNION ALL SELECT 'b bare', [{'family': 'Boraginaceae', 'genus': 'Cryptantha'}, {'family': 'Boraginaceae', 'genus': 'Hackelia'}]
         UNION ALL SELECT 'c family', [{'family': 'Fabaceae', 'genus': NULL::VARCHAR}]
-        UNION ALL SELECT 'd groups', [{'family': NULL::VARCHAR, 'genus': 'Eriogonum'}, {'family': 'Asteraceae', 'genus': 'Chrysothamnus'}]
+        UNION ALL SELECT 'd groups', [{'family': 'Asteraceae', 'genus': 'Chrysothamnus'}, {'family': 'Polygonaceae', 'genus': 'Eriogonum'}]
         UNION ALL SELECT 'e unknown', [{'family': 'Asteraceae', 'genus': NULL::VARCHAR}]
-        UNION ALL SELECT 'f brackets', [{'family': NULL::VARCHAR, 'genus': 'Eriogonum'}, {'family': 'Asteraceae', 'genus': 'Eurybia'}, {'family': 'Asteraceae', 'genus': 'Gutierrezia'}, {'family': 'Asteraceae', 'genus': 'Lotus'}]
+        UNION ALL SELECT 'f brackets', [{'family': 'Asteraceae', 'genus': 'Eurybia'}, {'family': 'Asteraceae', 'genus': 'Gutierrezia'}, {'family': 'Asteraceae', 'genus': 'Lotus'}, {'family': 'Polygonaceae', 'genus': 'Eriogonum'}]
         UNION ALL SELECT 'g doubtful', [{'family': NULL::VARCHAR, 'genus': 'Pontederia'}, {'family': 'Fabaceae', 'genus': NULL::VARCHAR}]
+        UNION ALL SELECT 'i misfiled', [{'family': 'Asteraceae', 'genus': 'Coreopsis'}, {'family': 'Polygonaceae', 'genus': 'Eriogonum'}]
+        UNION ALL SELECT 'j older system', [{'family': 'Cleomaceae', 'genus': 'Cleome'}]
 
   - name: ut_qualifier_parsing_hedge_targets
     description: >

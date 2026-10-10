@@ -121,3 +121,73 @@ def load_host_plant_lineage(db_path: str | None = None) -> None:
         print(f"host_plant_lineage: {count} rows")  # noqa: T201
     finally:
         con.close()
+
+
+# iNaturalist's id for Plantae, under Life (48460). A genus name is only
+# meaningful within a kingdom: plant and animal genera share names.
+PLANTAE_ANCESTRY = "48460/47126"
+
+
+def load_plant_genus_families(db_path: str | None = None) -> None:
+    """Populate inaturalist_data.plant_genus_families: every plant genus NAME
+    in the iNat taxonomy archive, with the one family it belongs to.
+
+    For Fowler & Droege's specialist host lists (stelis st-d64), which name
+    genera by text and often give no family, or a family from an older
+    classification (Capparaceae for Cleome, which iNat places in Cleomaceae),
+    or a family that is wrong for one genus in the list (Eriogonum filed under
+    Asteraceae). Keyed by name, not taxon_id, because that is all the list has.
+
+    Unlike host_plant_lineage this walks all of Plantae (~19k genera), and it
+    keeps INACTIVE genera, since Fowler uses names iNat has since retired. A
+    name resolves to its active genus's family when one exists; otherwise to
+    the family its inactive record(s) agree on. A name whose candidates
+    disagree is left out, so the reader treats its family as unknown.
+    """
+    if db_path is None:
+        db_path = DB_PATH
+    con = duckdb.connect(db_path)
+    try:
+        con.execute("CREATE SCHEMA IF NOT EXISTS inaturalist_data")
+        con.execute(
+            """
+            CREATE OR REPLACE TABLE inaturalist_data.plant_genus_families AS
+            WITH plants AS (
+                SELECT taxon_id, ancestry, rank, name, active = 'true' AS is_active
+                FROM read_csv(?, delim='\t', header=true, compression='gzip',
+                              columns={'taxon_id':'BIGINT','ancestry':'VARCHAR',
+                                       'rank_level':'INTEGER','rank':'VARCHAR',
+                                       'name':'VARCHAR','active':'VARCHAR'})
+                WHERE ancestry = ? OR ancestry LIKE ? || '/%'
+            ),
+            genus_ancestors AS (
+                SELECT name AS genus, is_active,
+                       CAST(unnest(string_split(ancestry, '/')) AS BIGINT) AS ancestor_id
+                FROM plants
+                WHERE rank = 'genus'
+            ),
+            candidates AS (
+                SELECT g.genus, g.is_active, f.name AS family
+                FROM genus_ancestors g
+                JOIN plants f ON f.taxon_id = g.ancestor_id AND f.rank = 'family'
+            ),
+            -- active records decide when there are any; otherwise inactive ones
+            deciding AS (
+                SELECT genus, family
+                FROM candidates
+                QUALIFY is_active = max(is_active) OVER (PARTITION BY genus)
+            )
+            SELECT genus, min(family) AS family
+            FROM deciding
+            GROUP BY genus
+            HAVING count(DISTINCT family) = 1
+            ORDER BY genus
+            """,
+            [str(TAXA_PATH), PLANTAE_ANCESTRY, PLANTAE_ANCESTRY],
+        )
+        count = con.execute(
+            "SELECT count(*) FROM inaturalist_data.plant_genus_families"
+        ).fetchone()[0]
+        print(f"plant_genus_families: {count} genera")  # noqa: T201
+    finally:
+        con.close()

@@ -16,6 +16,7 @@ sources:
       - name: canonical_to_taxon_id   # written by resolve_taxon_ids.py (ingestion)
       - name: taxon_lineage_extended  # written by taxa_pipeline.load_taxon_lineage_extended (Phase 110 offline taxonomy)
       - name: host_plant_lineage  # written by host_plant_lineage.load_host_plant_lineage (Phase 175 plant taxonomy)
+      - name: plant_genus_families  # written by host_plant_lineage.load_plant_genus_families (stelis st-d64)
 
   - name: inaturalist_waba_data
     schema: inaturalist_waba_data
