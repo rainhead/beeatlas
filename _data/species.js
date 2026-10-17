@@ -892,7 +892,7 @@ for (const sf of subfamilyList) {
 // taxon_id -> page href, for the MAP APP's taxa pane (beeatlas-dt7). The app has
 // no way of its own to know which taxa have pages: page existence is not derivable
 // from a name. /species/Apidae/ does not exist (no family pages); /species/Bombus/
-// californicus/ does not exist (it folds into fervidus); and 20 of 646 Anthophila
+// californicus/ does not exist (it is a synonym of fervidus); and 20 of 646 Anthophila
 // taxa with occurrences have no page at all, for curation reasons nobody can
 // resolve from the data. Deriving hrefs by string-munging taxa.name therefore ships
 // real 404s, which is worse than no link.

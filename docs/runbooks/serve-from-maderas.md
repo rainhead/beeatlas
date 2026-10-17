@@ -154,7 +154,7 @@ Two operational notes:
 
 ## 8. Species-name redirects (one-time, sudo — beeatlas-ds4)
 
-When a name is folded into another (`data/dbt/seeds/occurrence_synonyms.csv`),
+When a name becomes a synonym of another (`data/dbt/seeds/occurrence_synonyms.csv`),
 its species page stops being generated and every link to it 404s. Apache 301s
 those URLs to the accepted name instead.
 
@@ -185,14 +185,14 @@ sudo apachectl configtest && sudo systemctl reload apache2
 ```
 
 Verify — the first must be a 301 to the accepted name, the second a 200 (a
-species that was never folded must fall straight through):
+name with no synonym row must fall straight through):
 
 ```sh
 curl -sI https://beeatlas.net/species/Bombus/lapponicus/index.html | head -2
 curl -so /dev/null -w '%{http_code}\n' https://beeatlas.net/species/Bombus/sylvicola/index.html
 ```
 
-The HTML page at each folded URL stays as the fallback (same source list, meta
+The HTML page at each synonym's URL stays as the fallback (same source list, meta
 refresh). If the map is missing, stale, or the vhost is rebuilt without these
 rules, readers are still forwarded — the failure mode is the slower redirect,
 not a 404.

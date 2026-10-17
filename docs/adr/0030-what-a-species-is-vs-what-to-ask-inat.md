@@ -6,21 +6,21 @@
 
 ## Context
 
-BeeAtlas applies its own synonymy. `occurrence_synonyms.csv` folds junior names into
+BeeAtlas applies its own synonymy. `occurrence_synonyms.csv` maps junior names to
 accepted ones, and every arm of `int_combined` routes through `int_synonyms` before
-re-resolving `taxon_id` from the post-synonymy name. That machinery works: folding
-*Bombus californicus* into *B. fervidus* (commit f732dfe2) moved all 1,489 occurrences
+re-resolving `taxon_id` from the post-synonymy name. That machinery works: making
+*Bombus californicus* a synonym of *B. fervidus* (commit f732dfe2) moved all 1,489 occurrences
 onto one taxon and collapsed two species rows into one everywhere in the app.
 
 iNaturalist does not share our synonymy. It keeps *californicus* (124420) and
 *fervidus* (52774) as separate species under a **`Bombus fervidus` complex**
-(1266534). Our fold is a curatorial call; theirs is a different one. Both are
+(1266534). Our synonymy is a curatorial call; theirs is a different one. Both are
 defensible, and neither side is going to move.
 
 Locally this costs nothing, because every join is on **name**, post-synonymy. The
 cost appears the moment we send a `taxon_id` *out* to the iNat API. There,
 `canonical_to_taxon_id` hands us the species-rank id for the accepted name — and that
-id names only *part* of the concept we folded:
+id names only *part* of the species as we define it:
 
 | taxon | WA research-grade observations |
 |---|---|
@@ -44,13 +44,13 @@ hard-to-identify species *groups*, not merged concepts: *Nomada semisuavis* sits
 of them.
 
 **"Derive the query set from `occurrence_synonyms`."** Also wrong, and silently.
-Expanding each accepted name to itself plus every name folded into it looks
-principled, but *B. lapponicus* — which we fold into *B. sylvicola* because Nearctic
+Expanding each accepted name to itself plus every synonym mapped to it looks
+principled, but *B. lapponicus* — which we map to *B. sylvicola* because Nearctic
 material under that name is sylvicola — resolves on iNat to a **six-species complex**
 containing Palearctic *monticola*, *johanseni*, *glacialis* and *konradini*. The
 derived rule would put European bumblebee photos on a Washington species page.
 
-The two folds look identical in the seed file and mean opposite things. *californicus*
+The two rows look identical in the seed file and mean opposite things. *californicus*
 is "these are one species"; *lapponicus* is "that name means something else here."
 No mechanical rule separates them, because the distinction is taxonomic judgment.
 
@@ -123,7 +123,7 @@ occurrence.
 For fervidus we query 1266534 rather than `52774,124420`. The complex's membership
 *is* our concept, and letting iNat maintain it means a future subspecies or
 re-circumscription is picked up rather than silently missed. The tradeoff is accepted
-deliberately: if iNat adds a child that we would *not* fold, it enters our photo pool
+deliberately: if iNat adds a child that we would *not* treat as the same species, it enters our photo pool
 unreviewed. That is a live risk for exactly one species, and the seed's `note` is
 where the next curator will look.
 
@@ -139,7 +139,7 @@ where the next curator will look.
 - Local joins are unaffected. Every arm still resolves on post-synonymy *name*, so the
   occurrence data keeps a single species-rank `taxon_id` per species.
 - The audit is done and recorded above; it does not need repeating per synonym. It
-  *does* need redoing if we adopt a fold where the old name survives on iNat as
+  *does* need redoing if we adopt a synonym whose old name survives on iNat as
   something other than a complex.
 
 ## Alternatives rejected
@@ -150,7 +150,7 @@ where the next curator will look.
   `Nomada vegana` complex photo could be any of 45 species.
 - **Derive query sets from `occurrence_synonyms`.** Puts Palearctic *B. monticola*
   photos on *B. sylvicola* — see Context.
-- **Follow iNat and un-fold californicus.** Rejected: the fold is the atlas's
+- **Follow iNat and split californicus back out.** Rejected: the synonymy is the atlas's
   curatorial call, already shipped and verified, and it is what makes the species page
-  and taxa pane coherent. This ADR makes our fold survive contact with their taxonomy
+  and taxa pane coherent. This ADR makes our synonymy survive contact with their taxonomy
   rather than abandoning it.
