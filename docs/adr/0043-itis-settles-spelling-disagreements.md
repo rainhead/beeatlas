@@ -33,7 +33,7 @@ The photo manifest (`content/species-photos.toml`) is keyed by the kept name. Wh
 
 ## Consequences
 
-- A species page's URL follows the kept name, so the old URL for a folded spelling stops resolving. The curator decided not to keep redirects.
+- A species page's URL follows the kept name. The old URL keeps working: every row in the synonym seeds gets a 301 to the kept name's page, which the build generates from the seeds (`_data/synonyms.js`). When this record was first written it said the old URLs would stop resolving; they do not.
 - A new source can bring back a variant spelling. When a species page looks thin, or a source's traits fail to join, look for a second spelling of the same epithet first.
 - iNat taxon IDs still come from iNat for the kept name. *L. allonotus* now resolves to iNat 1588473, not to iNat's duplicate *allonotum* taxon 1447898.
 
