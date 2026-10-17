@@ -46,8 +46,8 @@ updates:
           - "minor"
           - "patch"
     ignore:
-      # @types/node tracks the Node major (.nvmrc → 24); don't let it jump ahead
-      # of the runtime (types for Node 25 APIs would typecheck but fail at run).
+      # @types/node tracks the Node major (.nvmrc → 26); don't let it jump ahead
+      # of the runtime (types for Node 27 APIs would typecheck but fail at run).
       # Bump this major by hand when the Node version moves.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
@@ -63,7 +63,7 @@ updates:
           - "minor"
           - "patch"
     ignore:
-      # @types/node tracks the Node major (.nvmrc → 24); don't let it jump ahead
+      # @types/node tracks the Node major (.nvmrc → 26); don't let it jump ahead
       # of the runtime. Bump this major by hand when the Node version moves.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]

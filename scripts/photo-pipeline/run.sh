@@ -20,7 +20,8 @@
 set -u
 cd "$(dirname "$0")/../.." || exit 1   # repo root
 
-NODE=${NODE:-/Users/rainhead/.nvm/versions/node/v24.18.0/bin/node}
+# The newest nvm-installed patch of the .nvmrc pin, so a Node bump doesn't strand this.
+NODE=${NODE:-$(ls -d "$HOME/.nvm/versions/node/v$(cat .nvmrc)."* 2>/dev/null | sort -V | tail -1)/bin/node}
 DATA=.cache/photo-pipeline
 JSONL=$DATA/out/locate-qwen3-vl-8b-instruct-mlx.jsonl
 
