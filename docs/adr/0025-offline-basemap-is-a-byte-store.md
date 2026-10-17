@@ -164,8 +164,11 @@ tile-shaped holes that move with zoom, which is how it was first reported.
 
 Moving both files inside `/app/` did not help and could not: only the worker needs
 them, and only the worker cannot read them. `scripts/build-maplibre-worker.mjs`
-now bundles it into one self-contained file and fails the build if a relative
-import survives.
+bundled it into one self-contained file and failed the build if a relative
+import survived. *(2026-10-16: MapLibre 6.13 made the dist worker self-contained
+again — [maplibre-gl-js#8621](https://github.com/maplibre/maplibre-gl-js/issues/8621)
+— so the script is deleted and the dist file is served as shipped.
+`src/tests/maplibre-worker.test.ts` still fails if a relative import returns.)*
 
 Measured, offline, server killed rather than emulated, in WebKit and Chromium:
 
