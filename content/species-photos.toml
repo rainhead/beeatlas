@@ -7891,9 +7891,6 @@ description = ""
   ordering = 3
   provenance = "curator"
 
-[species."Lasioglossum allonotum"]
-description = ""
-
 [species."Lasioglossum allonotus"]
 description = ""
 
@@ -7933,10 +7930,10 @@ description = ""
 [species."Lasioglossum argemonis"]
 description = ""
 
-[species."Lasioglossum aspilurus"]
+[species."Lasioglossum aspilurum"]
 description = ""
 
-  [[species."Lasioglossum aspilurus".photos]]
+  [[species."Lasioglossum aspilurum".photos]]
   observation_id = 207_932_011
   photo_id = 367_849_936
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/367849936/large.jpeg"
@@ -7946,7 +7943,7 @@ description = ""
   ordering = 1
   provenance = "curator"
 
-  [[species."Lasioglossum aspilurus".photos]]
+  [[species."Lasioglossum aspilurum".photos]]
   observation_id = 351_341_183
   photo_id = 641_138_545
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/641138545/large.jpg"
@@ -7956,7 +7953,7 @@ description = ""
   ordering = 2
   provenance = "curator"
 
-  [[species."Lasioglossum aspilurus".photos]]
+  [[species."Lasioglossum aspilurum".photos]]
   observation_id = 208_700_835
   photo_id = 369_284_012
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/369284012/large.jpeg"
@@ -9050,41 +9047,18 @@ description = ""
 [species."Lasioglossum yukonae"]
 description = ""
 
-[species."Lasioglossum zephyrum"]
+[species."Lasioglossum zephyrus"]
 description = ""
 
-  [[species."Lasioglossum zephyrum".photos]]
-  observation_id = 140_848_586
-  photo_id = 241_165_089
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/241165089/large.jpg"
-  caption = ""
-  attribution = "(c) Lisa Hill, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 1
-  provenance = "seeder"
-
-  [[species."Lasioglossum zephyrum".photos]]
-  observation_id = 231_962_301
-  photo_id = 412_050_628
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/412050628/large.jpeg"
-  caption = ""
-  attribution = "(c) janeabel, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 2
-  provenance = "seeder"
-
-  [[species."Lasioglossum zephyrum".photos]]
+  [[species."Lasioglossum zephyrus".photos]]
   observation_id = 351_358_200
   photo_id = 641_174_864
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/641174864/large.jpg"
   caption = ""
   attribution = "(c) monarchdavid, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 3
+  ordering = 1
   provenance = "curator"
-
-[species."Lasioglossum zephyrus"]
-description = ""
 
   [[species."Lasioglossum zephyrus".photos]]
   observation_id = 222_385_804
@@ -9093,7 +9067,7 @@ description = ""
   caption = ""
   attribution = "(c) Lisa Hill, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 1
+  ordering = 2
   provenance = "seeder"
 
   [[species."Lasioglossum zephyrus".photos]]
@@ -9103,54 +9077,21 @@ description = ""
   caption = ""
   attribution = "(c) janeabel, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 2
-  provenance = "seeder"
-
-  [[species."Lasioglossum zephyrus".photos]]
-  observation_id = 236_014_761
-  photo_id = 419_826_408
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/419826408/large.jpeg"
-  caption = ""
-  attribution = "(c) Simone Littledale, some rights reserved (CC BY)"
-  license = "cc-by"
   ordering = 3
   provenance = "seeder"
 
-[species."Lasioglossum zonulum"]
+[species."Lasioglossum zonulus"]
 description = ""
 
-  [[species."Lasioglossum zonulum".photos]]
-  observation_id = 292_407_503
-  photo_id = 526_199_757
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/526199757/large.jpg"
-  caption = ""
-  attribution = "(c) cody_blackketter, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 1
-  provenance = "seeder"
-
-  [[species."Lasioglossum zonulum".photos]]
+  [[species."Lasioglossum zonulus".photos]]
   observation_id = 235_563_042
   photo_id = 418_953_332
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/418953332/large.jpeg"
   caption = ""
   attribution = "(c) cody_blackketter, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 2
+  ordering = 1
   provenance = "curator"
-
-  [[species."Lasioglossum zonulum".photos]]
-  observation_id = 215_866_474
-  photo_id = 381_702_102
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/381702102/large.jpeg"
-  caption = ""
-  attribution = "(c) Terry Carr, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 3
-  provenance = "seeder"
-
-[species."Lasioglossum zonulus"]
-description = ""
 
   [[species."Lasioglossum zonulus".photos]]
   observation_id = 172_520_567
@@ -9159,23 +9100,13 @@ description = ""
   caption = ""
   attribution = "(c) Everett Libby, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
-  ordering = 1
+  ordering = 2
   provenance = "seeder"
 
   [[species."Lasioglossum zonulus".photos]]
   observation_id = 182_877_951
   photo_id = 318_919_992
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/318919992/large.jpg"
-  caption = ""
-  attribution = "(c) Everett Libby, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 2
-  provenance = "seeder"
-
-  [[species."Lasioglossum zonulus".photos]]
-  observation_id = 184_884_971
-  photo_id = 322_533_610
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/322533610/large.jpg"
   caption = ""
   attribution = "(c) Everett Libby, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
@@ -10458,9 +10389,6 @@ description = ""
 [species."Melissodes menuachus"]
 description = ""
 
-[species."Melissodes metenua"]
-description = ""
-
 [species."Melissodes metenuus"]
 description = ""
 
@@ -10621,19 +10549,6 @@ description = ""
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/592686646/large.jpg"
   caption = ""
   attribution = "(c) Bob McDougall, some rights reserved (CC BY-NC)"
-  license = "cc-by-nc"
-  ordering = 1
-  provenance = "seeder"
-
-[species."Melissodes semilupina"]
-description = ""
-
-  [[species."Melissodes semilupina".photos]]
-  observation_id = 243_727_976
-  photo_id = 434_646_437
-  url = "https://inaturalist-open-data.s3.amazonaws.com/photos/434646437/large.jpg"
-  caption = ""
-  attribution = "(c) mylodon, some rights reserved (CC BY-NC)"
   license = "cc-by-nc"
   ordering = 1
   provenance = "seeder"
@@ -12096,9 +12011,6 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
   provenance = "curator"
-
-[species."Osmia phaceliae"]
-description = ""
 
 [species."Osmia pikei"]
 description = ""

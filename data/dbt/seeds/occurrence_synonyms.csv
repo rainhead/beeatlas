@@ -11,3 +11,22 @@ bombus lapponicus,bombus sylvicola,WA Bee Atlas curatorial decision 2026-07-31 â
 megachile melanophoea,megachile melanophaea,Bee-Gap misspelling (oe->ae) of a cuckoo host; aligns bee_parasite_hosts to atlas checklist (beeatlas-k0md)
 melissodes pallidisignata,melissodes pallidisignatus,Melissodes gender-variant (-a->-us); aligns Bee-Gap spelling to atlas checklist (beeatlas-k0md)
 osmia simillina,osmia simillima,Bee-Gap misspelling (n->m) of a cuckoo host; aligns bee_parasite_hosts to atlas checklist (beeatlas-k0md)
+lasioglossum aspilurus,lasioglossum aspilurum,"Lasioglossum spelling variant (-us->-um); ITIS TSN 758021 holds L. aspilurum valid, Halictus aspilurus its original combination (ADR 0043)"
+lasioglossum zephyrum,lasioglossum zephyrus,"Lasioglossum spelling variant (-um->-us); ITIS TSN 1252534 holds L. zephyrus valid, TSN 759587 zephyrum invalid (ADR 0043)"
+lasioglossum zonulum,lasioglossum zonulus,"Lasioglossum spelling variant (-um->-us); ITIS TSN 1252729 holds L. zonulus valid, TSN 759593 zonulum invalid (ADR 0043)"
+lasioglossum pavonotum,lasioglossum pavonotus,"Lasioglossum spelling variant (-um->-us); ITIS TSN 1252790 holds L. pavonotus valid, TSN 759015 pavonotum invalid (ADR 0043)"
+lasioglossum allonotum,lasioglossum allonotus,"Lasioglossum spelling variant (-um->-us); ITIS TSN 1252524 holds L. allonotus valid, TSN 757949 allonotum invalid. iNat keeps both as active species (1588473, 1447898) (ADR 0043)"
+lasioglossum heterorhinum,lasioglossum heterorhinus,"Lasioglossum spelling variant (-um->-us); ITIS TSN 1252260 holds L. heterorhinus valid, TSN 758551 heterorhinum invalid; aligns Bee-Gap to the atlas checklist (ADR 0043)"
+lasioglossum platyparium,lasioglossum platyparius,"Lasioglossum spelling variant (-um->-us); ITIS TSN 1252791 holds L. platyparius valid, TSN 759084 platyparium invalid; aligns Bee-Gap and bee_parasite_hosts to the atlas checklist (ADR 0043)"
+melissodes semilupina,melissodes semilupinus,"Melissodes gender-variant (-a->-us); ITIS TSN 1129760 holds M. semilupinus valid, TSN 699385 semilupina invalid (ADR 0043)"
+melissodes metenua,melissodes metenuus,"Melissodes gender-variant (-a->-us); ITIS TSN 699349 holds M. metenuus valid, TSN 766333 metenua invalid; the WA checklist uses metenua (ADR 0043)"
+melissodes lupina,melissodes lupinus,"Melissodes gender-variant (-a->-us); ITIS TSN 699341 holds M. lupinus valid; aligns Bee-Gap and Fowler to the atlas checklist (ADR 0043)"
+melissodes lustra,melissodes lustrus,"Melissodes gender-variant (-a->-us); ITIS TSN 699342 holds M. lustrus valid; aligns Bee-Gap and Fowler to the atlas (ADR 0043)"
+melissodes lutulenta,melissodes lutulentus,"Melissodes gender-variant (-a->-us); ITIS TSN 1129956 holds M. lutulentus valid; aligns Bee-Gap and Fowler to the atlas checklist (ADR 0043)"
+melissodes microsticta,melissodes microstictus,"Melissodes gender-variant (-a->-us); ITIS TSN 1129992 holds M. microstictus valid; aligns Bee-Gap and Fowler to the atlas checklist (ADR 0043)"
+melissodes paulula,melissodes paululus,"Melissodes gender-variant (-a->-us); ITIS TSN 1129989 holds M. paululus valid; aligns Bee-Gap and Fowler to the atlas checklist (ADR 0043)"
+melissodes plumosa,melissodes plumosus,"Melissodes gender-variant (-a->-us); ITIS TSN 699374 holds M. plumosus valid; aligns Bee-Gap and Fowler to the atlas checklist (ADR 0043)"
+epimelissodes obliqua,epimelissodes obliquus,"Epimelissodes gender-variant (-a->-us); iNat 1630911 and the WA checklist use E. obliquus. ITIS still treats Epimelissodes obliqua (TSN 1129011) as a synonym of Svastra obliqua, the feminine form under the old genus (ADR 0043)"
+heriades variolosus,heriades variolosa,"Heriades gender-variant (-us->-a); ITIS TSN 1160713 holds H. variolosa valid, TSN 715442 variolosus invalid; aligns Bee-Gap to the atlas checklist (ADR 0043)"
+coelioxys serricaudata,coelioxys serricaudatus,"Coelioxys gender-variant (-a->-us); ITIS TSN 1164098 holds C. serricaudatus valid; aligns Bee-Gap to the atlas checklist (ADR 0043)"
+osmia phaceliae,osmia nanula,"Junior synonym per ITIS TSN 1163658 (valid name O. nanula, TSN 715587); iNat resolves the name to 226676 O. nanula (ADR 0043)"
