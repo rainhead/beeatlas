@@ -407,15 +407,16 @@ def test_occurrences_taxon_id_non_null():
     taxon_id (bees AND non-bee aculeates like bembix), so the named-row NULL count must be 0.
 
     Truly-unidentified rows (NULL/empty canonical_name — the ~21.6k ecdysis specimens with no name
-    to look up) are excluded; they legitimately stay NULL. The only named exceptions are the 3
-    unresolvable ecdysis species (anthidiellum robertsoni, lasioglossum aspilurus, osmia phaceliae —
-    0 iNat API results; tracked in lineage_unresolved.csv), excluded via _KNOWN_UNRESOLVABLE.
+    to look up) are excluded; they legitimately stay NULL. The only named exception is the
+    unresolvable ecdysis name anthidiellum robertsoni (a subspecies — 0 iNat API results; tracked
+    in lineage_unresolved.csv), excluded via _KNOWN_UNRESOLVABLE. lasioglossum aspilurus and
+    osmia phaceliae used to be listed too; occurrence_synonyms now folds them (ADR 0043).
     No non-bee-genera exclusion is needed (D-02/D-07 — every genus name resolves under Animalia).
     """
     parquet_path = str(SANDBOX / "occurrences.parquet")
     # Exclude known ecdysis data-quality names that cannot be resolved via iNat API
     _KNOWN_UNRESOLVABLE = (
-        "'anthidiellum robertsoni', 'lasioglossum aspilurus', 'osmia phaceliae'"
+        "'anthidiellum robertsoni'"
     )
     n = duckdb.execute(
         f"SELECT COUNT(*) FROM read_parquet('{parquet_path}') "
