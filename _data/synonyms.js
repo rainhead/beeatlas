@@ -1,14 +1,14 @@
-// Redirects for names the atlas has folded away.
+// Redirects for names the atlas treats as synonyms of another name.
 //
 // When a name becomes a synonym, its species page stops being generated — the
 // occurrence and checklist arms all key on the accepted name, so there is no row
 // left to paginate over. Any link to the old page then 404s: /species/Bombus/
-// californicus/ has done exactly that since B. californicus was folded into
+// californicus/ has done exactly that since B. californicus became a synonym of
 // B. fervidus on 2026-07-26. Those links are in other people's bookmarks, in
 // iNaturalist comments and in email, and a 404 tells the reader nothing about
 // where the species went.
 //
-// So each folded name keeps a page at its old URL that sends the reader to the
+// So each synonym keeps a page at its old URL that sends the reader to the
 // accepted one, and says why.
 //
 // Read from the dbt SEEDS, not from a published artifact. The seeds are the
@@ -25,7 +25,7 @@
 // this repo (/etc/apache2/beeatlas-species-redirects.conf, included from both vhosts).
 //
 // CONSEQUENCE, which is easy to miss: the pages this file generates are NO LONGER
-// SERVED. Apache 301s /species/<Genus>/<folded>/ straight to the accepted name, so a
+// SERVED. Apache 301s /species/<Genus>/<synonym>/ straight to the accepted name, so a
 // reader never receives the meta-refresh HTML, never sees the "reason" line, and never
 // sees whatever `source` says. Verified against production 2026-08-06.
 //
@@ -124,7 +124,7 @@ const titleCase = name => name.charAt(0).toUpperCase() + name.slice(1);
 
 const redirects = [];
 for (const { synonym, accepted, source } of bySynonym.values()) {
-  // If the synonym still has a page of its own, the fold has not taken effect in
+  // If the synonym still has a page of its own, the synonym has not taken effect in
   // the data yet (assert_no_synonym_survives_as_species catches that in dbt).
   // Emitting a redirect here would collide with that page's permalink, so skip.
   if (pageByCanonical.has(synonym)) continue;
@@ -140,7 +140,7 @@ for (const { synonym, accepted, source } of bySynonym.values()) {
     fromName: titleCase(synonym),
     toSlug: target.slug,
     toName: target.scientificName,
-    // The seed's `source` column is the curatorial note — why the name was folded.
+    // The seed's `source` column is the curatorial note — why the name became a synonym.
     // Shown to the reader, since "this page moved" without a reason is a dead end.
     reason: source || null,
   });
