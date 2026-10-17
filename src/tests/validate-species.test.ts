@@ -223,11 +223,7 @@ ordering = 1
     // (vite-plugin-pwa's injectManifest globs the built site, and app/index.html
     // is Eleventy's output).
     expect(pkg.scripts.validate).toBe('pnpm run validate-species && pnpm run validate-db && pnpm run typecheck');
-    // build-maplibre-worker bundles MapLibre's worker into one self-contained
-    // file and must precede eleventy, which passthrough-copies its output.
-    // It is NOT part of the app bundle — see scripts/build-maplibre-worker.mjs
-    // for why the worker cannot keep its runtime sibling import.
-    expect(pkg.scripts.build).toBe('pnpm run validate && pnpm run build:app && node scripts/build-maplibre-worker.mjs && eleventy && pnpm run build:sw && pnpm run validate-bundle-size');
+    expect(pkg.scripts.build).toBe('pnpm run validate && pnpm run build:app && eleventy && pnpm run build:sw && pnpm run validate-bundle-size');
     // beeatlas-bon: build:app is now a gate that runs build:bundle only when the
     // bundle's inputs moved. The gate MUST stay in the `build` chain rather than being
     // hoisted out, because on a skip it also performs the cleaning that Vite's
@@ -245,7 +241,7 @@ ordering = 1
   // so it is pinned here beside the full build's.
   test('build:content renders without touching the app bundle', () => {
     const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
-    expect(pkg.scripts['build:content']).toBe('pnpm run validate && node scripts/build-maplibre-worker.mjs && eleventy && node scripts/postbuild-data.mjs');
+    expect(pkg.scripts['build:content']).toBe('pnpm run validate && eleventy && node scripts/postbuild-data.mjs');
     // build:app must NEVER appear here. It runs Vite with emptyOutDir:true (ADR
     // 0016), which deletes _site — and a scoped render only rewrites a handful of
     // pages, so it would publish a site consisting of those pages and nothing else.

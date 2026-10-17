@@ -562,7 +562,7 @@ describe('build-chain isolation (PHOTO-07: seed NOT in CI)', () => {
       'pnpm run validate-species && pnpm run validate-db && pnpm run typecheck',
     );
     expect(pkg.scripts.build).toBe(
-      'pnpm run validate && pnpm run build:app && node scripts/build-maplibre-worker.mjs && eleventy && pnpm run build:sw && pnpm run validate-bundle-size',
+      'pnpm run validate && pnpm run build:app && eleventy && pnpm run build:sw && pnpm run validate-bundle-size',
     );
   });
 

@@ -215,9 +215,16 @@ local run meaningful at all. `--fresh` discards the profile; without it a stale
 service worker from the previous build keeps controlling the page. `pnpm run dev`
 is NOT a substitute: it serves no `/sw.js`, so there is nothing to test.
 
-Both should be **green** — chromium 11/11, webkit 4/4 with the offline half
-skipped and said so. They were both permanently red until `beeatlas-69s`; if you
-find yourself explaining away a failure, that is the bug, not the run.
+Both should be **green** — chromium 14/14 with `--prime --fresh` (the two extra
+lines report each downloaded archive), webkit 4/4 with the offline half skipped
+and said so. They were both permanently red until `beeatlas-69s`; if you find
+yourself explaining away a failure, that is the bug, not the run.
+
+Until 2026-10-17 a `--fresh --prime` run could not pass. The harness's wait for
+the download used an async predicate, which Playwright's `waitForFunction` does
+not await, so it went offline mid-download and the "no offline-basemap overlay"
+check failed, correctly. Green runs before then reused an earlier run's primed
+profile.
 
 Four of those are the ADR 0029 surface boundary, added when the app moved to `/`
 (beeatlas-3xx). Two run online — a species page must be served as ITSELF, and it

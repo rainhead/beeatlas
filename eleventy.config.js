@@ -113,9 +113,8 @@ export default async function (eleventyConfig) {
   //
   // Copied from node_modules rather than vendored into public/ so it CANNOT drift
   // from the installed maplibre-gl; a hand-copied worker paired with a bumped
-  // library is the same silent failure wearing a different hat. Both files are
-  // required and must stay siblings: the worker imports ./maplibre-gl-shared.mjs
-  // relative to itself. maplibre-worker.test.ts pins all of it.
+  // library is the same silent failure wearing a different hat.
+  // maplibre-worker.test.ts pins all of it.
   //
   // IT MUST SIT INSIDE THE SERVICE WORKER'S SCOPE (beeatlas-6rs). A page the worker
   // controls has its requests intercepted at any path — but a DEDICATED WORKER is a
@@ -132,16 +131,16 @@ export default async function (eleventyConfig) {
   // src/sw-registration.ts and requires this path to be under it, so narrowing the
   // scope again fails the suite instead of the field.
   //
-  // ONE self-contained file, built by scripts/build-maplibre-worker.mjs, not the two
-  // dist files side by side, and that stays true at root scope. The worker's own
-  // `from "./maplibre-gl-shared.mjs"` is a fetch made BY THE WORKER, so whether it is
-  // served offline depends on the worker being a CONTROLLED client — a subtler
-  // property than being in scope, and the one that was silently false on iOS while
-  // both files sat precached and unreachable. Bundling removes the dependency
-  // altogether: there is no second request to be right about. See that script for the
-  // measurement.
+  // ONE self-contained file, and it must stay that way at root scope. A runtime
+  // import inside the worker is a fetch made BY THE WORKER, so whether it is served
+  // offline depends on the worker being a CONTROLLED client — a subtler property than
+  // being in scope, and the one that was silently false on iOS (beeatlas-6rs). From
+  // 6.0 to 6.12 the dist worker opened with `from "./maplibre-gl-shared.mjs"`, and
+  // scripts/build-maplibre-worker.mjs bundled it to remove that import. MapLibre
+  // 6.13 made the dist worker self-contained again (maplibre-gl-js#8621), so the
+  // file is copied as shipped. maplibre-worker.test.ts fails if an import returns.
   eleventyConfig.addPassthroughCopy({
-    ".cache/beeatlas-maplibre/maplibre-gl-worker.mjs": "basemap/maplibre/maplibre-gl-worker.mjs",
+    "node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs": "basemap/maplibre/maplibre-gl-worker.mjs",
   });
 
   // In serve mode Vite runs as middleware inside the Eleventy dev server, so

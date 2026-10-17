@@ -114,8 +114,9 @@ describe('the service worker precaches everything the basemap needs to draw', ()
     // It used to ship as two files, the worker importing its sibling at startup.
     // That import is made by the WORKER, which is not a controlled client, so
     // offline it went to the network and the worker died before running a line —
-    // see the scope test below and scripts/build-maplibre-worker.mjs. The build
-    // now bundles it; there is no sibling left to precache.
+    // see the scope test below. MapLibre 6.13 made the dist worker self-contained
+    // again, so there is no sibling left to precache; maplibre-worker.test.ts
+    // fails if one comes back.
     expect(matched).toContain('basemap/maplibre/maplibre-gl-worker.mjs');
     expect([...matched].filter((p) => p.includes('maplibre'))).toHaveLength(1);
   });

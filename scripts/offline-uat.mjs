@@ -220,10 +220,15 @@ if (PRIME) {
     const atlas = document.querySelector('bee-atlas');
     atlas.dispatchEvent(new CustomEvent('basemap-download-requested', { bubbles: true, composed: true }));
   });
-  await page.waitForFunction(async () => {
-    const c = await caches.open('basemap-archives');
-    return (await c.keys()).length >= 2;
-  }, null, { timeout: 900_000 });
+  // The predicate must be SYNCHRONOUS. waitForFunction does not await a returned
+  // Promise, and a Promise is truthy, so an async predicate returns at once — this
+  // used to be one, and the run went offline mid-download. It only looked green on
+  // a profile already primed by an earlier run, never with --fresh. Wait on the
+  // same state the offline overlay reads, so "primed" means what the app means.
+  await page.waitForFunction(
+    () => document.querySelector('bee-atlas')?._basemapState?.primed === true,
+    null, { timeout: 900_000, polling: 1000 },
+  );
   const primed = await page.evaluate(async () => {
     const c = await caches.open('basemap-archives');
     const out = [];

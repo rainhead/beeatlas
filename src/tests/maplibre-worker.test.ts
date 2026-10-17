@@ -16,7 +16,7 @@
 // hands MapLibre, the passthrough that puts a file there, and the pair of dist
 // files being real siblings.
 import { describe, test, expect } from 'vitest';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -48,8 +48,8 @@ describe('the MapLibre worker is served, and from where bee-map says it is', () 
     const config = read('eleventy.config.js');
     // The passthrough target is written without the leading slash; the URL has it.
     expect(config).toContain(WORKER_URL.replace(/^\//, ''));
-    // …sourced from the BUNDLED staging dir, not from node_modules directly.
-    expect(config).toContain('.cache/beeatlas-maplibre/maplibre-gl-worker.mjs');
+    // …copied as shipped from the installed maplibre-gl, so it cannot drift from the library.
+    expect(config).toContain('node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs');
   });
 
   test('the shipped worker imports NOTHING at runtime', () => {
@@ -59,25 +59,24 @@ describe('the MapLibre worker is served, and from where bee-map says it is', () 
     // that import is served offline turns on the worker itself being a CONTROLLED
     // client; it was not, so the import went to the network, failed, and the worker
     // died before running a line. Tile parsing, GeoJSON clustering and symbol
-    // layout all stop, with no error anywhere. Bundling is what removes the
-    // question — there is no second request left to be right about, and that stays
-    // true under ADR 0029's wider scope.
+    // layout all stop, with no error anywhere. A worker with no static imports
+    // removes the question — there is no second request left to be right about,
+    // and that stays true under ADR 0029's wider scope. (Its dynamic import() loads
+    // an optional plugin by URL on demand, such as the RTL text plugin, which we
+    // never set.)
     //
     // Shipping BOTH files side by side did not fix it and could not. It looked
     // fixed: the precache listed both, and a page-side fetch of either returned
     // 200 — but only the worker needs them and only the worker cannot read them.
     // Measured offline (server killed, not emulated) in WebKit AND Chromium.
     //
-    // So the build bundles it into one self-contained file. If a relative import
-    // ever comes back, offline dies silently again — hence this assertion.
-    const upstream = read('node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs');
-    expect(upstream, 'upstream no longer splits the worker; re-check whether the bundling step is still needed')
-      .toMatch(/from\s*["']\.\//);
-
-    const bundled = resolve(ROOT, '.cache/beeatlas-maplibre/maplibre-gl-worker.mjs');
-    if (!existsSync(bundled)) return; // not built yet; the build script asserts this too
-    const out = readFileSync(bundled, 'utf8');
-    expect([...out.matchAll(/\bfrom\s*["'](\.[^"']+)["']/g)].map(m => m[1]))
+    // From 6.0 to 6.12 the build bundled it into one self-contained file
+    // (scripts/build-maplibre-worker.mjs, now deleted). MapLibre 6.13 made the dist
+    // worker self-contained again (maplibre-gl-js#8621), so it ships as-is. If a
+    // relative import ever comes back, offline dies silently again — hence this
+    // assertion, which now guards the file we actually serve.
+    const shipped = read('node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs');
+    expect([...shipped.matchAll(/\bfrom\s*["'](\.[^"']+)["']/g)].map(m => m[1]))
       .toEqual([]);
   });
 
