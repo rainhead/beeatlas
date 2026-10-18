@@ -2,6 +2,7 @@
   "name": "beeatlas-infra",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.22.0",
   "scripts": {
     "cdk": "cdk",
     "build": "tsc",

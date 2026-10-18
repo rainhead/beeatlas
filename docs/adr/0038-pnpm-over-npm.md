@@ -38,7 +38,11 @@ on linux. The failure mode is absent rather than avoided by discipline.
 - **`packageManager: pnpm@11.22.0`** in the root `package.json`. `pnpm/action-setup`
   reads it, so CI and laptops run one pnpm without a version pinned in three
   workflows. (salishsea-io is on 11.20.0; this is simply the installed version, and
-  the lockfile format — v9 — is the same.)
+  the lockfile format — v9 — is the same.) `data/` and `infra/` carry the same
+  `packageManager` line, added 2026-10-17: without it, pnpm in those directories
+  ran as whatever version was installed globally (12.14 on one laptop, 11.22 on
+  maderas), so the three projects could quietly use different pnpm versions.
+  Change all three together.
 - **`pnpm install --frozen-lockfile`** replaces `npm ci` everywhere. Same contract:
   fail rather than silently rewrite the lockfile.
 - **`data/` and `infra/` stay separate projects, not workspace members.** `data/`
