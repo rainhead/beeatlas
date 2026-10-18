@@ -13,7 +13,7 @@
  * inside the content-hashed, service-worker-precached app bundle (offline for
  * free) and can be unit-tested.
  */
-import { layers, namedTheme } from 'protomaps-themes-base';
+import { layers, namedFlavor } from '@protomaps/basemaps';
 import type { StyleSpecification } from 'maplibre-gl';
 
 /** Where publish-basemap.sh puts the archive + its manifest (see the Apache Alias). */
@@ -201,9 +201,10 @@ export function buildBasemapStyle(
   const entry = manifest.regions[region];
   if (!entry) throw new Error(`basemap manifest: no region "${region}"`);
 
-  // layers() takes a theme OBJECT. Passing the name string yields null colors
-  // throughout and MapLibre rejects the entire style (protomaps-themes-base v4.5).
-  const themed = layers(SOURCE, namedTheme('light'), { lang: 'en' }) as StyleLayer[];
+  // layers() takes a flavor OBJECT. Passing the name string yields null colors
+  // throughout and MapLibre rejects the entire style (found on protomaps-themes-base
+  // v4.5, the package's name before @protomaps/basemaps).
+  const themed = layers(SOURCE, namedFlavor('light'), { lang: 'en' }) as StyleLayer[];
 
   const sources: StyleSpecification['sources'] = {
     [SOURCE]: {
@@ -273,7 +274,7 @@ function hillshadeLayer(): StyleLayer {
  *
  * beeatlas-8py said "below the first symbol layer", which is the usual shorthand
  * for "under the labels". It is wrong for THIS theme, and reading the layer order
- * is what shows why: protomaps-themes-base interleaves fills and lines rather
+ * is what shows why: the Protomaps style interleaves fills and lines rather
  * than grouping them, so the first symbol layer is index 57 — inserting there
  * would put the hillshade on top of every road, trail and stream. This style
  * exists to make the trail network legible in the field (see applyFieldOverrides),

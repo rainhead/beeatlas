@@ -11,6 +11,9 @@ importers:
       '@iarna/toml':
         specifier: ^2.2.5
         version: 2.2.5
+      '@protomaps/basemaps':
+        specifier: ^5.7.2
+        version: 5.7.2
       lit:
         specifier: ^3.3.3
         version: 3.3.3
@@ -18,9 +21,6 @@ importers:
         specifier: ^6.14.0
         version: 6.14.0
       pmtiles:
-        specifier: ^4.5.0
-        version: 4.5.0
-      protomaps-themes-base:
         specifier: ^4.5.0
         version: 4.5.0
       vite-plugin-pwa:
@@ -711,6 +711,10 @@ packages:
 
   '@oxc-project/types@0.154.0':
     resolution: {integrity: sha512-KYOUGQFlLWR+s4QMV2Q9ko38TZm7EdO87Qm7rvZLqk/webse/cDjtyxKhg/47l0byCbs/k46LT8qc4PKjAikzA==}
+
+  '@protomaps/basemaps@5.7.2':
+    resolution: {integrity: sha512-K1Yk6bWdULulYg+R2QRVXx4NzJZan5YQhpejEG0c1/sXruJrfPIPZuakpf3jwAgVmjIRVQwAv+yRafDeN0aaUQ==}
+    hasBin: true
 
   '@rolldown/binding-android-arm-eabi@1.2.14':
     resolution: {integrity: sha512-aWR+XKH9+rW7m5fWq/5360J3mHycrx/o6xZM2DQFdJnTMdyP7/WzxPjhtLbVWdKo2y612/4U1bWqb3HQhiF7vg==}
@@ -2174,10 +2178,6 @@ packages:
   protocol-buffers-schema@3.6.1:
     resolution: {integrity: sha512-VG2K63Igkiv9p76tk1lilczEK1cT+kCjKtkdhw1dQZV3k3IXJbd3o6Ho8b9zJZaHSnT2hKe4I+ObmX9w6m5SmQ==}
 
-  protomaps-themes-base@4.5.0:
-    resolution: {integrity: sha512-z5A6oXAXNi/CHEIbCfzZ/6uVDgnv3pO4C3LFvomxjUFXwyqWZ7HJdfPoNJSIlsvaQubqsaxCbamEzqBr/W7vkg==}
-    deprecated: This package has been migrated to @protomaps/basemaps with a new major version. See the CHANGELOG at https://github.com/protomaps/basemaps/blob/main/CHANGELOG.md for how to migrate.
-
   prr@1.0.1:
     resolution: {integrity: sha512-yPw4Sng1gWghHQWj0B3ZggWUm4qVbPwPFcRG8KyxiU7J2OHFSoEHKS+EZ3fv5l1t9CyCiop6l/ZYeWbrgoQejw==}
 
@@ -3574,6 +3574,8 @@ snapshots:
 
   '@oxc-project/types@0.154.0': {}
 
+  '@protomaps/basemaps@5.7.2': {}
+
   '@rolldown/binding-android-arm-eabi@1.2.14':
     optional: true
 
@@ -4860,8 +4862,6 @@ snapshots:
   pretty-bytes@6.1.1: {}
 
   protocol-buffers-schema@3.6.1: {}
-
-  protomaps-themes-base@4.5.0: {}
 
   prr@1.0.1: {}
 

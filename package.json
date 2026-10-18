@@ -55,10 +55,10 @@
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
+    "@protomaps/basemaps": "^5.7.2",
     "lit": "^3.3.3",
     "maplibre-gl": "^6.14.0",
     "pmtiles": "^4.5.0",
-    "protomaps-themes-base": "^4.5.0",
     "vite-plugin-pwa": "^2.0.0",
     "wa-sqlite": "^1.0.0",
     "workbox-precaching": "^7.4.1",

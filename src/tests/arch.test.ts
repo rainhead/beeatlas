@@ -21,7 +21,7 @@ const FORBIDDEN = [
   // (beeatlas-26q). mapbox-gl is gone from the tree entirely as of beeatlas-q73,
   // so listing it here would guard nothing.
   'maplibre-gl',
-  'protomaps-themes-base',
+  '@protomaps/basemaps',
   'pmtiles',
   '../basemap-style.ts', '../basemap-style',
   'wa-sqlite',
@@ -115,7 +115,7 @@ describe('src/entries/species-index.ts allowlist', () => {
   const FORBIDDEN_PATTERNS = [
     'bee-species-page', 'bee-species-filter', 'bee-atlas',
     'wa-sqlite',
-    'maplibre-gl', 'protomaps-themes-base', 'pmtiles', 'basemap-style',
+    'maplibre-gl', '@protomaps/basemaps', 'pmtiles', 'basemap-style',
   ];
 
   test('only imports CSS side-effects + bee-header (no SPA modules)', () => {
