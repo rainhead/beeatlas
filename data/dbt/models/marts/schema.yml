@@ -70,7 +70,8 @@ models:
               config:
                 severity: error
           - accepted_values:
-              values: ['atlas', 'other']
+              arguments:
+                values: ['atlas', 'other']
               config:
                 severity: error
       - name: record_type
@@ -82,7 +83,8 @@ models:
               config:
                 severity: error
           - accepted_values:
-              values: ['specimen', 'waba_specimen', 'provisional_sample', 'inat_expert', 'checklist']
+              arguments:
+                values: ['specimen', 'waba_specimen', 'provisional_sample', 'inat_expert', 'checklist']
               config:
                 severity: error
       - name: image_url

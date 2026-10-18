@@ -25,12 +25,15 @@ dependencies = [
     "markdown-it-py>=4.2.0",
     "numpy>=2.5.2",
     "pillow>=12.3.0",
+    # The transform layer, run by dbt/run.sh. Below 2: dbt v2 is a different
+    # product line with its own upgrade guide, not a version bump.
+    "dbt-core>=1.12.6,<2",
+    "dbt-duckdb>=1.11.0,<2",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
-    "dbt-duckdb==1.11.0",
     "pytest-randomly>=4.1.0",
 ]
 

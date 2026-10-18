@@ -108,6 +108,8 @@ dependencies = [
     { name = "beautifulsoup4" },
     { name = "boto3" },
     { name = "dateparser" },
+    { name = "dbt-core" },
+    { name = "dbt-duckdb" },
     { name = "dlt", extra = ["duckdb"] },
     { name = "duckdb" },
     { name = "flask" },
@@ -128,7 +130,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "dbt-duckdb" },
     { name = "pytest" },
     { name = "pytest-randomly" },
 ]
@@ -139,6 +140,8 @@ requires-dist = [
     { name = "beautifulsoup4" },
     { name = "boto3", specifier = ">=1.43.69" },
     { name = "dateparser" },
+    { name = "dbt-core", specifier = ">=1.12.6,<2" },
+    { name = "dbt-duckdb", specifier = ">=1.11.0,<2" },
     { name = "dlt", extras = ["duckdb"], specifier = ">=1.30.0" },
     { name = "duckdb", specifier = ">=1.5.5,<2" },
     { name = "flask", specifier = ">=3.1.2" },
@@ -159,7 +162,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "dbt-duckdb", specifier = "==1.11.0" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-randomly", specifier = ">=4.1.0" },
 ]

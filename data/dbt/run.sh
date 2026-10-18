@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 # Wrapper: ensures dbt finds in-repo profiles.yml regardless of cwd.
-# A1 fallback: dbt-duckdb 1.10.1 is incompatible with Python 3.14 (mashumaro class-var
-# changes in CPython 3.14); invokes dbt via uvx with an explicit --python 3.13 pin so
-# uvx provisions Python 3.13 in its tool env regardless of what's installed on the host.
-# Without the explicit pin uvx picks the newest interpreter available (3.14 on maderas),
-# which breaks at JSONObjectSchema import with UnserializableField.
+# dbt runs from data/'s own uv environment, so its version is pinned in data/uv.lock
+# with everything else. It used to run through uvx on Python 3.13 with its own pins,
+# because dbt 1.10 could not import on Python 3.14 (mashumaro); dbt-core 1.12 can.
 # Usage: bash data/dbt/run.sh build [options]
 #        bash data/dbt/run.sh debug
 #        bash data/dbt/run.sh --version
@@ -24,6 +22,14 @@ export DBT_PROJECT_DIR="${DBT_PROJECT_DIR:-$DIR}"
 # explicitly, so the `:-` default preserves it and nightly behavior is unchanged.
 export DB_PATH="${DB_PATH:-$(cd "$DIR/.." && pwd)/beeatlas.duckdb}"
 
+# dbt otherwise asks PyPI on every run whether a newer dbt exists, and prints a
+# banner about dbt v2 when it does. The pin is in uv.lock; the question is noise.
+export DBT_VERSION_CHECK=false
+
+# Every dbt call goes through data/'s environment. --frozen: use uv.lock as it is,
+# never re-resolve it mid-pipeline.
+UV_RUN=(uv run --frozen --project "$(cd "$DIR/.." && pwd)")
+
 # cd into the project dir so the relative `path: ../beeatlas.duckdb` in profiles.yml
 # resolves to data/beeatlas.duckdb regardless of where the wrapper was invoked from.
 cd "$DIR"
@@ -37,25 +43,27 @@ mkdir -p "$DIR/target/sandbox"
 # dbt-core profile-search-order pitfall; --version passes without them via the env vars).
 case "${1:-}" in
   --identity)
-    # Stelis's runtime-identity probe (stelis st-kbi): CACHE-ONLY (--offline) —
-    # the probe runs at PLAN time, which must never reach the network; a cold
-    # uvx cache fails it and stelis falls back to a conservative rerun. Lives
-    # here so the pins stay the single source of truth.
+    # Stelis's runtime-identity probe (stelis st-kbi). It runs at PLAN time, so
+    # it must neither reach the network nor change the environment: --offline
+    # and --no-sync. It reports the versions uv.lock pins (dbt-core, dbt-duckdb,
+    # and the duckdb ENGINE, which owns the output bytes) plus the exact CPython
+    # build, so a change to any of them reruns dbt-build.
     #
     # Deliberately NOT `dbt --version`: its output embeds "latest: X - Update
     # available!", a string that moves whenever dbt RELEASES — an upstream press
-    # release is not a change to this pipeline. The dbt/adapter pins above are
-    # exact and ride stelis's code hash of this file (intent); the probe observes
-    # only what those pins leave FREE: the CPython patch inside the 3.13 range,
-    # and the transitive duckdb ENGINE, which dbt-duckdb floats and which owns
-    # the output bytes.
-    exec uvx --offline --python 3.13 --from dbt-core==1.10.1 --with dbt-duckdb==1.10.1 \
-        python -c 'import sys, duckdb; print(sys.version); print("duckdb", duckdb.__version__)'
+    # release is not a change to this pipeline.
+    exec "${UV_RUN[@]}" --offline --no-sync python -c '
+import sys, duckdb
+from importlib.metadata import version
+print(sys.version)
+print("duckdb", duckdb.__version__)
+print("dbt-core", version("dbt-core"))
+print("dbt-duckdb", version("dbt-duckdb"))'
     ;;
   --version|--help|-h|"")
-    exec uvx --python 3.13 --from dbt-core==1.10.1 --with dbt-duckdb==1.10.1 dbt "$@"
+    exec "${UV_RUN[@]}" dbt "$@"
     ;;
   *)
-    exec uvx --python 3.13 --from dbt-core==1.10.1 --with dbt-duckdb==1.10.1 dbt "$@" --profiles-dir "$DIR" --project-dir "$DIR"
+    exec "${UV_RUN[@]}" dbt "$@" --profiles-dir "$DIR" --project-dir "$DIR"
     ;;
 esac

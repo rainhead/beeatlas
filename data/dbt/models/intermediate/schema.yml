@@ -40,8 +40,9 @@ models:
           never auto-matched.
         data_tests:
           - relationships:
-              to: ref('identifier_register')
-              field: person_key
+              arguments:
+                to: ref('identifier_register')
+                field: person_key
       - name: canonical_name
         description: Post-synonym canonical name (data/canonical_name.py normalization, int_synonyms applied)
         data_tests:
@@ -54,7 +55,8 @@ models:
         data_tests:
           - not_null
           - accepted_values:
-              values: ['species', 'subgenus', 'genus_or_higher']
+              arguments:
+                values: ['species', 'subgenus', 'genus_or_higher']
 
   - name: int_provisional_waba_ids
     description: >
@@ -117,7 +119,8 @@ models:
       - name: qualifier_class
         data_tests:
           - accepted_values:
-              values: ['none', 'noop', 'refine_subsp', 'refine_subg', 'slash', 'hedge_epithet', 'hedge_bare']
+              arguments:
+                values: ['none', 'noop', 'refine_subsp', 'refine_subg', 'slash', 'hedge_epithet', 'hedge_bare']
 
   - name: int_taxon_resolution
     description: >
