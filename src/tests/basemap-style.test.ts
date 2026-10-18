@@ -99,7 +99,7 @@ describe('style construction', () => {
   });
 
   test('theme resolved to real colors, not nulls', () => {
-    // protomaps-themes-base v4.5 layers() takes a theme OBJECT; passing the name
+    // @protomaps/basemaps layers() takes a flavor OBJECT; passing the name
     // string instead yields null colors and MapLibre rejects the whole style at
     // runtime. Two traps here, both of which produced a green-but-worthless test
     // on the way in: the bad values land as ARRAY ELEMENTS inside ["case", …]
