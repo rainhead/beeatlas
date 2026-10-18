@@ -20,7 +20,7 @@
 - Files: `data/dbt/run.sh`
 - Impact: dbt commands fail immediately if the 1.10.20 regression is present. Upgrading dbt-core to any newer 1.10.x version is blocked until the upstream dbt-core issue is fixed or a 1.11.x release is available.
 - Fix approach: Monitor dbt-core releases for a fix in 1.10.21+. If fixed, remove the exact-version pin and test a `1.10.*` specifier again. If not fixed, evaluate upgrading to dbt-core 1.11.x when available (requires testing the dbt-duckdb adapter against the newer dbt-core).
-- Status: Active, pins build dependencies
+- Status: Resolved 2026-10-17. dbt now runs from `data/uv.lock` at dbt-core 1.12.6 and dbt-duckdb 1.11.0, so a dbt upgrade is an ordinary lockfile bump. A build on a copy of the database under both versions gave identical contents in all 88 tables and all 12 output files.
 - Recorded: Commit fffc496 ("fix(083): pin dbt-core to ==1.10.1 exactly"); documented in dbt-spike-findings.md §What Was Awkward
 
 **FORMAT CSV GeoJSON emission fragile**
@@ -118,7 +118,7 @@
 - Risk: `dbt-duckdb==1.10.1` is pinned exactly due to dbt-core 1.10.20 regression (see Tech Debt section). The adapter depends on dbt-core, and newer versions of dbt-core may break the adapter. There is no explicit test of the adapter across multiple dbt-core versions.
 - Impact: Upgrading dbt-core is risky and requires full regression testing of the data pipeline. Staying on 1.10.1 means missing security patches and features in newer dbt releases.
 - Migration plan: When dbt-core 1.11.x is released, test the full pipeline against `dbt-core==1.11.x` and `dbt-duckdb==1.11.x` before merging. Add a CI step to verify dbt --version matches the run.sh pin, preventing accidental version drift.
-- Status: Active, pins development velocity
+- Status: Resolved 2026-10-17, along with the regression entry above: dbt-core and dbt-duckdb are ordinary dependencies in `data/pyproject.toml`, capped below 2, and Dependabot offers their updates.
 - Recorded: dbt-spike-findings.md §What Was Awkward; documented as an operational risk for v3.4 rewrite
 
 ---

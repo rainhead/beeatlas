@@ -99,7 +99,7 @@ seeds:
           list grows one deliberate entry at a time — it is not an open vocabulary.
         data_tests:
           - not_null
-          - accepted_values: { values: ['sociality', 'nesting', 'host_bees'] }
+          - accepted_values: { arguments: { values: ['sociality', 'nesting', 'host_bees'] } }
       - name: action
         description: >
           replace (publish corrected_value) | retract (publish nothing from the
@@ -107,7 +107,7 @@ seeds:
           host to supply — which test_corrections_supported_action enforces.
         data_tests:
           - not_null
-          - accepted_values: { values: ['replace', 'retract'] }
+          - accepted_values: { arguments: { values: ['replace', 'retract'] } }
       - name: expected_upstream
         description: "The upstream value this correction was written against. Stelis's drift gate compares it to what the source says now."
       - name: corrected_value
@@ -217,7 +217,8 @@ seeds:
         data_tests:
           - not_null
           - accepted_values:
-              values: ['confirmed', 'rejected']
+              arguments:
+                values: ['confirmed', 'rejected']
       - name: note
         description: "Free-text curator rationale for the decision."
   - name: target_hosts
@@ -242,7 +243,8 @@ seeds:
         data_tests:
           - not_null
           - accepted_values:
-              values: ['Y', 'N']
+              arguments:
+                values: ['Y', 'N']
       - name: source
         description: "Provenance tag: 'burke-wa-flora'."
         data_tests:
