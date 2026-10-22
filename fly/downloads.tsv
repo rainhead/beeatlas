@@ -1,0 +1,16 @@
+# The files fly/Dockerfile downloads at build time, pinned by sha256.
+#
+#   name    sha256    upstream URL(s), nearest first
+#
+# fly/fetch.sh fetches a file by name from each URL in turn and keeps the first whose
+# bytes match the sha256; the checksum decides what is installed, never the host.
+# The same shape as salishsea's fly/downloads.tsv (its decision 084); beeatlas has no
+# mirror bucket of its own yet, so every row's sources are upstream.
+#
+# To move a pin: change the sha256 and the URL here, and let the image workflow's
+# build prove it. uv publishes the checksum beside each release asset
+# (uv-x86_64-unknown-linux-gnu.tar.gz.sha256); DuckDB's is the one Stelis's CI pins
+# and tests against (its .github/workflows/tests.yml).
+
+uv	f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f	https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-unknown-linux-gnu.tar.gz
+duckdb	08c0ca117111fcede14239d0093792352befdc174218c344d232c13279643d05	https://github.com/duckdb/duckdb/releases/download/v1.5.5/duckdb_cli-linux-amd64.zip

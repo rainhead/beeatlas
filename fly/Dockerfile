@@ -1,0 +1,198 @@
+# syntax=docker/dockerfile:1
+#
+# The beeatlas Fly machine (ADR 0042, beeatlas-3je9): one image holding everything
+# the nightly, the note-write publish and the write API run on, pinned, so that
+# nothing on the machine is fetched or updated at runtime. What it holds:
+#
+#   node 26.12 and pnpm 11.22   the site build and the pipeline's node tooling,
+#                               with both node_modules trees installed
+#   uv and CPython 3.14         the data pipeline's environment (data/.venv, synced
+#                               from uv.lock; dbt and the integration gate's pytest
+#                               run from it too, the dev group)
+#   Stelis                      Racket and the compiled engine, out of the image
+#                               Stelis's own CI built from fly/stelis-commit, by the
+#                               digest in fly/stelis-digest (Stelis ADR 0017)
+#   the DuckDB CLI              what Stelis content-addresses relations with
+#   the AWS CLI                 the nightly's offsite backup
+#   rsync, flock                merge-swap.sh and the publish lock
+#   this checkout at /app       with no .git: the image IS the deploy
+#
+# What it does not hold, and where that lives instead (ADR 0044): every file the
+# pipeline writes. The volume mounts at /data, and the paths inside the checkout the
+# scripts and the Stelis graph write to are symlinks into it (see "the volume"
+# below), so the code is unchanged and the root filesystem, which Fly caps near 8 GB
+# and throttles, carries only code and dependencies. Secrets (data/.dlt/secrets.toml,
+# api/secrets.toml) are materialized from Fly secrets by the entrypoint
+# (beeatlas-cjyz), never baked.
+#
+# Build args (fly/deploy.sh passes them):
+#   STELIS_SHA     the Stelis commit, from fly/stelis-commit
+#   STELIS_IMAGE   the Stelis image built from it, by digest, from fly/stelis-digest
+#                  (fly/pin-stelis.sh writes both)
+#   GITHUB_SHA     this commit, which the build receipt names
+#
+# Every download is pinned by sha256 (fly/downloads.tsv, fetched by fly/fetch.sh)
+# or by lockfile (uv.lock, pnpm-lock.yaml), and all of them happen here. The gate
+# (fly/offline-gate.sh) runs the image with the code and package hosts unreachable.
+
+# The two base images, pinned by digest the way the workflow actions are pinned by
+# commit, so a rebuild from the same source is the same toolchain: a tag can move
+# under it, a digest cannot. Both are what the tags named on 2026-10-22; to move
+# one, `docker buildx imagetools inspect <tag>` and replace the digest and the date.
+# node is .nvmrc's; Stelis hashes .nvmrc as code and observes the resolved version.
+ARG NODE_IMAGE=node:26.12-bookworm-slim@sha256:28147155d47dc31abe0a46e0d12b59b2fb3d0a2dcc5dc65fce76a074180b16fe
+ARG DEBIAN_IMAGE=debian:bookworm-slim@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8
+
+# --- the pieces other images supply ----------------------------------------------
+# Stelis: Racket at /opt/racket, the engine compiled at /opt/stelis. The default is a
+# tag that does not exist, so a build that forgot the arg fails naming it.
+ARG STELIS_IMAGE=ghcr.io/rainhead/stelis:set-STELIS_IMAGE-from-fly-stelis-digest
+FROM ${STELIS_IMAGE} AS stelis
+# node, the version .nvmrc pins, with the pnpm package.json's packageManager field
+# names installed by the image's own npm (node 26 ships no corepack). The machine
+# stage copies node, npm and pnpm out of here.
+FROM ${NODE_IMAGE} AS node
+RUN npm install -g pnpm@11.22.0
+
+# --- the machine ------------------------------------------------------------------
+FROM ${DEBIAN_IMAGE}
+# libssl3: the Stelis engine's sha package opens libcrypto through Racket's FFI
+# (Stelis ADR 0017). libatomic1: node 26 links against it. rsync and flock
+# (util-linux): merge-swap.sh and the publish lock. curl and the CA store: the
+# build's own downloads, and the nightly's healthcheck ping.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      ca-certificates curl libatomic1 libssl3 rsync unzip util-linux \
+ && rm -rf /var/lib/apt/lists/*
+
+# Everything runs as `app`, and everything app writes beside what it reads (pnpm,
+# Vite, uv) is installed AS app below, into directories made for it here, so no
+# layer re-owns a tree after the fact: a `chown -R` over two node_modules trees and
+# uv's caches copies every file into a new layer and doubles the image. The root-
+# owned pieces are the binaries under /usr/local and the Stelis trees, which are
+# only read.
+RUN useradd --create-home --uid 1000 app \
+ && mkdir -p /app/data/dbt /opt/uv \
+ && chown -R app:app /app /opt/uv
+
+# node, pnpm and npm, out of the node stage. npm comes along though the repo is
+# pnpm-only (ADR 0038): the Stelis graph's app-bundle task launches `npm run
+# build:bundle` (its src/beeatlas.rkt, Stelis st-ea4), which only runs the
+# package.json script.
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+ && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+ && ln -s ../lib/node_modules/pnpm/bin/pnpm.mjs /usr/local/bin/pnpm \
+ && node --version && pnpm --version && npm --version
+
+# The pinned binaries: uv and the DuckDB CLI (fly/downloads.tsv, by sha256).
+COPY fly/fetch.sh fly/downloads.tsv /tmp/fetch/
+RUN /tmp/fetch/fetch.sh uv /tmp/uv.tgz \
+ && tar -xzf /tmp/uv.tgz -C /usr/local/bin --strip-components=1 uv-x86_64-unknown-linux-gnu/uv uv-x86_64-unknown-linux-gnu/uvx \
+ && rm /tmp/uv.tgz && uv --version
+RUN /tmp/fetch/fetch.sh duckdb /tmp/duckdb.zip \
+ && unzip -q /tmp/duckdb.zip -d /usr/local/bin && rm /tmp/duckdb.zip && duckdb --version
+
+# Stelis, pinned: the two trees out of the image its own CI built from the commit in
+# fly/stelis-commit, named by digest (fly/stelis-digest). The image must carry the
+# commit it was pinned as, so a digest pasted from the wrong commit fails the build
+# rather than running the wrong engine; preflight.sh proves the copied Racket loads
+# the engine on this base. (The beeatlas graph is loaded further down, once the
+# checkout is in place.)
+ARG STELIS_SHA
+COPY --from=stelis /opt/racket /opt/racket
+COPY --from=stelis /opt/stelis /opt/stelis
+ENV PATH=/opt/racket/bin:/opt/uv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    STELIS_DIR=/opt/stelis
+RUN test -n "$STELIS_SHA" \
+ && { test "$(cat /opt/stelis/commit)" = "$STELIS_SHA" \
+      || { echo "fly/stelis-digest names a Stelis image built from $(cat /opt/stelis/commit), not fly/stelis-commit's $STELIS_SHA; run fly/pin-stelis.sh" >&2; exit 1; }; } \
+ && bash /opt/stelis/scripts/preflight.sh
+
+# --- as app: the environments -----------------------------------------------------
+USER app
+ENV HOME=/home/app
+
+# uv keeps its interpreter, cache and tools under /opt/uv, in the image, where the
+# runtime finds them without a network. One CPython, the 3.14 data/.python-version
+# names, at an exact patch so a rebuild cannot move it; dbt runs from data/'s
+# environment too since beeatlas #129.
+ENV UV_PYTHON_INSTALL_DIR=/opt/uv/python \
+    UV_CACHE_DIR=/opt/uv/cache \
+    UV_TOOL_DIR=/opt/uv/tools \
+    UV_TOOL_BIN_DIR=/opt/uv/bin \
+    UV_PYTHON_PREFERENCE=only-managed
+RUN uv python install 3.14.9
+
+# The AWS CLI, for the nightly's offsite backup, as a uv tool pinned by version.
+RUN uv tool install awscli==1.46.2 && aws --version
+
+# The data pipeline's environment, from the lockfile alone (these three files are
+# what `uv sync --frozen` reads), so this layer is cached across code changes. The
+# dev group is included: dbt runs from here (data/dbt/run.sh), and so does the
+# nightly's integration gate. run.sh --identity is Stelis's cache-only runtime
+# probe, and the proof that dbt answers with no network at all.
+WORKDIR /app/data
+COPY --chown=app:app data/pyproject.toml data/uv.lock data/README.md ./
+COPY --chown=app:app data/dbt/run.sh ./dbt/run.sh
+RUN uv sync --frozen \
+ && bash dbt/run.sh --identity
+
+# The two node_modules trees: the site build's (root) and the pipeline's (data/,
+# a separate pnpm project by ADR 0038). From the lockfiles alone, for the cache.
+WORKDIR /app
+COPY --chown=app:app package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY --chown=app:app data/package.json data/pnpm-lock.yaml data/pnpm-workspace.yaml ./data/
+RUN cd data && pnpm install --frozen-lockfile
+
+# The checkout itself (.dockerignore leaves out .git, node_modules, the beads
+# database and every path the volume owns), and the proof that Stelis loads the
+# beeatlas graph over it, which is what the nightly builds.
+COPY --chown=app:app . /app/
+RUN cd /opt/stelis && BEEATLAS_DIR=/app SOURCE_DATE_EPOCH=1700000000 racket src/main.rkt --project beeatlas --help > /dev/null
+
+# --- the volume ---------------------------------------------------------------------
+# Everything written at runtime lives under /data, the volume (ADR 0044). The paths
+# inside the checkout that the scripts and the Stelis graph write to become symlinks
+# into it, so nothing in the code changes and the root filesystem stays read-mostly:
+#
+#   /app/data/raw        -> /data/raw          taxa.csv.gz, taxa_cache.json, ecdysis_cache/
+#   /app/.cache          -> /data/cache        the build receipt (scripts/build-receipt.mjs)
+#   /app/_site           -> /data/site         the rendered site before merge-swap
+#   /app/data/dbt/target -> /data/dbt-target   dbt's sandbox and compiled models
+#
+# The rest is reached by the env below, the same contract data/nightly.sh and
+# data/publish-notes.sh already take: VAR_DIR for the DuckDB, the export, the baseline,
+# the Stelis state and the publish lock; SITE_ROOT for what Caddy serves; the notes
+# store; dlt's working directory. fly/prepare-volume.sh creates them on first boot.
+# dbt/target exists by now (run.sh --identity makes its sandbox), so it is removed
+# first; without that the link would land INSIDE it and dbt would write to the image.
+RUN ln -s /data/raw /app/data/raw \
+ && ln -s /data/cache /app/.cache \
+ && ln -s /data/site /app/_site \
+ && rm -rf /app/data/dbt/target \
+ && ln -s /data/dbt-target /app/data/dbt/target \
+ && for l in /app/data/raw /app/.cache /app/_site /app/data/dbt/target; do test -L "$l" || { echo "$l is not a symlink" >&2; exit 1; }; done
+
+# The entrypoint (beeatlas-ryli) runs fly/prepare-volume.sh as root, since Fly mounts
+# the volume owned by root, before dropping to app.
+ENV BASE_DIR=/data \
+    SITE_ROOT=/data/htdocs \
+    VAR_DIR=/data/var \
+    STELIS_STATE_DIR=/data/var/stelis \
+    DB_PATH=/data/var/beeatlas.duckdb \
+    EXPORT_DIR=/data/var/export \
+    BASELINE_DIR=/data/var/baseline \
+    NOTES_DB_PATH=/data/notes/notes.db \
+    DLT_DATA_DIR=/data/dlt \
+    TZ=America/Los_Angeles
+ARG GITHUB_SHA
+ENV GITHUB_SHA=${GITHUB_SHA}
+
+# The supervisor, Caddy and the schedule are beeatlas-ryli's and beeatlas-zsi8's;
+# until then the image has no service to run, and `docker run` of it drops into a
+# shell with the toolchain on PATH.
+WORKDIR /app
+CMD ["bash"]

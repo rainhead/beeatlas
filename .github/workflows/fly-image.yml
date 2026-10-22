@@ -1,0 +1,60 @@
+name: fly-image
+
+# The Fly machine's image (fly/Dockerfile, ADR 0042), built on every change to what
+# goes into it and proved offline: fly/offline-gate.sh runs the toolchain inside the
+# result with the network off, so a tool that would reach for the network at runtime
+# fails here, on the pull request. Nothing is pushed: the deploy (beeatlas-z1b3)
+# builds and ships the image from its own run.
+
+# On every change, not only to the files the install reads: the Dockerfile copies the
+# whole checkout in and loads the Stelis graph over it, so a change anywhere can
+# change the image. The layers before `COPY . /app/` come from the cache.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # The Stelis pin, the way fly/deploy.sh will read it: the commit and the digest
+      # of the image Stelis's CI built from it.
+      - name: Read the Stelis pin
+        run: |
+          sha=$(tr -d '[:space:]' < fly/stelis-commit)
+          digest=$(tr -d '[:space:]' < fly/stelis-digest)
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "fly/stelis-commit: not a commit: '$sha'" >&2; exit 1; }
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "fly/stelis-digest: not a digest: '$digest'" >&2; exit 1; }
+          echo "STELIS_SHA=$sha" >> "$GITHUB_ENV"
+          echo "STELIS_IMAGE=ghcr.io/rainhead/stelis@$digest" >> "$GITHUB_ENV"
+
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: fly/Dockerfile
+          load: true
+          tags: beeatlas:${{ github.sha }}
+          build-args: |
+            GITHUB_SHA=${{ github.sha }}
+            STELIS_SHA=${{ env.STELIS_SHA }}
+            STELIS_IMAGE=${{ env.STELIS_IMAGE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Size
+        run: docker image inspect "beeatlas:$GITHUB_SHA" --format 'uncompressed {{.Size}} bytes' | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Toolchain answers with no network
+        run: bash fly/offline-gate.sh "beeatlas:$GITHUB_SHA"
