@@ -31,9 +31,13 @@
 -- emit_place_feature_collection (beeatlas-8gcw) projects {slug, name} for the region
 -- layers whose features are PLACES — the Level IV ecoregions — because the frontend
 -- resolves a place by slug on click and labels it by name. Kept as a separate macro
--- rather than generalizing the first: counties.geojson and ecoregions.geojson are
--- byte-compared against their published copies by test_dbt_diff, and a property-list
--- refactor of the shared macro is exactly the kind of change that moves those bytes.
+-- rather than generalizing the first, to keep the property list of each simple.
+--
+-- Each orders its features itself. list() otherwise follows the table's scan order,
+-- and a model built by GROUP BY (wilderness) came out in a different order on each
+-- build of the same data (beeatlas-3je9's determinism check). Names repeat in the
+-- ecoregions layer, so the geometry breaks ties; slugs are unique. test_dbt_diff
+-- compares feature counts and names, not bytes, so the order is free to choose.
 {% macro emit_feature_collection(model_relation, property_name, out_path) %}
 COPY (
   SELECT json_object(
@@ -43,7 +47,7 @@ COPY (
         'type': 'Feature',
         'properties': {{ "{" }} {{ "'" ~ property_name ~ "'" }}: name {{ "}" }},
         'geometry': ST_AsGeoJSON(geom)::JSON
-      }))
+      } ORDER BY name, ST_AsGeoJSON(geom)))
       FROM {{ model_relation }}
     )
   )::VARCHAR
@@ -59,7 +63,7 @@ COPY (
         'type': 'Feature',
         'properties': {'slug': slug, 'name': name},
         'geometry': ST_AsGeoJSON(geom)::JSON
-      }))
+      } ORDER BY slug))
       FROM {{ model_relation }}
     )
   )::VARCHAR

@@ -80,6 +80,12 @@ if [[ -z "$db" ]]; then
 fi
 
 [[ -r "$db" ]] || { echo "offline-gate.sh: cannot read $db" >&2; exit 2; }
+# KEEP_DIR must be fresh: copying over an earlier run's export would merge the two
+# and keep files this build did not write. Checked now, not after the build.
+if [[ -n "${KEEP_DIR:-}" && ( -e "$KEEP_DIR/export" || -e "$KEEP_DIR/beeatlas.duckdb" ) ]]; then
+    echo "offline-gate.sh: KEEP_DIR=$KEEP_DIR already holds a build; name an empty directory" >&2
+    exit 2
+fi
 cp "$db" "$volume/var/beeatlas.duckdb"
 if [[ -n "${NOTES_DB:-}" ]]; then
     [[ -r "$NOTES_DB" ]] || { echo "offline-gate.sh: cannot read NOTES_DB=$NOTES_DB" >&2; exit 2; }
@@ -117,7 +123,7 @@ export SOURCE_DATE_EPOCH=$(date +%s)
 build_rc=0
 cd /app && bash scripts/fetch-data.sh --all || build_rc=$?
 echo "--- export digests ---"
-cd /data/var/export && find . -type f -print0 | sort -z | xargs -0 sha256sum
+cd /data/var/export && find . -type f -print0 | sort -z | xargs -r -0 sha256sum
 exit "$build_rc"
 ' || rc=$?
 if [[ -n "${KEEP_DIR:-}" ]]; then
