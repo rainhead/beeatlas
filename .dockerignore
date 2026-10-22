@@ -1,0 +1,24 @@
+# What fly/Dockerfile's `COPY . /app/` leaves out: the git and beads databases,
+# dependency trees the image installs itself from the lockfiles, and every path the
+# volume owns at runtime (the Dockerfile symlinks those into /data).
+.git
+.beads
+.dolt
+node_modules
+**/node_modules
+data/.venv
+data/raw
+data/beeatlas.duckdb
+data/beeatlas.duckdb.wal
+data/dbt/target
+data/.dlt/secrets.toml
+api/secrets.toml
+_site
+.cache
+public/data
+__pycache__
+**/__pycache__
+.pytest_cache
+**/.pytest_cache
+infra
+.github
