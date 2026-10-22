@@ -10,8 +10,10 @@ don't say on their own.
 - **Caddy** serves the site, the basemap tiles and the API's host
   ([`fly/Caddyfile`](../../fly/Caddyfile)). If it exits or stops answering `/healthz`,
   the Machine stops and Fly restarts it.
-- **The write API** runs when `API_ENABLED` is set (`fly.toml`). If it exits it is
-  restarted after ten seconds, and the site keeps serving meanwhile.
+- **The write API** runs when `API_ENABLED` is set (`fly.toml`), under Litestream,
+  which replicates the notes store continuously
+  ([notes-store-dr.md §6](notes-store-dr.md#6-litestream-continuous-replication-on-fly)).
+  If it exits it is restarted after ten seconds, and the site keeps serving meanwhile.
 - **The schedule** ([`fly/crontab`](../../fly/crontab)) runs the nightly at 03:00
   Pacific and the notes snapshot hourly, as maderas did.
 - **On the first boot of a new image,** the site is re-rendered against the last

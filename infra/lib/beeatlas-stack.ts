@@ -174,6 +174,37 @@ function handler(event) {
       description: 'Authoritative backup bucket → NOTES_BACKUP_BUCKET env var on maderas',
     });
 
+    // The notes store's continuous replica (beeatlas-lwqi): Litestream on the Fly
+    // Machine, under replica/ in the same bucket. Its own user, because Litestream must
+    // DELETE (it retires WAL segments and old snapshots), which the pipeline user is
+    // deliberately denied above. The grant is that prefix and nothing else; the bucket's
+    // versioning keeps anything deleted there for 180 days, so a wrong retention setting
+    // or a leaked key is recoverable. Its key is created by hand and set as the Fly
+    // secrets NOTES_REPLICA_AWS_ACCESS_KEY_ID / _SECRET_ACCESS_KEY, which fly/start.sh
+    // hands to Litestream alone.
+    const NOTES_REPLICA_PREFIX = 'replica';
+    // The bucket's 180-day expiry of current objects is safe here: Litestream writes a
+    // full snapshot daily (fly/litestream.yml) and retires its own files after 30
+    // days, so the latest state never rests on an object that old.
+    const notesReplicaWriter = new iam.User(this, 'NotesReplicaWriter', { userName: 'beeatlas-notes-replica' });
+    notesReplicaWriter.addToPolicy(new iam.PolicyStatement({
+      sid: 'ListReplica',
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:ListBucket'],
+      resources: [backupBucket.bucketArn],
+      conditions: { StringLike: { 's3:prefix': [`${NOTES_REPLICA_PREFIX}/*`, NOTES_REPLICA_PREFIX] } },
+    }));
+    notesReplicaWriter.addToPolicy(new iam.PolicyStatement({
+      sid: 'KeepReplica',
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
+      resources: [backupBucket.arnForObjects(`${NOTES_REPLICA_PREFIX}/*`)],
+    }));
+    new cdk.CfnOutput(this, 'NotesReplicaWriterName', {
+      value: notesReplicaWriter.userName,
+      description: "The Fly Machine's Litestream identity: the notes store's replica under replica/ (beeatlas-lwqi)",
+    });
+
     // ── Pipeline Backup Bucket (Model Y step D, st-pry) ───────────────────
     // Offsite DR for the nightly's working state: the DuckDB (persistent at
     // /var/www/beeatlas.net/var/ since Model Y) and the taxa cache. Same-host

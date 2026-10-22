@@ -114,8 +114,8 @@ Replace `<BackupBucketName>` with the CDK output `BackupBucketName` from `cdk de
 5. Cleans up the temp file
 6. Prints `=== notes backup <ts> → s3://<bucket>/<key> ===`
 
-RPO = 1 hour (hourly cron). If the risk tolerance ever requires near-second PITR,
-see §6 (Deferred: Litestream).
+RPO = 1 hour (hourly cron). On Fly, Litestream also replicates continuously, with an
+RPO of about a second (§6).
 
 ---
 
@@ -252,23 +252,37 @@ under `/tmp/beeatlas-export/`) — none of these paths can reach `/opt/beeatlas-
 
 ---
 
-## 6. Deferred: Litestream (Continuous WAL Replication)
+## 6. Litestream (Continuous Replication, on Fly)
 
-Litestream is **NOT built in Phase 177** (D-10). It is documented here as a future add
-for operators who need near-second RPO.
+On the Fly Machine the store is also replicated continuously (beeatlas-lwqi): the write
+API runs under `litestream replicate -exec` ([`fly/start.sh`](../../fly/start.sh),
+[`fly/litestream.yml`](../../fly/litestream.yml)), which ships each committed write to
+`s3://<AuthoritativeBackupBucket>/replica/notes.db` within about a second. The hourly
+snapshots of §3 go on beside it, as a second, simpler copy.
 
-**When to reconsider:** If the 1-hour RPO from hourly snapshots becomes unacceptable
-(e.g., loss of 59 minutes of expert notes is a material concern), Litestream can stream
-WAL frames to S3 in near-real-time alongside the existing snapshot cron. The snapshot
-cron remains useful as a recovery checkpoint for structured restores.
+- **RPO:** about a second. Measured in the image against an S3-compatible stand-in by
+  committing a row every 50 ms and SIGKILLing the Machine: the restore lacked the last
+  five rows, a quarter of a second of writes.
+- **A fresh volume restores itself.** Before the API starts, `litestream restore
+  -if-db-not-exists` brings the store back from the replica. With neither a store nor
+  a replica the API stays down rather than start an empty store, which the next
+  nightly would publish as a site with nobody's notes.
+- **No unreplicated writes.** A Machine without `NOTES_REPLICA_URL` runs the API with
+  writes refused.
+- **Its own key.** Litestream deletes old WAL segments, which the pipeline user may
+  not, so it has its own IAM user, `beeatlas-notes-replica`, with rights under
+  `replica/` only ([`infra/lib/beeatlas-stack.ts`](../../infra/lib/beeatlas-stack.ts)).
+  The bucket's versioning keeps anything it deletes for 180 days.
 
-**What Litestream would add:**
-- PITR (point-in-time recovery) to any second within the retention window
-- Automatic WAL frame uploads on each write transaction
-- A `litestream restore` command that downloads and applies WAL frames
+**Drill:** on the Machine, as `app`, with the replica's key in the environment:
 
-Litestream installation and config are outside the scope of Phase 177. Revisit when
-Phase 180 (Moderation Loop) is live and write traffic patterns are understood.
+```sh
+AWS_ACCESS_KEY_ID=$NOTES_REPLICA_AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY=$NOTES_REPLICA_AWS_SECRET_ACCESS_KEY \
+    bash /app/fly/restore-drill.sh
+```
+
+It restores the latest replicated state into a scratch file, never over the store, and
+compares every table's row count and row hash with the live store.
 
 ---
 

@@ -22,7 +22,11 @@ fi
 # the API is handed them. Hygiene rather than a boundary: everything runs as `app`.
 client_secret="${INAT_CLIENT_SECRET:-}"
 session_key="${SESSION_SIGNING_KEY:-}"
-unset INAT_CLIENT_SECRET SESSION_SIGNING_KEY
+# The notes replica's own key (beeatlas-lwqi), apart from the pipeline's AWS key the
+# schedule uses: it may delete under the replica's prefix, which nothing else may.
+replica_key_id="${NOTES_REPLICA_AWS_ACCESS_KEY_ID:-}"
+replica_secret="${NOTES_REPLICA_AWS_SECRET_ACCESS_KEY:-}"
+unset INAT_CLIENT_SECRET SESSION_SIGNING_KEY NOTES_REPLICA_AWS_ACCESS_KEY_ID NOTES_REPLICA_AWS_SECRET_ACCESS_KEY
 
 caddy_pid='' api_pid='' cron_pid='' watchdog_pid=''
 
@@ -75,21 +79,47 @@ caddy_pid=$!
 
 # The write API, only when API_ENABLED is set (fly.toml). Restarted here after a
 # pause, not by the wait below, while Caddy keeps serving.
+#
+# It runs under Litestream (beeatlas-lwqi, fly/litestream.yml), so the notes store is
+# replicated exactly while the API can write it, and the two stop and restart
+# together: a stop reaches Litestream, which stops the API and makes its final sync.
+# A fresh volume first gets the store back from the replica; with a store present
+# that does nothing. With neither a store nor a replica the restore fails and the API
+# stays down rather than start an empty store, which the next nightly would publish
+# as a site with nobody's notes: putting a store in place is a deliberate act (the
+# cutover, or a restore by hand).
+#
+# Without NOTES_REPLICA_URL there is nothing to replicate to, so the API runs with
+# writes refused (WRITES_ENABLED=false): no note is ever accepted unreplicated.
 if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
     (
         set +e  # -e would end the loop at the API's first exit
         cd /app
+        api=(uv run --no-sync --project /app/data python -m api.serve)
         stopping='' child=''
         trap 'stopping=1; [ -z "$child" ] || kill -TERM "$child"' TERM
         while [ -z "$stopping" ]; do
-            INAT_CLIENT_SECRET="$client_secret" SESSION_SIGNING_KEY="$session_key" \
-                uv run --no-sync --project /app/data python -m api.serve &
+            if [ -n "${NOTES_REPLICA_URL:-}" ]; then
+                AWS_ACCESS_KEY_ID="$replica_key_id" AWS_SECRET_ACCESS_KEY="$replica_secret" \
+                    litestream restore -config /app/fly/litestream.yml -if-db-not-exists "$NOTES_DB_PATH" \
+                || { echo "restoring the notes store from its replica failed; retrying in 10 s" >&2; sleep 10; continue; }
+                INAT_CLIENT_SECRET="$client_secret" SESSION_SIGNING_KEY="$session_key" \
+                    AWS_ACCESS_KEY_ID="$replica_key_id" AWS_SECRET_ACCESS_KEY="$replica_secret" \
+                    litestream replicate -config /app/fly/litestream.yml -exec "${api[*]}" &
+            else
+                echo "NOTES_REPLICA_URL is not set: the notes store has no replica, so the API refuses writes" >&2
+                INAT_CLIENT_SECRET="$client_secret" SESSION_SIGNING_KEY="$session_key" WRITES_ENABLED=false \
+                    "${api[@]}" &
+            fi
             child=$!
+            # A signal during the restore ran the trap before there was a pid to pass on.
+            [ -z "$stopping" ] || kill -TERM "$child"
             wait "$child"
             status=$?
+            # The trap interrupted the wait; this one lasts until Litestream has synced.
             [ -z "$stopping" ] || { wait "$child"; exit 0; }
             child=''
-            echo "write API exited ($status); restarting in 10 s" >&2
+            echo "write API or Litestream exited ($status); restarting in 10 s" >&2
             sleep 10
         done
     ) &
