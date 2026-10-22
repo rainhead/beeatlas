@@ -22,6 +22,9 @@ dirs=(
     "$root/basemap"         # the PMTiles archives, outside every publish path
     "$root/notes"           # the authoritative notes store (NOTES_DB_PATH)
     "$root/raw"             # /app/data/raw: taxa.csv.gz, taxa_cache.json, ecdysis_cache/
+    "$root/ecdysis-zip"     # /app/data/.ecdysis_cache: the Ecdysis export ZIP
+    "$root/geography-cache" # /app/data/.geography_cache: boundary downloads
+    "$root/burke-cache"     # /app/data/.burke_cache: build_target_hosts.py's pages
     "$root/cache"           # /app/.cache: the build receipt
     "$root/site"            # /app/_site: the rendered site before merge-swap
     "$root/dbt-target"      # /app/data/dbt/target: dbt's sandbox

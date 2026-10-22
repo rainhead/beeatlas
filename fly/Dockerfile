@@ -132,6 +132,19 @@ COPY --chown=app:app data/dbt/run.sh ./dbt/run.sh
 RUN uv sync --frozen \
  && bash dbt/run.sh --identity
 
+# DuckDB's extensions, which it would otherwise download at runtime, on the first
+# INSTALL or LOAD that finds one missing: spatial and sqlite_scanner for the
+# pipeline's duckdb (uv.lock's version), and sqlite_scanner for the CLI, which Stelis
+# ATTACHes SQLite files with. json and parquet are built into both, and GEOMETRY is
+# core since 1.5, so the CLI digests geometry columns without spatial. An extension
+# is built per DuckDB version, so each binary installs its own. They land under
+# app's ~/.duckdb/extensions, where both look; DuckDB checks each one's signature
+# when it loads it. The gate (fly/offline-gate.sh) blocks extensions.duckdb.org, so
+# an extension missing here fails there rather than downloading quietly.
+RUN uv run --frozen --no-sync python -c "import duckdb; c = duckdb.connect(); c.execute('INSTALL spatial'); c.execute('INSTALL sqlite_scanner')" \
+ && duckdb -c "INSTALL sqlite_scanner" \
+ && find "$HOME/.duckdb/extensions" -name '*.duckdb_extension' | sort
+
 # The two node_modules trees: the site build's (root) and the pipeline's (data/,
 # a separate pnpm project by ADR 0038). From the lockfiles alone, for the cache.
 WORKDIR /app
@@ -152,6 +165,9 @@ RUN cd /opt/stelis && BEEATLAS_DIR=/app SOURCE_DATE_EPOCH=1700000000 racket src/
 # into it, so nothing in the code changes and the root filesystem stays read-mostly:
 #
 #   /app/data/raw        -> /data/raw          taxa.csv.gz, taxa_cache.json, ecdysis_cache/
+#   /app/data/.ecdysis_cache   -> /data/ecdysis-zip      the Ecdysis export ZIP
+#   /app/data/.geography_cache -> /data/geography-cache  boundary downloads (~600 MB)
+#   /app/data/.burke_cache     -> /data/burke-cache      build_target_hosts.py's pages
 #   /app/.cache          -> /data/cache        the build receipt (scripts/build-receipt.mjs)
 #   /app/_site           -> /data/site         the rendered site before merge-swap
 #   /app/data/dbt/target -> /data/dbt-target   dbt's sandbox and compiled models
@@ -163,11 +179,15 @@ RUN cd /opt/stelis && BEEATLAS_DIR=/app SOURCE_DATE_EPOCH=1700000000 racket src/
 # dbt/target exists by now (run.sh --identity makes its sandbox), so it is removed
 # first; without that the link would land INSIDE it and dbt would write to the image.
 RUN ln -s /data/raw /app/data/raw \
+ && ln -s /data/ecdysis-zip /app/data/.ecdysis_cache \
+ && ln -s /data/geography-cache /app/data/.geography_cache \
+ && ln -s /data/burke-cache /app/data/.burke_cache \
  && ln -s /data/cache /app/.cache \
  && ln -s /data/site /app/_site \
  && rm -rf /app/data/dbt/target \
  && ln -s /data/dbt-target /app/data/dbt/target \
- && for l in /app/data/raw /app/.cache /app/_site /app/data/dbt/target; do test -L "$l" || { echo "$l is not a symlink" >&2; exit 1; }; done
+ && for l in /app/data/raw /app/data/.ecdysis_cache /app/data/.geography_cache /app/data/.burke_cache \
+             /app/.cache /app/_site /app/data/dbt/target; do test -L "$l" || { echo "$l is not a symlink" >&2; exit 1; }; done
 
 # The entrypoint (beeatlas-ryli) runs fly/prepare-volume.sh as root, since Fly mounts
 # the volume owned by root, before dropping to app.

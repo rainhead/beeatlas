@@ -8,6 +8,9 @@ node_modules
 **/node_modules
 data/.venv
 data/raw
+data/.ecdysis_cache
+data/.geography_cache
+data/.burke_cache
 data/beeatlas.duckdb
 data/beeatlas.duckdb.wal
 data/dbt/target
