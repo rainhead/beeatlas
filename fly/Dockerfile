@@ -50,7 +50,7 @@ ARG STELIS_IMAGE=ghcr.io/rainhead/stelis:set-STELIS_IMAGE-from-fly-stelis-digest
 FROM ${STELIS_IMAGE} AS stelis
 # node, the version .nvmrc pins, with the pnpm package.json's packageManager field
 # names installed by the image's own npm (node 26 ships no corepack). The machine
-# stage copies node, npm and pnpm out of here.
+# stage copies node and pnpm out of here; npm stays behind.
 FROM ${NODE_IMAGE} AS node
 RUN npm install -g pnpm@11.22.0
 
@@ -75,16 +75,12 @@ RUN useradd --create-home --uid 1000 app \
  && mkdir -p /app/data/dbt /opt/uv \
  && chown -R app:app /app /opt/uv
 
-# node, pnpm and npm, out of the node stage. npm comes along though the repo is
-# pnpm-only (ADR 0038): the Stelis graph's app-bundle task launches `npm run
-# build:bundle` (its src/beeatlas.rkt, Stelis st-ea4), which only runs the
-# package.json script.
+# node and pnpm, out of the node stage. No npm: the repo is pnpm-only (ADR 0038),
+# and since Stelis d0d7fef (st-ea4) so is every launch its graph makes.
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
-COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
-RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
- && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
- && ln -s ../lib/node_modules/pnpm/bin/pnpm.mjs /usr/local/bin/pnpm \
- && node --version && pnpm --version && npm --version
+COPY --from=node /usr/local/lib/node_modules/pnpm /usr/local/lib/node_modules/pnpm
+RUN ln -s ../lib/node_modules/pnpm/bin/pnpm.mjs /usr/local/bin/pnpm \
+ && node --version && pnpm --version
 
 # The pinned binaries: uv and the DuckDB CLI (fly/downloads.tsv, by sha256).
 COPY fly/fetch.sh fly/downloads.tsv /tmp/fetch/

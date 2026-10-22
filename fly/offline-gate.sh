@@ -46,7 +46,6 @@ toolchain='
 set -euo pipefail
 echo "node   $(node --version)"
 echo "pnpm   $(pnpm --version)"
-echo "npm    $(npm --version)"
 echo "uv     $(uv --version)"
 echo "duckdb $(duckdb --version)"
 echo "aws    $(aws --version)"
