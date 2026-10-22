@@ -113,9 +113,12 @@ for h in "${blackhole[@]}"; do hosts+=(--add-host "$h:127.0.0.1"); done
 rc=0
 "${run[@]}" --name "$name" "${hosts[@]}" ${secrets[@]+"${secrets[@]}"} "$image" bash -c "$toolchain"'
 export SOURCE_DATE_EPOCH=$(date +%s)
-cd /app && bash scripts/fetch-data.sh --all
+# A partial build still lists what it exported, then exits with the build status.
+build_rc=0
+cd /app && bash scripts/fetch-data.sh --all || build_rc=$?
 echo "--- export digests ---"
 cd /data/var/export && find . -type f -print0 | sort -z | xargs -0 sha256sum
+exit "$build_rc"
 ' || rc=$?
 if [[ -n "${KEEP_DIR:-}" ]]; then
     mkdir -p "$KEEP_DIR"
