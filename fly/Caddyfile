@@ -67,6 +67,13 @@
 	# still forwards the reader if the snippet is missing.
 	import {$CADDY_SNIPPETS:/data/caddy}/*.caddy
 
+	# Caddy's own liveness, for Fly's check and fly/start.sh's watchdog. Answered by
+	# Caddy itself, so a fresh volume with no site yet is still healthy.
+	@healthz path /healthz
+	handle @healthz {
+		respond "ok" 200
+	}
+
 	# The map is read from disk, never fetched. A handle of its own, because a bare
 	# respond sorts after the handle below that serves files.
 	@private path /species-redirects.map

@@ -1,0 +1,53 @@
+# The beeatlas Fly app (ADR 0042): one Machine, one volume. The image is fly/Dockerfile;
+# fly/start.sh is its one process, with Caddy, the write API and the schedule under it.
+#
+# Do NOT split them into [processes] groups. Each group gets a Machine of its own, and
+# the volume attaches to one Machine, while the synchronous note publish needs the API,
+# the pipeline's state and the site root on one filesystem (ADR 0042).
+#
+# The app name, region, size and volume are first guesses for whoever creates the app;
+# the size is unmeasured on Fly, so check it on the trial nightly (beeatlas-f21l).
+
+app = "beeatlas"
+primary_region = "sea"
+
+# fly/start.sh stops the schedule first, so a running nightly gets SIGTERM and runs its
+# EXIT trap, the offsite backup. 300 s is the most Fly allows.
+kill_signal = "SIGTERM"
+kill_timeout = 300
+
+[build]
+  dockerfile = "fly/Dockerfile"
+
+# Not secrets. The secrets are set with `fly secrets set` (fly/Dockerfile names them).
+[env]
+  API_ENABLED = "1"
+  WRITES_ENABLED = "true"
+  NOTE_PUBLISH_ENABLED = "true"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # One Machine that must always run: it serves, and the schedule lives on it.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  # Caddy's own /healthz, so a fresh volume with no site yet passes. A failing check
+  # only stops Fly routing here; fly/start.sh's watchdog restarts a wedged Caddy.
+  [[http_service.checks]]
+    method = "GET"
+    path = "/healthz"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+
+[mounts]
+  source = "beeatlas_data"
+  destination = "/data"
+  initial_size = "20gb"
+  snapshot_retention = 14
+
+[[vm]]
+  size = "shared-cpu-2x"
+  memory = "4gb"

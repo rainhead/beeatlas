@@ -15,6 +15,7 @@
 #                               digest in fly/stelis-digest (Stelis ADR 0017)
 #   the DuckDB CLI              what Stelis content-addresses relations with
 #   rsync, flock                merge-swap.sh and the publish lock
+#   supercronic                 the schedule (fly/crontab), under fly/start.sh
 #   Caddy                       the web server, with the serving policy in
 #                               fly/Caddyfile (beeatlas-zsi8)
 #   this checkout at /app       with no .git: the image IS the deploy
@@ -98,6 +99,8 @@ RUN /tmp/fetch/fetch.sh uv /tmp/uv.tgz \
  && rm /tmp/uv.tgz && uv --version
 RUN /tmp/fetch/fetch.sh duckdb /tmp/duckdb.zip \
  && unzip -q /tmp/duckdb.zip -d /usr/local/bin && rm /tmp/duckdb.zip && duckdb --version
+RUN /tmp/fetch/fetch.sh supercronic /usr/local/bin/supercronic \
+ && chmod +x /usr/local/bin/supercronic && supercronic -version
 RUN /tmp/fetch/fetch.sh caddy /tmp/caddy.tgz \
  && tar -xzf /tmp/caddy.tgz -C /usr/local/bin caddy && rm /tmp/caddy.tgz && caddy version
 
@@ -227,8 +230,8 @@ ARG GITHUB_SHA
 RUN test -n "$GITHUB_SHA" || { echo "build-arg GITHUB_SHA is required: the build receipt and the clean geojsons stamp it, and the image holds no .git to read it from" >&2; exit 1; }
 ENV GITHUB_SHA=${GITHUB_SHA}
 
-# The supervisor, Caddy and the schedule are beeatlas-ryli's and beeatlas-zsi8's;
-# until then the image has no service to run, and `docker run` of it drops into a
-# shell with the toolchain on PATH.
+# The Machine's one process (beeatlas-ryli): fly/start.sh lays out the volume as
+# root, then runs Caddy, the API and the schedule as app.
 WORKDIR /app
-CMD ["bash"]
+USER root
+CMD ["/app/fly/start.sh"]
