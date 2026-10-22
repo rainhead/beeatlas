@@ -35,11 +35,17 @@ from pathlib import Path
 
 import boto3
 import botocore.session
+from boto3.exceptions import Boto3Error
 from botocore.exceptions import BotoCoreError, ClientError
 
 
 class BackupError(Exception):
     """A backup or restore that did not happen, with the reason."""
+
+
+# Everything an S3 call can raise. A failed transfer surfaces as boto3's own
+# S3UploadFailedError (a Boto3Error), not as the botocore ClientError beneath it.
+S3_ERRORS = (BackupError, Boto3Error, BotoCoreError, ClientError, OSError)
 
 
 def session(profile: str | None = None, environ=os.environ) -> tuple[boto3.Session, str]:
@@ -108,7 +114,7 @@ def upload(bucket: str, pairs: list[tuple[str, Path]], s3=None, out=sys.stdout) 
             continue
         try:
             meta = upload_verified(s3, path, bucket, key)
-        except (BackupError, BotoCoreError, ClientError, OSError) as e:
+        except S3_ERRORS as e:
             print(f"s3_backup: FAILED {key}: {e}", file=out)
             ok = False
             continue
@@ -157,7 +163,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if upload(args.bucket, args.pairs) else 1
         restore(args.bucket, args.key, args.dest)
         return 0
-    except (BackupError, BotoCoreError, ClientError, OSError) as e:
+    except S3_ERRORS as e:
         print(f"s3_backup: {e}", file=sys.stderr)
         return 1
 

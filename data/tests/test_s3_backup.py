@@ -16,6 +16,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from boto3.exceptions import S3UploadFailedError
 from botocore.exceptions import ClientError
 
 import s3_backup
@@ -93,7 +94,8 @@ class FakeS3:
 
     def upload_file(self, Filename, Bucket, Key):  # noqa: N803
         if Key in self.fail_keys:
-            raise ClientError({"Error": {"Code": "AccessDenied"}}, "PutObject")
+            # What boto3's transfer manager raises, wrapping the ClientError.
+            raise S3UploadFailedError(f"Failed to upload {Filename} to {Bucket}/{Key}: AccessDenied")
         self.uploads.append(Key)
         size = Path(Filename).stat().st_size
         self.clock += dt.timedelta(hours=1)
