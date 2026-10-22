@@ -14,8 +14,9 @@ not configured as fatal, even when a key pair is right there in the environment;
 the AWS CLI's --profile did the same, and the nightly's `|| true` hid it.
 
 VERIFICATION. An upload counts only once S3 says so: after the upload, the object
-must have the local file's size, and its LastModified must be later than the
-object it replaced, when there was one. A silent upload to the wrong place would
+must have the local file's size, and it must not be the object it replaced, when
+there was one. Both buckets are versioned, so that is a new version id; for an
+unversioned bucket, a later LastModified. A silent upload to the wrong place would
 otherwise look like a backup.
 
     python s3_backup.py upload --bucket B KEY=PATH [KEY=PATH ...]
@@ -93,11 +94,18 @@ def upload_verified(s3, path: Path, bucket: str, key: str) -> dict:
             f"s3://{bucket}/{key} holds {after['ContentLength']} bytes after the "
             f"upload, but {path} is {size}"
         )
-    if before is not None and after["LastModified"] <= before["LastModified"]:
-        raise BackupError(
-            f"s3://{bucket}/{key} did not change: LastModified is still "
-            f"{after['LastModified'].isoformat()}"
-        )
+    if before is not None:
+        # Both backup buckets are versioned, and every upload is a new version, so
+        # the version id is the exact test. LastModified, to the second, is the
+        # fallback for an unversioned bucket.
+        if before.get("VersionId") and after.get("VersionId"):
+            unchanged = after["VersionId"] == before["VersionId"]
+            detail = f"its version is still {after['VersionId']}"
+        else:
+            unchanged = after["LastModified"] <= before["LastModified"]
+            detail = f"LastModified is still {after['LastModified'].isoformat()}"
+        if unchanged:
+            raise BackupError(f"s3://{bucket}/{key} did not change: {detail}")
     return after
 
 

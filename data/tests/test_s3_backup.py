@@ -76,8 +76,9 @@ def test_no_profile_and_no_keys_is_refused(aws_files):
 
 
 class FakeS3:
-    """Holds objects as {key: (size, LastModified)}. `stored` decides what an
-    upload actually leaves behind, so a test can make S3 disagree with the file."""
+    """Holds objects as {key: (size, LastModified)}, an unversioned bucket. `stored`
+    decides what an upload actually leaves behind, so a test can make S3 disagree
+    with the file."""
 
     def __init__(self, objects=None, stored=None, fail_keys=()):
         self.objects = dict(objects or {})
@@ -128,10 +129,39 @@ def test_a_first_upload_verifies(tmp_path):
 
 
 def test_an_object_that_did_not_change_is_a_failure(tmp_path):
-    """pqfr's gate: LastModified must advance. Here the upload 'succeeds' but S3
-    still holds yesterday's object."""
+    """pqfr's gate: the object must change. Here the upload 'succeeds' but S3
+    still holds yesterday's object (an unversioned bucket, so by LastModified)."""
     s3 = FakeS3(objects={"k": (7, T0)}, stored=lambda key, size, now: (7, T0))
     with pytest.raises(s3_backup.BackupError, match="did not change"):
+        s3_backup.upload_verified(s3, _file(tmp_path, "db", 7), "b", "k")
+
+
+class VersionedFakeS3(FakeS3):
+    """A versioned bucket: every upload is a new version, whatever its timestamp."""
+
+    def __init__(self, *a, same_version=False, **kw):
+        super().__init__(*a, **kw)
+        self.same_version = same_version
+        self.versions = {k: "v0" for k in self.objects}
+
+    def head_object(self, Bucket, Key):  # noqa: N803
+        return {**super().head_object(Bucket, Key), "VersionId": self.versions[Key]}
+
+    def upload_file(self, Filename, Bucket, Key):  # noqa: N803
+        super().upload_file(Filename, Bucket, Key)
+        if not self.same_version:
+            self.versions[Key] = f"v{len(self.uploads)}"
+
+
+def test_a_new_version_in_the_same_second_verifies(tmp_path):
+    """Two uploads within one LastModified second are still two versions."""
+    s3 = VersionedFakeS3(objects={"k": (7, T0)}, stored=lambda key, size, now: (size, T0))
+    s3_backup.upload_verified(s3, _file(tmp_path, "db", 7), "b", "k")
+
+
+def test_the_same_version_after_upload_is_a_failure(tmp_path):
+    s3 = VersionedFakeS3(objects={"k": (7, T0)}, same_version=True)
+    with pytest.raises(s3_backup.BackupError, match="version is still v0"):
         s3_backup.upload_verified(s3, _file(tmp_path, "db", 7), "b", "k")
 
 
