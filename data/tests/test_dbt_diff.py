@@ -75,6 +75,21 @@ _SANDBOX_GUARD = pytest.mark.skipif(
     reason="[integration] sandbox outputs absent — run `bash data/dbt/run.sh build` first",
 )
 
+# The live side is the last PUBLISHED data, which data/nightly.sh restores into
+# public/data from its baseline snapshot. A first run on a fresh host has none, and
+# the snapshot is taken only after a publish, so failing here would block the very
+# publish that creates it: every night, forever (found running the nightly in the
+# Fly image on an empty volume, beeatlas-h6mo). nightly.sh promises these tests skip
+# then, so each live-side read is guarded on its file.
+def _baseline_guard(name: str):
+    return pytest.mark.skipif(
+        not (PUBLIC / name).exists(),
+        reason=f"[integration] no published baseline {name} in public/data (a first run)",
+    )
+
+
+_OCCURRENCES_BASELINE_GUARD = _baseline_guard("occurrences.parquet")
+
 # Occurrence/species counts legitimately drift between publishes: new iNat
 # observations and newly-databased Ecdysis records grow the set, while the
 # anti-entropy pipeline can shrink it by detecting upstream-deleted observations.
@@ -126,6 +141,7 @@ def _assert_set_drift_within_tolerance(
 
 
 @_SANDBOX_GUARD
+@_OCCURRENCES_BASELINE_GUARD
 def test_occurrences_row_count_within_tolerance():
     """Sandbox occurrences.parquet row count is within [-2%, +5%] of public/data.
 
@@ -143,6 +159,7 @@ def test_occurrences_row_count_within_tolerance():
 
 
 @_SANDBOX_GUARD
+@_OCCURRENCES_BASELINE_GUARD
 def test_occurrences_schema_matches():
     """Column names AND types from DESCRIBE match exactly between sandbox and public (40 cols).
 
@@ -175,6 +192,7 @@ def test_occurrences_schema_matches():
 
 
 @_SANDBOX_GUARD
+@_OCCURRENCES_BASELINE_GUARD
 def test_occurrences_ecdysis_key_set_within_tolerance():
     """COUNT(DISTINCT non-null ecdysis_id) is within [-2%, +5%] of the live baseline.
 
@@ -193,6 +211,7 @@ def test_occurrences_ecdysis_key_set_within_tolerance():
 
 
 @_SANDBOX_GUARD
+@_OCCURRENCES_BASELINE_GUARD
 def test_occurrences_ecdysis_id_drift_bounded():
     """ecdysis_ids in live but absent from the fresh build are bounded to -2%.
 
@@ -233,6 +252,7 @@ def test_occurrences_ecdysis_id_drift_bounded():
 
 
 @_SANDBOX_GUARD
+@_OCCURRENCES_BASELINE_GUARD
 def test_occurrences_host_observation_id_drift_bounded():
     """host_observation_id (the `inat:<id>` sample key): disappearances bounded to -2%.
 
@@ -277,6 +297,7 @@ def test_occurrences_host_observation_id_drift_bounded():
 
 
 @_SANDBOX_GUARD
+@_OCCURRENCES_BASELINE_GUARD
 def test_occurrences_county_spatial_diff():
     """Rows where sandbox.county != public.county (joined on ecdysis_id) must equal 0.
 
@@ -330,6 +351,7 @@ def test_occurrences_county_spatial_diff():
 
 
 @_SANDBOX_GUARD
+@_OCCURRENCES_BASELINE_GUARD
 def test_occurrences_ecoregion_spatial_diff():
     """Rows where sandbox.ecoregion_l3 != public.ecoregion_l3 must be 0.
 
@@ -502,12 +524,14 @@ def test_species_parquet_schema_matches():
 # ---------------------------------------------------------------------------
 
 _SPECIES_JSON_GUARD = pytest.mark.skipif(
-    not (EXPORT / "species.json").exists(),
-    reason="[integration] EXPORT_DIR/species.json absent — run the exporters first",
+    not (EXPORT / "species.json").exists() or not (PUBLIC / "species.json").exists(),
+    reason="[integration] species.json absent from EXPORT_DIR (run the exporters) or "
+           "from public/data (no published baseline: a first run)",
 )
 _SEASONALITY_JSON_GUARD = pytest.mark.skipif(
-    not (EXPORT / "seasonality.json").exists(),
-    reason="[integration] EXPORT_DIR/seasonality.json absent — run the exporters first",
+    not (EXPORT / "seasonality.json").exists() or not (PUBLIC / "seasonality.json").exists(),
+    reason="[integration] seasonality.json absent from EXPORT_DIR (run the exporters) or "
+           "from public/data (no published baseline: a first run)",
 )
 
 # seasonality.json bucket keys are '_total' or a '<dimension>:<region name>' pair.
