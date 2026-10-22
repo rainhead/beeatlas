@@ -24,4 +24,8 @@ __pycache__
 .pytest_cache
 **/.pytest_cache
 infra
+# …except the maderas serving config, which the JS data gate's precompression
+# test reads (src/tests/precompressed-artifacts.test.ts) until the Caddyfile
+# replaces it (beeatlas-zsi8).
+!infra/maderas
 .github

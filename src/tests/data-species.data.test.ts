@@ -8,6 +8,8 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 // @ts-expect-error -- _data/*.js is plain ESM consumed by Eleventy; no .d.ts
 import species from '../../_data/species.js';
+// @ts-expect-error -- lib/build-data-dir.js is plain ESM shared with Eleventy; no .d.ts
+import { buildDataDir } from '../../lib/build-data-dir.js';
 
 // Reference re-implementation of hslToHex — must match species.js exactly.
 // Used by color-algorithm tests to independently verify computed hexColors.
@@ -825,9 +827,12 @@ describe('_data/species.js fullTree (TREE-01/02/04)', () => {
   });
 
   test('subgenus genusName equals row.genus (genus parent name) from higher_taxa.json — not the subgenus name', () => {
-    // Load higher_taxa.json independently to verify the contract.
+    // Load higher_taxa.json independently to verify the contract, from the same
+    // directory _data/species.js read it from (EXPORT_DIR in the nightly). The
+    // restored baseline in public/data is the LAST PUBLISHED copy, which a first
+    // run on a fresh host does not have (beeatlas-h6mo).
     const higherTaxa: any[] = JSON.parse(
-      readFileSync(resolve(ROOT, 'public/data/higher_taxa.json'), 'utf8')
+      readFileSync(resolve(buildDataDir(ROOT), 'higher_taxa.json'), 'utf8')
     );
     const subgenusRowByName: Record<string, any> = {};
     for (const row of higherTaxa) {
