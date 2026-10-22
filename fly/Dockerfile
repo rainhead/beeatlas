@@ -15,6 +15,8 @@
 #                               digest in fly/stelis-digest (Stelis ADR 0017)
 #   the DuckDB CLI              what Stelis content-addresses relations with
 #   rsync, flock                merge-swap.sh and the publish lock
+#   Caddy                       the web server, with the serving policy in
+#                               fly/Caddyfile (beeatlas-zsi8)
 #   this checkout at /app       with no .git: the image IS the deploy
 #
 # What it does not hold, and where that lives instead (ADR 0044): every file the
@@ -60,10 +62,12 @@ FROM ${DEBIAN_IMAGE}
 # libssl3: the Stelis engine's sha package opens libcrypto through Racket's FFI
 # (Stelis ADR 0017). libatomic1: node 26 links against it. rsync and flock
 # (util-linux): merge-swap.sh and the publish lock. curl and the CA store: the
-# build's own downloads, and the nightly's healthcheck ping.
+# build's own downloads, and the nightly's healthcheck ping. media-types: the
+# /etc/mime.types Caddy (Go) reads to type a response by its extension, the same
+# table Apache served from, so .webmanifest, .mjs and the rest keep their types.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      ca-certificates curl libatomic1 libssl3 rsync unzip util-linux \
+      ca-certificates curl libatomic1 libssl3 media-types rsync unzip util-linux \
  && rm -rf /var/lib/apt/lists/*
 
 # Everything runs as `app`, and everything app writes beside what it reads (pnpm,
@@ -90,6 +94,8 @@ RUN /tmp/fetch/fetch.sh uv /tmp/uv.tgz \
  && rm /tmp/uv.tgz && uv --version
 RUN /tmp/fetch/fetch.sh duckdb /tmp/duckdb.zip \
  && unzip -q /tmp/duckdb.zip -d /usr/local/bin && rm /tmp/duckdb.zip && duckdb --version
+RUN /tmp/fetch/fetch.sh caddy /tmp/caddy.tgz \
+ && tar -xzf /tmp/caddy.tgz -C /usr/local/bin caddy && rm /tmp/caddy.tgz && caddy version
 
 # Stelis, pinned: the two trees out of the image its own CI built from the commit in
 # fly/stelis-commit, named by digest (fly/stelis-digest). The image must carry the
@@ -159,6 +165,12 @@ RUN cd data && pnpm install --frozen-lockfile
 # beeatlas graph over it, which is what the nightly builds.
 COPY --chown=app:app . /app/
 RUN cd /opt/stelis && BEEATLAS_DIR=/app SOURCE_DATE_EPOCH=1700000000 racket src/main.rkt --project beeatlas --help > /dev/null
+
+# The web server's policy (beeatlas-zsi8). The species redirects arrive as a snippet
+# fly/caddy-redirects.sh writes under /data/caddy, which the config imports by glob,
+# so a volume that has none yet is no error.
+COPY --chown=root:root fly/Caddyfile /etc/caddy/Caddyfile
+RUN caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 
 # --- the volume ---------------------------------------------------------------------
 # Everything written at runtime lives under /data, the volume (ADR 0044). The paths

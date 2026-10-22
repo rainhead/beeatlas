@@ -54,3 +54,13 @@ find "$SITE_ROOT/assets" -type f -mtime +30 -delete
 find "$SITE_ROOT/data" -maxdepth 1 -type f -name '*-*.*' -mtime +30 -delete
 cp "$REPO_ROOT/_site/data/manifest.json" "$SITE_ROOT/data/.manifest.json.tmp"
 mv "$SITE_ROOT/data/.manifest.json.tmp" "$SITE_ROOT/data/manifest.json"
+
+# On Fly, Caddy holds the species redirects as config rather than reading
+# species-redirects.map per request as Apache does, so a publish that changed the
+# map regenerates Caddy's snippet and reloads it (fly/caddy-redirects.sh,
+# beeatlas-zsi8). Not a publish failure: the build's meta-refresh page at each
+# folded URL still forwards the reader until the next publish retries.
+if [[ -n "${BEEATLAS_CONTAINER:-}" ]]; then
+    bash "$REPO_ROOT/fly/caddy-redirects.sh" \
+        || echo "WARN: fly/caddy-redirects.sh failed; folded species URLs fall back to their meta-refresh pages" >&2
+fi

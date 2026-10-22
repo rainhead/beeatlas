@@ -30,6 +30,7 @@ dirs=(
     "$root/dbt-target"      # /app/data/dbt/target: dbt's sandbox
     "$root/dlt"             # DLT_DATA_DIR: dlt's pipeline working directories
     "$root/log"             # the nightly's log (beeatlas-ryli)
+    "$root/caddy"           # CADDY_SNIPPETS: fly/caddy-redirects.sh's species redirects
 )
 for d in "${dirs[@]}"; do
     mkdir -p "$d"

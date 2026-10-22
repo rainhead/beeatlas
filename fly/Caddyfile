@@ -1,0 +1,92 @@
+# beeatlas.net on Fly: the serving policy (beeatlas-zsi8, ADR 0042).
+#
+# Ported from the maderas Apache config: infra/maderas/beeatlas.net.conf,
+# beeatlas-compression.conf and beeatlas-species-redirects.conf. Those files say why
+# each rule exists; this one says what each rule became. The policy is program logic,
+# not tuning: no-cache on /data/manifest.json is what makes the service worker's
+# NetworkFirst route correct, and ranges without encoding on /basemap/tiles/ are what
+# make PMTiles work at all. ADR 0024 is why it has a test: a response is not broken
+# for being seven times larger, so this class of regression is otherwise invisible.
+# The test is fly/serving-matrix.sh, run against this server and against production.
+#
+# Fly's proxy terminates TLS and forwards plain HTTP here. Not fly.toml [[statics]]:
+# it cannot set Cache-Control per path.
+{
+	# Fly terminates TLS; Caddy must not try to obtain certificates.
+	auto_https off
+	# The admin API stays on loopback: fly/caddy-redirects.sh reloads through it.
+	admin localhost:2019
+	servers {
+		# Fly's proxy is the hop in front; trust its X-Forwarded-* headers.
+		trusted_proxies static private_ranges
+	}
+}
+
+:{$PORT:8080} {
+	root * {$SITE_ROOT:/data/htdocs}
+
+	# --- Cache-Control -------------------------------------------------------
+	# Default max-age=0: HTML and anything unhashed revalidates every request.
+	# `?` sets it only where no rule below did, which makes the rules independent
+	# of the order Caddy applies them in.
+	header ?Cache-Control "max-age=0"
+
+	# Content-hashed files never change: the bundles under /assets/, and the data
+	# artifacts named <basename>-<hash12>.<ext> (with their .br/.gz siblings).
+	@hashed path_regexp ^/(assets/|data/[^/]+-[0-9a-f]{12}\.)
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+
+	# The basemap archives are named by build date and never rewritten. Both of
+	# them: wa-<date>.pmtiles and wa-terrain-<date>.pmtiles. Apache's rule matched
+	# only the first, so production serves the 60 MB terrain archive max-age=0.
+	@archive path_regexp ^/basemap/tiles/wa(-[a-z]+)?-[0-9]{8}\.pmtiles$
+	header @archive Cache-Control "public, max-age=31536000, immutable"
+
+	# The two manifests name the current hashed files and must never go stale.
+	@manifests path /data/manifest.json /basemap/tiles/manifest.json
+	header @manifests Cache-Control "no-cache"
+
+	# --- Types ----------------------------------------------------------------
+	# /etc/mime.types (the media-types package) types most files as Apache did.
+	# These three it does not know, or knows differently: GeoJSON is served as
+	# JSON, and the SQLite database and the tile archives as bytes.
+	@geojson path *.geojson
+	header @geojson Content-Type application/json
+	@octets path *.db *.pmtiles
+	header @octets Content-Type application/octet-stream
+
+	# --- Species redirects --------------------------------------------------------
+	# 301 a folded species name to its accepted one. Apache read the build's
+	# species-redirects.map on every request; Caddy reads its config once, so
+	# fly/caddy-redirects.sh turns the map into a snippet here and reloads Caddy
+	# when a publish changes it. The build's meta-refresh page at each folded URL
+	# still forwards the reader if the snippet is missing.
+	import {$CADDY_SNIPPETS:/data/caddy}/*.caddy
+
+	# The map is read from disk, never fetched. A handle of its own, because a bare
+	# respond sorts after the handle below that serves files.
+	@private path /species-redirects.map
+	handle @private {
+		respond 403
+	}
+
+	# --- Basemap tiles ---------------------------------------------------------------
+	# Served from beside the site root, not inside it: merge-swap.sh writes only
+	# inside htdocs, so no publish can reach or prune these quarterly archives.
+	# Range requests are the whole access pattern, so nothing here is encoded.
+	handle_path /basemap/tiles/* {
+		root * {$BASE_DIR:/data}/basemap
+		file_server
+	}
+
+	# --- Everything else ------------------------------------------------------------
+	handle {
+		# Small text responses compress on the way out. The large data artifacts
+		# arrive pre-compressed instead (ADR 0024): file_server picks the .br or
+		# .gz sibling the build wrote when the client accepts it.
+		encode gzip
+		file_server {
+			precompressed br gzip
+		}
+	}
+}
