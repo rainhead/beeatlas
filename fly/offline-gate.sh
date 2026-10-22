@@ -24,6 +24,8 @@
 # them the boundary tasks fail and the build is partial, which the exit status says.
 # NOTES_DB names a copy of the notes store (a consistent snapshot, as
 # data/backup_notes.py takes); without it the notes harvest finds no store and fails.
+# KEEP_DIR, when set, receives the build's export and DuckDB before the throwaway
+# volume is removed, for comparing contents rather than digests.
 #
 # Both forms mount a private, throwaway /data laid out like the volume (the image's
 # symlinks into it dangle otherwise, and dbt's probe writes its sandbox through one),
@@ -115,6 +117,10 @@ cd /app && bash scripts/fetch-data.sh --all
 echo "--- export digests ---"
 cd /data/var/export && find . -type f -print0 | sort -z | xargs -0 sha256sum
 ' || rc=$?
+if [[ -n "${KEEP_DIR:-}" ]]; then
+    mkdir -p "$KEEP_DIR"
+    cp -r "$volume/var/export" "$volume/var/beeatlas.duckdb" "$KEEP_DIR/"
+fi
 
 # What the build wrote into the image rather than the volume (ADR 0044): on Fly that
 # lands on the root filesystem, which every deploy replaces. `docker diff` names each
