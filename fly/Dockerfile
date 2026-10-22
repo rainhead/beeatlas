@@ -192,7 +192,11 @@ RUN ln -s /data/raw /app/data/raw \
 
 # The entrypoint (beeatlas-ryli) runs fly/prepare-volume.sh as root, since Fly mounts
 # the volume owned by root, before dropping to app.
-ENV BASE_DIR=/data \
+# BEEATLAS_CONTAINER: the scripts' container mode (data/runtime-env.sh,
+# beeatlas-h6mo). The nightly and the publish scripts pull nothing and install
+# nothing here; the image is the deploy.
+ENV BEEATLAS_CONTAINER=1 \
+    BASE_DIR=/data \
     SITE_ROOT=/data/htdocs \
     VAR_DIR=/data/var \
     STELIS_STATE_DIR=/data/var/stelis \
