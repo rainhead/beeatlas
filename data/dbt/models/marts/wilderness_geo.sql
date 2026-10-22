@@ -19,3 +19,8 @@ SELECT
     ST_Union_Agg(geom) AS geom
 FROM {{ ref('stg_geo__wilderness') }}
 GROUP BY name
+-- A GROUP BY comes out in whatever order DuckDB's threads finish, and the post-hook
+-- emits the features in table order, so two builds of the same data wrote the
+-- features in different orders (beeatlas-3je9's determinism check). Names are
+-- unique after the dissolve; ecoregions_l4_geo orders by slug the same way.
+ORDER BY name
