@@ -17,7 +17,7 @@ this service except for the optional signed-in header state.
 - [`auth.py`](auth.py) — `require_session` / `require_author` (origin gate + allowlist + WRITE-04 flag)
 - [`users.py`](users.py) — internal-id upsert against the store's `users` table
 - [`avatar.py`](avatar.py) — inlines the iNat profile image as a `data:` URL for whoami, so the avatar survives going offline (allowlisted hosts, size cap, short timeout, in-process cache). See the 2026-08-04 amendment in [ADR 0027](../docs/adr/0027-identity-survives-going-offline.md) for why the SERVER fetches it
-- [`config.py`](config.py) — secrets loader (`secrets.toml`, gitignored), redirect-URI pin, `DEV_MODE`
+- [`config.py`](config.py) — secrets loader (`secrets.toml`, gitignored, or the environment on Fly), redirect-URI pin, `DEV_MODE`, the staging class
 - [`serve.py`](serve.py) — Waitress entrypoint (loopback-only)
 
 Tests live in [`tests/`](tests/) and run with the store suite:
@@ -67,3 +67,19 @@ stack end-to-end.
 in `secrets.toml`, which the production iNat app would refuse — and any other
 deviation from the pinned redirect URI fails loudly at import
 (`config.resolve_redirect_uri`).
+
+## On Fly
+
+The Machine receives its secrets as environment variables, not a file:
+`INAT_CLIENT_ID`, `INAT_CLIENT_SECRET`, `INAT_REDIRECT_URI` and
+`SESSION_SIGNING_KEY`, each taking precedence over `secrets.toml` the way
+`WRITES_ENABLED` always has. Waitress listens on loopback port 8081 there, and
+Caddy ([`fly/Caddyfile`](../fly/Caddyfile)) is the proxy in front, passing on a
+single forwarded hop as Apache does.
+
+A **staging** deployment has one host, `https://<app>.fly.dev`, and reaches the API
+under `/api/` on it. Its `redirect_uri` is `https://<app>.fly.dev/api/auth/callback`,
+on a separate staging iNat app, which is the third class `config.resolve_redirect_uri`
+accepts. The staging origin is then derived from it and admitted by the CSRF gate.
+The app also sets `BEEATLAS_STAGING_ORIGIN` (Caddy's `/api/` route) and
+`VITE_NOTES_API_BASE_URL=<origin>/api` (the site build's API URL).

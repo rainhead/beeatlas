@@ -23,9 +23,13 @@
 # pipeline writes. The volume mounts at /data, and the paths inside the checkout the
 # scripts and the Stelis graph write to are symlinks into it (see "the volume"
 # below), so the code is unchanged and the root filesystem, which Fly caps near 8 GB
-# and throttles, carries only code and dependencies. Secrets (data/.dlt/secrets.toml,
-# api/secrets.toml) are materialized from Fly secrets by the entrypoint
-# (beeatlas-cjyz), never baked.
+# and throttles, carries only code and dependencies. Secrets are never baked: they
+# arrive as Fly secrets, which are environment variables, and both readers take them
+# from there (beeatlas-cjyz). The API reads INAT_CLIENT_ID, INAT_CLIENT_SECRET,
+# INAT_REDIRECT_URI and SESSION_SIGNING_KEY (api/config.py); the dlt loaders read
+# SOURCES__ECDYSIS__USERNAME and SOURCES__ECDYSIS__PASSWORD, dlt's own spelling of
+# data/.dlt/secrets.toml's [sources.ecdysis]. A staging app also sets
+# BEEATLAS_STAGING_ORIGIN and VITE_NOTES_API_BASE_URL=<that origin>/api.
 #
 # Build args (fly/deploy.sh passes them):
 #   STELIS_SHA     the Stelis commit, from fly/stelis-commit
@@ -216,6 +220,7 @@ ENV BEEATLAS_CONTAINER=1 \
     EXPORT_DIR=/data/var/export \
     BASELINE_DIR=/data/var/baseline \
     NOTES_DB_PATH=/data/notes/notes.db \
+    SERVE_PORT=8081 \
     DLT_DATA_DIR=/data/dlt \
     TZ=America/Los_Angeles
 ARG GITHUB_SHA

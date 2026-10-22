@@ -126,7 +126,8 @@ FLOW_COOKIE_NAME = "beeatlas_oauth_flow"
 FLOW_COOKIE_MAX_AGE = 600  # 10 minutes -- generous for a login round trip
 _FLOW_SALT = "beeatlas-oauth-flow"
 
-DEFAULT_RETURN_TO = "https://beeatlas.net"
+# A staging deployment returns to its own site (api/config.py, beeatlas-cjyz).
+DEFAULT_RETURN_TO = config.STAGING_ORIGIN or "https://beeatlas.net"
 
 
 def _flow_serializer() -> URLSafeTimedSerializer:

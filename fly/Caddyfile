@@ -19,6 +19,10 @@
 	servers {
 		# Fly's proxy is the hop in front; trust its X-Forwarded-* headers.
 		trusted_proxies static private_ranges
+		# Read X-Forwarded-For from the right, skipping only trusted hops: Fly's
+		# proxy appends the real client there, and anything to its left came from
+		# the client and can say anything. Caddy's default takes the leftmost.
+		trusted_proxies_strict
 	}
 }
 
@@ -68,6 +72,34 @@
 	@private path /species-redirects.map
 	handle @private {
 		respond 403
+	}
+
+	# --- The API ------------------------------------------------------------------
+	# Waitress (api/serve.py) listens on loopback. Production reaches it as its own
+	# host, api.beeatlas.net. A staging deployment has one host, <app>.fly.dev, and
+	# reaches it under /api/ there, only when BEEATLAS_STAGING_ORIGIN is set (the
+	# staging redirect class in api/config.py, beeatlas-cjyz).
+	#
+	# Fly's proxy -> Caddy -> Waitress is two hops where Apache -> Waitress was one.
+	# Caddy, trusting Fly's proxy (the global trusted_proxies), passes on a single
+	# X-Forwarded-For entry, the real client, so api/main.py's ProxyFix (x_for=1)
+	# reads the same thing here as behind Apache. X-Forwarded-Proto is Fly's own
+	# "https", which Caddy keeps from a trusted proxy.
+	@api host api.beeatlas.net
+	handle @api {
+		reverse_proxy 127.0.0.1:{$SERVE_PORT:8081} {
+			header_up X-Forwarded-For {client_ip}
+		}
+	}
+	@staging_api {
+		path /api/*
+		expression `{env.BEEATLAS_STAGING_ORIGIN} != ""`
+	}
+	handle @staging_api {
+		uri strip_prefix /api
+		reverse_proxy 127.0.0.1:{$SERVE_PORT:8081} {
+			header_up X-Forwarded-For {client_ip}
+		}
 	}
 
 	# --- Basemap tiles ---------------------------------------------------------------

@@ -34,6 +34,10 @@ from notes_store import roles as roles_module
 # but are different origins, so this check is required independent of the
 # cookie's SameSite policy.
 ALLOWED_ORIGINS = {"https://beeatlas.net", "https://www.beeatlas.net"}
+# A staging deployment's own origin, derived from its redirect_uri
+# (api/config.py, beeatlas-cjyz); absent everywhere else.
+if config.STAGING_ORIGIN:
+    ALLOWED_ORIGINS.add(config.STAGING_ORIGIN)
 
 # Verbs for which a missing/foreign Origin header is treated as a forged
 # cross-site write attempt (RESEARCH.md Pattern 3 -- "state-changing verb").
