@@ -3,8 +3,10 @@
 Uses the stdlib sqlite3.Connection.backup() API to take a WAL-safe snapshot
 of the live notes.db (no torn reads — Pitfall 1 guard from RESEARCH.md). The
 snapshot is gzipped at compresslevel=9 and pushed to the dedicated
-AuthoritativeBackupBucket via boto3, using the 'beeatlas' AWS profile
-(matching the nightly.sh convention).
+AuthoritativeBackupBucket through s3_backup.py, the module the nightly's own
+backup uses: the same credentials (the 'beeatlas' profile, or a key pair in the
+environment where no profile is configured) and the same check that S3 holds
+what was sent.
 
 Three public functions for testability — S3 is NOT exercised locally:
   make_snapshot(db_path, out_dir) -> Path   # snapshot + gzip; no S3 call
@@ -29,7 +31,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-import boto3
+import s3_backup
 
 
 def make_snapshot(db_path: "str | Path", out_dir: "str | Path") -> Path:
@@ -87,15 +89,16 @@ def upload_snapshot(
 ) -> str:
     """Push a gzipped snapshot to the dedicated AuthoritativeBackupBucket.
 
-    Uses boto3.Session(profile_name=profile) to pick up the named AWS profile,
-    mirroring the `AWS_PROFILE=beeatlas` convention in nightly.sh line 40.
+    Credentials come from s3_backup.session(profile): the named profile when
+    this machine has it, otherwise the environment's key pair. The upload is
+    verified (s3_backup.upload_verified) before the key is returned.
     The pipeline IAM user has PutObject + GetObject on the backup bucket
     (no DeleteObject — structural boundary; plan 177-02).
 
     Args:
         gz_path: Local path to the .db.gz snapshot.
         bucket:  S3 bucket name (NOTES_BACKUP_BUCKET CDK output).
-        profile: AWS named profile (default: "beeatlas").
+        profile: AWS named profile (default: "beeatlas"), used when configured.
         key_prefix: S3 key prefix (default: "backups/").
 
     Returns:
@@ -103,9 +106,9 @@ def upload_snapshot(
     """
     gz_path = Path(gz_path)
     key = f"{key_prefix}{gz_path.name}"
-    session = boto3.Session(profile_name=profile)
+    session, _source = s3_backup.session(profile)
     s3 = session.client("s3")
-    s3.upload_file(str(gz_path), bucket, key)
+    s3_backup.upload_verified(s3, gz_path, bucket, key)
     return key
 
 

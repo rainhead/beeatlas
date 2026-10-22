@@ -222,35 +222,45 @@ def test_no_raw_copy() -> None:
 def test_upload_snapshot_mocked(tmp_path: pathlib.Path, monkeypatch) -> None:
     """upload_snapshot() calls s3.upload_file with the correct bucket and key.
 
-    Mocks boto3.Session so no real S3 call is made. Asserts:
+    Fakes s3_backup.session so no real S3 call is made. Asserts:
       - The bucket argument equals the value passed to upload_snapshot()
       - The returned key starts with the 'backups/notes_' prefix
 
     This proves that upload_snapshot() routes to the correct bucket and uses
     the expected key naming convention.
     """
-    import boto3
+    import datetime as _dt
+
+    import s3_backup
     from backup_notes import upload_snapshot
 
     # Create a fake .db.gz file (contents don't matter for upload routing)
     gz = tmp_path / "notes_20260703_120000.db.gz"
     gz.write_bytes(b"fake-gzipped-content")
 
-    # Capture upload_file calls without touching S3
+    # Capture upload_file calls without touching S3. head_object answers as S3
+    # would: no object before the upload, the uploaded size after it.
     upload_calls: list[dict] = []
 
     class _FakeS3Client:
         def upload_file(self, Filename: str, Bucket: str, Key: str) -> None:  # noqa: N803
             upload_calls.append({"Filename": Filename, "Bucket": Bucket, "Key": Key})
 
-    class _FakeSession:
-        def __init__(self, profile_name: str | None = None) -> None:
-            self.profile_name = profile_name
+        def head_object(self, Bucket: str, Key: str) -> dict:  # noqa: N803
+            from botocore.exceptions import ClientError
 
+            if not upload_calls:
+                raise ClientError({"Error": {"Code": "404"}}, "HeadObject")
+            return {
+                "ContentLength": len(b"fake-gzipped-content"),
+                "LastModified": _dt.datetime(2026, 7, 3, tzinfo=_dt.timezone.utc),
+            }
+
+    class _FakeSession:
         def client(self, service_name: str) -> _FakeS3Client:
             return _FakeS3Client()
 
-    monkeypatch.setattr(boto3, "Session", _FakeSession)
+    monkeypatch.setattr(s3_backup, "session", lambda profile=None: (_FakeSession(), "test"))
 
     key = upload_snapshot(gz, "fake-bucket")
 

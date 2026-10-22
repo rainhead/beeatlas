@@ -21,7 +21,7 @@ Public module API:
   derived_names(spec) -> list
 
 CLAUDE.md invariant: this module MUST NOT perform any network/subprocess
-I/O. All aws calls stay in nightly.sh.
+I/O. S3 calls live in s3_backup.py.
 """
 
 import tomllib

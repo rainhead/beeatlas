@@ -8,12 +8,12 @@
 #                               with both node_modules trees installed
 #   uv and CPython 3.14         the data pipeline's environment (data/.venv, synced
 #                               from uv.lock; dbt and the integration gate's pytest
-#                               run from it too, the dev group)
+#                               run from it too, the dev group, and so do the
+#                               offsite backups, through boto3: no AWS CLI)
 #   Stelis                      Racket and the compiled engine, out of the image
 #                               Stelis's own CI built from fly/stelis-commit, by the
 #                               digest in fly/stelis-digest (Stelis ADR 0017)
 #   the DuckDB CLI              what Stelis content-addresses relations with
-#   the AWS CLI                 the nightly's offsite backup
 #   rsync, flock                merge-swap.sh and the publish lock
 #   this checkout at /app       with no .git: the image IS the deploy
 #
@@ -120,9 +120,6 @@ ENV UV_PYTHON_INSTALL_DIR=/opt/uv/python \
     UV_TOOL_BIN_DIR=/opt/uv/bin \
     UV_PYTHON_PREFERENCE=only-managed
 RUN uv python install 3.14.9
-
-# The AWS CLI, for the nightly's offsite backup, as a uv tool pinned by version.
-RUN uv tool install awscli==1.46.2 && aws --version
 
 # The data pipeline's environment, from the lockfile alone (these three files are
 # what `uv sync --frozen` reads), so this layer is cached across code changes. The

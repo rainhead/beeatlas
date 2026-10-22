@@ -8,8 +8,8 @@
 #
 # The first form runs with the network off entirely and proves every tool the nightly
 # calls answers from the image: node, pnpm, uv's Python, dbt (through data/dbt/run.sh's
-# own cache-only probe), the DuckDB CLI, the AWS CLI, and Stelis loading the beeatlas
-# graph. The image workflow runs it on every change.
+# own cache-only probe), the DuckDB CLI, boto3 for the backups, and Stelis loading
+# the beeatlas graph. The image workflow runs it on every change.
 #
 # The second form is the gate the bead names: a full `--all` Stelis build against a
 # COPY of the production DuckDB (never the live one), in a container whose /etc/hosts
@@ -48,11 +48,10 @@ echo "node   $(node --version)"
 echo "pnpm   $(pnpm --version)"
 echo "uv     $(uv --version)"
 echo "duckdb $(duckdb --version)"
-echo "aws    $(aws --version)"
 # The launch exactly as the Stelis graph issues it (src/beeatlas.rkt, the uv runtime):
 # a bare `uv run`, which must find the environment in sync and reach for nothing.
 # Each probe is assigned on its own line: inside an echo, its failure would be lost.
-python=$(uv run --directory /app/data python -c "import sys, dlt, duckdb; print(sys.version.split()[0], \"dlt\", dlt.__version__, \"duckdb\", duckdb.__version__)")
+python=$(uv run --directory /app/data python -c "import sys, dlt, duckdb, boto3, s3_backup; print(sys.version.split()[0], \"dlt\", dlt.__version__, \"duckdb\", duckdb.__version__)")
 echo "python $python"
 dbt=$(bash /app/data/dbt/run.sh --identity | tr "\n" " ")
 echo "dbt    $dbt"
