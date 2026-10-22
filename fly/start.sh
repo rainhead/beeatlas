@@ -89,6 +89,9 @@ caddy_pid=$!
 # as a site with nobody's notes: putting a store in place is a deliberate act (the
 # cutover, or a restore by hand).
 #
+# Litestream passes its environment to the API it runs; the replica's key is taken out
+# of it there, since the API uses no AWS service.
+#
 # Without NOTES_REPLICA_URL there is nothing to replicate to, so the API runs with
 # writes refused (WRITES_ENABLED=false): no note is ever accepted unreplicated.
 if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
@@ -105,7 +108,8 @@ if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
                 || { echo "restoring the notes store from its replica failed; retrying in 10 s" >&2; sleep 10; continue; }
                 INAT_CLIENT_SECRET="$client_secret" SESSION_SIGNING_KEY="$session_key" \
                     AWS_ACCESS_KEY_ID="$replica_key_id" AWS_SECRET_ACCESS_KEY="$replica_secret" \
-                    litestream replicate -config /app/fly/litestream.yml -exec "${api[*]}" &
+                    litestream replicate -config /app/fly/litestream.yml \
+                        -exec "env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY ${api[*]}" &
             else
                 echo "NOTES_REPLICA_URL is not set: the notes store has no replica, so the API refuses writes" >&2
                 INAT_CLIENT_SECRET="$client_secret" SESSION_SIGNING_KEY="$session_key" WRITES_ENABLED=false \
