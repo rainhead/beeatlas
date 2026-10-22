@@ -8,18 +8,24 @@
 #
 # The first form runs with the network off entirely and proves every tool the nightly
 # calls answers from the image: node, pnpm, uv's Python, dbt (through data/dbt/run.sh's
-# own cache-only probe), the DuckDB CLI, the AWS CLI, and Stelis loading the beeatlas
-# graph. The image workflow runs it on every change.
+# own cache-only probe), the DuckDB CLI, boto3 for the backups, and Stelis loading
+# the beeatlas graph. The image workflow runs it on every change.
 #
 # The second form is the gate the bead names: a full `--all` Stelis build against a
 # COPY of the production DuckDB (never the live one), in a container whose /etc/hosts
 # points every code and package host at loopback, so a fetch of code or a dependency
-# fails while the data sources stay reachable. The export's artifacts and their
-# digests are printed at the end for comparison with the nightly's. Run it from a
-# machine with the DuckDB copy (the offsite backup, data/nightly.sh's trap); the
-# loaders' credentials go through DLT_SECRETS_TOML (data/.dlt/secrets.toml's content)
-# if the sources are to be reached, and without them the boundary tasks fail and the
-# build is partial, which the exit status says.
+# fails while the data sources stay reachable. DuckDB's extension host is among them,
+# so an extension the image lacks fails rather than downloading. The export's
+# artifacts and their digests are printed at the end for comparison with the
+# nightly's, followed by every file the build wrote into the image instead of the
+# volume (ADR 0044). Run it from a machine with the DuckDB copy (the offsite backup,
+# data/nightly.sh's trap); the loaders' credentials go through DLT_SECRETS_TOML
+# (data/.dlt/secrets.toml's content) if the sources are to be reached, and without
+# them the boundary tasks fail and the build is partial, which the exit status says.
+# NOTES_DB names a copy of the notes store (a consistent snapshot, as
+# data/backup_notes.py takes); without it the notes harvest finds no store and fails.
+# KEEP_DIR, when set, receives the build's export and DuckDB before the throwaway
+# volume is removed, for comparing contents rather than digests.
 #
 # Both forms mount a private, throwaway /data laid out like the volume (the image's
 # symlinks into it dangle otherwise, and dbt's probe writes its sandbox through one),
@@ -37,9 +43,13 @@ image=${1:?usage: offline-gate.sh <image> [<beeatlas.duckdb copy>]}
 db=${2:-}
 
 volume=$(mktemp -d)
-trap 'rm -rf "$volume"' EXIT
-mkdir -p "$volume"/{var/export,var/stelis,var/baseline,htdocs,raw,cache,site,dbt-target,dlt,home,uv-cache}
-run=(docker run --rm --user "$(id -u):$(id -g)" -v "$volume:/data"
+name="beeatlas-offline-gate-$$"
+trap 'docker rm -f "$name" > /dev/null 2>&1 || true; rm -rf "$volume"' EXIT
+mkdir -p "$volume"/{var/export,var/stelis,var/baseline,htdocs,raw,ecdysis-zip,geography-cache,burke-cache,cache,site,dbt-target,dlt,notes,home,uv-cache}
+# DuckDB looks for its extensions under $HOME/.duckdb. The image installs them under
+# app's home (fly/Dockerfile), and this HOME is a throwaway one, so it points there.
+ln -s /home/app/.duckdb "$volume/home/.duckdb"
+run=(docker run --user "$(id -u):$(id -g)" -v "$volume:/data"
      -e HOME=/data/home -e UV_CACHE_DIR=/data/uv-cache -e SOURCE_DATE_EPOCH=1700000000)
 
 toolchain='
@@ -48,11 +58,10 @@ echo "node   $(node --version)"
 echo "pnpm   $(pnpm --version)"
 echo "uv     $(uv --version)"
 echo "duckdb $(duckdb --version)"
-echo "aws    $(aws --version)"
 # The launch exactly as the Stelis graph issues it (src/beeatlas.rkt, the uv runtime):
 # a bare `uv run`, which must find the environment in sync and reach for nothing.
 # Each probe is assigned on its own line: inside an echo, its failure would be lost.
-python=$(uv run --directory /app/data python -c "import sys, dlt, duckdb; print(sys.version.split()[0], \"dlt\", dlt.__version__, \"duckdb\", duckdb.__version__)")
+python=$(uv run --directory /app/data python -c "import sys, dlt, duckdb, boto3, s3_backup; print(sys.version.split()[0], \"dlt\", dlt.__version__, \"duckdb\", duckdb.__version__)")
 echo "python $python"
 dbt=$(bash /app/data/dbt/run.sh --identity | tr "\n" " ")
 echo "dbt    $dbt"
@@ -66,12 +75,22 @@ if [[ -z "$db" ]]; then
     chmod -R u+rwX,go-rwx "$volume"
     # Not exec'd: the EXIT trap above is what removes the throwaway volume, and
     # `set -e` already makes the container's failure this script's.
-    "${run[@]}" --network none "$image" bash -c "$toolchain"
+    "${run[@]}" --rm --network none "$image" bash -c "$toolchain"
     exit 0
 fi
 
 [[ -r "$db" ]] || { echo "offline-gate.sh: cannot read $db" >&2; exit 2; }
+# KEEP_DIR must be fresh: copying over an earlier run's export would merge the two
+# and keep files this build did not write. Checked now, not after the build.
+if [[ -n "${KEEP_DIR:-}" && ( -e "$KEEP_DIR/export" || -e "$KEEP_DIR/beeatlas.duckdb" ) ]]; then
+    echo "offline-gate.sh: KEEP_DIR=$KEEP_DIR already holds a build; name an empty directory" >&2
+    exit 2
+fi
 cp "$db" "$volume/var/beeatlas.duckdb"
+if [[ -n "${NOTES_DB:-}" ]]; then
+    [[ -r "$NOTES_DB" ]] || { echo "offline-gate.sh: cannot read NOTES_DB=$NOTES_DB" >&2; exit 2; }
+    cp "$NOTES_DB" "$volume/notes/notes.db"
+fi
 secrets=()
 if [[ -n "${DLT_SECRETS_TOML:-}" ]]; then
     printf '%s' "$DLT_SECRETS_TOML" > "$volume/home/dlt-secrets.toml"
@@ -89,15 +108,43 @@ blackhole=(
     ghcr.io
     download.racket-lang.org pkgs.racket-lang.org users.cs.utah.edu mirror.csclub.uwaterloo.ca
     nodejs.org
+    extensions.duckdb.org community-extensions.duckdb.org
 )
 hosts=()
 for h in "${blackhole[@]}"; do hosts+=(--add-host "$h:127.0.0.1"); done
 
 # ${secrets[@]+...}: an empty array expands to nothing under `set -u` on bash 3.2 (a
 # Mac's /usr/bin/env bash) too, where a bare "${secrets[@]}" is "unbound variable".
-"${run[@]}" "${hosts[@]}" ${secrets[@]+"${secrets[@]}"} "$image" bash -c "$toolchain"'
+# The container is named rather than --rm'd, so its writes can be listed below.
+rc=0
+"${run[@]}" --name "$name" "${hosts[@]}" ${secrets[@]+"${secrets[@]}"} "$image" bash -c "$toolchain"'
 export SOURCE_DATE_EPOCH=$(date +%s)
-cd /app && bash scripts/fetch-data.sh --all
+# A partial build still lists what it exported, then exits with the build status.
+build_rc=0
+cd /app && bash scripts/fetch-data.sh --all || build_rc=$?
 echo "--- export digests ---"
-cd /data/var/export && find . -type f | sort | xargs sha256sum
-'
+cd /data/var/export && find . -type f -print0 | sort -z | xargs -r -0 sha256sum
+exit "$build_rc"
+' || rc=$?
+if [[ -n "${KEEP_DIR:-}" ]]; then
+    mkdir -p "$KEEP_DIR"
+    cp -r "$volume/var/export" "$volume/var/beeatlas.duckdb" "$KEEP_DIR/"
+fi
+
+# What the build wrote into the image rather than the volume (ADR 0044): on Fly that
+# lands on the root filesystem, which every deploy replaces. `docker diff` names each
+# added (A) or changed (C) path. A directory that holds another listed path says
+# nothing new, so only the deepest paths are kept; then Python's bytecode caches,
+# /tmp, the volume's mount point and the secrets bind mount are dropped. Reported,
+# not judged: a derived file rewritten in place is harmless, state written there is
+# lost.
+echo "--- writes outside the volume ---"
+docker diff "$name" \
+    | awk '{ path[NR] = $2; line[NR] = $0 }
+           END { for (i = 1; i <= NR; i++) {
+                     parent = 0
+                     for (j = 1; j <= NR; j++) if (index(path[j], path[i] "/") == 1) { parent = 1; break }
+                     if (!parent) print line[i] } }' \
+    | grep -vE '__pycache__|^[ACD] /tmp(/|$)|^[ACD] /data$|^A /app/data/\.dlt/secrets\.toml$' \
+    || true
+exit "$rc"

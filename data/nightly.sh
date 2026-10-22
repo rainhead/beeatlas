@@ -376,8 +376,12 @@ uv sync
 echo "sync done in $(_elapsed $_t0)"
 
 # Always back up DuckDB + taxa cache on exit (success or failure) so pipeline
-# progress (e.g. occurrence_links) is not lost if a later step fails. `|| true`
-# per copy so the trap preserves the script's exit code.
+# progress (e.g. occurrence_links) is not lost if a later step fails. The upload
+# is s3_backup.py (beeatlas-gcdo.1), which confirms S3 holds each file before
+# calling it backed up. A failed backup must not pass for a good night
+# (beeatlas-pqfr), so the healthcheck ping lives HERE, after the backups, and is
+# sent only when the run and its backup both succeeded; a run that succeeded
+# but could not back up exits 74 (EX_IOERR). A failed run keeps its own code.
 # stelis st-8x1: which build this run appended (captured after fetch-data, by
 # epoch match) and how far the run got — the trap turns these into a publish
 # receipt. Empty capture = this run appended nothing = nothing to mark.
@@ -387,16 +391,13 @@ _sb_epoch=""
 # which needs it before the stelis gate, and is already at a later value by now.
 
 trap '
-if [[ -f "$DB_PATH" ]]; then
-    echo "--- backing up DuckDB (trap) --- sha256=$(_hash "$DB_PATH")"
-    aws --profile "$AWS_PROFILE" s3 cp --no-progress "$DB_PATH" "s3://$BACKUP_BUCKET/$DB_S3_KEY" || true
-fi
-if [[ -f "$TAXA_PATH" ]]; then
-    aws --profile "$AWS_PROFILE" s3 cp --no-progress "$TAXA_PATH" "s3://$BACKUP_BUCKET/$TAXA_S3_KEY" || true
-fi
-if [[ -f "$TAXA_CACHE_PATH" ]]; then
-    aws --profile "$AWS_PROFILE" s3 cp --no-progress "$TAXA_CACHE_PATH" "s3://$BACKUP_BUCKET/$TAXA_CACHE_S3_KEY" || true
-fi
+_exit_rc=$?
+_backup_ok=1
+[[ -f "$DB_PATH" ]] && echo "--- backing up DuckDB (trap) --- sha256=$(_hash "$DB_PATH")"
+AWS_PROFILE="$AWS_PROFILE" uv run --directory "$SCRIPT_DIR" python s3_backup.py upload \
+    --bucket "$BACKUP_BUCKET" \
+    "$DB_S3_KEY=$DB_PATH" "$TAXA_S3_KEY=$TAXA_PATH" "$TAXA_CACHE_S3_KEY=$TAXA_CACHE_PATH" \
+    || _backup_ok=""
 # stelis st-8x1 + st-9rf: publish receipt, then the served operator page. AFTER
 # the backups — nothing below may block them — and each guarded (|| true): a
 # broken stelis checkout degrades to a stale badge, never a lost backup or a
@@ -415,11 +416,21 @@ fi
 if [[ -f "$STELIS_STATE_DIR/build-log.html" && -d "$SITE_ROOT" ]]; then
     cp "$STELIS_STATE_DIR/build-log.html" "$SITE_ROOT/build-log.html" || true
 fi
+if [[ $_exit_rc -eq 0 && -z "$_backup_ok" ]]; then
+    echo "FATAL: the run succeeded but its offsite backup did not (s3_backup above);" >&2
+    echo "withholding the healthcheck ping so the miss raises the alarm." >&2
+    exit 74
+fi
+if [[ $_exit_rc -eq 0 && -n "$HEALTHCHECK_URL" ]]; then
+    curl -fsS --retry 3 --max-time 10 "$HEALTHCHECK_URL" > /dev/null || exit 1
+fi
+# No `exit` otherwise: falling off the end keeps the status the run exited with, and a run
+# killed by a signal (_on_signal) still dies of that signal.
 ' EXIT
 
 if [[ ! -f "$DB_PATH" ]]; then
     echo "WARN: no DuckDB at $DB_PATH — first run on this layout? Loaders start fresh." >&2
-    echo "WARN: migrating hosts? restore the offsite backup first: aws s3 cp s3://$BACKUP_BUCKET/$DB_S3_KEY $DB_PATH" >&2
+    echo "WARN: migrating hosts? restore the offsite backup first: (cd $SCRIPT_DIR && uv run python s3_backup.py restore --bucket $BACKUP_BUCKET $DB_S3_KEY $DB_PATH)" >&2
 fi
 
 # 2. Restore the integration-gate baseline into public/data/ so test_dbt_diff
@@ -592,5 +603,4 @@ else
 fi
 
 echo "=== pipeline complete $(_ts) ==="
-
-[[ -n "$HEALTHCHECK_URL" ]] && curl -fsS --retry 3 --max-time 10 "$HEALTHCHECK_URL" > /dev/null
+# The healthcheck ping is in the EXIT trap, after the backups it vouches for.

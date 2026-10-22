@@ -13,7 +13,10 @@ the state that today lives *inside the checkout* and would be lost with it in th
 `data/raw/taxa.csv.gz` (38 MB, re-fetched against a rate-limited source), `data/raw/taxa_cache.json`,
 `data/raw/ecdysis_cache/` (21 MB, an auth-gated source), and the build receipt under `.cache/`.
 Writing the image surfaced three more of the same kind: `_site` (about 2 GB per render),
-`data/dbt/target` (dbt's sandbox), and dlt's working directory under `$HOME`.
+`data/dbt/target` (dbt's sandbox), and dlt's working directory under `$HOME`. The first full run
+of the offline gate found three more: the caches `data/.ecdysis_cache` (the Ecdysis ZIP, not
+the page cache under `data/raw`), `data/.geography_cache` and `data/.burke_cache`. The gate now
+lists every file a build writes outside the volume, so the next one is found the same way.
 
 Fly's root filesystem is the wrong place for any of them twice over. It is capped near 8 GB
 uncompressed, image included, and it is throttled for writes and not meant to hold them. And it is
@@ -31,6 +34,9 @@ the content-addressed inputs of several tasks, for a move that is purely about w
 | in the checkout | on the volume | what it holds |
 |---|---|---|
 | `/app/data/raw` | `/data/raw` | `taxa.csv.gz`, `taxa_cache.json`, `ecdysis_cache/` |
+| `/app/data/.ecdysis_cache` | `/data/ecdysis-zip` | the Ecdysis export ZIP, which the change probe reuses |
+| `/app/data/.geography_cache` | `/data/geography-cache` | the boundary downloads, about 600 MB |
+| `/app/data/.burke_cache` | `/data/burke-cache` | the pages `build_target_hosts.py` fetches |
 | `/app/.cache` | `/data/cache` | the build receipt |
 | `/app/_site` | `/data/site` | the rendered site, before merge-swap into `/data/htdocs` |
 | `/app/data/dbt/target` | `/data/dbt-target` | dbt's sandbox and compiled models |

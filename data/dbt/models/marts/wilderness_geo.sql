@@ -19,3 +19,4 @@ SELECT
     ST_Union_Agg(geom) AS geom
 FROM {{ ref('stg_geo__wilderness') }}
 GROUP BY name
+-- No ORDER BY: the post-hook's macro orders the features itself (beeatlas-3je9).

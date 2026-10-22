@@ -14,5 +14,6 @@ beeatlas:
       threads: 4
       extensions:
         - spatial                       # declarative: INSTALL + LOAD spatial on each connection
-        - json                          # defensive add (Pitfall 6 / Assumption A2): needed for to_json()
+      # No json: it is built into DuckDB since 1.5, and dbt-duckdb's INSTALL of a
+      # built-in extension downloads it anyway, which the offline image cannot.
       external_root: target/sandbox     # base path for materialized='external' relative locations

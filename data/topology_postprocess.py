@@ -76,8 +76,12 @@ _SIMPLIFY_PCT: dict[str, str | None] = {
 
 
 def _resolve_git_sha() -> str:
-    """Best-effort current commit SHA. Returns 'unknown' if not in a git checkout."""
-    sha = os.environ.get("GIT_SHA")
+    """Best-effort current commit SHA. Returns 'unknown' if not in a git checkout.
+
+    GITHUB_SHA is what the Fly image sets (fly/Dockerfile), since it holds no .git;
+    scripts/postbuild-data.mjs reads the same variable.
+    """
+    sha = os.environ.get("GIT_SHA") or os.environ.get("GITHUB_SHA")
     if sha:
         return sha
     try:

@@ -115,3 +115,7 @@ SELECT
     'checklist'                AS source
 FROM with_lineage wl
 LEFT JOIN final_eco fe ON fe.county = wl.county
+-- The joins come out in thread order, so two builds of the same data wrote the
+-- parquet's rows in different orders (beeatlas-3je9's determinism check). No column
+-- is a key, so every column orders; rows that tie on all of them are identical.
+ORDER BY ALL
