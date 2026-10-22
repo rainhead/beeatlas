@@ -395,13 +395,28 @@ def _download_zip(dataset_id: int) -> bytes:
     return response.content
 
 
+def _tab_file_delimiter(header_line: str) -> str:
+    """The delimiter of a file in the archive, read off its header line.
+
+    The archive's meta.xml declares every file tab-delimited, but Ecdysis writes
+    identifications.tab with commas, so the declaration cannot be trusted. The header
+    can: it is a row of Darwin Core term names, which contain neither a tab nor a
+    comma. This replaced csv.Sniffer, a heuristic over the first 4 KB that CPython
+    3.14.9 stopped resolving on occurrences.tab (beeatlas-3je9's offline gate), and
+    that turned off doubled-quote escaping on identifications.tab, so a remark
+    holding ""quoted"" text kept a stray quote.
+    """
+    return "\t" if "\t" in header_line else ","
+
+
 def _iter_tab_file(zf: zipfile.ZipFile, filename: str):
-    """Yield rows from a file in the ZIP, auto-detecting delimiter via csv.Sniffer."""
+    """Yield rows from a file in the ZIP: quoted with ", quotes doubled inside a
+    field (meta.xml's fieldsEnclosedBy, and the csv module's default)."""
     with zf.open(filename) as f:
-        sample = f.read(4096).decode("utf-8")
-    dialect = csv.Sniffer().sniff(sample, delimiters="\t,")
+        header_line = f.readline().decode("utf-8")
+    delimiter = _tab_file_delimiter(header_line)
     with zf.open(filename) as f:
-        reader = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8"), dialect=dialect)
+        reader = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8"), delimiter=delimiter)
         yield from reader
 
 
