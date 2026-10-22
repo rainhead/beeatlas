@@ -29,7 +29,8 @@
 #   STELIS_SHA     the Stelis commit, from fly/stelis-commit
 #   STELIS_IMAGE   the Stelis image built from it, by digest, from fly/stelis-digest
 #                  (fly/pin-stelis.sh writes both)
-#   GITHUB_SHA     this commit, which the build receipt names
+#   GITHUB_SHA     this commit, which the build receipt and the clean geojsons name;
+#                  required, since the image holds no .git
 #
 # Every download is pinned by sha256 (fly/downloads.tsv, fetched by fly/fetch.sh)
 # or by lockfile (uv.lock, pnpm-lock.yaml), and all of them happen here. The gate
@@ -202,6 +203,7 @@ ENV BASE_DIR=/data \
     DLT_DATA_DIR=/data/dlt \
     TZ=America/Los_Angeles
 ARG GITHUB_SHA
+RUN test -n "$GITHUB_SHA" || { echo "build-arg GITHUB_SHA is required: the build receipt and the clean geojsons stamp it, and the image holds no .git to read it from" >&2; exit 1; }
 ENV GITHUB_SHA=${GITHUB_SHA}
 
 # The supervisor, Caddy and the schedule are beeatlas-ryli's and beeatlas-zsi8's;
