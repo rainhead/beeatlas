@@ -70,6 +70,14 @@ def test_an_absent_or_empty_environment_secret_keeps_the_toml(monkeypatch):
     assert config._secret("INAT_CLIENT_SECRET", "from-toml") == "from-toml"
 
 
+def test_surrounding_whitespace_is_stripped(monkeypatch):
+    """A pasted value with a stray space (INAT_CLIENT_ID did, 2026-10-23)."""
+    monkeypatch.setenv("INAT_CLIENT_ID", " abc-123\n")
+    assert config._secret("INAT_CLIENT_ID", "") == "abc-123"
+    monkeypatch.setenv("INAT_CLIENT_ID", "   ")
+    assert config._secret("INAT_CLIENT_ID", " from-toml ") == "from-toml"
+
+
 # --- end to end, at import, as the Machine starts it ---------------------------------
 # config and auth fix their values at import, so these run a fresh interpreter with
 # the environment a Machine would have.
