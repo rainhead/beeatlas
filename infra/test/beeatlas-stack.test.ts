@@ -220,6 +220,16 @@ for (const [backupBucketId, backupBucketCf] of backupBucketEntries) {
       assert.ok(res.includes('AuthoritativeBackupBucket'), `replica user deletes outside the authoritative bucket: ${res}`);
     }
   }
+  // The replica must never be expired while current: an idle store gets no new
+  // snapshot, and its last one would vanish under the backups' 180-day expiry.
+  const authoritative = backupBucketEntries.find(([id]) => id.startsWith('AuthoritativeBackupBucket'))![1];
+  const rules: any[] = authoritative.Properties.LifecycleConfiguration.Rules;
+  for (const r of rules.filter((r) => r.ExpirationInDays !== undefined)) {
+    assert.equal(r.Prefix, 'backups/', 'current-object expiry must be scoped to backups/, never the replica');
+  }
+  assert.ok(rules.some((r) => r.Prefix === 'replica/' && r.ExpirationInDays === undefined),
+    'the replica/ prefix needs its own rule, with no current-object expiry');
+
   const listing = statements.filter((st) => actionsOf(st).includes('s3:ListBucket'));
   assert.equal(listing.length, 1, 'the replica user lists one bucket');
   assert.deepEqual(listing[0].Condition?.StringLike?.['s3:prefix'], ['replica/*', 'replica'],

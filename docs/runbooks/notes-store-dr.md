@@ -260,9 +260,13 @@ API runs under `litestream replicate -exec` ([`fly/start.sh`](../../fly/start.sh
 `s3://<AuthoritativeBackupBucket>/replica/notes.db` within about a second. The hourly
 snapshots of §3 go on beside it, as a second, simpler copy.
 
-- **RPO:** about a second. Measured in the image against an S3-compatible stand-in by
-  committing a row every 50 ms and SIGKILLing the Machine: the restore lacked the last
-  five rows, a quarter of a second of writes.
+- **RPO:** about a second, while S3 is reachable. Measured in the image against an
+  S3-compatible stand-in by committing a row every 50 ms and SIGKILLing the Machine:
+  the restore lacked the last five rows, a quarter of a second of writes. During an S3
+  outage the API still accepts notes; Litestream keeps them on the volume and ships
+  them when S3 returns, so for that window the volume (and Fly's daily volume
+  snapshot) is the only copy. A chosen trade, as salishsea's: refusing writes on
+  replica lag would need Litestream watched from outside.
 - **A fresh volume restores itself.** Before the API starts, `litestream restore
   -if-db-not-exists` brings the store back from the replica. With neither a store nor
   a replica the API stays down rather than start an empty store, which the next

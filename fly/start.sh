@@ -89,6 +89,10 @@ caddy_pid=$!
 # as a site with nobody's notes: putting a store in place is a deliberate act (the
 # cutover, or a restore by hand).
 #
+# Replication is continuous while S3 is reachable. During an outage the API still
+# accepts notes and Litestream ships them when S3 returns; the runbook states the trade
+# (docs/runbooks/notes-store-dr.md §6).
+#
 # Litestream passes its environment to the API it runs; the replica's key is taken out
 # of it there, since the API uses no AWS service.
 #

@@ -146,9 +146,22 @@ function handler(event) {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       versioned: true,
       lifecycleRules: [
+        // The hourly snapshots (backups/, data/backup_notes.py) expire after 180 days.
+        // Scoped to that prefix, which held every object when it was scoped
+        // (2026-10-22), so the replica below is not expired with them.
         {
+          prefix: 'backups/',
           expiration: cdk.Duration.days(180),
           noncurrentVersionExpiration: cdk.Duration.days(180),
+        },
+        // The Litestream replica (replica/, beeatlas-lwqi) is never expired while
+        // current: Litestream writes no new snapshot while the store is idle, so a store
+        // unwritten for 180 days would otherwise lose its only restorable copy.
+        // Litestream retires its own files; what it deletes is kept 180 days.
+        {
+          prefix: 'replica/',
+          noncurrentVersionExpiration: cdk.Duration.days(180),
+          abortIncompleteMultipartUploadAfter: cdk.Duration.days(7),
         },
       ],
     });
@@ -183,9 +196,7 @@ function handler(event) {
     // secrets NOTES_REPLICA_AWS_ACCESS_KEY_ID / _SECRET_ACCESS_KEY, which fly/start.sh
     // hands to Litestream alone.
     const NOTES_REPLICA_PREFIX = 'replica';
-    // The bucket's 180-day expiry of current objects is safe here: Litestream writes a
-    // full snapshot daily (fly/litestream.yml) and retires its own files after 30
-    // days, so the latest state never rests on an object that old.
+    // The bucket's lifecycle leaves replica/'s current objects alone (above).
     const notesReplicaWriter = new iam.User(this, 'NotesReplicaWriter', { userName: 'beeatlas-notes-replica' });
     notesReplicaWriter.addToPolicy(new iam.PolicyStatement({
       sid: 'ListReplica',
