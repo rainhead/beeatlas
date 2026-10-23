@@ -59,7 +59,12 @@ build() {
 switch() {
     # The first deploy has no Machine to take the lock on, and nothing running that a
     # deploy could cut off.
-    if [ -z "$(flyctl machines list -a "$APP" -q 2> /dev/null)" ]; then
+    # A failed listing must not read as "no Machine", which would skip the lock.
+    machines=$(flyctl machines list -a "$APP" -q) || {
+        echo "could not list $APP's Machines; not deploying without knowing whether to take the lock" >&2
+        exit 1
+    }
+    if [ -z "$machines" ]; then
         echo "no Machine yet: the first deploy needs no lock"
         flyctl deploy -a "$APP" --ha=false --image "$IMAGE"
         return
