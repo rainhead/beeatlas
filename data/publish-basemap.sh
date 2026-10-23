@@ -82,6 +82,17 @@ esac
     echo "NOTE: BASEMAP_DIR $BASEMAP_DIR absent (install: docs/runbooks/serve-from-maderas.md)" >&2
     exit 3
 }
+# Already published here and not staged: an earlier run published it and then failed
+# its backup, which is the rerun that failure asks for. Back it up and stop; the
+# publish itself is done.
+if [[ ! -f "$STAGED" && -f "$BASEMAP_DIR/$ARCHIVE" && -n "$BUCKET" ]]; then
+    echo "$ARCHIVE is already published here; retrying its backup."
+    s3_backup upload --bucket "$BUCKET" \
+        "basemap/$ARCHIVE=$BASEMAP_DIR/$ARCHIVE" "basemap/manifest.json=$BASEMAP_DIR/manifest.json" \
+        || { echo "ERROR: $ARCHIVE is published but still NOT backed up." >&2; exit 1; }
+    exit 0
+fi
+
 # Not staged here: fetch it from the backup, where the host that built it put it.
 FETCHED=""
 if [[ ! -f "$STAGED" && -n "$BUCKET" ]]; then
