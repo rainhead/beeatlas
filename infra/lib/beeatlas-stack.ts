@@ -41,14 +41,28 @@ export class BeeAtlasStack extends cdk.Stack {
     // day: maderas is sound over v6 (it holds the address on eth0, Apache
     // listens dual-stack, a v6 request returns 200), and removing v6 reachability
     // for everyone else bought nothing. `api` below stays IPv4-only, unchanged.
+    // A one-minute TTL for the Fly cutover (beeatlas-j65i): the flip, and a rollback,
+    // reach resolvers within a minute instead of CDK's default 30.
+    const cutoverTtl = cdk.Duration.seconds(60);
     for (const recordName of [undefined, 'www']) {
       new route53.ARecord(this, `NetA${recordName ?? 'Apex'}`, {
-        zone: netZone, recordName,
+        zone: netZone, recordName, ttl: cutoverTtl,
         target: route53.RecordTarget.fromIpAddresses(maderasIpv4),
       });
       new route53.AaaaRecord(this, `NetAAAA${recordName ?? 'Apex'}`, {
-        zone: netZone, recordName,
+        zone: netZone, recordName, ttl: cutoverTtl,
         target: route53.RecordTarget.fromIpAddresses(maderasIpv6),
+      });
+    }
+
+    // The Fly app's certificates, issued before DNS moves (beeatlas-j65i): Fly answers
+    // each name's ACME DNS challenge through this CNAME, so beeatlas.net, www and api
+    // have valid certificates on Fly the moment the A/AAAA records point there.
+    for (const host of ['', 'www.', 'api.']) {
+      new route53.CnameRecord(this, `FlyAcme${host ? host.slice(0, -1) : 'Apex'}`, {
+        zone: netZone,
+        recordName: `_acme-challenge.${host}beeatlas.net`,
+        domainName: `${host}beeatlas.net.gdoq6qw.flydns.net`,
       });
     }
 
@@ -61,6 +75,7 @@ export class BeeAtlasStack extends cdk.Stack {
     new route53.ARecord(this, 'ApiA', {
       zone: netZone,
       recordName: 'api',
+      ttl: cutoverTtl,
       target: route53.RecordTarget.fromIpAddresses(maderasIpv4),
     });
 
