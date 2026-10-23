@@ -230,6 +230,17 @@ for (const [backupBucketId, backupBucketCf] of backupBucketEntries) {
   assert.ok(rules.some((r) => r.Prefix === 'replica/' && r.ExpirationInDays === undefined),
     'the replica/ prefix needs its own rule, with no current-object expiry');
 
+  // Likewise the basemap archives in the pipeline bucket (beeatlas-g3xy): replaced
+  // quarterly at best, so no current-object expiry may cover basemap/.
+  const pipeline = backupBucketEntries.find(([id]) => id.startsWith('PipelineBackupBucket'))![1];
+  const pipelineRules: any[] = pipeline.Properties.LifecycleConfiguration.Rules;
+  for (const r of pipelineRules.filter((r) => r.ExpirationInDays !== undefined)) {
+    assert.ok(r.Prefix === 'db/' || r.Prefix === 'raw/',
+      `pipeline bucket expiry must be scoped to db/ or raw/, never the basemap (got ${r.Prefix})`);
+  }
+  assert.ok(pipelineRules.some((r) => r.Prefix === 'basemap/' && r.ExpirationInDays === undefined),
+    'the basemap/ prefix needs its own rule, with no current-object expiry');
+
   const listing = statements.filter((st) => actionsOf(st).includes('s3:ListBucket'));
   assert.equal(listing.length, 1, 'the replica user lists one bucket');
   assert.deepEqual(listing[0].Condition?.StringLike?.['s3:prefix'], ['replica/*', 'replica'],

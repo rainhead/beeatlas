@@ -56,3 +56,16 @@ the publish lock on the Machine before replacing it. A running nightly therefore
 finishes first, which the workflow waits up to two hours for, and no note publish can
 start during the switch. The new Machine's first boot re-renders the site under the
 same lock.
+
+## The basemap
+
+The basemap archives live beside the site root in `/data/basemap`, which no publish
+touches. They are backed up under `basemap/` in the pipeline backup bucket, so a
+fresh volume gets them back by publishing the current two. Each one is fetched from
+the backup, since nothing is staged on the Machine:
+
+```sh
+fly ssh console -C 'setpriv --reuid=app --regid=app --init-groups bash -c "cd /app && data/publish-basemap.sh wa-20260801.pmtiles && data/publish-basemap.sh wa-terrain-20260802.pmtiles"'
+```
+
+Substitute the names in the backup's `basemap/manifest.json`.

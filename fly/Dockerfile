@@ -17,6 +17,7 @@
 #   rsync, flock                merge-swap.sh and the publish lock
 #   supercronic                 the schedule (fly/crontab), under fly/start.sh
 #   Litestream                  the notes store's continuous replica (fly/litestream.yml)
+#   pmtiles                     data/publish-basemap.sh's verify and metadata reads
 #   Caddy                       the web server, with the serving policy in
 #                               fly/Caddyfile (beeatlas-zsi8)
 #   this checkout at /app       with no .git: the image IS the deploy
@@ -104,6 +105,8 @@ RUN /tmp/fetch/fetch.sh duckdb /tmp/duckdb.zip \
  && unzip -q /tmp/duckdb.zip -d /usr/local/bin && rm /tmp/duckdb.zip && duckdb --version
 RUN /tmp/fetch/fetch.sh litestream /tmp/litestream.tgz \
  && tar -xzf /tmp/litestream.tgz -C /usr/local/bin litestream && rm /tmp/litestream.tgz && litestream version
+RUN /tmp/fetch/fetch.sh pmtiles /tmp/pmtiles.tgz \
+ && tar -xzf /tmp/pmtiles.tgz -C /usr/local/bin pmtiles && rm /tmp/pmtiles.tgz && pmtiles version
 RUN /tmp/fetch/fetch.sh supercronic /usr/local/bin/supercronic \
  && chmod +x /usr/local/bin/supercronic && supercronic -version
 RUN /tmp/fetch/fetch.sh caddy /tmp/caddy.tgz \

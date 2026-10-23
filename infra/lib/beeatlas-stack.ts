@@ -229,9 +229,22 @@ function handler(event) {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       versioned: true,
       lifecycleRules: [
-        {
+        // The nightly's state (db/, raw/) is rewritten every night, so a current
+        // object never ages; the expiry only clears what the nightly stopped writing.
+        // Scoped to those prefixes, which held every object when it was scoped
+        // (2026-10-22).
+        ...['db/', 'raw/'].map((prefix) => ({
+          prefix,
           expiration: cdk.Duration.days(180),
           noncurrentVersionExpiration: cdk.Duration.days(180),
+        })),
+        // The basemap archives (basemap/, data/publish-basemap.sh, beeatlas-g3xy) are
+        // replaced quarterly at best, so a current one can be older than 180 days and
+        // must not expire: it is the only copy beside the serving host's.
+        {
+          prefix: 'basemap/',
+          noncurrentVersionExpiration: cdk.Duration.days(180),
+          abortIncompleteMultipartUploadAfter: cdk.Duration.days(7),
         },
       ],
     });
