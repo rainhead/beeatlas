@@ -5,11 +5,18 @@
 # the volume attaches to one Machine, while the synchronous note publish needs the API,
 # the pipeline's state and the site root on one filesystem (ADR 0042).
 #
-# The app name, region, size and volume are first guesses for whoever creates the app;
-# the size is unmeasured on Fly, so check it on the trial nightly (beeatlas-f21l).
+# The size was measured on the trial nightlies (beeatlas-f21l, 2026-10-22/23). A warm
+# 03:00 run took 10.5 minutes, faster than maderas, and peaked at 3.0 GB, so 4 GB with
+# 2 GB less would not do. Shared vCPUs run at full speed only on a burst allowance of
+# up to 500 CPU-seconds, rebuilt while idle; the first run on a new Machine, with
+# almost none, took 100 minutes and timed two JS data tests out. A nightly that does
+# far more work than usual (a fresh Stelis state, a large upstream change) will be
+# slow the same way.
+# San Jose, the nearest region since Fly retired Seattle; salishsea-io and beeline run
+# there too. The volume (beeatlas_data, 20 GB) was created there on 2026-10-22.
 
 app = "beeatlas"
-primary_region = "sea"
+primary_region = "sjc"
 
 # fly/start.sh stops the schedule first, so a running nightly gets SIGTERM and runs its
 # EXIT trap, the offsite backup. 300 s is the most Fly allows.
