@@ -16,6 +16,20 @@
 #   d. manifest.json LAST and atomically: every name it resolves already
 #      exists by the time readers (and the SW's NetworkFirst route) see it.
 #
+# A publish killed at ANY point leaves a site that serves (beeatlas-z1b3: on Fly a
+# deploy or a restart can stop the Machine mid-publish). That holds by design, for
+# three reasons this file must keep:
+#   - rsync writes each file under a temporary name and renames it into place (its
+#     default; never pass --inplace here), so every file is either the old one or
+#     the complete new one, never half of either.
+#   - The order above: anything a page or the manifest can name (a, b) lands before
+#     the pages (c) and the manifest (d) that name it, and old hashed names stay for
+#     30 days, so a page from either side of the cut still finds what it references.
+#   - The age-prune runs only after the page tree is complete, so it cannot delete a
+#     file a page left over from an interrupted publish still names.
+# The worst a kill leaves is a mix of last night's and tonight's pages and stable
+# files, each one whole, until the next publish completes the swap.
+#
 # Exit 3 (distinct from any rsync failure) when SITE_ROOT does not exist —
 # callers decide whether that is a skip (nightly on a fresh host) or a
 # publish failure (a note write).

@@ -71,9 +71,11 @@ FROM ${DEBIAN_IMAGE}
 # build's own downloads, and the nightly's healthcheck ping. media-types: the
 # /etc/mime.types Caddy (Go) reads to type a response by its extension, the same
 # table Apache served from, so .webmanifest, .mjs and the rest keep their types.
+# procps: pkill, with which fly/deploy.sh releases a deploy's hold on the publish
+# lock, and ps for whoever is on the Machine.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      ca-certificates curl libatomic1 libssl3 media-types rsync unzip util-linux \
+      ca-certificates curl libatomic1 libssl3 media-types procps rsync unzip util-linux \
  && rm -rf /var/lib/apt/lists/*
 
 # Everything runs as `app`, and everything app writes beside what it reads (pnpm,

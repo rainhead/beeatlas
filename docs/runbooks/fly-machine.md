@@ -47,3 +47,12 @@ interleaves with one.
 `kill_timeout`, 300 seconds, before SIGKILL. The schedule is stopped first, and a
 running nightly gets the signal itself, so its EXIT trap still uploads the offsite
 backup. The API stops next, and Caddy last.
+
+## Deploying
+
+Deploys run [`fly/deploy.sh`](../../fly/deploy.sh), from the **Fly deploy** workflow
+(by hand until cutover) or locally. It builds the image on Fly's builder, then takes
+the publish lock on the Machine before replacing it. A running nightly therefore
+finishes first, which the workflow waits up to two hours for, and no note publish can
+start during the switch. The new Machine's first boot re-renders the site under the
+same lock.
