@@ -52,9 +52,15 @@ Each step says what it protects against. The trial
 7. **Move the notes store.** On maderas, `data/backup_notes.py`: its
    `sqlite3.Connection.backup()` snapshot, never the file beside its live WAL, goes to
    `s3://<AuthoritativeBackupBucket>/backups/`. On the Machine, download and gunzip that
-   snapshot to `/data/notes/notes.db` as `app`, then `fly machine restart`. The API
-   starts under Litestream and the replica begins from this store. Run
-   `fly/restore-drill.sh` to confirm the replica matches it.
+   snapshot to `/data/notes/notes.db` as `app`, then clear Litestream's local state
+   (`litestream reset -config /app/fly/litestream.yml /data/notes/notes.db`, as `app`)
+   and `fly machine restart`. The API starts under Litestream and the replica begins
+   from this store. Run `fly/restore-drill.sh` to confirm the replica matches it.
+   Skip the reset and the local state still numbers its transactions from the store it
+   replaced. At the cutover that was the staging store: the first restart failed
+   every sync with "LTX file is missing", and nothing written reached the replica
+   until the reset. If the replica's prefix already holds files from an earlier
+   attempt, move them aside first, so the replica starts its history from this store.
 8. **Flip DNS.** Point the apex, `www` and `api` records at the step-4 addresses in
    the stack and deploy it. Before that, `curl --resolve beeatlas.net:443:<v4>` against
    the Machine, and `fly/serving-matrix.sh https://beeatlas.net` once it resolves to
@@ -80,7 +86,7 @@ covers reads. **Notes written on Fly must be copied back**, or they are lost in 
 scramble: set `WRITES_ENABLED=false` on the Machine (`fly secrets set`, which
 restarts it), take a snapshot there (`data/backup_notes.py`), restore it over
 maderas's store with maderas's API stopped, then re-enable writes on maderas and
-restore its nightly's crontab line.
+restore its nightly and hourly notes snapshot crontab lines.
 
 `beeline.beeatlas.net` also points at maderas, but it is beeline's app (already on
 Fly) and moves on its own schedule; this cutover leaves its records alone.
