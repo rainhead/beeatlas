@@ -17,10 +17,11 @@
 # which have moved since the reference ran, so they would compare the sources, not the
 # image. What a difference may honestly be is narrow, and each is checked rather than
 # assumed:
-#   - a geojson whose features are identical (only its _meta stamp differs);
+#   - a geojson identical but for its _meta stamp;
 #   - occurrences.db whose rows are identical: SQLite writes its library's version
 #     into the header, and the image's Python bundles its own SQLite;
-#   - the .br/.gz siblings of a file above.
+#   - the .br/.gz siblings of a file above, each decompressing to exactly its own
+#     side's copy of that file.
 # Anything else is unexplained. Exit status: the number of unexplained files (capped
 # at 100); 0 means the image reproduces the reference.
 
@@ -59,7 +60,7 @@ chmod -R a+rX "$state/export" "$v/var/export"
 # and exits 0, a pass that compared nothing.
 docker run -i --rm --network none -v "$state/export:/ref:ro" -v "$v/var/export:/img:ro" \
     --entrypoint /app/data/.venv/bin/python "$image" - <<'PY'
-import hashlib, json, os, sqlite3, sys
+import gzip, hashlib, json, os, sqlite3, subprocess, sys
 ref, img = "/ref", "/img"
 
 def files(root):
@@ -77,8 +78,10 @@ def explain(rel):
     a, b = os.path.join(ref, rel), os.path.join(img, rel)
     if rel.endswith(".geojson"):
         ja, jb = json.load(open(a)), json.load(open(b))
-        if ja.get("features") == jb.get("features"):
-            return "features identical; only the _meta stamp differs"
+        ja.pop("_meta", None)
+        jb.pop("_meta", None)
+        if ja == jb:
+            return "identical but for the _meta stamp"
     if rel == "occurrences.db":
         dump = lambda p: list(sqlite3.connect(f"file:{p}?mode=ro", uri=True).iterdump())
         if dump(a) == dump(b):
@@ -93,9 +96,31 @@ bases = {r for r, why in explained.items() if why}
 unexplained = [r for r, why in explained.items() if not why]
 # compressed/<name>-<hash12>.<br|gz> is the sibling of <name>, named for its content's
 # hash: when <name> differs explicably, its siblings differ too, or exist under a
-# different name on each side.
+# different name on each side. Each one counts as explained only if it decompresses to
+# exactly its own side's <name>, so a truncated or stale sibling is still caught.
 sibling_of = lambda r: r.split("/", 1)[1].rsplit("-", 1)[0]
-siblings = [r for r in differ + only if r.startswith("compressed/") and sibling_of(r) in bases]
+
+def decompresses_to_base(rel):
+    roots = [root for root, present in ((ref, rf), (img, imf)) if rel in present]
+    return all(decompresses_to_base_on(root, rel) for root in roots)
+
+def decompresses_to_base_on(root, rel):
+    path, base = os.path.join(root, rel), os.path.join(root, sibling_of(rel))
+    try:
+        if rel.endswith(".gz"):
+            data = gzip.open(path).read()
+        elif rel.endswith(".br"):  # no brotli module here; node's zlib has it
+            data = subprocess.run(
+                ["node", "-e", "process.stdout.write(require('zlib').brotliDecompressSync(require('fs').readFileSync(process.argv[1])))", path],
+                capture_output=True, check=True).stdout
+        else:
+            return False
+        return data == open(base, "rb").read()
+    except Exception:
+        return False
+
+siblings = [r for r in differ + only
+            if r.startswith("compressed/") and sibling_of(r) in bases and decompresses_to_base(r)]
 unexplained += [r for r in differ + only if r.startswith("compressed/") and r not in siblings and r in differ]
 unexplained += [r for r in only if r not in siblings]
 
