@@ -9,9 +9,11 @@ on:
   workflow_dispatch:
 # One deploy at a time, queued rather than cancelled: an interrupted switch could leave
 # the Machine half replaced, and a queued one waits its turn for the lock anyway.
+# queue: max keeps every pending run (up to 100); by default GitHub cancels all but one.
 concurrency:
   group: fly-deploy
   cancel-in-progress: false
+  queue: max
 jobs:
   deploy:
     name: Build and switch

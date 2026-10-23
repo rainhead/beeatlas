@@ -78,15 +78,22 @@ switch() {
     deployed=
     release() {
         kill "$hold_pid" 2> /dev/null || true
-        [ -n "$deployed" ] || flyctl ssh console -a "$APP" -C "pkill -f $HOLDER" > /dev/null 2>&1 || true
+        [ -n "$deployed" ] || timeout 60 flyctl ssh console -a "$APP" -C "pkill -f $HOLDER" > /dev/null 2>&1 || true
         rm -f "$lock_log"
     }
     trap release EXIT
     echo "waiting for the publish lock on $APP (a running nightly holds it until it ends)..."
+    # A local deadline too, with a minute's slack for the SSH connection: a session that
+    # stalls before the remote flock starts would otherwise wait with no end.
+    deadline=$((SECONDS + LOCK_WAIT + 60))
     until grep -q '^held' "$lock_log"; do
         if ! kill -0 "$hold_pid" 2> /dev/null; then
             cat "$lock_log" >&2
             echo "could not take the publish lock within ${LOCK_WAIT}s; is a publish stuck? The image is pushed: rerun fly/deploy.sh switch" >&2
+            exit 1
+        fi
+        if [ "$SECONDS" -ge "$deadline" ]; then
+            echo "no publish lock within ${LOCK_WAIT}s; the SSH session may not have reached the lock. The image is pushed: rerun fly/deploy.sh switch" >&2
             exit 1
         fi
         sleep 5
