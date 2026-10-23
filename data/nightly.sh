@@ -93,7 +93,10 @@ BASELINE_DIR="${BASELINE_DIR:-$VAR_DIR/baseline}"
 # maderas). Without this export the harvest reads a nonexistent store and emits
 # an empty notes/ dir — no author note ever reaches the static site.
 NOTES_DB_PATH="${NOTES_DB_PATH:-$HOME/beeatlas-store/notes.db}"
-HEALTHCHECK_URL="${HEALTHCHECK_URL:-https://hc-ping.com/411cd80a-965b-408c-8f89-b2b3afda0286}"
+# Set but EMPTY disables the ping: a trial run (beeatlas-f21l) must not report to
+# production's monitor, where its success would mask production's failure. Hence `-`,
+# not `:-`, which turned an empty value back into the production URL. Unset keeps it.
+HEALTHCHECK_URL="${HEALTHCHECK_URL-https://hc-ping.com/411cd80a-965b-408c-8f89-b2b3afda0286}"
 
 # Offsite backup (trap, step 8). Same-host is not a backup. The dedicated
 # PipelineBackupBucket (CDK, st-pry) is the destination — set

@@ -279,3 +279,30 @@ def test_a_failed_night_still_backs_up_keeps_its_code_and_does_not_ping(tmp_path
     assert rc == 3, out
     assert any("s3_backup.py upload" in c for c in calls)
     assert not any(c.startswith("curl") for c in calls), calls
+
+
+# --- the healthcheck default (beeatlas-f21l) ------------------------------------------
+
+
+def _healthcheck_after_default(env_value):
+    """Run nightly.sh's own HEALTHCHECK_URL line with the variable unset or set."""
+    line = next(l for l in NIGHTLY.read_text().splitlines() if l.startswith("HEALTHCHECK_URL="))
+    env = {k: v for k, v in os.environ.items() if k != "HEALTHCHECK_URL"}
+    if env_value is not None:
+        env["HEALTHCHECK_URL"] = env_value
+    p = subprocess.run(["bash", "-c", f'{line}\nprintf "%s" "$HEALTHCHECK_URL"'],
+                       env=env, capture_output=True, text=True, check=True)
+    return p.stdout
+
+
+def test_an_unset_healthcheck_url_pings_production():
+    assert _healthcheck_after_default(None).startswith("https://hc-ping.com/")
+
+
+def test_an_empty_healthcheck_url_disables_the_ping():
+    """A trial run sets it empty so it cannot report to production's monitor."""
+    assert _healthcheck_after_default("") == ""
+
+
+def test_a_given_healthcheck_url_is_used():
+    assert _healthcheck_after_default("https://hc-ping.invalid/trial") == "https://hc-ping.invalid/trial"
