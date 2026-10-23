@@ -111,6 +111,12 @@ if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
                     litestream replicate -config /app/fly/litestream.yml \
                         -exec "env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY ${api[*]}" &
             else
+                # The same rule as a failed restore: no store, no API. SQLite would
+                # otherwise create an empty one on the API's first read.
+                if [ ! -f "$NOTES_DB_PATH" ]; then
+                    echo "NOTES_REPLICA_URL is not set and $NOTES_DB_PATH is missing: not starting the API on an empty store; retrying in 10 s" >&2
+                    sleep 10; continue
+                fi
                 echo "NOTES_REPLICA_URL is not set: the notes store has no replica, so the API refuses writes" >&2
                 INAT_CLIENT_SECRET="$client_secret" SESSION_SIGNING_KEY="$session_key" WRITES_ENABLED=false \
                     "${api[@]}" &
