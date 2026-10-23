@@ -32,36 +32,60 @@ export class BeeAtlasStack extends cdk.Stack {
     const maderasIpv4 = '45.79.96.48';
     const maderasIpv6 = '2600:3c01::f03c:92ff:feb3:476f';
 
-    // ── Route 53 records for beeatlas.net (apex + www) → maderas (ADR 0007) ──
-    // Direct dual-stack A/AAAA at maderas, which serves the rendered site via
-    // Apache. The AAAA records were dropped on 2026-07-31 on the theory that a
-    // broken IPv6 path was stalling an affected visitor (Happy Eyeballs prefers
-    // AAAA, so such a client hangs instead of falling back to the A record).
-    // That did not fix the reported problem, so they were restored the same
-    // day: maderas is sound over v6 (it holds the address on eth0, Apache
-    // listens dual-stack, a v6 request returns 200), and removing v6 reachability
-    // for everyone else bought nothing. `api` below stays IPv4-only, unchanged.
+    // The beeatlas Fly app (ADR 0042, beeatlas-j65i): a shared IPv4 and a dedicated
+    // IPv6, from `fly ips list -a beeatlas`. beeatlas.net, www and api point here
+    // since the cutover; beeline stays on maderas until it moves on its own.
+    const flyIpv4 = '66.241.125.154';
+    const flyIpv6 = '2a09:8280:1::1c6:fdad:0';
+
+    // ── Route 53 records for beeatlas.net (apex + www) → the Fly app (ADR 0042) ──
+    // Direct dual-stack A/AAAA. Fly's proxy terminates TLS and forwards to Caddy
+    // on the one Machine. Until 2026-10-23 these pointed at maderas, which served
+    // the site through Apache (ADR 0007). The AAAA records stay: on 2026-07-31
+    // dropping them did not fix a visitor's stalls, and removing IPv6 for
+    // everyone else bought nothing.
+    // A one-minute TTL for the Fly cutover (beeatlas-j65i): the flip, and a rollback,
+    // reach resolvers within a minute instead of CDK's default 30.
+    const cutoverTtl = cdk.Duration.seconds(60);
     for (const recordName of [undefined, 'www']) {
       new route53.ARecord(this, `NetA${recordName ?? 'Apex'}`, {
-        zone: netZone, recordName,
-        target: route53.RecordTarget.fromIpAddresses(maderasIpv4),
+        zone: netZone, recordName, ttl: cutoverTtl,
+        target: route53.RecordTarget.fromIpAddresses(flyIpv4),
       });
       new route53.AaaaRecord(this, `NetAAAA${recordName ?? 'Apex'}`, {
-        zone: netZone, recordName,
-        target: route53.RecordTarget.fromIpAddresses(maderasIpv6),
+        zone: netZone, recordName, ttl: cutoverTtl,
+        target: route53.RecordTarget.fromIpAddresses(flyIpv6),
       });
     }
 
-    // ── Route 53 record: api.beeatlas.net → maderas (Phase 178 write layer) ──
-    // Plain A record to a fixed IP — api.beeatlas.net serves directly from
-    // maderas via Apache mod_proxy_http -> Waitress (D-17), with its own
-    // certbot-issued TLS cert (independent of the CloudFront ACM cert still
-    // used by the beeatlas.com redirect). Never `cdk destroy`
+    // The Fly app's certificates, issued before DNS moves (beeatlas-j65i): Fly answers
+    // each name's ACME DNS challenge through this CNAME, so beeatlas.net, www and api
+    // have valid certificates on Fly the moment the A/AAAA records point there.
+    for (const host of ['', 'www.', 'api.']) {
+      new route53.CnameRecord(this, `FlyAcme${host ? host.slice(0, -1) : 'Apex'}`, {
+        zone: netZone,
+        recordName: `_acme-challenge.${host}beeatlas.net`,
+        domainName: `${host}beeatlas.net.gdoq6qw.flydns.net`,
+      });
+    }
+
+    // ── Route 53 records: api.beeatlas.net → the Fly app (the write API) ──
+    // The same Machine as the site: Caddy routes the api host to Waitress, and
+    // Fly holds its certificate. Until the cutover it was maderas, through
+    // Apache mod_proxy_http with a certbot certificate. Never `cdk destroy`
     // (memory project_cdk_stack_composition).
     new route53.ARecord(this, 'ApiA', {
       zone: netZone,
       recordName: 'api',
-      target: route53.RecordTarget.fromIpAddresses(maderasIpv4),
+      ttl: cutoverTtl,
+      target: route53.RecordTarget.fromIpAddresses(flyIpv4),
+    });
+    // Dual-stack on Fly, like the apex; on maderas api was IPv4-only.
+    new route53.AaaaRecord(this, 'ApiAAAA', {
+      zone: netZone,
+      recordName: 'api',
+      ttl: cutoverTtl,
+      target: route53.RecordTarget.fromIpAddresses(flyIpv6),
     });
 
     // ── Route 53 records: beeline.beeatlas.net → maderas ──────────────────
