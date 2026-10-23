@@ -61,7 +61,12 @@ switch() {
     # one (killing the local `flyctl ssh` leaves the remote side running), so it lets go
     # by itself after HOLD seconds; a deploy that fails before the Machine is replaced
     # lets go at once. Replacing the Machine ends the hold with it.
-    HOLD=900 LOCK_WAIT=${LOCK_WAIT:-7200}
+    #
+    # The deploy is bounded to end two minutes before the hold can (DEPLOY_LIMIT), so
+    # the lock is held for the whole switch however long flyctl retries: a deploy that
+    # would outlast it fails instead, and the hold then lets go by itself.
+    HOLD=1800 LOCK_WAIT=${LOCK_WAIT:-7200}
+    DEPLOY_LIMIT=$((HOLD - 120))
     HOLDER="deploy-hold-$SHA-$$"   # names this deploy's hold alone, to release it
     lock_log=$(mktemp)
     # As app, like everything on the Machine: `flyctl ssh` is root, and a lock file it
@@ -88,7 +93,7 @@ switch() {
     done
     echo "holding the publish lock; deploying $IMAGE"
 
-    flyctl deploy -a "$APP" --ha=false --image "$IMAGE"
+    timeout "$DEPLOY_LIMIT" flyctl deploy -a "$APP" --ha=false --image "$IMAGE" --wait-timeout 10m
     deployed=1
 }
 
