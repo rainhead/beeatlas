@@ -68,6 +68,12 @@ const SITE = join(ROOT, '_site');
 // as absent (walk returns []), so listing variants that do not exist here is free and
 // survives someone adding one.
 //
+// The same values can also come from the process environment, which Vite reads
+// ahead of every .env file, so fingerprint() hashes each VITE_* variable it finds
+// there too. The Fly staging host set VITE_NOTES_API_BASE_URL that way: when the
+// cutover removed it, the files were unchanged and this gate would have kept
+// shipping a bundle that called the staging API (beeatlas-j65i).
+//
 // VITE_MAPBOX_TOKEN was the original example here and is gone: the basemap is
 // self-hosted as of beeatlas-q73 and no renderer asset sits behind a key.
 const BUNDLE_INPUTS = [
@@ -90,6 +96,11 @@ function fingerprint() {
     h.update(p);
     h.update(createHash('sha256').update(readFileSync(join(ROOT, p))).digest());
   }
+  // Each VITE_* variable as a name and value, in name order. A variable that is set
+  // but empty still counts as set, because Vite bakes the empty string in.
+  // JSON.stringify keeps the boundary between name and value unambiguous.
+  const viteEnv = Object.keys(process.env).filter(k => k.startsWith('VITE_')).sort();
+  for (const k of viteEnv) h.update(`env:${JSON.stringify([k, process.env[k]])}\n`);
   return h.digest('hex').slice(0, 16);
 }
 
