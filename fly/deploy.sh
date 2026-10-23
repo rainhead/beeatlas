@@ -66,7 +66,7 @@ switch() {
     }
     if [ -z "$machines" ]; then
         echo "no Machine yet: the first deploy needs no lock"
-        flyctl deploy -a "$APP" --ha=false --image "$IMAGE"
+        flyctl deploy -a "$APP" --ha=false --image "$IMAGE" --wait-timeout 10m
         return
     fi
 
