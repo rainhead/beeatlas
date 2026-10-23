@@ -5,11 +5,12 @@
 # the volume attaches to one Machine, while the synchronous note publish needs the API,
 # the pipeline's state and the site root on one filesystem (ADR 0042).
 #
-# The app name, region, size and volume are first guesses for whoever creates the app;
-# the size is unmeasured on Fly, so check it on the trial nightly (beeatlas-f21l).
+# The size is unmeasured on Fly, so check it on the trial nightly (beeatlas-f21l).
+# San Jose, the nearest region since Fly retired Seattle; salishsea-io and beeline run
+# there too. The volume (beeatlas_data, 20 GB) was created there on 2026-10-22.
 
 app = "beeatlas"
-primary_region = "sea"
+primary_region = "sjc"
 
 # fly/start.sh stops the schedule first, so a running nightly gets SIGTERM and runs its
 # EXIT trap, the offsite backup. 300 s is the most Fly allows.

@@ -57,6 +57,14 @@ build() {
 }
 
 switch() {
+    # The first deploy has no Machine to take the lock on, and nothing running that a
+    # deploy could cut off.
+    if [ -z "$(flyctl machines list -a "$APP" -q 2> /dev/null)" ]; then
+        echo "no Machine yet: the first deploy needs no lock"
+        flyctl deploy -a "$APP" --ha=false --image "$IMAGE"
+        return
+    fi
+
     # Take the publish lock on the Machine and hold it from a session that outlives this
     # one (killing the local `flyctl ssh` leaves the remote side running), so it lets go
     # by itself after HOLD seconds; a deploy that fails before the Machine is replaced
