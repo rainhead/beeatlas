@@ -14,9 +14,13 @@ Each step says what it protects against. The trial
    reaches resolvers within a minute and so does a rollback.
 2. **Create the app, unrouted.** `fly apps create beeatlas`; `fly volumes create
    beeatlas_data --region sea --size 20`; the secrets named in
-   [`fly/Dockerfile`](../../fly/Dockerfile) with `fly secrets set`; then the
-   **Fly deploy** workflow. On an empty volume the Machine serves `/healthz` and
-   nothing else, and the API waits for a notes store.
+   [`fly/Dockerfile`](../../fly/Dockerfile) with `fly secrets set`, **except the
+   pipeline's AWS key**, and `HEALTHCHECK_URL` set empty; then the **Fly deploy**
+   workflow. From now on the Machine runs its own nightly at 03:00, beside maderas's.
+   Without the key its backup refuses rather than overwrite production's DuckDB
+   backup with its own, and with the empty URL it never reports to production's
+   monitor. On an empty volume the Machine serves `/healthz` and nothing else, and
+   the API waits for a notes store.
 3. **Issue the certificates before the flip.** `fly certs add` for `beeatlas.net`,
    `www.beeatlas.net` and `api.beeatlas.net`; `fly certs show <host>` gives each one's
    `_acme-challenge` CNAME target. Add the three as `route53.CnameRecord`s in the
@@ -32,7 +36,10 @@ Each step says what it protects against. The trial
    archives (`publish-basemap.sh`'s). On the Machine, as `app`, restore the DuckDB
    (`data/s3_backup.py restore … db/beeatlas.duckdb /data/var/beeatlas.duckdb`) and
    the taxonomy files, and publish the two current basemap archives, which fetches
-   them ([fly-machine.md](fly-machine.md), "The basemap"). Then run the nightly by
+   them ([fly-machine.md](fly-machine.md), "The basemap"). These need the pipeline's
+   AWS key: pass it on those commands alone (`AWS_ACCESS_KEY_ID=… AWS_SECRET_ACCESS_KEY=…`
+   in the ssh session), not as a secret, so the Machine's own nightly still cannot
+   write production's backup. Then run the nightly by
    hand on the Machine. It builds the export and the site from empty Stelis state,
    and its notes harvest finds no store yet, so its notes pages are empty until step 7.
 
@@ -53,9 +60,11 @@ Each step says what it protects against. The trial
    the Machine, and `fly/serving-matrix.sh https://beeatlas.net` once it resolves to
    Fly, which must pass 18 of 18. Then the gate from beeatlas-cjyz: sign in, a write
    check, a note write, and its synchronous publish.
-9. **Stop maderas's nightly.** Remove its crontab line. Two nightlies would upload
-   their DuckDBs to the same backup key, and two publish paths would serve different
-   sites. Leave the notes snapshot cron until maderas is decommissioned
+9. **Hand the nightly over.** Remove maderas's crontab line, then give the Fly app the
+   pipeline's AWS key (`fly secrets set AWS_ACCESS_KEY_ID=… AWS_SECRET_ACCESS_KEY=…`)
+   and unset the empty `HEALTHCHECK_URL` (`fly secrets unset HEALTHCHECK_URL`), in that
+   order: two nightlies holding the key would upload their DuckDBs to the same backup
+   key. From here the Machine's nightly backs up and pings as maderas's did. Leave the notes snapshot cron until maderas is decommissioned
    (beeatlas-8h0h); it is harmless with writes frozen.
 10. **Deploy on push.** Give the Fly deploy workflow `push: branches: [main]`.
 
