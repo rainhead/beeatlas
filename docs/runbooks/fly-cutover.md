@@ -64,8 +64,13 @@ Each step says what it protects against. The trial
    pipeline's AWS key (`fly secrets set AWS_ACCESS_KEY_ID=… AWS_SECRET_ACCESS_KEY=…`)
    and unset the empty `HEALTHCHECK_URL` (`fly secrets unset HEALTHCHECK_URL`), in that
    order: two nightlies holding the key would upload their DuckDBs to the same backup
-   key. From here the Machine's nightly backs up and pings as maderas's did. Leave the notes snapshot cron until maderas is decommissioned
-   (beeatlas-8h0h); it is harmless with writes frozen.
+   key. From here the Machine's nightly backs up and pings as maderas's did. Remove
+   maderas's hourly notes snapshot too, and give the Machine `NOTES_BACKUP_BUCKET` so
+   its own snapshot job runs. Both jobs write to the same bucket at the top of the
+   hour, and the restore procedure takes the newest file, so maderas's copy of the
+   frozen store could win over the Machine's and lose every note written since the
+   freeze. Run the Machine's snapshot once by hand (`data/backup_notes.py`, as the
+   `app` user) and check the new file in the bucket.
 10. **Deploy on push.** Give the Fly deploy workflow `push: branches: [main]`.
 
 ## Rollback
