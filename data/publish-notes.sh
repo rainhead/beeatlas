@@ -37,6 +37,9 @@ export PATH="$HOME/.local/bin:$PATH"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# in_container, use_pinned_node, describe_code: host checkout vs the Fly image.
+# shellcheck source=data/runtime-env.sh
+. "$SCRIPT_DIR/runtime-env.sh"
 
 BASE_DIR="${BASE_DIR:-/var/www/beeatlas.net}"
 SITE_ROOT="${SITE_ROOT:-$BASE_DIR/htdocs}"
@@ -80,15 +83,10 @@ if ! flock -w "${PUBLISH_LOCK_WAIT:-60}" 200; then
     exit 75
 fi
 
-# Node via NVM (the systemd user service has no login shell environment).
-if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
-    # shellcheck disable=SC1091
-    . "$HOME/.nvm/nvm.sh"
-    cd "$REPO_ROOT"
-    nvm use --silent
-else
-    echo "WARN: $HOME/.nvm/nvm.sh not found — node tooling may not resolve" >&2
-fi
+# Node via NVM (the systemd user service has no login shell environment); in the
+# Fly image, the image's node.
+cd "$REPO_ROOT"
+use_pinned_node
 
 # A publish that dies AFTER the harvest has spent stelis's per-key delta: the harvest
 # recorded its observation, so the next publish's harvest cache-skips, --moved-keys

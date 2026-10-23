@@ -15,6 +15,8 @@
 #      note) rather than tempfailing — an interactive deploy queued behind
 #      the nightly is better than one silently skipped.
 #   2. Source NVM, `nvm use`, git pull --ff-only, `pnpm install --frozen-lockfile`.
+#      In the Fly image (data/runtime-env.sh) none of this: a code change arrives as
+#      a new image, and this script is the render that follows its deploy.
 #   3. Gate: `pnpm run test:data` — the data-dependent JS suites run for real
 #      here because $EXPORT_DIR exists (same gate as nightly step 4b).
 #   4. `pnpm run build` against $EXPORT_DIR (lib/build-data-dir.js resolves
@@ -41,6 +43,9 @@ export PATH="$HOME/.local/bin:$PATH"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# in_container, use_pinned_node, describe_code: host checkout vs the Fly image.
+# shellcheck source=data/runtime-env.sh
+. "$SCRIPT_DIR/runtime-env.sh"
 
 BASE_DIR="${BASE_DIR:-/var/www/beeatlas.net}"
 SITE_ROOT="${SITE_ROOT:-$BASE_DIR/htdocs}"
@@ -79,20 +84,18 @@ fi
 echo "--- syncing source + dependencies ---"
 _t0=$(date +%s)
 cd "$REPO_ROOT"
-if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
-    # shellcheck disable=SC1091
-    . "$HOME/.nvm/nvm.sh"
-    nvm use --silent
+use_pinned_node
+if in_container; then
+    describe_code
 else
-    echo "WARN: $HOME/.nvm/nvm.sh not found — node tooling may not resolve" >&2
+    git pull --ff-only
+    # `--frozen-lockfile` is pnpm's `npm ci`: fail rather than silently rewrite the
+    # lockfile. The lockfile-hash cache this used to share with the nightly is gone
+    # — see the rationale in data/nightly.sh; in short, pnpm neither wipes the tree
+    # nor compiles anything now, and an unconditional install verifies node_modules
+    # instead of trusting a hash that could not see it.
+    pnpm install --frozen-lockfile
 fi
-git pull --ff-only
-# `--frozen-lockfile` is pnpm's `npm ci`: fail rather than silently rewrite the
-# lockfile. The lockfile-hash cache this used to share with the nightly is gone
-# — see the rationale in data/nightly.sh; in short, pnpm neither wipes the tree
-# nor compiles anything now, and an unconditional install verifies node_modules
-# instead of trusting a hash that could not see it.
-pnpm install --frozen-lockfile
 echo "sync done in $(_elapsed $_t0)"
 
 # 3. JS data-dependent test gate (nightly step 4b): the artifacts exist, so

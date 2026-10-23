@@ -73,7 +73,15 @@ def main() -> None:
     # config-driven -- so this process is unreachable except through
     # Apache's reverse proxy (D-17 security posture). Only the
     # port is config-driven (api.config.SERVE_PORT).
-    waitress.serve(app, host="127.0.0.1", port=SERVE_PORT)
+    #
+    # clear_untrusted_proxy_headers=False: Waitress 3 deletes every X-Forwarded-*
+    # header from a peer it was not told to trust, before the app sees them, so
+    # main.py's ProxyFix had nothing to read and every request looked like
+    # 127.0.0.1 over http, behind Apache as behind Caddy (found putting the API
+    # behind Caddy on Fly, beeatlas-cjyz). The only peer this loopback socket can
+    # have is the local reverse proxy, so its headers are kept, and ProxyFix
+    # applies exactly one hop of them, as it was written to.
+    waitress.serve(app, host="127.0.0.1", port=SERVE_PORT, clear_untrusted_proxy_headers=False)
 
 
 if __name__ == "__main__":

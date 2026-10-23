@@ -17,7 +17,9 @@
 #   2. Source NVM, `nvm use` the .nvmrc-pinned node, git pull BOTH repos —
 #      this one and the stelis checkout that owns the task graph, since a
 #      change spanning the two ships only if both move (beeatlas-cwh) —
-#      `pnpm install --frozen-lockfile` in both Node trees, uv sync.
+#      `pnpm install --frozen-lockfile` in both Node trees, uv sync. In the Fly
+#      image (BEEATLAS_CONTAINER, data/runtime-env.sh) none of this runs: the
+#      code, Stelis and the dependencies are the image's.
 #   3. Restore the integration-gate baseline (last PUBLISHED artifacts,
 #      snapshotted in step 7) into public/data/.
 #   4. `pnpm run fetch-data` — Stelis (github.com/rainhead/stelis) builds the
@@ -64,6 +66,9 @@ export PATH="$HOME/.local/bin:$PATH"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# in_container, use_pinned_node, describe_code: host checkout vs the Fly image.
+# shellcheck source=data/runtime-env.sh
+. "$SCRIPT_DIR/runtime-env.sh"
 
 BASE_DIR="${BASE_DIR:-/var/www/beeatlas.net}"
 SITE_ROOT="${SITE_ROOT:-$BASE_DIR/htdocs}"
@@ -88,7 +93,10 @@ BASELINE_DIR="${BASELINE_DIR:-$VAR_DIR/baseline}"
 # maderas). Without this export the harvest reads a nonexistent store and emits
 # an empty notes/ dir — no author note ever reaches the static site.
 NOTES_DB_PATH="${NOTES_DB_PATH:-$HOME/beeatlas-store/notes.db}"
-HEALTHCHECK_URL="${HEALTHCHECK_URL:-https://hc-ping.com/411cd80a-965b-408c-8f89-b2b3afda0286}"
+# Set but EMPTY disables the ping: a trial run (beeatlas-f21l) must not report to
+# production's monitor, where its success would mask production's failure. Hence `-`,
+# not `:-`, which turned an empty value back into the production URL. Unset keeps it.
+HEALTHCHECK_URL="${HEALTHCHECK_URL-https://hc-ping.com/411cd80a-965b-408c-8f89-b2b3afda0286}"
 
 # Offsite backup (trap, step 8). Same-host is not a backup. The dedicated
 # PipelineBackupBucket (CDK, st-pry) is the destination — set
@@ -213,7 +221,7 @@ _copy_baseline() {
         else
             echo "WARN: $from missing $_name ($_src) — skipped" >&2
         fi
-    done < <(python3 "$SCRIPT_DIR/artifacts.py" baseline-files)
+    done < <(uv run --no-sync --directory "$SCRIPT_DIR" python artifacts.py baseline-files)
     echo "  $copied baseline artifacts: $from -> $to"
 }
 
@@ -231,61 +239,63 @@ flock 200
 # 1. Sync source + dependencies. NVM is required for node tooling: the site build
 # (root package.json) and the pipeline's mapshaper (data/package.json, called by
 # data/topology_postprocess.py). Both trees are installed below.
+#
+# In the Fly image there is nothing to sync (beeatlas-h6mo): the image IS the
+# deploy, with Stelis pinned by digest, so pulling would move this run past the
+# pin. The pull, the Stelis pull and compile, and the installs are host-only.
 _stage="sync"
 echo "--- syncing source + dependencies ---"
 _t0=$(date +%s)
 cd "$REPO_ROOT"
-if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
-    # shellcheck disable=SC1091
-    . "$HOME/.nvm/nvm.sh"
-    nvm use --silent
-else
-    echo "WARN: $HOME/.nvm/nvm.sh not found — node tooling may not resolve" >&2
-fi
-git pull --ff-only
-
-# Sync STELIS too (beeatlas-cwh). The task graph lives in a SEPARATE repo, so a
-# change spanning both — a loader + dbt model here, its graph node there — ships
-# only if BOTH move. Pulling one was a real failure on 2026-07-25: the new dbt
-# model ran against a graph that never produced its input, and the error named a
-# missing SCHEMA, which reads like a broken migration rather than "the other repo
-# is one commit behind".
-#
-# We auto-FOLLOW stelis main rather than pinning a SHA. The nightly already adopts
-# beeatlas main unreviewed a few lines up — the repo holding the loaders and dbt
-# models — so this is the same risk already accepted, not a new category. Stelis is
-# content-addressed, so a pull reads as 'code-changed and rebuilds exactly what the
-# edit reaches. And the integration gate below still stands between a bad build and
-# the publish. The alternatives (a pinned SHA in-repo, or vendoring stelis as a
-# submodule) are written up on beeatlas-cwh and stay the right shape if this ever
-# needs a review step per ship.
-#
-# A dirty or diverged stelis checkout — someone debugging on this host — fails
-# --ff-only. That has to name STELIS_DIR HERE rather than surface an hour later as
-# a dbt Catalog Error.
+use_pinned_node
 STELIS_DIR="${STELIS_DIR:-$HOME/dev/stelis}"
 export STELIS_DIR
-if [[ ! -d "$STELIS_DIR/.git" ]]; then
-    echo "FATAL: no stelis git checkout at $STELIS_DIR — the task graph lives" >&2
-    echo "there and cannot be synced. Set STELIS_DIR, or clone" >&2
-    echo "github.com/rainhead/stelis." >&2
-    exit 78  # EX_CONFIG
-fi
-if ! git -C "$STELIS_DIR" pull --ff-only; then
-    echo "FATAL: 'git pull --ff-only' failed in the STELIS checkout $STELIS_DIR" >&2
-    echo "(dirty working tree? diverged branch?). That checkout owns the task" >&2
-    echo "graph; building with a stale one fails deep inside dbt instead of here." >&2
-    exit 1
-fi
-echo "  stelis: $(git -C "$STELIS_DIR" rev-parse --short HEAD) $(git -C "$STELIS_DIR" log -1 --format=%s)"
-# Racket compiles on demand, so this is an optimization, not a correctness step —
-# but a cold compile of the whole graph inside the build is a slow surprise, and
-# the 2026-07-25 recovery needed it. Non-fatal if raco is absent: `racket` is what
-# fetch-data.sh actually invokes, and it would fail with a better message.
-if command -v raco > /dev/null; then
-    (cd "$STELIS_DIR" && raco make src/main.rkt)
+if in_container; then
+    describe_code
 else
-    echo "  WARN: raco not on PATH — skipping stelis bytecode build" >&2
+    git pull --ff-only
+
+    # Sync STELIS too (beeatlas-cwh). The task graph lives in a SEPARATE repo, so a
+    # change spanning both — a loader + dbt model here, its graph node there — ships
+    # only if BOTH move. Pulling one was a real failure on 2026-07-25: the new dbt
+    # model ran against a graph that never produced its input, and the error named a
+    # missing SCHEMA, which reads like a broken migration rather than "the other repo
+    # is one commit behind".
+    #
+    # We auto-FOLLOW stelis main rather than pinning a SHA. The nightly already adopts
+    # beeatlas main unreviewed a few lines up — the repo holding the loaders and dbt
+    # models — so this is the same risk already accepted, not a new category. Stelis is
+    # content-addressed, so a pull reads as 'code-changed and rebuilds exactly what the
+    # edit reaches. And the integration gate below still stands between a bad build and
+    # the publish. The alternatives (a pinned SHA in-repo, or vendoring stelis as a
+    # submodule) are written up on beeatlas-cwh and stay the right shape if this ever
+    # needs a review step per ship.
+    #
+    # A dirty or diverged stelis checkout — someone debugging on this host — fails
+    # --ff-only. That has to name STELIS_DIR HERE rather than surface an hour later as
+    # a dbt Catalog Error.
+    if [[ ! -d "$STELIS_DIR/.git" ]]; then
+        echo "FATAL: no stelis git checkout at $STELIS_DIR — the task graph lives" >&2
+        echo "there and cannot be synced. Set STELIS_DIR, or clone" >&2
+        echo "github.com/rainhead/stelis." >&2
+        exit 78  # EX_CONFIG
+    fi
+    if ! git -C "$STELIS_DIR" pull --ff-only; then
+        echo "FATAL: 'git pull --ff-only' failed in the STELIS checkout $STELIS_DIR" >&2
+        echo "(dirty working tree? diverged branch?). That checkout owns the task" >&2
+        echo "graph; building with a stale one fails deep inside dbt instead of here." >&2
+        exit 1
+    fi
+    echo "  stelis: $(git -C "$STELIS_DIR" rev-parse --short HEAD) $(git -C "$STELIS_DIR" log -1 --format=%s)"
+    # Racket compiles on demand, so this is an optimization, not a correctness step —
+    # but a cold compile of the whole graph inside the build is a slow surprise, and
+    # the 2026-07-25 recovery needed it. Non-fatal if raco is absent: `racket` is what
+    # fetch-data.sh actually invokes, and it would fail with a better message.
+    if command -v raco > /dev/null; then
+        (cd "$STELIS_DIR" && raco make src/main.rkt)
+    else
+        echo "  WARN: raco not on PATH — skipping stelis bytecode build" >&2
+    fi
 fi
 
 # 1b. Can this host RUN the engine, and does the engine still agree with THIS
@@ -369,10 +379,12 @@ _pnpm_sync() {
     echo "  pnpm[$label]: installing from lockfile"
     ( cd "$dir" && pnpm install --frozen-lockfile )
 }
-_pnpm_sync "$REPO_ROOT" site
-_pnpm_sync "$SCRIPT_DIR" data
+if ! in_container; then
+    _pnpm_sync "$REPO_ROOT" site
+    _pnpm_sync "$SCRIPT_DIR" data
+    (cd "$SCRIPT_DIR" && uv sync)
+fi
 cd "$SCRIPT_DIR"
-uv sync
 echo "sync done in $(_elapsed $_t0)"
 
 # Always back up DuckDB + taxa cache on exit (success or failure) so pipeline

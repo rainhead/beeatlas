@@ -1,0 +1,13 @@
+# The Machine's schedule (beeatlas-ryli), run by supercronic under fly/start.sh. Times
+# are in the image's TZ, America/Los_Angeles, which supercronic honors, so these match
+# maderas's crontab. Each job's output goes to a dated log under /data/log
+# (fly/logged.sh). Their environment is the Machine's: fly.toml's [env] plus the Fly
+# secrets other than the API's (fly/start.sh).
+
+# The nightly (data/nightly.sh): build, gate, publish, back up. Needs
+# PIPELINE_BACKUP_BUCKET, the AWS key, and the loaders' SOURCES__ECDYSIS__* secrets.
+0 3 * * * /app/fly/logged.sh nightly bash /app/data/nightly.sh
+
+# The notes store's hourly snapshot (docs/runbooks/notes-store-dr.md §3), as on
+# maderas. Needs NOTES_BACKUP_BUCKET and the AWS key.
+0 * * * * /app/fly/logged.sh notes-backup /app/data/.venv/bin/python /app/data/backup_notes.py

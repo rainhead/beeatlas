@@ -248,6 +248,16 @@ scp /tmp/terrain/wa-terrain-$(date -u +%Y%m%d).pmtiles \
 data/publish-basemap.sh wa-terrain-$(date -u +%Y%m%d).pmtiles
 ```
 
+Every publish also backs the archive and `manifest.json` up to the pipeline backup
+bucket under `basemap/` (beeatlas-g3xy), so `publish-basemap.sh` needs
+`PIPELINE_BACKUP_BUCKET` set, as the nightly's crontab line sets it, and the
+`beeatlas` AWS profile. It refuses to publish without one, and a failed backup fails
+the script after the publish, naming the archive. An archive that is not staged on
+the serving host is fetched from that backup first. So a workstation can build and
+upload to `basemap/<archive>` (`data/s3_backup.py upload`) in place of `scp`, and
+publishing the current archives on a fresh host, such as the Fly Machine, restores
+its basemap.
+
 `build-basemap.sh` pulls only the tiles inside `data/basemap/wa.geojson` via
 range requests, so it takes minutes, not hours. `publish-basemap.sh` verifies
 the archive, moves it into place atomically, writes `manifest.json` **last**,

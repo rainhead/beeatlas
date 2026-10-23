@@ -1,0 +1,42 @@
+# Deploy the beeatlas Fly app (beeatlas-z1b3, ADR 0042): build the image on Fly's
+# remote builder, then switch the one Machine to it under the publish lock
+# (fly/deploy.sh), so a deploy never stops a nightly or a note publish mid-flight.
+#
+# By hand only until cutover: the Fly app does not exist yet, and maderas serves
+# production. At cutover (beeatlas-j65i) this gains `push: branches: [main]`.
+name: Fly deploy
+on:
+  workflow_dispatch:
+# One deploy at a time, queued rather than cancelled: an interrupted switch could leave
+# the Machine half replaced, and a queued one waits its turn for the lock anyway.
+# queue: max keeps every pending run (up to 100); by default GitHub cancels all but one.
+concurrency:
+  group: fly-deploy
+  cancel-in-progress: false
+  queue: max
+jobs:
+  deploy:
+    name: Build and switch
+    runs-on: ubuntu-24.04
+    # The switch may wait out a running nightly for the publish lock (LOCK_WAIT in
+    # fly/deploy.sh, two hours), and the build takes minutes.
+    timeout-minutes: 170
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # flyctl's own release is pinned below; the action only installs it, and installs
+      # no `fly` alias, so the script calls `flyctl`.
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
+        with:
+          version: 0.4.114
+      - name: Build and push the image
+        run: fly/deploy.sh build
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - name: Switch the Machine under the publish lock
+        run: fly/deploy.sh switch
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

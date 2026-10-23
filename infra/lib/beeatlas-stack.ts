@@ -146,9 +146,22 @@ function handler(event) {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       versioned: true,
       lifecycleRules: [
+        // The hourly snapshots (backups/, data/backup_notes.py) expire after 180 days.
+        // Scoped to that prefix, which held every object when it was scoped
+        // (2026-10-22), so the replica below is not expired with them.
         {
+          prefix: 'backups/',
           expiration: cdk.Duration.days(180),
           noncurrentVersionExpiration: cdk.Duration.days(180),
+        },
+        // The Litestream replica (replica/, beeatlas-lwqi) is never expired while
+        // current: Litestream writes no new snapshot while the store is idle, so a store
+        // unwritten for 180 days would otherwise lose its only restorable copy.
+        // Litestream retires its own files; what it deletes is kept 180 days.
+        {
+          prefix: 'replica/',
+          noncurrentVersionExpiration: cdk.Duration.days(180),
+          abortIncompleteMultipartUploadAfter: cdk.Duration.days(7),
         },
       ],
     });
@@ -174,6 +187,35 @@ function handler(event) {
       description: 'Authoritative backup bucket → NOTES_BACKUP_BUCKET env var on maderas',
     });
 
+    // The notes store's continuous replica (beeatlas-lwqi): Litestream on the Fly
+    // Machine, under replica/ in the same bucket. Its own user, because Litestream must
+    // DELETE (it retires WAL segments and old snapshots), which the pipeline user is
+    // deliberately denied above. The grant is that prefix and nothing else; the bucket's
+    // versioning keeps anything deleted there for 180 days, so a wrong retention setting
+    // or a leaked key is recoverable. Its key is created by hand and set as the Fly
+    // secrets NOTES_REPLICA_AWS_ACCESS_KEY_ID / _SECRET_ACCESS_KEY, which fly/start.sh
+    // hands to Litestream alone.
+    const NOTES_REPLICA_PREFIX = 'replica';
+    // The bucket's lifecycle leaves replica/'s current objects alone (above).
+    const notesReplicaWriter = new iam.User(this, 'NotesReplicaWriter', { userName: 'beeatlas-notes-replica' });
+    notesReplicaWriter.addToPolicy(new iam.PolicyStatement({
+      sid: 'ListReplica',
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:ListBucket'],
+      resources: [backupBucket.bucketArn],
+      conditions: { StringLike: { 's3:prefix': [`${NOTES_REPLICA_PREFIX}/*`, NOTES_REPLICA_PREFIX] } },
+    }));
+    notesReplicaWriter.addToPolicy(new iam.PolicyStatement({
+      sid: 'KeepReplica',
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
+      resources: [backupBucket.arnForObjects(`${NOTES_REPLICA_PREFIX}/*`)],
+    }));
+    new cdk.CfnOutput(this, 'NotesReplicaWriterName', {
+      value: notesReplicaWriter.userName,
+      description: "The Fly Machine's Litestream identity: the notes store's replica under replica/ (beeatlas-lwqi)",
+    });
+
     // ── Pipeline Backup Bucket (Model Y step D, st-pry) ───────────────────
     // Offsite DR for the nightly's working state: the DuckDB (persistent at
     // /var/www/beeatlas.net/var/ since Model Y) and the taxa cache. Same-host
@@ -187,9 +229,22 @@ function handler(event) {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       versioned: true,
       lifecycleRules: [
-        {
+        // The nightly's state (db/, raw/) is rewritten every night, so a current
+        // object never ages; the expiry only clears what the nightly stopped writing.
+        // Scoped to those prefixes, which held every object when it was scoped
+        // (2026-10-22).
+        ...['db/', 'raw/'].map((prefix) => ({
+          prefix,
           expiration: cdk.Duration.days(180),
           noncurrentVersionExpiration: cdk.Duration.days(180),
+        })),
+        // The basemap archives (basemap/, data/publish-basemap.sh, beeatlas-g3xy) are
+        // replaced quarterly at best, so a current one can be older than 180 days and
+        // must not expire: it is the only copy beside the serving host's.
+        {
+          prefix: 'basemap/',
+          noncurrentVersionExpiration: cdk.Duration.days(180),
+          abortIncompleteMultipartUploadAfter: cdk.Duration.days(7),
         },
       ],
     });

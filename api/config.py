@@ -14,6 +14,7 @@ loudly before any route that actually needs a real secret.
 """
 
 import os
+import re
 import tomllib
 from pathlib import Path
 
@@ -30,9 +31,18 @@ else:
 _OAUTH = _CFG.get("inaturalist_oauth", {})
 _SESSION = _CFG.get("session", {})
 
-INAT_CLIENT_ID: str = _OAUTH.get("client_id", "")
-INAT_CLIENT_SECRET: str = _OAUTH.get("client_secret", _PLACEHOLDER)
-SESSION_SIGNING_KEY: str = _SESSION.get("signing_key", _PLACEHOLDER)
+# Each secret may also arrive as an environment variable, which wins over the toml:
+# that is how the Fly Machine receives them (Fly secrets are environment variables),
+# with no secrets file written to disk (beeatlas-cjyz). maderas keeps its file. The
+# same precedence WRITES_ENABLED below has always had.
+def _secret(env_name: str, toml_value: str) -> str:
+    value = os.environ.get(env_name)
+    return value if value else toml_value
+
+
+INAT_CLIENT_ID: str = _secret("INAT_CLIENT_ID", _OAUTH.get("client_id", ""))
+INAT_CLIENT_SECRET: str = _secret("INAT_CLIENT_SECRET", _OAUTH.get("client_secret", _PLACEHOLDER))
+SESSION_SIGNING_KEY: str = _secret("SESSION_SIGNING_KEY", _SESSION.get("signing_key", _PLACEHOLDER))
 
 # Exact-match pin — the iNat app's registered redirect URI.
 # This is the authoritative production value regardless of what secrets.toml
@@ -46,17 +56,34 @@ SESSION_SIGNING_KEY: str = _SESSION.get("signing_key", _PLACEHOLDER)
 _PROD_REDIRECT_URI = "https://api.beeatlas.net/auth/callback"
 _DEV_REDIRECT_PREFIXES = ("http://localhost:", "http://127.0.0.1:")
 
+# STAGING exception (beeatlas-cjyz): a Fly app's own https://<app>.fly.dev host,
+# where the API answers under /api/ beside the site (fly/Caddyfile), registered on
+# a separate staging iNat app. Like the dev exception it is chosen by the operator's
+# redirect_uri, and it is narrow by construction: https only, a single fly.dev
+# label, this exact path. The production pin above is untouched.
+_STAGING_REDIRECT = re.compile(r"https://([a-z0-9](?:[a-z0-9-]*[a-z0-9])?)\.fly\.dev/api/auth/callback")
+
+
+def staging_origin(redirect_uri: str) -> str | None:
+    """The site origin a staging redirect_uri belongs to, or None if it is not one."""
+    m = _STAGING_REDIRECT.fullmatch(redirect_uri)
+    return f"https://{m.group(1)}.fly.dev" if m else None
+
 
 def resolve_redirect_uri(toml_value: str | None) -> tuple[str, bool]:
     """Return ``(redirect_uri, dev_mode)`` for a secrets.toml redirect value.
 
     - absent → the production pin, dev_mode False
     - a localhost/127.0.0.1 ``/auth/callback`` URI → that URI, dev_mode True
+    - an ``https://<app>.fly.dev/api/auth/callback`` URI → that URI, dev_mode
+      False (staging: real TLS, so cookies stay Secure)
     - anything else MUST equal the production pin exactly,
       otherwise AssertionError at import.
     """
     if toml_value is None:
         return _PROD_REDIRECT_URI, False
+    if staging_origin(toml_value):
+        return toml_value, False
     if toml_value.startswith(_DEV_REDIRECT_PREFIXES) and toml_value.endswith(
         "/auth/callback"
     ):
@@ -69,7 +96,11 @@ def resolve_redirect_uri(toml_value: str | None) -> tuple[str, bool]:
     return _PROD_REDIRECT_URI, False
 
 
-REDIRECT_URI, DEV_MODE = resolve_redirect_uri(_OAUTH.get("redirect_uri"))
+REDIRECT_URI, DEV_MODE = resolve_redirect_uri(
+    os.environ.get("INAT_REDIRECT_URI") or _OAUTH.get("redirect_uri")
+)
+# Set only on a staging deployment; api/auth.py admits it as a write origin.
+STAGING_ORIGIN: str | None = staging_origin(REDIRECT_URI)
 
 
 _LAUNCH = _CFG.get("launch", {})

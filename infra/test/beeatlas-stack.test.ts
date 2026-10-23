@@ -195,4 +195,56 @@ for (const [backupBucketId, backupBucketCf] of backupBucketEntries) {
   );
 } // end per-backup-bucket assertions
 
+// ── beeatlas-lwqi: the notes replica's user ────────────────────────────────
+// Litestream must delete (it retires WAL segments and snapshots), which the pipeline
+// user above may not. Its own user may, under replica/ in the authoritative bucket and
+// nowhere else, and may list only that prefix.
+{
+  const replicaUsers = Object.entries(cfResources).filter(([, r]: [string, any]) =>
+    r.Type === 'AWS::IAM::User' && r.Properties?.UserName === 'beeatlas-notes-replica',
+  );
+  assert.equal(replicaUsers.length, 1, 'Expected exactly one beeatlas-notes-replica user');
+  const replicaUserId = replicaUsers[0][0];
+  const statements: any[] = Object.values(cfResources)
+    .filter((r: any) => r.Type === 'AWS::IAM::Policy' &&
+      (r.Properties?.Users ?? []).some((u: any) => u?.Ref === replicaUserId))
+    .flatMap((r: any) => r.Properties.PolicyDocument.Statement);
+  const actionsOf = (st: any): string[] => [].concat(st.Action);
+  const resourcesOf = (st: any): string[] => [].concat(st.Resource).map((x: any) => JSON.stringify(x));
+
+  const deleting = statements.filter((st) => actionsOf(st).some((a) => a === 's3:DeleteObject' || a === 's3:*'));
+  assert.ok(deleting.length > 0, 'the replica user must be able to delete under replica/');
+  for (const st of deleting) {
+    for (const res of resourcesOf(st)) {
+      assert.ok(res.includes('/replica/*'), `replica user deletes outside replica/: ${res}`);
+      assert.ok(res.includes('AuthoritativeBackupBucket'), `replica user deletes outside the authoritative bucket: ${res}`);
+    }
+  }
+  // The replica must never be expired while current: an idle store gets no new
+  // snapshot, and its last one would vanish under the backups' 180-day expiry.
+  const authoritative = backupBucketEntries.find(([id]) => id.startsWith('AuthoritativeBackupBucket'))![1];
+  const rules: any[] = authoritative.Properties.LifecycleConfiguration.Rules;
+  for (const r of rules.filter((r) => r.ExpirationInDays !== undefined)) {
+    assert.equal(r.Prefix, 'backups/', 'current-object expiry must be scoped to backups/, never the replica');
+  }
+  assert.ok(rules.some((r) => r.Prefix === 'replica/' && r.ExpirationInDays === undefined),
+    'the replica/ prefix needs its own rule, with no current-object expiry');
+
+  // Likewise the basemap archives in the pipeline bucket (beeatlas-g3xy): replaced
+  // quarterly at best, so no current-object expiry may cover basemap/.
+  const pipeline = backupBucketEntries.find(([id]) => id.startsWith('PipelineBackupBucket'))![1];
+  const pipelineRules: any[] = pipeline.Properties.LifecycleConfiguration.Rules;
+  for (const r of pipelineRules.filter((r) => r.ExpirationInDays !== undefined)) {
+    assert.ok(r.Prefix === 'db/' || r.Prefix === 'raw/',
+      `pipeline bucket expiry must be scoped to db/ or raw/, never the basemap (got ${r.Prefix})`);
+  }
+  assert.ok(pipelineRules.some((r) => r.Prefix === 'basemap/' && r.ExpirationInDays === undefined),
+    'the basemap/ prefix needs its own rule, with no current-object expiry');
+
+  const listing = statements.filter((st) => actionsOf(st).includes('s3:ListBucket'));
+  assert.equal(listing.length, 1, 'the replica user lists one bucket');
+  assert.deepEqual(listing[0].Condition?.StringLike?.['s3:prefix'], ['replica/*', 'replica'],
+    'the replica user may list only the replica/ prefix');
+}
+
 console.log('All CDK assertions passed.');

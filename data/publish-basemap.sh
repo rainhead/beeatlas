@@ -25,9 +25,33 @@
 # entry in the manifest and prunes only its own kind's supersedes. Publishing one
 # must never disturb the other.
 #
+# BACKED UP, and publishable from anywhere (beeatlas-g3xy). The archives used to
+# exist in exactly one place, this directory, and a rebuild is a quarterly job, not a
+# restore. Every publish now copies the archive and the manifest to the pipeline
+# backup bucket under basemap/ (PIPELINE_BACKUP_BUCKET, data/s3_backup.py, which
+# confirms S3 holds them). And an archive that is not staged on this host is fetched
+# from there first, so a host that builds is no longer the host that serves: build
+# anywhere, upload to basemap/<archive>, publish on the server. Publishing the two
+# current archives this way is also how a fresh volume gets its basemap back.
+#
 # Usage: data/publish-basemap.sh <wa-YYYYMMDD.pmtiles | wa-terrain-YYYYMMDD.pmtiles>
+#   PIPELINE_BACKUP_BUCKET  required: the backup's bucket. BASEMAP_NO_BACKUP=1 publishes
+#                           without one, for a test host; say so out loud.
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# python3 on a host; the pipeline's environment where there is no python3 (the Fly
+# image). Only the standard library is used here.
+PYTHON="${PYTHON:-$(command -v python3 || echo "$SCRIPT_DIR/.venv/bin/python")}"
+s3_backup() { (cd "$SCRIPT_DIR" && uv run --no-sync python s3_backup.py "$@"); }
+
+BUCKET="${PIPELINE_BACKUP_BUCKET:-}"
+if [[ -z "$BUCKET" && -z "${BASEMAP_NO_BACKUP:-}" ]]; then
+    echo "ERROR: PIPELINE_BACKUP_BUCKET is not set, so the archive would be published with no backup." >&2
+    echo "Set it (the PipelineBackupBucketName stack output), or BASEMAP_NO_BACKUP=1 on a test host." >&2
+    exit 78  # EX_CONFIG
+fi
 
 BASE_DIR="${BASE_DIR:-/var/www/beeatlas.net}"
 BASEMAP_DIR="${BASEMAP_DIR:-$BASE_DIR/basemap}"
@@ -58,7 +82,25 @@ esac
     echo "NOTE: BASEMAP_DIR $BASEMAP_DIR absent (install: docs/runbooks/serve-from-maderas.md)" >&2
     exit 3
 }
-[[ -f "$STAGED" ]] || { echo "ERROR: not built: $STAGED" >&2; exit 1; }
+# Already published here and not staged: an earlier run published it and then failed
+# its backup, which is the rerun that failure asks for. Back it up and stop; the
+# publish itself is done.
+if [[ ! -f "$STAGED" && -f "$BASEMAP_DIR/$ARCHIVE" && -n "$BUCKET" ]]; then
+    echo "$ARCHIVE is already published here; retrying its backup."
+    s3_backup upload --bucket "$BUCKET" \
+        "basemap/$ARCHIVE=$BASEMAP_DIR/$ARCHIVE" "basemap/manifest.json=$BASEMAP_DIR/manifest.json" \
+        || { echo "ERROR: $ARCHIVE is published but still NOT backed up." >&2; exit 1; }
+    exit 0
+fi
+
+# Not staged here: fetch it from the backup, where the host that built it put it.
+FETCHED=""
+if [[ ! -f "$STAGED" && -n "$BUCKET" ]]; then
+    mkdir -p "$STAGING_DIR"
+    echo "Not staged here; fetching basemap/$ARCHIVE from the backup."
+    s3_backup restore --bucket "$BUCKET" "basemap/$ARCHIVE" "$STAGED" && FETCHED=1
+fi
+[[ -f "$STAGED" ]] || { echo "ERROR: not built: $STAGED (and not in the backup)" >&2; exit 1; }
 
 # Homebrew names the binary `pmtiles`, `go install` names it `go-pmtiles`.
 PMTILES="${PMTILES:-$(command -v pmtiles || command -v go-pmtiles || true)}"
@@ -87,7 +129,7 @@ if [[ -f "$BASEMAP_DIR/manifest.json" ]]; then
     # Read the archive THIS KIND is superseding. A regex over the whole file used
     # to be enough when there was one archive; with a nested terrain entry it
     # would match whichever "archive" key came first, so this parses properly.
-    PREV=$(python3 -c '
+    PREV=$("$PYTHON" -c '
 import json, sys
 kind, path = sys.argv[1], sys.argv[2]
 try:
@@ -119,7 +161,7 @@ BYTES=$(stat -c%s "$BASEMAP_DIR/$ARCHIVE" 2>/dev/null || stat -f%z "$BASEMAP_DIR
 # out of the archive the builder stamped rather than restated here, for the same
 # reason maxzoom is — one source of truth per fact.
 "$PMTILES" show "$BASEMAP_DIR/$ARCHIVE" --metadata > "$BASEMAP_DIR/.meta.json.tmp"
-python3 -c '
+"$PYTHON" -c '
 import json, os, sys
 kind, out, archive, size, maxzoom, meta_path = sys.argv[1:7]
 
@@ -177,3 +219,17 @@ find "$BASEMAP_DIR" -maxdepth 1 -type f "${PRUNE_MATCH[@]}" \
     ! -name "$ARCHIVE" -mtime "+$GRACE_DAYS" -delete
 
 echo "Published $KIND archive $ARCHIVE ($BYTES bytes); manifest updated."
+
+# The backup: the archive (unless it just came from there) and the manifest. Last, so
+# a failed upload cannot leave the site unpublished; it fails this script instead, so
+# the operator knows the archive still has only one copy.
+if [[ -n "$BUCKET" ]]; then
+    pairs=("basemap/manifest.json=$BASEMAP_DIR/manifest.json")
+    [[ -n "$FETCHED" ]] || pairs=("basemap/$ARCHIVE=$BASEMAP_DIR/$ARCHIVE" "${pairs[@]}")
+    if ! s3_backup upload --bucket "$BUCKET" "${pairs[@]}"; then
+        echo "ERROR: $ARCHIVE is published but NOT backed up; rerun this script to retry the backup." >&2
+        exit 1
+    fi
+else
+    echo "WARNING: BASEMAP_NO_BACKUP is set: $ARCHIVE was published with no backup." >&2
+fi

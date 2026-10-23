@@ -11,7 +11,9 @@
 # own cache-only probe), the DuckDB CLI, boto3 for the backups, and Stelis loading
 # the beeatlas graph. The image workflow runs it on every change.
 #
-# The second form is the gate the bead names: a full `--all` Stelis build against a
+# The second form is the gate the bead names: the nightly itself (data/nightly.sh, in
+# the image's container mode: the Stelis gate, the full `--all` build, the integration
+# and JS gates, the site build and the merge-swap into a throwaway SITE_ROOT) against a
 # COPY of the production DuckDB (never the live one), in a container whose /etc/hosts
 # points every code and package host at loopback, so a fetch of code or a dependency
 # fails while the data sources stay reachable. DuckDB's extension host is among them,
@@ -26,6 +28,13 @@
 # data/backup_notes.py takes); without it the notes harvest finds no store and fails.
 # KEEP_DIR, when set, receives the build's export and DuckDB before the throwaway
 # volume is removed, for comparing contents rather than digests.
+#
+# The nightly's offsite backup is the one step this form must NOT run for real: it
+# would overwrite production's backup with a test build. The gate passes no AWS
+# credentials, so s3_backup.py refuses ("no AWS credentials") and the nightly exits
+# 74 after publishing; that exit with that refusal is the passing result, and any
+# other non-zero exit fails the gate. The healthcheck host is blocked too, so a test
+# run can never ping production's monitor.
 #
 # Both forms mount a private, throwaway /data laid out like the volume (the image's
 # symlinks into it dangle otherwise, and dbt's probe writes its sandbox through one),
@@ -45,7 +54,7 @@ db=${2:-}
 volume=$(mktemp -d)
 name="beeatlas-offline-gate-$$"
 trap 'docker rm -f "$name" > /dev/null 2>&1 || true; rm -rf "$volume"' EXIT
-mkdir -p "$volume"/{var/export,var/stelis,var/baseline,htdocs,raw,ecdysis-zip,geography-cache,burke-cache,cache,site,dbt-target,dlt,notes,home,uv-cache}
+mkdir -p "$volume"/{var/export,var/stelis,var/baseline,htdocs,raw,ecdysis-zip,geography-cache,burke-cache,cache,site,dbt-target,dlt,notes,log,home,uv-cache}
 # DuckDB looks for its extensions under $HOME/.duckdb. The image installs them under
 # app's home (fly/Dockerfile), and this HOME is a throwaway one, so it points there.
 ln -s /home/app/.duckdb "$volume/home/.duckdb"
@@ -109,6 +118,7 @@ blackhole=(
     download.racket-lang.org pkgs.racket-lang.org users.cs.utah.edu mirror.csclub.uwaterloo.ca
     nodejs.org
     extensions.duckdb.org community-extensions.duckdb.org
+    hc-ping.com
 )
 hosts=()
 for h in "${blackhole[@]}"; do hosts+=(--add-host "$h:127.0.0.1"); done
@@ -118,10 +128,12 @@ for h in "${blackhole[@]}"; do hosts+=(--add-host "$h:127.0.0.1"); done
 # The container is named rather than --rm'd, so its writes can be listed below.
 rc=0
 "${run[@]}" --name "$name" "${hosts[@]}" ${secrets[@]+"${secrets[@]}"} "$image" bash -c "$toolchain"'
-export SOURCE_DATE_EPOCH=$(date +%s)
+unset SOURCE_DATE_EPOCH  # the nightly takes its own, as cron runs it
 # A partial build still lists what it exported, then exits with the build status.
-build_rc=0
-cd /app && bash scripts/fetch-data.sh --all || build_rc=$?
+set +e
+cd /app && PIPELINE_BACKUP_BUCKET=offline-gate-no-backup bash data/nightly.sh 2>&1 | tee /data/log/nightly.log
+build_rc=${PIPESTATUS[0]}
+set -e
 echo "--- export digests ---"
 cd /data/var/export && find . -type f -print0 | sort -z | xargs -r -0 sha256sum
 exit "$build_rc"
@@ -129,6 +141,14 @@ exit "$build_rc"
 if [[ -n "${KEEP_DIR:-}" ]]; then
     mkdir -p "$KEEP_DIR"
     cp -r "$volume/var/export" "$volume/var/beeatlas.duckdb" "$KEEP_DIR/"
+fi
+
+# The expected end: everything ran and published, and the backup refused for want
+# of the credentials this gate withholds.
+if [[ $rc -eq 74 ]] && grep -q "s3_backup: no AWS credentials" "$volume/log/nightly.log" \
+        && grep -q "^=== pipeline complete" "$volume/log/nightly.log"; then
+    echo "offline-gate: the nightly completed and published; its backup refused, as this gate intends"
+    rc=0
 fi
 
 # What the build wrote into the image rather than the volume (ADR 0044): on Fly that

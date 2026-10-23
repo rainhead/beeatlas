@@ -16,6 +16,20 @@
 #   d. manifest.json LAST and atomically: every name it resolves already
 #      exists by the time readers (and the SW's NetworkFirst route) see it.
 #
+# A publish killed at ANY point leaves a site that serves (beeatlas-z1b3: on Fly a
+# deploy or a restart can stop the Machine mid-publish). That holds by design, for
+# three reasons this file must keep:
+#   - rsync writes each file under a temporary name and renames it into place (its
+#     default; never pass --inplace here), so every file is either the old one or
+#     the complete new one, never half of either.
+#   - The order above: anything a page or the manifest can name (a, b) lands before
+#     the pages (c) and the manifest (d) that name it, and old hashed names stay for
+#     30 days, so a page from either side of the cut still finds what it references.
+#   - The age-prune runs only after the page tree is complete, so it cannot delete a
+#     file a page left over from an interrupted publish still names.
+# The worst a kill leaves is a mix of last night's and tonight's pages and stable
+# files, each one whole, until the next publish completes the swap.
+#
 # Exit 3 (distinct from any rsync failure) when SITE_ROOT does not exist —
 # callers decide whether that is a skip (nightly on a fresh host) or a
 # publish failure (a note write).
@@ -54,3 +68,13 @@ find "$SITE_ROOT/assets" -type f -mtime +30 -delete
 find "$SITE_ROOT/data" -maxdepth 1 -type f -name '*-*.*' -mtime +30 -delete
 cp "$REPO_ROOT/_site/data/manifest.json" "$SITE_ROOT/data/.manifest.json.tmp"
 mv "$SITE_ROOT/data/.manifest.json.tmp" "$SITE_ROOT/data/manifest.json"
+
+# On Fly, Caddy holds the species redirects as config rather than reading
+# species-redirects.map per request as Apache does, so a publish that changed the
+# map regenerates Caddy's snippet and reloads it (fly/caddy-redirects.sh,
+# beeatlas-zsi8). Not a publish failure: the build's meta-refresh page at each
+# folded URL still forwards the reader until the next publish retries.
+if [[ -n "${BEEATLAS_CONTAINER:-}" ]]; then
+    bash "$REPO_ROOT/fly/caddy-redirects.sh" \
+        || echo "WARN: fly/caddy-redirects.sh failed; folded species URLs fall back to their meta-refresh pages" >&2
+fi

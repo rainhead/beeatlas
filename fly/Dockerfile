@@ -15,15 +15,24 @@
 #                               digest in fly/stelis-digest (Stelis ADR 0017)
 #   the DuckDB CLI              what Stelis content-addresses relations with
 #   rsync, flock                merge-swap.sh and the publish lock
+#   supercronic                 the schedule (fly/crontab), under fly/start.sh
+#   Litestream                  the notes store's continuous replica (fly/litestream.yml)
+#   pmtiles                     data/publish-basemap.sh's verify and metadata reads
+#   Caddy                       the web server, with the serving policy in
+#                               fly/Caddyfile (beeatlas-zsi8)
 #   this checkout at /app       with no .git: the image IS the deploy
 #
 # What it does not hold, and where that lives instead (ADR 0044): every file the
 # pipeline writes. The volume mounts at /data, and the paths inside the checkout the
 # scripts and the Stelis graph write to are symlinks into it (see "the volume"
 # below), so the code is unchanged and the root filesystem, which Fly caps near 8 GB
-# and throttles, carries only code and dependencies. Secrets (data/.dlt/secrets.toml,
-# api/secrets.toml) are materialized from Fly secrets by the entrypoint
-# (beeatlas-cjyz), never baked.
+# and throttles, carries only code and dependencies. Secrets are never baked: they
+# arrive as Fly secrets, which are environment variables, and both readers take them
+# from there (beeatlas-cjyz). The API reads INAT_CLIENT_ID, INAT_CLIENT_SECRET,
+# INAT_REDIRECT_URI and SESSION_SIGNING_KEY (api/config.py); the dlt loaders read
+# SOURCES__ECDYSIS__USERNAME and SOURCES__ECDYSIS__PASSWORD, dlt's own spelling of
+# data/.dlt/secrets.toml's [sources.ecdysis]. A staging app also sets
+# BEEATLAS_STAGING_ORIGIN and VITE_NOTES_API_BASE_URL=<that origin>/api.
 #
 # Build args (fly/deploy.sh passes them):
 #   STELIS_SHA     the Stelis commit, from fly/stelis-commit
@@ -60,10 +69,14 @@ FROM ${DEBIAN_IMAGE}
 # libssl3: the Stelis engine's sha package opens libcrypto through Racket's FFI
 # (Stelis ADR 0017). libatomic1: node 26 links against it. rsync and flock
 # (util-linux): merge-swap.sh and the publish lock. curl and the CA store: the
-# build's own downloads, and the nightly's healthcheck ping.
+# build's own downloads, and the nightly's healthcheck ping. media-types: the
+# /etc/mime.types Caddy (Go) reads to type a response by its extension, the same
+# table Apache served from, so .webmanifest, .mjs and the rest keep their types.
+# procps: pkill, with which fly/deploy.sh releases a deploy's hold on the publish
+# lock, and ps for whoever is on the Machine.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      ca-certificates curl libatomic1 libssl3 rsync unzip util-linux \
+      ca-certificates curl libatomic1 libssl3 media-types procps rsync unzip util-linux \
  && rm -rf /var/lib/apt/lists/*
 
 # Everything runs as `app`, and everything app writes beside what it reads (pnpm,
@@ -90,6 +103,14 @@ RUN /tmp/fetch/fetch.sh uv /tmp/uv.tgz \
  && rm /tmp/uv.tgz && uv --version
 RUN /tmp/fetch/fetch.sh duckdb /tmp/duckdb.zip \
  && unzip -q /tmp/duckdb.zip -d /usr/local/bin && rm /tmp/duckdb.zip && duckdb --version
+RUN /tmp/fetch/fetch.sh litestream /tmp/litestream.tgz \
+ && tar -xzf /tmp/litestream.tgz -C /usr/local/bin litestream && rm /tmp/litestream.tgz && litestream version
+RUN /tmp/fetch/fetch.sh pmtiles /tmp/pmtiles.tgz \
+ && tar -xzf /tmp/pmtiles.tgz -C /usr/local/bin pmtiles && rm /tmp/pmtiles.tgz && pmtiles version
+RUN /tmp/fetch/fetch.sh supercronic /usr/local/bin/supercronic \
+ && chmod +x /usr/local/bin/supercronic && supercronic -version
+RUN /tmp/fetch/fetch.sh caddy /tmp/caddy.tgz \
+ && tar -xzf /tmp/caddy.tgz -C /usr/local/bin caddy && rm /tmp/caddy.tgz && caddy version
 
 # Stelis, pinned: the two trees out of the image its own CI built from the commit in
 # fly/stelis-commit, named by digest (fly/stelis-digest). The image must carry the
@@ -160,6 +181,12 @@ RUN cd data && pnpm install --frozen-lockfile
 COPY --chown=app:app . /app/
 RUN cd /opt/stelis && BEEATLAS_DIR=/app SOURCE_DATE_EPOCH=1700000000 racket src/main.rkt --project beeatlas --help > /dev/null
 
+# The web server's policy (beeatlas-zsi8). The species redirects arrive as a snippet
+# fly/caddy-redirects.sh writes under /data/caddy, which the config imports by glob,
+# so a volume that has none yet is no error.
+COPY --chown=root:root fly/Caddyfile /etc/caddy/Caddyfile
+RUN caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
 # --- the volume ---------------------------------------------------------------------
 # Everything written at runtime lives under /data, the volume (ADR 0044). The paths
 # inside the checkout that the scripts and the Stelis graph write to become symlinks
@@ -192,7 +219,11 @@ RUN ln -s /data/raw /app/data/raw \
 
 # The entrypoint (beeatlas-ryli) runs fly/prepare-volume.sh as root, since Fly mounts
 # the volume owned by root, before dropping to app.
-ENV BASE_DIR=/data \
+# BEEATLAS_CONTAINER: the scripts' container mode (data/runtime-env.sh,
+# beeatlas-h6mo). The nightly and the publish scripts pull nothing and install
+# nothing here; the image is the deploy.
+ENV BEEATLAS_CONTAINER=1 \
+    BASE_DIR=/data \
     SITE_ROOT=/data/htdocs \
     VAR_DIR=/data/var \
     STELIS_STATE_DIR=/data/var/stelis \
@@ -200,14 +231,15 @@ ENV BASE_DIR=/data \
     EXPORT_DIR=/data/var/export \
     BASELINE_DIR=/data/var/baseline \
     NOTES_DB_PATH=/data/notes/notes.db \
+    SERVE_PORT=8081 \
     DLT_DATA_DIR=/data/dlt \
     TZ=America/Los_Angeles
 ARG GITHUB_SHA
 RUN test -n "$GITHUB_SHA" || { echo "build-arg GITHUB_SHA is required: the build receipt and the clean geojsons stamp it, and the image holds no .git to read it from" >&2; exit 1; }
 ENV GITHUB_SHA=${GITHUB_SHA}
 
-# The supervisor, Caddy and the schedule are beeatlas-ryli's and beeatlas-zsi8's;
-# until then the image has no service to run, and `docker run` of it drops into a
-# shell with the toolchain on PATH.
+# The Machine's one process (beeatlas-ryli): fly/start.sh lays out the volume as
+# root, then runs Caddy, the API and the schedule as app.
 WORKDIR /app
-CMD ["bash"]
+USER root
+CMD ["/app/fly/start.sh"]
