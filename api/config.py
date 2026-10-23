@@ -35,9 +35,13 @@ _SESSION = _CFG.get("session", {})
 # that is how the Fly Machine receives them (Fly secrets are environment variables),
 # with no secrets file written to disk (beeatlas-cjyz). maderas keeps its file. The
 # same precedence WRITES_ENABLED below has always had.
+#
+# Surrounding whitespace is stripped from either source: no client id, secret or
+# signing key has any, and a pasted one does. A leading space in INAT_CLIENT_ID
+# failed staging's first sign-in at iNaturalist (2026-10-23).
 def _secret(env_name: str, toml_value: str) -> str:
-    value = os.environ.get(env_name)
-    return value if value else toml_value
+    value = (os.environ.get(env_name) or "").strip()
+    return value if value else toml_value.strip()
 
 
 INAT_CLIENT_ID: str = _secret("INAT_CLIENT_ID", _OAUTH.get("client_id", ""))
@@ -97,7 +101,7 @@ def resolve_redirect_uri(toml_value: str | None) -> tuple[str, bool]:
 
 
 REDIRECT_URI, DEV_MODE = resolve_redirect_uri(
-    os.environ.get("INAT_REDIRECT_URI") or _OAUTH.get("redirect_uri")
+    (os.environ.get("INAT_REDIRECT_URI") or "").strip() or _OAUTH.get("redirect_uri")
 )
 # Set only on a staging deployment; api/auth.py admits it as a write origin.
 STAGING_ORIGIN: str | None = staging_origin(REDIRECT_URI)
