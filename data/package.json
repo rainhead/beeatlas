@@ -6,6 +6,6 @@
   "type": "module",
   "packageManager": "pnpm@11.22.0",
   "dependencies": {
-    "mapshaper": "^0.7.87"
+    "mapshaper": "^0.7.92"
   }
 }
