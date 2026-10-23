@@ -2,10 +2,12 @@
 # remote builder, then switch the one Machine to it under the publish lock
 # (fly/deploy.sh), so a deploy never stops a nightly or a note publish mid-flight.
 #
-# By hand only until cutover: the Fly app does not exist yet, and maderas serves
-# production. At cutover (beeatlas-j65i) this gains `push: branches: [main]`.
+# Every push to main deploys, since the Fly app took over production at the cutover
+# (beeatlas-j65i, 2026-10-23). Run it by hand to redeploy without a commit.
 name: Fly deploy
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 # One deploy at a time, queued rather than cancelled: an interrupted switch could leave
 # the Machine half replaced, and a queued one waits its turn for the lock anyway.
@@ -31,7 +33,7 @@ jobs:
       # no `fly` alias, so the script calls `flyctl`.
       - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
         with:
-          version: 0.4.114
+          version: 0.4.121
       - name: Build and push the image
         run: fly/deploy.sh build
         env:

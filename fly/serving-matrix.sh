@@ -95,7 +95,11 @@ check 'hashed geojson, brotli'   "/data/$counties"                      "$br"   
 check 'web app manifest'         /pwa/manifest.webmanifest              "$br"   -       200 'max-age=0'  '*'  application/manifest+json '*'   '*'
 check 'maplibre worker'          /basemap/maplibre/maplibre-gl-worker.mjs "$br" -       200 'max-age=0'  gzip text/javascript           '*'   '*'
 check 'glyphs'                   '/basemap/fonts/Noto%20Sans%20Regular/0-255.pbf' "$br" - 200 'max-age=0' - '*'                     '*'   '*'
-check 'tiles manifest'           /basemap/tiles/manifest.json           "$br"   -       200 'no-cache'   -    application/json          '*'   '*'
+# Caddy leaves everything under /basemap/tiles/ unencoded, but on Fly the edge proxy
+# Brotli-encodes this small JSON file on its own, and fly.toml has no setting to stop
+# it. That is harmless: the manifest is fetched whole. The two archives below are what
+# PMTiles reads by range, and those must stay unencoded.
+check 'tiles manifest'           /basemap/tiles/manifest.json           "$br"   -       200 'no-cache'   '*'  application/json          '*'   '*'
 check 'basemap archive, range'   "/basemap/tiles/$archive"              "$br"   0-99    206 "$immutable" -    application/octet-stream  bytes '*'
 check 'terrain archive, range'   "/basemap/tiles/$terrain"              "$br"   0-99    206 "$immutable" -    application/octet-stream  bytes '*'
 check 'folded species'           /species/Agapostemon/texanus/          "$br"   -       301 '*'          '*'  '*'                       '*'   /species/Agapostemon/subtilior/index.html
