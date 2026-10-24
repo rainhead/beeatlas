@@ -1,5 +1,7 @@
 # Serve beeatlas.net from maderas
 
+> **RETIRED 2026-10-24.** BeeAtlas moved to the Fly app on 2026-10-23 ([ADR 0042](../adr/0042-beeatlas-moves-to-fly-as-one-stateful-machine.md)), and its side of maderas was taken down the next day. Kept for the history; operate production with [fly-machine.md](fly-machine.md).
+
 Cutover runbook for stelis ADR 0007 (st-bgy): beeatlas.net moves from
 S3 + CloudFront to an Apache vhost on maderas serving a root that the
 nightly (and later the note-write path, st-nee) publishes into. The vhost

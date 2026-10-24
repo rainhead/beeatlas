@@ -37,15 +37,18 @@ Config the engineering skills (`to-issues`, `to-prd`, `grill-with-docs`, `improv
 ## Constraints
 
 - **Static hosting only**, with ONE deliberate exception: the auth + write side. The
-  store is SQLite on maderas; the API is a small Flask/WSGI service served by Waitress
-  behind Apache `mod_proxy_http` at `api.beeatlas.net` (code in `api/`). The read path
-  stays 100% static. `flup6`/`mod_fcgid` was considered and rejected (unmaintained
-  since 2015) — do not reintroduce it.
+  store is SQLite on the Fly volume, replicated by Litestream; the API is a small
+  Flask/WSGI service served by Waitress behind Caddy at `api.beeatlas.net` (code in
+  `api/`). The read path stays 100% static. `flup6`/`mod_fcgid` was considered and
+  rejected (unmaintained since 2015) — do not reintroduce it.
 - Python 3.14+ (`data/pyproject.toml`).
 - AWS via CDK in `infra/` is now only DNS, the beeatlas.com→.net redirect, and two
-  backup buckets. Serving is maderas/Apache; code deploys are `git push maderas main`
-  then `data/publish-code.sh` (or the nightly). **`api/` changes also need
-  `systemctl --user restart beeatlas-api`** — publish-code.sh does not do it.
+  backup buckets. Production is one Fly Machine with one volume
+  ([ADR 0042](docs/adr/0042-beeatlas-moves-to-fly-as-one-stateful-machine.md)): Caddy,
+  the API and the schedule side by side. **Every push to `main` deploys** (the Fly
+  deploy workflow, `fly/deploy.sh`), API included. Operating it:
+  [docs/runbooks/fly-machine.md](docs/runbooks/fly-machine.md). maderas, the Linode
+  that served production until 2026-10-23, no longer runs anything of BeeAtlas's.
 
 ## Running Locally
 
@@ -85,9 +88,11 @@ BEEATLAS_RENDER_KEYS='agapostemon virescens' pnpm run build:content
 Each entry is the part you could break without noticing. The reasoning is in the
 linked ADR — read it before changing anything an entry calls load-bearing.
 
-- **Pipeline.** `data/nightly.sh` on maderas (cron) is the single repo entry point and
-  owns everything from `git pull` to the merge-swap publish; the crontab knows only
-  where the repo is. Change deployment behaviour there, not in the crontab.
+- **Pipeline.** `data/nightly.sh`, run at 03:00 Pacific by the Machine's schedule
+  (`fly/crontab`), is the single repo entry point and owns everything up to the
+  merge-swap publish; the crontab knows only how to start it. Change deployment
+  behaviour there, not in the crontab. The image carries the code, so a code change
+  reaches the nightly by deploying, not by a `git pull`.
   **Stelis** is the data engine (ADR 0007 Amendment) — a content-addressed graph over
   `data/`, env-driven by `DB_PATH`/`EXPORT_DIR`/`NOTES_DB_PATH`, invoked via
   `pnpm run fetch-data`. It knows nothing about S3, git, or the site render. It replaced
@@ -114,9 +119,10 @@ linked ADR — read it before changing anything an entry calls load-bearing.
   `not_null(occ_id)` fire on the one identity-less checklist record it now filters out.
 - **Basemap: self-hosted MapLibre** ([ADR 0026](docs/adr/0026-self-hosted-basemap.md),
   supersedes 0001). No map API key anywhere; mapbox-gl is gone from the tree. The
-  PMTiles archives live at `$BASE_DIR/basemap` on maderas, served by an Apache `Alias`
-  at `/basemap/tiles` **so no publish path can reach or prune them**; built by
-  `data/build-basemap.sh` + `publish-basemap.sh`. Glyphs and sprites ship WITH the code
+  PMTiles archives live in `/data/basemap` on the Fly volume, beside the site root,
+  served by Caddy at `/basemap/tiles` **so no publish path can reach or prune them**;
+  built by `data/build-basemap.sh` + `publish-basemap.sh`, backed up under `basemap/`
+  in the pipeline backup bucket. Glyphs and sprites ship WITH the code
   from `public/basemap`. `<bee-map>` reads `/basemap/tiles/manifest.json` for the
   date-stamped archive name and falls back to a blank style on any failure, so the
   occurrence layers still render. Local dev proxies `/basemap/tiles` to beeatlas.net.

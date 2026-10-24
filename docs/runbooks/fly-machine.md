@@ -69,3 +69,8 @@ fly ssh console -C 'setpriv --reuid=app --regid=app --init-groups bash -c "cd /a
 ```
 
 Substitute the names in the backup's `basemap/manifest.json`.
+
+A new archive is published the same way. Build it on a workstation
+(`data/build-terrain-basemap.sh` says why the Machine is the wrong place), upload it
+to `basemap/<archive>` in the pipeline backup bucket, then run `publish-basemap.sh`
+with its name as above.

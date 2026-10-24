@@ -56,8 +56,8 @@ Tracked as beads issues; the durable directions:
 ## Constraints
 
 - **Frontend:** TypeScript, Mapbox GL JS, Lit web components, wa-sqlite (client-side query engine), 11ty over Vite. Bulky data is not bundled with the build — the client fetches the runtime artifacts (occurrences.db, boundary GeoJSON, places) via the slim `/data/manifest.json`; everything else is baked into the pages at build time.
-- **Pipeline:** dbt-duckdb transforms; [Stelis](https://github.com/rainhead/stelis) data engine (content-addressed dependency graph over the `data/` scripts; replaced `run.py` at the 2026-07-17 cutover, invoked via `pnpm run fetch-data`); nightly cron on the `maderas` server (`data/nightly.sh`) builds the site and merge-swaps it into the Apache-served root (Model Y — S3/CloudFront retired from serving). Python 3.14+.
-- **Write layer:** SQLite on maderas + a small Flask/WSGI API (Waitress behind Apache) at `api.beeatlas.net` — the one server-runtime exception.
+- **Pipeline:** dbt-duckdb transforms; [Stelis](https://github.com/rainhead/stelis) data engine (content-addressed dependency graph over the `data/` scripts; replaced `run.py` at the 2026-07-17 cutover, invoked via `pnpm run fetch-data`); a nightly run (`data/nightly.sh`) on one Fly Machine builds the site and merge-swaps it into the root that Caddy serves ([ADR 0042](docs/adr/0042-beeatlas-moves-to-fly-as-one-stateful-machine.md); maderas served it until 2026-10-23, S3/CloudFront before that). Python 3.14+.
+- **Write layer:** SQLite on the same Machine's volume, replicated to S3 by Litestream, + a small Flask/WSGI API (Waitress behind Caddy) at `api.beeatlas.net` — the one server-runtime exception.
 - **Infra:** AWS via CDK (`infra/`), deployed via GitHub OIDC.
 
 ## Decisions

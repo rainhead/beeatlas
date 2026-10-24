@@ -1,5 +1,7 @@
 # Runbook: maderas git remote & deploy
 
+> **RETIRED 2026-10-24.** BeeAtlas moved to the Fly app on 2026-10-23 ([ADR 0042](../adr/0042-beeatlas-moves-to-fly-as-one-stateful-machine.md)), and its side of maderas was taken down the next day. Kept for the history; operate production with [fly-machine.md](fly-machine.md).
+
 `maderas` is a **non-bare git checkout** (a working tree, not a bare repo) at `maderas:dev/beeatlas/.git`, alongside `origin` (`github.com/rainhead/beeatlas`). The nightly pipeline runs on maderas, and `data/nightly.sh` does a `git pull` at the top of every run — so maderas self-syncs to `origin/main` nightly with no manual step.
 
 ## Push-to-deploy (`main`)

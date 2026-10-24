@@ -22,19 +22,14 @@ export class BeeAtlasStack extends cdk.Stack {
     // The SiteBucket, SiteDistribution (E3SAI2PQ8FN0E7), their cache/CORS/
     // no-cache policies, the GitHub OIDC provider + deployer role, and the
     // pipeline user's site-bucket grants were deleted 2026-07-19 after the
-    // Model Y soak (stelis ADR 0007): maderas serves the site directly via
-    // Apache (infra/maderas/beeatlas.net.conf,
-    // docs/runbooks/serve-from-maderas.md). What remains here is DNS, the
-    // beeatlas.com → beeatlas.net redirect, and the two backup buckets.
-
-    // maderas (the Linode serving host): api.beeatlas.net has always resolved
-    // here; as of stelis ADR 0007 (serve-from-maderas) the apex + www do too.
-    const maderasIpv4 = '45.79.96.48';
-    const maderasIpv6 = '2600:3c01::f03c:92ff:feb3:476f';
+    // Model Y soak (stelis ADR 0007), when maderas served the site through
+    // Apache. Since 2026-10-23 the Fly app serves it (ADR 0042). What remains
+    // here is DNS, the beeatlas.com → beeatlas.net redirect, and the two backup
+    // buckets.
 
     // The beeatlas Fly app (ADR 0042, beeatlas-j65i): a shared IPv4 and a dedicated
     // IPv6, from `fly ips list -a beeatlas`. beeatlas.net, www and api point here
-    // since the cutover; beeline stays on maderas until it moves on its own.
+    // since the cutover.
     const flyIpv4 = '66.241.125.154';
     const flyIpv6 = '2a09:8280:1::1c6:fdad:0';
 
@@ -88,23 +83,9 @@ export class BeeAtlasStack extends cdk.Stack {
       target: route53.RecordTarget.fromIpAddresses(flyIpv6),
     });
 
-    // ── Route 53 records: beeline.beeatlas.net → maderas ──────────────────
-    // Beeline (~/dev/beeline, the Master Melittologist specimen-cataloging
-    // rebuild) is a separate app served from the same host: a user systemd
-    // service behind an Apache ProxyPass vhost with its own certbot cert
-    // (infra/maderas/beeline.beeatlas.net.conf over there). It owns nothing in
-    // this stack but the name; dual-stack because its vhost, like the apex,
-    // listens on both.
-    new route53.ARecord(this, 'BeelineA', {
-      zone: netZone,
-      recordName: 'beeline',
-      target: route53.RecordTarget.fromIpAddresses(maderasIpv4),
-    });
-    new route53.AaaaRecord(this, 'BeelineAAAA', {
-      zone: netZone,
-      recordName: 'beeline',
-      target: route53.RecordTarget.fromIpAddresses(maderasIpv6),
-    });
+    // beeline.beeatlas.net pointed at maderas until 2026-10-24, latterly only to
+    // redirect to beeline.fly.dev. The name is retired: Beeline answers at its
+    // Fly hostname (~/dev/beeline, docs/runbooks/deploy-fly.md).
 
     // ── Redirect: beeatlas.com → beeatlas.net ─────────────────────────────
     // A CloudFront Function returns a 301 at the viewer-request stage so the
@@ -151,11 +132,11 @@ function handler(event) {
     }
 
     // ── Pipeline IAM User (beeatlas-pipeline) ────────────────────────────
-    // Used by the nightly cron on maderas (backup uploads only since st-vjd —
-    // the site-bucket and CloudFront-invalidation grants left with the
-    // serving infra). Access keys are managed outside CDK — create via
-    // console/CLI after first deploy and store in ~/.aws/credentials on
-    // maderas under profile [beeatlas].
+    // Used by the Fly Machine's nightly and hourly notes snapshot (backup
+    // uploads only since st-vjd — the site-bucket and CloudFront-invalidation
+    // grants left with the serving infra). Access keys are managed outside CDK
+    // — create via console/CLI and set them on the Fly app as
+    // AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (`fly secrets set`).
     const pipelineUser = new iam.User(this, 'PipelineUser', {
       userName: 'beeatlas-pipeline',
     });
@@ -190,7 +171,7 @@ function handler(event) {
       ],
     });
 
-    // Pipeline IAM user (maderas nightly + backup script) gets PutObject + GetObject
+    // Pipeline IAM user (the nightly + backup script) gets PutObject + GetObject
     // on the backup bucket ONLY — NOT DeleteObject (S3 Versioning is the recovery layer).
     // The deployer OIDC role (deployerRole) gets NO grant here — structural STORE-04 boundary.
     pipelineUser.addToPolicy(new iam.PolicyStatement({
@@ -208,7 +189,7 @@ function handler(event) {
 
     new cdk.CfnOutput(this, 'BackupBucketName', {
       value: backupBucket.bucketName,
-      description: 'Authoritative backup bucket → NOTES_BACKUP_BUCKET env var on maderas',
+      description: 'Authoritative backup bucket → NOTES_BACKUP_BUCKET on the Fly app',
     });
 
     // The notes store's continuous replica (beeatlas-lwqi): Litestream on the Fly
@@ -289,7 +270,7 @@ function handler(event) {
 
     new cdk.CfnOutput(this, 'PipelineBackupBucketName', {
       value: pipelineBackupBucket.bucketName,
-      description: 'Pipeline backup bucket → PIPELINE_BACKUP_BUCKET in the maderas crontab (nightly.sh backup trap)',
+      description: 'Pipeline backup bucket → PIPELINE_BACKUP_BUCKET on the Fly app (nightly.sh backup trap)',
     });
 
   }

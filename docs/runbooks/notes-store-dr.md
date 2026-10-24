@@ -13,8 +13,9 @@ The SQLite file lives at a **persistent, operator-chosen path outside the git ch
 cannot accidentally reach it, and `git clean`, `git checkout .`, or a rogue `s3 sync` cannot
 overwrite it.
 
-**Default path:** `/opt/beeatlas-store/notes.db` (operator may choose any path satisfying
-the isolation constraint above; document the chosen path in a server-specific README).
+**Production path:** `/data/notes/notes.db` on the Fly volume (`NOTES_DB_PATH` in
+`fly/Dockerfile`). On maderas, until 2026-10-23, it was `~/beeatlas-store/notes.db`. The
+`/opt/beeatlas-store` paths below are the original template's.
 
 SQLite's WAL mode creates two sidecar files alongside the main DB:
 
@@ -90,21 +91,29 @@ uv run python -c "import sqlite3,os; print(sqlite3.connect(os.path.expanduser('~
 **Separate cron from `nightly.sh`** — backup frequency is independent of pipeline
 frequency. Recommended: hourly.
 
+On the Fly Machine it is a line of [`fly/crontab`](../../fly/crontab), with
+`NOTES_BACKUP_BUCKET` and the pipeline's AWS key set as Fly secrets:
+
 ```cron
-# maderas crontab — hourly notes store backup (installed 2026-09-02)
-0 * * * * NOTES_DB_PATH=$HOME/beeatlas-store/notes.db NOTES_BACKUP_BUCKET=<BackupBucketName> $HOME/dev/beeatlas/data/.venv/bin/python $HOME/dev/beeatlas/data/backup_notes.py >> $HOME/beeatlas-backup.log 2>&1
+0 * * * * /app/fly/logged.sh notes-backup /app/data/.venv/bin/python /app/data/backup_notes.py
 ```
 
-The paths above are the ones that actually work on maderas, and they are not the ones this
-runbook shipped with. The original template named `/opt/beeatlas-store/notes.db` (the store is
+Its history on maderas, where it ran from 2026-09-02 until the cutover, is a warning
+about templates. The paths that worked there were not the ones this runbook shipped with. The original template named `/opt/beeatlas-store/notes.db` (the store is
 under `$HOME`) and logged to `/var/log/beeatlas-backup.log` (not writable by the service user),
 and it was line-continued across five lines, which a crontab does not accept. **It was never
 installed.** From the store's creation until 2026-09-02 the only object in the backup bucket was
 `notes_20260703_211606.db.gz` — the §4 restore-drill artifact — while the store carried committed
 writes as recent as 2026-08-13. Keep this cron on one line.
 
-Replace `<BackupBucketName>` with the CDK output `BackupBucketName` from `cdk deploy`
-(plan 177-02). The script uses the `beeatlas` AWS profile (matching `nightly.sh`).
+`NOTES_BACKUP_BUCKET` is the CDK output `BackupBucketName`. The script takes its
+credentials the way `data/s3_backup.py` does: the environment's key pair when the
+machine has no `beeatlas` AWS profile, as on Fly.
+
+A snapshot of a store that is no longer live never goes under `backups/`: a restore
+takes the newest file there, so a stale copy would win. maderas's frozen store was
+archived on 2026-10-24 as `archive/maderas-notes-final-20261024.db.gz` (15 notes, all
+of them also on Fly, unchanged).
 
 **What the script does:**
 1. Opens `NOTES_DB_PATH` read-only via URI mode (`?mode=ro`)
@@ -187,7 +196,11 @@ Append a row each time the drill is completed before the phase gate is closed.
 | 2026-07-03 | Peter (via Claude) | 3 (live) == 3 (restored) | 0001 == 0001 | PASS ✅ |
 | 2026-07-04 | Peter | re-run on the live 178-08 deployment before opening writes (WRITE-04) | counts/version not captured in-session | PASS ✅ |
 
+| 2026-10-24 | Peter (via Claude) | 16 (live on Fly) == 16 (restored), both drills | 0004 == 0004 | PASS ✅ |
+
 Drill details: snapshot `backups/notes_20260703_211606.db.gz` from `beeatlasstack-authoritativebackupbucket144dcc85-q0yzx52wsvse`, restored into a scratch DB; live vs restored matched on note count (3), `alembic_version` (0001), and table set (`notes`, `note_revisions`, `alembic_version`). Verified with `uv run python` (maderas has no `sqlite3` CLI). **STORE-03 / WRITE-04 launch gate satisfied.**
+
+The 2026-10-24 row is the first drill against the Fly Machine, the day after cutover, run both ways. This section's procedure restored the Machine's hourly snapshot `backups/notes_20261024_220000.db.gz`: 16 notes, 16 revisions, schema 0004, `PRAGMA integrity_check` ok. §6's `fly/restore-drill.sh` restored the Litestream replica and matched the live store on every table's row count and row hash.
 
 ---
 
