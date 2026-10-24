@@ -66,7 +66,7 @@ for _f in "$REPO_ROOT/_site/data"/*; do
     _name="${_f##*/}"
     case "$_name" in manifest.json | feeds | species-maps | place-maps) continue ;; esac
     # <basename>-<12 hex>.<ext>, optionally .br or .gz: exactly what postbuild-data writes.
-    if [[ -f "$_f" && "$_name" =~ ^.+-[0-9a-f]{12}\.[A-Za-z0-9]+(\.(br|gz))?$ ]]; then
+    if [[ -f "$_f" && ! -L "$_f" && "$_name" =~ ^.+-[0-9a-f]{12}\.[A-Za-z0-9]+(\.(br|gz))?$ ]]; then
         _hashed+=("$SITE_ROOT/data/$_name")
     else
         _unhashed+=("$_name")

@@ -161,8 +161,9 @@ whose `validate` passed: `build` runs `validate` first and writes the receipt la
 one `&&` chain. That write used to be a `postbuild` hook, which can be run on its own
 and would then vouch for inputs nothing validated, so it moved into the chain. `validate` reads `content/species-photos.toml`, the data dir's
 `species.json` and `occurrences.db`, and `src/` and `tsconfig.json` for `tsc`. The data
-dir is the receipt's `data` component, and `content/`, `tsconfig.json` and the two
-validator scripts were added to its `render` component with this change, so a changed
+dir is the receipt's `data` component, and `content/`, `tsconfig.json`, the two
+validator scripts and `scripts/sw-precache-globs.ts` (which `src/` imports, so `tsc`
+reads it) were added to its `render` component with this change, so a changed
 rule also forces the full build that runs it. `content/` was a gap in any case:
 `_data/photos.js` renders from `species-photos.toml`, so a changed photo manifest could
 previously pass `--check` and publish stale pages. So a passing `--check` now means

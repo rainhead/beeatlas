@@ -2,7 +2,7 @@ import { test, expect, describe } from 'vitest';
 import { execSync } from 'node:child_process';
 import { writeFileSync, readFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, resolve, join } from 'node:path';
+import { dirname, resolve, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 // @ts-expect-error -- .mjs source has no .d.ts; named exports are the contract (mirrors seed-species-photos.test.ts)
 import { validateSpeciesPhotos, LICENSE_WHITELIST, PHOTO_PROVENANCE, isCuratorTouched } from '../../scripts/validate-species.mjs';
@@ -270,15 +270,19 @@ ordering = 1
     const receipt = readFileSync(resolve(REPO_ROOT, 'scripts/build-receipt.mjs'), 'utf-8');
     const list = receipt.match(/const RENDER_INPUTS = \[([\s\S]*?)\];/)?.[1] ?? '';
     const inputs = [...list.matchAll(/'([^']+)'/g)].map(m => m[1]!);
-    // tsconfig.json has comments, so not JSON.parse.
-    const tsconfig = readFileSync(resolve(REPO_ROOT, 'tsconfig.json'), 'utf-8');
-    const include = [...(tsconfig.match(/"include":\s*\[([^\]]*)\]/)?.[1] ?? '').matchAll(/"([^"]+)"/g)].map(m => m[1]!);
-    expect(include.length).toBeGreaterThan(0);
+    // Every repo file tsc reads, asked of tsc itself, so an import from outside src/
+    // is caught too. node_modules is outside the receipt on purpose (ADR 0017).
+    const tsc = execSync(`${resolve(REPO_ROOT, 'node_modules/.bin/tsc')} --noEmit --listFilesOnly`,
+      { cwd: REPO_ROOT, encoding: 'utf-8' });
+    const typechecked = tsc.split('\n').filter(Boolean)
+      .map(f => relative(REPO_ROOT, f))
+      .filter(f => !f.startsWith('node_modules/'));
+    expect(typechecked.length).toBeGreaterThan(0);
     const read = [
       'scripts/validate-species.mjs', 'scripts/validate-db.mjs', // the rules themselves
       'content/species-photos.toml', // validate-species
       'tsconfig.json', // typecheck
-      ...include, // typecheck
+      ...typechecked, // typecheck
     ];
     for (const path of read) {
       expect(inputs.some(i => path === i || path.startsWith(`${i}/`)), path).toBe(true);

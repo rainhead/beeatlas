@@ -85,6 +85,8 @@ const RENDER_INPUTS = [
   // The rules of the validations: a changed rule must run on the next publish, which only
   // a full build does now that build:content skips validate.
   'scripts/validate-species.mjs', 'scripts/validate-db.mjs',
+  // Outside src/, but src/ imports it, so tsc reads it.
+  'scripts/sw-precache-globs.ts',
 ];
 
 /** Every file under `path` (or the file itself), as repo-relative paths, sorted. */
