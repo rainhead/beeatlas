@@ -79,7 +79,13 @@ if (( ${#_unhashed[@]} > 0 )); then
     printf '         %s\n' "${_unhashed[@]}" >&2
     exit 1
 fi
-rsync -a --ignore-existing --exclude='/manifest.json' --exclude='/feeds' \
+# A live file with the right name and the wrong bytes (disk damage, a hand edit) would
+# survive --ignore-existing, and the touch below would keep it. MERGE_SWAP_VERIFY=1
+# compares content instead, replacing any that differ; the nightly sets it, so damage
+# lasts a day at most. Not every publish: reading the live data cold took 2.4 s on the
+# Fly volume, nothing in a nightly but a quarter of what skipping saves a note save.
+if [[ -n "${MERGE_SWAP_VERIFY:-}" ]]; then _data_mode=--checksum; else _data_mode=--ignore-existing; fi
+rsync -a "$_data_mode" --exclude='/manifest.json' --exclude='/feeds' \
     --exclude='/species-maps' --exclude='/place-maps' \
     "$REPO_ROOT/_site/data/" "$SITE_ROOT/data/"
 # The age-prune below reads mtimes, and a skipped file keeps the one from the publish
@@ -92,7 +98,7 @@ fi
 # These keep their URLs, so their names say nothing about their bytes, and every
 # build writes them with fresh mtimes. --checksum compares content instead, so only
 # what changed is copied: ~76 MB recopied per note save before, for the cost of
-# reading both sides (0.04 s locally, warm).
+# reading both sides (0.04 s locally, warm; about 1 s on the Fly volume when cold).
 for _dir in feeds species-maps place-maps; do
     rsync -a --checksum --delete "$REPO_ROOT/_site/data/$_dir/" "$SITE_ROOT/data/$_dir/"
 done

@@ -592,7 +592,8 @@ echo "--- publishing into $SITE_ROOT ---"
 _t0=$(date +%s)
 _published=""
 _swap_rc=0
-BASE_DIR="$BASE_DIR" SITE_ROOT="$SITE_ROOT" bash "$SCRIPT_DIR/merge-swap.sh" || _swap_rc=$?
+# MERGE_SWAP_VERIFY: once a day, check the live data files' bytes, not only their names.
+MERGE_SWAP_VERIFY=1 BASE_DIR="$BASE_DIR" SITE_ROOT="$SITE_ROOT" bash "$SCRIPT_DIR/merge-swap.sh" || _swap_rc=$?
 if [[ $_swap_rc -eq 0 ]]; then
     _published=1
     echo "published in $(_elapsed $_t0)"

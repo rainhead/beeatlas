@@ -1,5 +1,5 @@
 import { test, expect, describe } from 'vitest';
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { writeFileSync, readFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve, join, relative } from 'node:path';
@@ -272,7 +272,7 @@ ordering = 1
     const inputs = [...list.matchAll(/'([^']+)'/g)].map(m => m[1]!);
     // Every repo file tsc reads, asked of tsc itself, so an import from outside src/
     // is caught too. node_modules is outside the receipt on purpose (ADR 0017).
-    const tsc = execSync(`${resolve(REPO_ROOT, 'node_modules/.bin/tsc')} --noEmit --listFilesOnly`,
+    const tsc = execFileSync(resolve(REPO_ROOT, 'node_modules/.bin/tsc'), ['--noEmit', '--listFilesOnly'],
       { cwd: REPO_ROOT, encoding: 'utf-8' });
     const typechecked = tsc.split('\n').filter(Boolean)
       .map(f => relative(REPO_ROOT, f))

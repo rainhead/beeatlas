@@ -77,9 +77,10 @@ def layout(tmp_path):
     return repo, root
 
 
-def run(repo: Path, root: Path) -> subprocess.CompletedProcess:
-    env = {k: v for k, v in os.environ.items() if k != "BEEATLAS_CONTAINER"}
+def run(repo: Path, root: Path, **extra: str) -> subprocess.CompletedProcess:
+    env = {k: v for k, v in os.environ.items() if k not in ("BEEATLAS_CONTAINER", "MERGE_SWAP_VERIFY")}
     env["SITE_ROOT"] = str(root)
+    env.update(extra)
     return subprocess.run(["bash", str(repo / "data" / "merge-swap.sh")],
                           env=env, capture_output=True, text=True)
 
@@ -90,6 +91,15 @@ def test_a_hashed_file_already_live_is_not_recopied_but_is_kept_from_the_prune(l
     assert result.returncode == 0, result.stderr
     live = root / "data" / HASHED
     assert live.read_text() == "live bytes!"
+    assert age_days(live) < 1
+
+
+def test_the_nightly_verify_mode_replaces_a_live_file_whose_bytes_are_wrong(layout):
+    # The name is a content hash, so "live bytes!" under it is damage, not a version.
+    repo, root = layout
+    assert run(repo, root, MERGE_SWAP_VERIFY="1").returncode == 0
+    live = root / "data" / HASHED
+    assert live.read_text() == "build bytes"
     assert age_days(live) < 1
 
 
