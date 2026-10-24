@@ -56,22 +56,24 @@ rsync -a "$REPO_ROOT/_site/assets/" "$SITE_ROOT/assets/"
 # holds these bytes, and copying it again is pure cost: postbuild-data rewrites every
 # one with a fresh mtime, so `rsync -a` alone recopied all ~66 MB on every note save
 # (beeatlas-gcdo.2). --ignore-existing copies only names that are new. That is safe
-# only while EVERY top-level file but manifest.json is content-named, because a file
-# that is not would never be updated again, silently; so check before relying on it.
+# only while EVERY top-level entry but manifest.json and the three stable-URL dirs is a
+# content-named file, because anything else (a file, or a new directory, which rsync
+# would recurse into) would never be updated again, silently; so check first.
 _hashed=() _unhashed=()
-for _f in "$REPO_ROOT/_site/data"/* "$REPO_ROOT/_site/data"/.[!.]*; do
-    [[ -f "$_f" ]] || continue
+shopt -s dotglob nullglob
+for _f in "$REPO_ROOT/_site/data"/*; do
     _name="${_f##*/}"
-    [[ "$_name" == manifest.json ]] && continue
+    case "$_name" in manifest.json | feeds | species-maps | place-maps) continue ;; esac
     # <basename>-<12 hex>.<ext>, optionally .br or .gz: exactly what postbuild-data writes.
-    if [[ "$_name" =~ ^.+-[0-9a-f]{12}\.[A-Za-z0-9]+(\.(br|gz))?$ ]]; then
+    if [[ -f "$_f" && "$_name" =~ ^.+-[0-9a-f]{12}\.[A-Za-z0-9]+(\.(br|gz))?$ ]]; then
         _hashed+=("$SITE_ROOT/data/$_name")
     else
         _unhashed+=("$_name")
     fi
 done
+shopt -u dotglob nullglob
 if (( ${#_unhashed[@]} > 0 )); then
-    echo "FATAL: _site/data has top-level files not named by a content hash; merge-swap" >&2
+    echo "FATAL: _site/data has top-level entries not named by a content hash; merge-swap" >&2
     echo "       copies only new names there, so these would never be updated:" >&2
     printf '         %s\n' "${_unhashed[@]}" >&2
     exit 1
