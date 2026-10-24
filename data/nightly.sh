@@ -559,10 +559,12 @@ _t0=$(date +%s)
 cd "$REPO_ROOT"
 pnpm run build
 echo "--- site build done in $(_elapsed $_t0) ---"
-# The build ends by writing the receipt, which lets a note save render over this tree
-# and publish it (ADR 0017). The gate below has not passed it yet, so withdraw the
-# receipt until it does: a failed or killed gate then leaves the next note save to
-# build in full rather than publish a tree the gate rejected.
+# The build ends by writing the build receipt, which lets a note save render over this
+# tree without validating it (ADR 0017). The gate below has not passed the tree yet, so
+# withdraw the build receipt until it does, keeping "a build receipt means the gates
+# passed" true. It does NOT keep a rejected tree off the site: with no receipt, the
+# next note save builds in full from the same export and publishes that, with no
+# test:data gate of its own (beeatlas-yvsd).
 node scripts/build-receipt.mjs --invalidate
 
 # 5b. JS suites that need the pipeline's artifacts (*.data.test.ts). These are
