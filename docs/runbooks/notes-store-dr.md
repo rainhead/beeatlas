@@ -133,18 +133,22 @@ RPO of about a second (§6).
 **Run this before any public write endpoint accepts traffic** (D-12). Complete the
 Drill Log below and commit the updated runbook.
 
+Run it from a workstation, as your operator identity (the same AWS profile CDK uses,
+e.g. `AWS_PROFILE=rainhead`), with `NOTES_BACKUP_BUCKET` set to the CDK output
+`BackupBucketName`. The Fly Machine has no AWS CLI; its own drill is §6's.
+
 ### 4a. List recent backups
 
 ```bash
-aws --profile beeatlas s3 ls s3://$NOTES_BACKUP_BUCKET/backups/ | tail -5
+aws s3 ls s3://$NOTES_BACKUP_BUCKET/backups/ | tail -5
 ```
 
 ### 4b. Download the most recent snapshot
 
 ```bash
-export LATEST_KEY=$(aws --profile beeatlas s3 ls s3://$NOTES_BACKUP_BUCKET/backups/ \
+export LATEST_KEY=$(aws s3 ls s3://$NOTES_BACKUP_BUCKET/backups/ \
   | sort | tail -1 | awk '{print $4}')
-aws --profile beeatlas s3 cp \
+aws s3 cp \
   "s3://$NOTES_BACKUP_BUCKET/backups/$LATEST_KEY" \
   /tmp/test-restore.db.gz
 ```
