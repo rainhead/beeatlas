@@ -51,15 +51,15 @@ if [[ ! -d "$SITE_ROOT" ]]; then
 fi
 
 mkdir -p "$SITE_ROOT/data"
-rsync -a "$REPO_ROOT/_site/assets/" "$SITE_ROOT/assets/"
-
 # The data files are named by a hash of their content, so one already in SITE_ROOT
-# holds these bytes, and copying it again is pure cost: postbuild-data rewrites every
-# one with a fresh mtime, so `rsync -a` alone recopied all ~66 MB on every note save
-# (beeatlas-gcdo.2). --ignore-existing copies only names that are new. That is safe
-# only while EVERY top-level entry but manifest.json and the three stable-URL dirs is a
-# content-named file, because anything else (a file, or a new directory, which rsync
-# would recurse into) would never be updated again, silently; so check first.
+# holds these bytes (a .br/.gz sibling holds a compression of them, perhaps made with
+# other settings, which decompresses to the same), and copying it again is pure cost:
+# postbuild-data rewrites every one with a fresh mtime, so `rsync -a` alone recopied
+# all ~66 MB on every note save (beeatlas-gcdo.2). --ignore-existing, below, copies
+# only names that are new. That is safe only while EVERY top-level entry but
+# manifest.json and the three stable-URL dirs is a content-named file, because
+# anything else (a file, or a new directory, which rsync would recurse into) would
+# never be updated again, silently. So check first, before publishing anything.
 _hashed=() _unhashed=()
 shopt -s dotglob nullglob
 for _f in "$REPO_ROOT/_site/data"/*; do
@@ -79,6 +79,8 @@ if (( ${#_unhashed[@]} > 0 )); then
     printf '         %s\n' "${_unhashed[@]}" >&2
     exit 1
 fi
+rsync -a "$REPO_ROOT/_site/assets/" "$SITE_ROOT/assets/"
+
 # A live file with the right name and the wrong bytes (disk damage, a hand edit) would
 # survive --ignore-existing, and the touch below would keep it. MERGE_SWAP_VERIFY=1
 # compares content instead, replacing any that differ; the nightly sets it, so damage

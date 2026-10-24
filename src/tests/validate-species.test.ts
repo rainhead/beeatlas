@@ -280,6 +280,7 @@ ordering = 1
     expect(typechecked.length).toBeGreaterThan(0);
     const read = [
       'scripts/validate-species.mjs', 'scripts/validate-db.mjs', // the rules themselves
+      'lib/build-data-dir.js', // which both validators import
       'content/species-photos.toml', // validate-species
       'tsconfig.json', // typecheck
       ...typechecked, // typecheck

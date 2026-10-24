@@ -172,9 +172,17 @@ on. Running it again cannot fail, so it was a cost, not a safety gate.
 
 One input is outside the receipt on purpose: `tsc` also reads type declarations from
 `node_modules`, and the receipt leaves `pnpm-lock.yaml` out for the render's sake (see
-`scripts/build-receipt.mjs`). In production that cannot go stale: `node_modules` is
-installed when the image is built and changes only with a new image, whose first boot
-is a full build. `build:content` runs that check itself
+`scripts/build-receipt.mjs`). In production `node_modules` is installed when the image
+is built and changes only with a new image, whose first boot is a full build. If that
+build fails at `validate`, say because a dependency change breaks `tsc`, the old
+receipt still matches the old tree, and note saves go on rendering over it unchecked.
+What they publish is stale but consistent: the old bundle, templates and manifest,
+which is better than every save failing until the deploy is fixed.
+
+The nightly also withdraws the receipt its build writes until its data-test gate
+(`test:data`) passes, and writes it again after. Before, a gate failure or a nightly
+killed mid-gate left a receipt matching the rejected tree, and the next note save would
+have published that tree. `build:content` runs that check itself
 (0.14 s locally), although `data/publish-notes.sh` has already run it to choose a scoped
 render, so that calling it directly cannot render inputs nobody has validated.
 

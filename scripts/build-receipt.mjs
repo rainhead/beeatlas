@@ -41,6 +41,11 @@
  *             empties _site via build:app and then FAILS, leaving a partial tree
  *             under a receipt whose input components all still match.
  *
+ * The receipt fingerprints the inputs when it is written, at the end of the build, and
+ * validate checked them at the start. A file edited during a local build is vouched
+ * for unchecked; on the Machine nothing can edit them then (code is in the image, and
+ * the publish lock serialises every writer of the data dir).
+ *
  * --check prints the first component that differs, so a publish log says WHY it
  * fell back to a full build rather than just that it did.
  */

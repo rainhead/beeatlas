@@ -277,6 +277,24 @@ describe('the publish copies the precomputed bytes, and falls back when it must'
     execFileSync(process.execPath, [join(root, 'scripts/postbuild-data.mjs')],
       { env: { ...process.env, EXPORT_DIR: data }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 
+  // merge-swap.sh refuses to publish a top-level data entry it would never update
+  // (beeatlas-gcdo.2). Its pattern is read out of the script, so a new variant or a
+  // basename postbuild-data starts writing fails here, not on the first production publish.
+  test('every top-level file postbuild-data writes passes merge-swap\'s content-name check', () => {
+    const swap = read('data/merge-swap.sh');
+    const pattern = swap.match(/"\$_name" =~ (\S+) \]\]/)?.[1];
+    expect(pattern).toBeDefined();
+    const contentNamed = new RegExp(pattern!);
+    const { root, data } = tempRoot();
+    runPublish(root, data);
+    const out = join(root, '_site', 'data');
+    const names = readdirSync(out).filter((n) => n !== 'manifest.json');
+    expect(names.length).toBeGreaterThan(Object.keys(RUNTIME_ARTIFACTS).length);
+    for (const name of names) expect(name, name).toMatch(contentNamed);
+    rmSync(root, { recursive: true, force: true });
+    rmSync(data, { recursive: true, force: true });
+  });
+
   test('a precompressed sibling is copied byte-for-byte; a derived one is compressed here', () => {
     const { root, data } = tempRoot();
     execFileSync(process.execPath,

@@ -116,7 +116,7 @@ The decision above is unchanged — compression is a build output, and the hash 
 uncompressed source. What was wrong was *which* build.
 
 `scripts/postbuild-data.mjs` is the right place for the **decision** and the wrong place
-for the **work**. It runs on `postbuild` and on `build:content`, and `build:content` is
+for the **work**. It runs at the end of `build` and in `build:content`, and `build:content` is
 the note-publish path: ADR 0017 reruns the site build synchronously while an HTTP writer
 waits out a 300 s timeout. It also rebuilds `_site/data` wholesale with no cache. So the
 ~2.9 s this ADR booked as a per-publish cost was being paid on **every note write**, to

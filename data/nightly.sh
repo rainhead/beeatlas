@@ -32,9 +32,10 @@
 #      vs. the step-3 baseline) or the publish is aborted — stale data stays
 #      live until fixed.
 #   6. `pnpm run build` — 11ty inlines the baked artifacts from $EXPORT_DIR,
-#      Vite hashes the bundles, and the postbuild step (scripts/
-#      postbuild-data.mjs) derives _site/data: hashed runtime binaries +
-#      stable-URL dirs + the slim manifest, plus the build receipt.
+#      Vite hashes the bundles, and the build's last steps (scripts/
+#      postbuild-data.mjs) derive _site/data: hashed runtime binaries +
+#      stable-URL dirs + the slim manifest, plus the build receipt, which is
+#      withdrawn until 6b passes.
 #   6b. JS data-dependent gate (`*.data.test.ts`, which `pnpm test` excludes):
 #      assertions against the _site just built — BEEATLAS_SITE_PREBUILT=1, so it
 #      gates the tree about to be published rather than building its own
@@ -541,9 +542,9 @@ fi
 
 # 5. Render the site. 11ty inlines the baked artifacts straight from
 # $EXPORT_DIR (lib/build-data-dir.js honors the env), Vite hashes the
-# bundles, and the postbuild step derives _site/data (hashed runtime
+# bundles, and the build's last steps derive _site/data (hashed runtime
 # binaries + stable dirs + slim manifest, generated_at from
-# SOURCE_DATE_EPOCH above) and records the build receipt a scoped note
+# SOURCE_DATE_EPOCH above) and record the build receipt a scoped note
 # render checks (beeatlas-4oa).
 #
 # This runs BEFORE the JS gate below, which is the whole point (beeatlas-b4p):
@@ -558,6 +559,11 @@ _t0=$(date +%s)
 cd "$REPO_ROOT"
 pnpm run build
 echo "--- site build done in $(_elapsed $_t0) ---"
+# The build ends by writing the receipt, which lets a note save render over this tree
+# and publish it (ADR 0017). The gate below has not passed it yet, so withdraw the
+# receipt until it does: a failed or killed gate then leaves the next note save to
+# build in full rather than publish a tree the gate rejected.
+node scripts/build-receipt.mjs --invalidate
 
 # 5b. JS suites that need the pipeline's artifacts (*.data.test.ts). These are
 # excluded from `pnpm test` because a clean CI checkout has no data dir — see
@@ -582,6 +588,7 @@ if ! BEEATLAS_SITE_PREBUILT=1 pnpm run test:data; then
     exit 1
 fi
 echo "JS data test gate passed in $(_elapsed $_t0)"
+node scripts/build-receipt.mjs --write
 
 # 6. Merge-swap into SITE_ROOT (the Apache DocumentRoot). The rsync sequence
 # lives in data/merge-swap.sh — THE publish contract, shared with the st-nee

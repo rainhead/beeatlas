@@ -149,3 +149,4 @@ def test_an_entry_not_named_by_a_hash_refuses_before_publishing_anything(layout,
     assert (root / "index.html").read_text() == "old page"
     assert (root / "data" / "manifest.json").read_text() == '{"old": true}'
     assert not (root / "data" / NEW_HASHED).exists()
+    assert not (root / "assets").exists()
