@@ -151,7 +151,7 @@ queue (beeatlas-3nz) is still required before inviting authors.
 
 **Status:** Accepted (beeatlas-gcdo.2). Changes decision 4; the rest stands.
 
-`build:content` is now `eleventy → postbuild-data`. On the Fly Machine the three
+`build:content` is now `build-receipt --check → eleventy → postbuild-data`. On the Fly Machine the three
 validations cost a note save 4.3 s of a 26–31 s publish, measured there, and they
 re-check inputs that a scoped render is only allowed to run on when they have not
 changed.
@@ -160,12 +160,15 @@ That is what the receipt now guarantees. A receipt is written only after a full 
 whose `validate` passed (`build` runs it first, and the receipt is written in
 `postbuild`). `validate` reads `content/species-photos.toml`, the data dir's
 `species.json` and `occurrences.db`, and `src/` and `tsconfig.json` for `tsc`. The data
-dir is the receipt's `data` component, and `content/` and `tsconfig.json` were added
-to its `render` component with this change. `content/` was a gap in any case:
+dir is the receipt's `data` component, and `content/`, `tsconfig.json` and the two
+validator scripts were added to its `render` component with this change, so a changed
+rule also forces the full build that runs it. `content/` was a gap in any case:
 `_data/photos.js` renders from `species-photos.toml`, so a changed photo manifest could
 previously pass `--check` and publish stale pages. So a passing `--check` now means
 every input `validate` reads is the one it already passed on. Running it again cannot
-fail, so it was a cost, not a safety gate.
+fail, so it was a cost, not a safety gate. `build:content` runs that check itself
+(0.14 s locally), although `data/publish-notes.sh` has already run it to choose a scoped
+render, so that calling it directly cannot render inputs nobody has validated.
 
 `src/tests/validate-species.test.ts` pins this: it fails if a repo file the validations
 read is not among the receipt's inputs. A new validation that reads something new has

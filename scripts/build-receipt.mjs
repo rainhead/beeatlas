@@ -82,6 +82,9 @@ const RENDER_INPUTS = [
   '_pages', '_layouts', '_includes', '_data', 'content', 'lib', 'src',
   'eleventy.config.js', 'vite.config.ts', 'vite.sw.config.ts', 'tsconfig.json',
   'scripts/postbuild-data.mjs', 'package.json',
+  // The rules of the validations: a changed rule must run on the next publish, which only
+  // a full build does now that build:content skips validate.
+  'scripts/validate-species.mjs', 'scripts/validate-db.mjs',
 ];
 
 /** Every file under `path` (or the file itself), as repo-relative paths, sorted. */

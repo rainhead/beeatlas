@@ -63,7 +63,8 @@ for _f in "$REPO_ROOT/_site/data"/* "$REPO_ROOT/_site/data"/.[!.]*; do
     [[ -f "$_f" ]] || continue
     _name="${_f##*/}"
     [[ "$_name" == manifest.json ]] && continue
-    if [[ "$_name" =~ -[0-9a-f]{12}\. ]]; then
+    # <basename>-<12 hex>.<ext>, optionally .br or .gz: exactly what postbuild-data writes.
+    if [[ "$_name" =~ ^.+-[0-9a-f]{12}\.[A-Za-z0-9]+(\.(br|gz))?$ ]]; then
         _hashed+=("$SITE_ROOT/data/$_name")
     else
         _unhashed+=("$_name")

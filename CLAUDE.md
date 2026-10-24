@@ -74,8 +74,9 @@ cd data && uv run pytest
 pnpm run build
 
 # Note-publish render (ADR 0017): writes ADDITIVELY over the last full build's _site,
-# so it is only sound when `scripts/build-receipt.mjs --check` passes —
-# data/publish-notes.sh owns that gate. Never add build:app here (emptyOutDir).
+# so it is only sound when `scripts/build-receipt.mjs --check` passes. It runs that
+# check first and refuses otherwise; it skips `validate`, which the receipt stands in
+# for. Never add build:app here (emptyOutDir).
 BEEATLAS_RENDER_KEYS='agapostemon virescens' pnpm run build:content
 
 # Data pipeline (Stelis — github.com/rainhead/stelis)

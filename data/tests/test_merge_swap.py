@@ -115,13 +115,16 @@ def test_pages_and_manifest_are_swapped(layout):
     assert (root / "data" / "manifest.json").read_text() == '{"new": true}'
 
 
-def test_a_top_level_file_without_a_hash_refuses_before_publishing_anything(layout):
+@pytest.mark.parametrize("name", ["species.json", "species-0123456789ab.json.bak"])
+def test_a_top_level_file_without_a_hash_refuses_before_publishing_anything(layout, name):
     # It would be copied once and then never updated, so it must not get that far.
+    # A hash somewhere in the name is not enough: the whole name must be the form
+    # postbuild-data writes, or a renamed or backup file could slip through.
     repo, root = layout
-    write(repo / "_site" / "data" / "species.json", "unhashed")
+    write(repo / "_site" / "data" / name, "unhashed")
     result = run(repo, root)
     assert result.returncode != 0
-    assert "species.json" in result.stderr
+    assert name in result.stderr
     assert (root / "index.html").read_text() == "old page"
     assert (root / "data" / "manifest.json").read_text() == '{"old": true}'
     assert not (root / "data" / NEW_HASHED).exists()

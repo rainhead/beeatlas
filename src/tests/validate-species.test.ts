@@ -241,19 +241,20 @@ ordering = 1
   // so it is pinned here beside the full build's.
   test('build:content renders without touching the app bundle', () => {
     const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
-    expect(pkg.scripts['build:content']).toBe('eleventy && node scripts/postbuild-data.mjs');
-    // Nor validate (ADR 0017, amendment of 2026-10-24): a scoped render runs only
-    // under a matching receipt, and the receipt covers every input validate reads,
-    // which the full build that wrote it had already validated.
+    expect(pkg.scripts['build:content']).toBe('node scripts/build-receipt.mjs --check && eleventy && node scripts/postbuild-data.mjs');
+    // No validate (ADR 0017, amendment of 2026-10-24): the receipt covers every input
+    // validate reads, which the full build that wrote it had already validated. So the
+    // render checks the receipt itself, first, and a direct `pnpm run build:content`
+    // (CLAUDE.md shows one) refuses rather than render unvalidated inputs.
     // build:app must NEVER appear here. It runs Vite with emptyOutDir:true (ADR
     // 0016), which deletes _site — and a scoped render only rewrites a handful of
     // pages, so it would publish a site consisting of those pages and nothing else.
     expect(pkg.scripts['build:content']).not.toMatch(/build:app/);
     // Nor build:sw: the service worker precaches the bundle, which a note cannot change.
     expect(pkg.scripts['build:content']).not.toMatch(/build:sw/);
-    // The receipt attests to a FULL build; a scoped render must not refresh it, or
-    // it would vouch for a tree it only partly produced.
-    expect(pkg.scripts['build:content']).not.toMatch(/build-receipt/);
+    // The receipt attests to a FULL build; a scoped render may check it but must not
+    // refresh it, or it would vouch for a tree it only partly produced.
+    expect(pkg.scripts['build:content']).not.toMatch(/build-receipt\.mjs --(write|invalidate)/);
   });
 
   // ADR 0017, amendment of 2026-10-24: build:content skips validate because a scoped
@@ -270,6 +271,7 @@ ordering = 1
     const include = [...(tsconfig.match(/"include":\s*\[([^\]]*)\]/)?.[1] ?? '').matchAll(/"([^"]+)"/g)].map(m => m[1]!);
     expect(include.length).toBeGreaterThan(0);
     const read = [
+      'scripts/validate-species.mjs', 'scripts/validate-db.mjs', // the rules themselves
       'content/species-photos.toml', // validate-species
       'tsconfig.json', // typecheck
       ...include, // typecheck
