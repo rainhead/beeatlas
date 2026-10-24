@@ -35,8 +35,8 @@ const stack = new BeeAtlasStack(app, 'S', {
 const template = Template.fromStack(stack);
 
 // ── st-vjd teardown locks ─────────────────────────────────────────────────
-// The serving infra must not creep back in: maderas serves the site directly
-// (stelis ADR 0007). Exactly ONE distribution remains — the beeatlas.com →
+// The serving infra must not creep back in: the Fly app serves the site
+// (ADR 0042). Exactly ONE distribution remains — the beeatlas.com →
 // beeatlas.net redirect — and it must not have an S3 origin (its HttpOrigin
 // is never contacted; the viewer-request function 301s first).
 template.resourceCountIs('AWS::CloudFront::Distribution', 1);

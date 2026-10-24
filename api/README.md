@@ -3,9 +3,9 @@
 The one deliberate exception to BeeAtlas's static-hosting-only rule: a small
 Flask/WSGI service owning identity (iNat OAuth2 PKCE, server-side exchange)
 and authenticated writes to the authoritative store. In production it runs on
-maderas — Waitress on loopback behind Apache `mod_proxy_http` at
-`api.beeatlas.net` (see
-[docs/runbooks/notes-write-launch-gate.md](../docs/runbooks/notes-write-launch-gate.md)).
+the Fly Machine — Waitress on loopback behind Caddy at `api.beeatlas.net`, under
+Litestream (see [fly/start.sh](../fly/start.sh) and
+[docs/runbooks/fly-machine.md](../docs/runbooks/fly-machine.md)).
 The read path (the entire public site) stays 100% static and never talks to
 this service except for the optional signed-in header state.
 
@@ -23,7 +23,7 @@ this service except for the optional signed-in header state.
 Tests live in [`tests/`](tests/) and run with the store suite:
 `cd data && uv run pytest`.
 
-## Local development (full OAuth loop, no maderas round-trip)
+## Local development (full OAuth loop, no production round-trip)
 
 One-time setup:
 

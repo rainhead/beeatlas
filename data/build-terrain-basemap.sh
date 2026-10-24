@@ -17,21 +17,22 @@
 # it range-requests a remote planet file, so the bytes have to cross the wire
 # either way and building on the server saves an upload. This one is CPU-bound
 # in the lossless WebP encoder, and the artifact is only ~61 MB. Measured
-# 2026-08-02: ~9 min on an 8-core laptop; on maderas's 2 cores the same build ran
-# at ~11 tiles/min, i.e. ~3 HOURS pinning both cores of the live web server.
-# Upload the 61 MB instead.
+# 2026-08-02: ~9 min on an 8-core laptop; on the 2 cores of the server that then
+# served the site the same build ran at ~11 tiles/min, i.e. ~3 HOURS pinning both
+# cores of the live web server. Upload the 61 MB instead.
 #
 #   STAGING_DIR=/tmp/terrain data/build-terrain-basemap.sh
-#   scp /tmp/terrain/wa-terrain-YYYYMMDD.pmtiles \
-#       maderas:/var/www/beeatlas.net/var/basemap-staging/
-#   ssh maderas 'cd ~/dev/beeatlas && data/publish-basemap.sh wa-terrain-YYYYMMDD.pmtiles'
+#   aws s3 cp /tmp/terrain/wa-terrain-YYYYMMDD.pmtiles \
+#       s3://$PIPELINE_BACKUP_BUCKET/basemap/wa-terrain-YYYYMMDD.pmtiles
+#   then publish it on the Fly Machine, which fetches it from there
+#   (docs/runbooks/fly-machine.md, "The basemap").
 #
 # Requires the pmtiles Go CLI and the data/ uv environment (numpy + pillow).
 #
 # Usage: data/build-terrain-basemap.sh [YYYYMMDD]
 #   with no argument, stamps the archive with today's date.
-#   STAGING_DIR overrides where the archive lands (default: the maderas staging
-#   dir, which is what publish-basemap.sh reads).
+#   STAGING_DIR overrides where the archive lands (default: the staging dir
+#   publish-basemap.sh reads, which is right only when building on the server).
 
 set -euo pipefail
 

@@ -91,7 +91,7 @@ export default defineConfig({
     // modules out of src/.
     watch: { ignored: ['**/_site/**'] },
     // The ~227 MB WA tile archive is a server-side artifact: built quarterly by
-    // data/build-basemap.sh and served on maderas through an Apache Alias, never
+    // data/build-basemap.sh and served from the Fly volume by Caddy, never
     // checked in and never in _site. Without this, every local run of the app
     // falls back to the blank basemap, so nothing about the real basemap can be
     // QA'd locally. Proxying is the whole fix — the archive is read with HTTP

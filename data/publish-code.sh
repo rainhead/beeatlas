@@ -6,8 +6,9 @@
 # slim manifest stays coherent. Fills the gap Model Y left when deploy.yml's
 # deploy leg (push -> GH Actions -> S3/CloudFront) was deleted.
 #
-# Run it on the serving host (maderas) after pushing to main:
-#     ssh maderas 'bash ~/dev/beeatlas/data/publish-code.sh'
+# On the Fly Machine it runs by itself on a new image's first boot (fly/start.sh),
+# so a push to main, which deploys, needs no step here. By hand, as app:
+#     fly ssh console -C 'setpriv --reuid=app --regid=app --init-groups bash /app/data/publish-code.sh'
 #
 # Steps:
 #   1. Take the SAME publish flock the nightly and the note-write path take
