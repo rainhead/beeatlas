@@ -2,7 +2,7 @@
 /**
  * build-receipt.mjs — the precondition for a SCOPED render (beeatlas-4oa).
  *
- *   node scripts/build-receipt.mjs --write   # after a successful full `npm run build`
+ *   node scripts/build-receipt.mjs --write   # the last step of a full `pnpm run build`
  *   node scripts/build-receipt.mjs --check   # before a scoped render; exit 0 = allowed
  *   node scripts/build-receipt.mjs --invalidate  # after a FAILED publish; forces a full render next
  *
@@ -73,9 +73,9 @@ const RECEIPT = join(ROOT, '.cache', 'beeatlas-build', 'receipt.json');
 // full build is what deploys it.
 //
 // content/ is here because _data/photos.js renders from content/species-photos.toml.
-// It also makes the receipt cover every input `pnpm run validate` reads (that file,
-// the data dir's species.json and occurrences.db, and src/ and tsconfig.json for
-// tsc), which is why build:content can skip
+// It also makes the receipt cover every input `pnpm run validate` reads in the repo
+// and the data dir (that file, species.json and occurrences.db, and src/ and
+// tsconfig.json for tsc), which is why build:content can skip
 // validate: a matching receipt means those inputs are the ones the last full build
 // validated before it wrote the receipt (ADR 0017, amendment of 2026-10-24).
 const RENDER_INPUTS = [

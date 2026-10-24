@@ -156,17 +156,24 @@ validations cost a note save 4.3 s of a 26–31 s publish, measured there, and t
 re-check inputs that a scoped render is only allowed to run on when they have not
 changed.
 
-That is what the receipt now guarantees. A receipt is written only after a full build
-whose `validate` passed (`build` runs it first, and the receipt is written in
-`postbuild`). `validate` reads `content/species-photos.toml`, the data dir's
+That is what the receipt now guarantees. A receipt is written only by a full build
+whose `validate` passed: `build` runs `validate` first and writes the receipt last, in
+one `&&` chain. That write used to be a `postbuild` hook, which can be run on its own
+and would then vouch for inputs nothing validated, so it moved into the chain. `validate` reads `content/species-photos.toml`, the data dir's
 `species.json` and `occurrences.db`, and `src/` and `tsconfig.json` for `tsc`. The data
 dir is the receipt's `data` component, and `content/`, `tsconfig.json` and the two
 validator scripts were added to its `render` component with this change, so a changed
 rule also forces the full build that runs it. `content/` was a gap in any case:
 `_data/photos.js` renders from `species-photos.toml`, so a changed photo manifest could
 previously pass `--check` and publish stale pages. So a passing `--check` now means
-every input `validate` reads is the one it already passed on. Running it again cannot
-fail, so it was a cost, not a safety gate. `build:content` runs that check itself
+every input `validate` reads in the repo and the data dir is the one it already passed
+on. Running it again cannot fail, so it was a cost, not a safety gate.
+
+One input is outside the receipt on purpose: `tsc` also reads type declarations from
+`node_modules`, and the receipt leaves `pnpm-lock.yaml` out for the render's sake (see
+`scripts/build-receipt.mjs`). In production that cannot go stale: `node_modules` is
+installed when the image is built and changes only with a new image, whose first boot
+is a full build. `build:content` runs that check itself
 (0.14 s locally), although `data/publish-notes.sh` has already run it to choose a scoped
 render, so that calling it directly cannot render inputs nobody has validated.
 

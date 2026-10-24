@@ -2,7 +2,7 @@
 /**
  * postbuild-data.mjs — publish the runtime data artifacts into _site/data.
  *
- * Runs as npm's `postbuild` lifecycle step (after `npm run build`). For each
+ * Runs near the end of `pnpm run build`, and in `build:content`. For each
  * runtime artifact (lib/runtime-artifacts.js) it content-hashes the source in
  * the build data dir (lib/build-data-dir.js), copies it to
  * _site/data/<basename>-<12-hex>.<ext>, and finally writes the SLIM
@@ -233,9 +233,7 @@ for (const dir of STABLE_DIRS) {
     console.warn(`! ${dir}/: not in ${dataDir} — skipped (pages referencing /data/${dir}/ will 404)`);
     continue;
   }
-  // The data dir's mtimes, not this run's: merge-swap's rsync then skips every file
-  // that did not change instead of recopying ~76 MB per note save (beeatlas-gcdo.2).
-  cpSync(src, join(outDir, dir), { recursive: true, preserveTimestamps: true });
+  cpSync(src, join(outDir, dir), { recursive: true });
   console.log(`  ${dir}/ -> data/${dir}/`);
 }
 

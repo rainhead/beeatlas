@@ -215,7 +215,7 @@ ordering = 1
     const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
     expect(pkg.scripts['validate-species']).toBe('node scripts/validate-species.mjs');
     // Order: validate-species -> validate-db -> typecheck -> build:app -> eleventy
-    //        -> build:sw -> validate-bundle-size
+    //        -> build:sw -> validate-bundle-size -> postbuild-data -> build-receipt --write
     // v3.4 CUTOVER-03: validate-schema retired (dbt contract enforces the schema)
     // beeatlas-d3y: the ordering around eleventy is load-bearing, not cosmetic.
     // build:app must precede it (Eleventy reads the stashed Vite manifest at
@@ -223,7 +223,7 @@ ordering = 1
     // (vite-plugin-pwa's injectManifest globs the built site, and app/index.html
     // is Eleventy's output).
     expect(pkg.scripts.validate).toBe('pnpm run validate-species && pnpm run validate-db && pnpm run typecheck');
-    expect(pkg.scripts.build).toBe('pnpm run validate && pnpm run build:app && eleventy && pnpm run build:sw && pnpm run validate-bundle-size');
+    expect(pkg.scripts.build).toBe('pnpm run validate && pnpm run build:app && eleventy && pnpm run build:sw && pnpm run validate-bundle-size && node scripts/postbuild-data.mjs && node scripts/build-receipt.mjs --write');
     // beeatlas-bon: build:app is now a gate that runs build:bundle only when the
     // bundle's inputs moved. The gate MUST stay in the `build` chain rather than being
     // hoisted out, because on a skip it also performs the cleaning that Vite's
@@ -231,10 +231,14 @@ ordering = 1
     expect(pkg.scripts['build:app']).toBe('node scripts/build-app.mjs');
     expect(pkg.scripts['build:bundle']).toBe('vite build && node scripts/finish-bundle.mjs');
     expect(pkg.scripts['build:sw']).toBe('vite build -c vite.sw.config.ts');
-    // Model Y: the postbuild lifecycle hashes the runtime data artifacts into
-    // _site/data and writes the slim manifest (scripts/postbuild-data.mjs), then
-    // records the build receipt a scoped render checks (beeatlas-4oa).
-    expect(pkg.scripts.postbuild).toBe('node scripts/postbuild-data.mjs && node scripts/build-receipt.mjs --write');
+    // Model Y: the full build ends by hashing the runtime data artifacts into
+    // _site/data and writing the slim manifest (scripts/postbuild-data.mjs), then
+    // records the build receipt a scoped render checks (beeatlas-4oa). It is the end
+    // of `build`'s own chain, not a `postbuild` hook: a hook can be run alone, and a
+    // receipt written without validate having passed would let build:content, which
+    // skips validate, render unvalidated inputs (ADR 0017, amendment of 2026-10-24).
+    expect(pkg.scripts.postbuild).toBeUndefined();
+    expect(pkg.scripts.build).toMatch(/^pnpm run validate && .* && node scripts\/build-receipt\.mjs --write$/);
   });
 
   // beeatlas-4oa: the note-publish render path. Its SHAPE is the safety property,

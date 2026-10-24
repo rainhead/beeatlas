@@ -12,7 +12,8 @@
 #      and `-mtime +30` would eventually delete the live bundle out from under the
 #      pages referencing it. If you change either side, change both. The data
 #      files are handled here instead: only new names are copied, and the live
-#      copy of every file the build names is touched (beeatlas-gcdo.2).
+#      copy of every file the build names is touched (beeatlas-gcdo.2). The
+#      stable-URL dirs are compared by checksum, so unchanged files stay put.
 #   b. stable-URL dirs with --delete so removed species/places prune.
 #   c. the page tree with --delete (excluding /assets and /data).
 #   d. manifest.json LAST and atomically: every name it resolves already
@@ -88,10 +89,12 @@ if (( ${#_hashed[@]} > 0 )); then
     touch -c -- "${_hashed[@]}"
 fi
 
-# postbuild-data keeps the data dir's mtimes on these, so rsync's size-and-mtime check
-# skips what did not change. They are never age-pruned, so old mtimes are harmless.
+# These keep their URLs, so their names say nothing about their bytes, and every
+# build writes them with fresh mtimes. --checksum compares content instead, so only
+# what changed is copied: ~76 MB recopied per note save before, for the cost of
+# reading both sides (0.04 s locally, warm).
 for _dir in feeds species-maps place-maps; do
-    rsync -a --delete "$REPO_ROOT/_site/data/$_dir/" "$SITE_ROOT/data/$_dir/"
+    rsync -a --checksum --delete "$REPO_ROOT/_site/data/$_dir/" "$SITE_ROOT/data/$_dir/"
 done
 # /build-log.html is the Stelis operator page (stelis st-9rf) — served from
 # SITE_ROOT but written by nightly.sh's trap, never part of _site, so the page

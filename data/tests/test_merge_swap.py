@@ -51,8 +51,8 @@ def layout(tmp_path):
     write(site / "data" / "manifest.json", '{"new": true}')
     write(site / "data" / HASHED, "build bytes")
     write(site / "data" / NEW_HASHED, "new artifact")
-    # Stable-URL dirs, with the data dir's (old) mtimes as postbuild-data keeps them.
-    write(site / "data" / "feeds" / "same.xml", "same", age_days=3)
+    # Stable-URL dirs, written fresh by every build.
+    write(site / "data" / "feeds" / "same.xml", "same")
     write(site / "data" / "feeds" / "changed.xml", "after")
     write(site / "data" / "species-maps" / "a.svg", "svg")
     write(site / "data" / "place-maps" / "b.svg", "svg")
@@ -66,11 +66,13 @@ def layout(tmp_path):
     # Named by no build any more: pruned when old, kept when recent.
     write(root / "data" / "occurrences-ffffffffffff.db", "stale", age_days=40)
     write(root / "data" / "occurrences-eeeeeeeeeeee.db", "recent", age_days=10)
-    # The same size and mtime as the build's: rsync's quick check skips it.
-    same = write(root / "data" / "feeds" / "same.xml", "SAME")
-    built = (site / "data" / "feeds" / "same.xml").stat()
-    os.utime(same, ns=(built.st_atime_ns, built.st_mtime_ns))
-    write(root / "data" / "feeds" / "changed.xml", "before")
+    # Unchanged bytes under an older mtime: left in place, not recopied.
+    write(root / "data" / "feeds" / "same.xml", "same", age_days=3)
+    # Changed bytes under the same size and mtime as the build's, which rsync's
+    # default quick check would take as unchanged: still copied.
+    changed = write(root / "data" / "feeds" / "changed.xml", "befor")
+    built = (site / "data" / "feeds" / "changed.xml").stat()
+    os.utime(changed, ns=(built.st_atime_ns, built.st_mtime_ns))
     write(root / "data" / "feeds" / "removed.xml", "gone")
     return repo, root
 
@@ -101,9 +103,11 @@ def test_new_names_are_copied_and_unnamed_old_ones_pruned(layout):
 
 def test_stable_dirs_copy_only_what_changed_and_prune_what_left(layout):
     repo, root = layout
-    assert run(repo, root).returncode == 0
     feeds = root / "data" / "feeds"
-    assert (feeds / "same.xml").read_text() == "SAME"
+    inode = (feeds / "same.xml").stat().st_ino
+    assert run(repo, root).returncode == 0
+    # A copy would be a new inode: rsync writes a temporary file and renames it in.
+    assert (feeds / "same.xml").stat().st_ino == inode
     assert (feeds / "changed.xml").read_text() == "after"
     assert not (feeds / "removed.xml").exists()
 

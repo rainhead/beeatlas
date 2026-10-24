@@ -561,8 +561,10 @@ describe('build-chain isolation (PHOTO-07: seed NOT in CI)', () => {
     expect(pkg.scripts.validate).toBe(
       'pnpm run validate-species && pnpm run validate-db && pnpm run typecheck',
     );
+    // ADR 0017, amendment of 2026-10-24: postbuild-data and the receipt write are the
+    // end of this chain, not a `postbuild` hook that could be run on its own.
     expect(pkg.scripts.build).toBe(
-      'pnpm run validate && pnpm run build:app && eleventy && pnpm run build:sw && pnpm run validate-bundle-size',
+      'pnpm run validate && pnpm run build:app && eleventy && pnpm run build:sw && pnpm run validate-bundle-size && node scripts/postbuild-data.mjs && node scripts/build-receipt.mjs --write',
     );
   });
 

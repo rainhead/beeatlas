@@ -68,7 +68,7 @@ cd data && uv run pytest
 # Production build. Order is load-bearing (ADR 0016, Vite backend integration):
 #   validate -> tsc -> vite build (app only, stashes the manifest OUTSIDE _site)
 #   -> eleventy (reads it, emits the hashed tags) -> vite build -c vite.sw.config.ts
-#   -> validate-bundle-size -> postbuild
+#   -> validate-bundle-size -> postbuild-data -> build-receipt --write
 # No HTML passes through Vite. A template referencing a new module means adding it to
 # build.rollupOptions.input in vite.config.ts, or the build fails naming the entry.
 pnpm run build
