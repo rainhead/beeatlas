@@ -232,7 +232,7 @@ bd close <id>         # Complete work
 
 ## Session Completion — BeeAtlas addendum
 
-The managed block above covers `git push`. It is **not sufficient here**: `.beads/` is gitignored, so issue state lives only in the local Dolt DB until you push the Dolt ref explicitly.
+The managed block above covers `git push`. It is **not sufficient here**: no tracked file holds the issues (`.beads/*.jsonl` is gitignored), so issue state lives only in the local Dolt DB until you push the Dolt ref explicitly.
 
 **Also run, every session that touched issues:**
 
@@ -242,7 +242,6 @@ bd dolt push        # syncs the Dolt DB to refs/dolt/data on origin
 
 Why this is easy to miss: `git status` can read "up to date with origin" while every `bd create`/`bd close` from the session is still local-only — the gitignore means git has no visibility into it at all. The ref sat six days stale on 2026-07-18 for exactly this reason.
 
-Two known-benign warnings, so nobody spends time chasing them:
+One known-benign warning, so nobody spends time chasing it:
 
-- **`auto-export: git add failed: ... .beads is ignored`** on every mutating `bd` command — cosmetic. bd tries to stage the passive `issues.jsonl` export; the gitignore is correct and the Dolt ref is the real data path. Do not `git add -f` it.
 - **`bd dolt show` reporting `Remotes: (none)`** — misleading. The remote comes from `sync.remote` in `.beads/config.yaml`, which `bd dolt push` reads correctly.

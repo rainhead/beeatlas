@@ -197,8 +197,8 @@ data/notes-dev.db-wal
 # bd's managed .beads/.gitignore can't cover it.
 .beads.gate.lock
 
-# Beads: the JSONL export IS tracked (issues.jsonl / interactions.jsonl), so the
-# tracker travels with the repo and survives this checkout. What must NOT be
-# tracked — the Dolt database, backups, locks, per-machine sync state — is
-# ignored by .beads/.gitignore, which bd manages. Do not re-add a blanket
-# `.beads/` rule here: it would silently un-track the issues again.
+# Beads: the issues travel with the repo through refs/dolt/data (`bd dolt push`),
+# not through files. The JSONL export and audit log are ignored (2026-10-23):
+# the export only duplicated the Dolt ref and conflicted on merge. bd's config
+# and hooks stay tracked; .beads/.gitignore, which bd manages, ignores the rest.
+.beads/*.jsonl
