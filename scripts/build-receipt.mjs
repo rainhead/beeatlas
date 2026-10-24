@@ -71,9 +71,16 @@ const RECEIPT = join(ROOT, '.cache', 'beeatlas-build', 'receipt.json');
 // are the old ones and mutually CONSISTENT. Pages render against assets that exist.
 // That is stale-but-correct — a note publish is not a code deploy — and the nightly's
 // full build is what deploys it.
+//
+// content/ is here because _data/photos.js renders from content/species-photos.toml.
+// It also makes the receipt cover every input `pnpm run validate` reads (that file,
+// the data dir's species.json and occurrences.db, and src/ and tsconfig.json for
+// tsc), which is why build:content can skip
+// validate: a matching receipt means those inputs are the ones the last full build
+// validated before it wrote the receipt (ADR 0017, amendment of 2026-10-24).
 const RENDER_INPUTS = [
-  '_pages', '_layouts', '_includes', '_data', 'lib', 'src',
-  'eleventy.config.js', 'vite.config.ts', 'vite.sw.config.ts',
+  '_pages', '_layouts', '_includes', '_data', 'content', 'lib', 'src',
+  'eleventy.config.js', 'vite.config.ts', 'vite.sw.config.ts', 'tsconfig.json',
   'scripts/postbuild-data.mjs', 'package.json',
 ];
 

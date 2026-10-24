@@ -233,7 +233,9 @@ for (const dir of STABLE_DIRS) {
     console.warn(`! ${dir}/: not in ${dataDir} — skipped (pages referencing /data/${dir}/ will 404)`);
     continue;
   }
-  cpSync(src, join(outDir, dir), { recursive: true });
+  // The data dir's mtimes, not this run's: merge-swap's rsync then skips every file
+  // that did not change instead of recopying ~76 MB per note save (beeatlas-gcdo.2).
+  cpSync(src, join(outDir, dir), { recursive: true, preserveTimestamps: true });
   console.log(`  ${dir}/ -> data/${dir}/`);
 }
 

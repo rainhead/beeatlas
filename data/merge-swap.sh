@@ -10,7 +10,9 @@
 #      a build may REUSE the bundle instead, so scripts/build-app.mjs touches the
 #      files it reuses; without that, `rsync -a` would carry their old mtimes here
 #      and `-mtime +30` would eventually delete the live bundle out from under the
-#      pages referencing it. If you change either side, change both.
+#      pages referencing it. If you change either side, change both. The data
+#      files are handled here instead: only new names are copied, and the live
+#      copy of every file the build names is touched (beeatlas-gcdo.2).
 #   b. stable-URL dirs with --delete so removed species/places prune.
 #   c. the page tree with --delete (excluding /assets and /data).
 #   d. manifest.json LAST and atomically: every name it resolves already
@@ -49,9 +51,42 @@ fi
 
 mkdir -p "$SITE_ROOT/data"
 rsync -a "$REPO_ROOT/_site/assets/" "$SITE_ROOT/assets/"
-rsync -a --exclude='/manifest.json' --exclude='/feeds' \
+
+# The data files are named by a hash of their content, so one already in SITE_ROOT
+# holds these bytes, and copying it again is pure cost: postbuild-data rewrites every
+# one with a fresh mtime, so `rsync -a` alone recopied all ~66 MB on every note save
+# (beeatlas-gcdo.2). --ignore-existing copies only names that are new. That is safe
+# only while EVERY top-level file but manifest.json is content-named, because a file
+# that is not would never be updated again, silently; so check before relying on it.
+_hashed=() _unhashed=()
+for _f in "$REPO_ROOT/_site/data"/* "$REPO_ROOT/_site/data"/.[!.]*; do
+    [[ -f "$_f" ]] || continue
+    _name="${_f##*/}"
+    [[ "$_name" == manifest.json ]] && continue
+    if [[ "$_name" =~ -[0-9a-f]{12}\. ]]; then
+        _hashed+=("$SITE_ROOT/data/$_name")
+    else
+        _unhashed+=("$_name")
+    fi
+done
+if (( ${#_unhashed[@]} > 0 )); then
+    echo "FATAL: _site/data has top-level files not named by a content hash; merge-swap" >&2
+    echo "       copies only new names there, so these would never be updated:" >&2
+    printf '         %s\n' "${_unhashed[@]}" >&2
+    exit 1
+fi
+rsync -a --ignore-existing --exclude='/manifest.json' --exclude='/feeds' \
     --exclude='/species-maps' --exclude='/place-maps' \
     "$REPO_ROOT/_site/data/" "$SITE_ROOT/data/"
+# The age-prune below reads mtimes, and a skipped file keeps the one from the publish
+# that first copied it. So refresh the live copy of every file this build names,
+# which keeps "older than 30 days" meaning "no publish has named it for 30 days".
+if (( ${#_hashed[@]} > 0 )); then
+    touch -c -- "${_hashed[@]}"
+fi
+
+# postbuild-data keeps the data dir's mtimes on these, so rsync's size-and-mtime check
+# skips what did not change. They are never age-pruned, so old mtimes are harmless.
 for _dir in feeds species-maps place-maps; do
     rsync -a --delete "$REPO_ROOT/_site/data/$_dir/" "$SITE_ROOT/data/$_dir/"
 done

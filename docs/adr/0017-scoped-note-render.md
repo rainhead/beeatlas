@@ -56,6 +56,8 @@ full build's `_site` — and refuses unless it can prove that tree is fit to add
    `build:app`, whose `emptyOutDir: true` deletes `_site` (ADR 0016) — a scoped render
    after that would publish a handful of pages and nothing else. The validations stay:
    only the *render* is being narrowed here, not the safety gates.
+   *Amended 2026-10-24: `build:content` no longer runs the validations; see the
+   amendment at the end.*
 
 Measured locally, same data, back to back:
 
@@ -144,3 +146,27 @@ startup plus `_data` loading (~0.25s local, measured — not the ~1.0s the pre-0
 profile suggested), which only a warm process can remove. And a 16s critical section
 becoming a ~6s one does not make concurrent note writes concurrent: the coalescing
 queue (beeatlas-3nz) is still required before inviting authors.
+
+## Amendment (2026-10-24): the scoped render skips `validate`
+
+**Status:** Accepted (beeatlas-gcdo.2). Changes decision 4; the rest stands.
+
+`build:content` is now `eleventy → postbuild-data`. On the Fly Machine the three
+validations cost a note save 4.3 s of a 26–31 s publish, measured there, and they
+re-check inputs that a scoped render is only allowed to run on when they have not
+changed.
+
+That is what the receipt now guarantees. A receipt is written only after a full build
+whose `validate` passed (`build` runs it first, and the receipt is written in
+`postbuild`). `validate` reads `content/species-photos.toml`, the data dir's
+`species.json` and `occurrences.db`, and `src/` and `tsconfig.json` for `tsc`. The data
+dir is the receipt's `data` component, and `content/` and `tsconfig.json` were added
+to its `render` component with this change. `content/` was a gap in any case:
+`_data/photos.js` renders from `species-photos.toml`, so a changed photo manifest could
+previously pass `--check` and publish stale pages. So a passing `--check` now means
+every input `validate` reads is the one it already passed on. Running it again cannot
+fail, so it was a cost, not a safety gate.
+
+`src/tests/validate-species.test.ts` pins this: it fails if a repo file the validations
+read is not among the receipt's inputs. A new validation that reads something new has
+to extend the receipt, or go back into `build:content`.

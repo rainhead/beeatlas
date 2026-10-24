@@ -222,7 +222,13 @@ RUN ln -s /data/raw /app/data/raw \
 # BEEATLAS_CONTAINER: the scripts' container mode (data/runtime-env.sh,
 # beeatlas-h6mo). The nightly and the publish scripts pull nothing and install
 # nothing here; the image is the deploy.
+# pnpm_config_verify_deps_before_run: pnpm 11 checks node_modules against the
+# lockfile before every `pnpm run`. Here they were installed --frozen-lockfile above
+# and nothing changes them, so the answer is always "up to date"; asking cost a note
+# save 1.8 s, measured on the Machine (beeatlas-gcdo.2). Set after the installs on
+# purpose.
 ENV BEEATLAS_CONTAINER=1 \
+    pnpm_config_verify_deps_before_run=false \
     BASE_DIR=/data \
     SITE_ROOT=/data/htdocs \
     VAR_DIR=/data/var \

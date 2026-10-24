@@ -241,7 +241,10 @@ ordering = 1
   // so it is pinned here beside the full build's.
   test('build:content renders without touching the app bundle', () => {
     const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
-    expect(pkg.scripts['build:content']).toBe('pnpm run validate && eleventy && node scripts/postbuild-data.mjs');
+    expect(pkg.scripts['build:content']).toBe('eleventy && node scripts/postbuild-data.mjs');
+    // Nor validate (ADR 0017, amendment of 2026-10-24): a scoped render runs only
+    // under a matching receipt, and the receipt covers every input validate reads,
+    // which the full build that wrote it had already validated.
     // build:app must NEVER appear here. It runs Vite with emptyOutDir:true (ADR
     // 0016), which deletes _site — and a scoped render only rewrites a handful of
     // pages, so it would publish a site consisting of those pages and nothing else.
@@ -251,6 +254,31 @@ ordering = 1
     // The receipt attests to a FULL build; a scoped render must not refresh it, or
     // it would vouch for a tree it only partly produced.
     expect(pkg.scripts['build:content']).not.toMatch(/build-receipt/);
+  });
+
+  // ADR 0017, amendment of 2026-10-24: build:content skips validate because a scoped
+  // render runs only under a matching receipt. That is sound only while the receipt
+  // fingerprints every file validate reads, so a new input to validate that the
+  // receipt does not cover would quietly reopen the gap. The data dir (species.json,
+  // occurrences.db) is the receipt's own `data` component; these are the repo inputs.
+  test('the build receipt covers every repo input the skipped validations read', () => {
+    const receipt = readFileSync(resolve(REPO_ROOT, 'scripts/build-receipt.mjs'), 'utf-8');
+    const list = receipt.match(/const RENDER_INPUTS = \[([\s\S]*?)\];/)?.[1] ?? '';
+    const inputs = [...list.matchAll(/'([^']+)'/g)].map(m => m[1]!);
+    // tsconfig.json has comments, so not JSON.parse.
+    const tsconfig = readFileSync(resolve(REPO_ROOT, 'tsconfig.json'), 'utf-8');
+    const include = [...(tsconfig.match(/"include":\s*\[([^\]]*)\]/)?.[1] ?? '').matchAll(/"([^"]+)"/g)].map(m => m[1]!);
+    expect(include.length).toBeGreaterThan(0);
+    const read = [
+      'content/species-photos.toml', // validate-species
+      'tsconfig.json', // typecheck
+      ...include, // typecheck
+    ];
+    for (const path of read) {
+      expect(inputs.some(i => path === i || path.startsWith(`${i}/`)), path).toBe(true);
+    }
+    expect(readFileSync(resolve(REPO_ROOT, 'scripts/validate-species.mjs'), 'utf-8'))
+      .toContain("'content/species-photos.toml'");
   });
 
   // beeatlas-bon: the gate's WIRING only. Its delete decision — which files a skip
