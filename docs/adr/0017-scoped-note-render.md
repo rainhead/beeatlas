@@ -56,6 +56,8 @@ full build's `_site` — and refuses unless it can prove that tree is fit to add
    `build:app`, whose `emptyOutDir: true` deletes `_site` (ADR 0016) — a scoped render
    after that would publish a handful of pages and nothing else. The validations stay:
    only the *render* is being narrowed here, not the safety gates.
+   *Amended 2026-10-24: `build:content` no longer runs the validations; see the
+   amendment at the end.*
 
 Measured locally, same data, back to back:
 
@@ -144,3 +146,49 @@ startup plus `_data` loading (~0.25s local, measured — not the ~1.0s the pre-0
 profile suggested), which only a warm process can remove. And a 16s critical section
 becoming a ~6s one does not make concurrent note writes concurrent: the coalescing
 queue (beeatlas-3nz) is still required before inviting authors.
+
+## Amendment (2026-10-24): the scoped render skips `validate`
+
+**Status:** Accepted (beeatlas-gcdo.2). Changes decision 4; the rest stands.
+
+`build:content` is now `build-receipt --check → eleventy → postbuild-data`. On the Fly
+Machine the three validations cost a note save 4.3 s of a 26–31 s publish, measured
+there, and they re-check inputs that a scoped render is allowed to run on only when they
+have not changed.
+
+That is what the receipt now guarantees. A receipt is written only by a full build whose
+`validate` passed: `build` runs `validate` first and writes the receipt last, in one `&&`
+chain. That write used to be a `postbuild` hook, which can be run on its own and would
+then vouch for inputs nothing validated, so it moved into the chain.
+
+`validate` reads `content/species-photos.toml`, the data dir's `species.json` and
+`occurrences.db`, and, for `tsc`, `tsconfig.json` and every file it lists (`src/`, plus
+`scripts/sw-precache-globs.ts`, which `src/` imports). The data dir is the receipt's
+`data` component. `content/`, `tsconfig.json`, `scripts/sw-precache-globs.ts` and the two
+validator scripts joined its `render` component with this change, so a changed rule also
+forces the full build that runs it. `content/` was a gap in any case: `_data/photos.js`
+renders from `species-photos.toml`, so a changed photo manifest could previously pass
+`--check` and publish stale pages. A passing `--check` therefore means every input
+`validate` reads in the repo and the data dir is one it already passed on. Running it
+again cannot fail, so it was a cost, not a safety gate.
+
+`build:content` runs that check itself (0.14 s locally), although `data/publish-notes.sh`
+has already run it to choose a scoped render, so that calling `build:content` directly
+cannot render inputs nobody has validated. `src/tests/validate-species.test.ts` fails if a
+file the validations read is not among the receipt's inputs; a new validation that reads
+something new has to extend the receipt, or go back into `build:content`.
+
+One input is outside the receipt on purpose: `tsc` also reads type declarations from
+`node_modules`, and the receipt leaves `pnpm-lock.yaml` out for the render's sake (see
+`scripts/build-receipt.mjs`). In production `node_modules` is installed when the image is
+built and changes only with a new image, whose first boot is a full build. If that build
+fails at `validate`, say because a dependency change breaks `tsc`, the old receipt still
+matches the old tree, and note saves go on rendering over it unchecked. What they publish
+is stale but consistent (the old bundle, templates and manifest), which is better than
+every save failing until the deploy is fixed.
+
+The nightly withdraws the receipt its build writes until its data-test gate (`test:data`)
+passes, and writes it again after, so a receipt always means the gates passed. That does
+not keep a rejected tree off the site. With no receipt, the next note save falls back to a
+full build of the same export and publishes it, and that path runs neither of the
+nightly's gates. This predates the amendment and is open as beeatlas-yvsd.

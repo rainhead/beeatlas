@@ -68,14 +68,15 @@ cd data && uv run pytest
 # Production build. Order is load-bearing (ADR 0016, Vite backend integration):
 #   validate -> tsc -> vite build (app only, stashes the manifest OUTSIDE _site)
 #   -> eleventy (reads it, emits the hashed tags) -> vite build -c vite.sw.config.ts
-#   -> validate-bundle-size -> postbuild
+#   -> validate-bundle-size -> postbuild-data -> build-receipt --write
 # No HTML passes through Vite. A template referencing a new module means adding it to
 # build.rollupOptions.input in vite.config.ts, or the build fails naming the entry.
 pnpm run build
 
 # Note-publish render (ADR 0017): writes ADDITIVELY over the last full build's _site,
-# so it is only sound when `scripts/build-receipt.mjs --check` passes —
-# data/publish-notes.sh owns that gate. Never add build:app here (emptyOutDir).
+# so it is only sound when `scripts/build-receipt.mjs --check` passes. It runs that
+# check first and refuses otherwise; it skips `validate`, which the receipt stands in
+# for. Never add build:app here (emptyOutDir).
 BEEATLAS_RENDER_KEYS='agapostemon virescens' pnpm run build:content
 
 # Data pipeline (Stelis — github.com/rainhead/stelis)

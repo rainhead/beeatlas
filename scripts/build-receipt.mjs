@@ -2,7 +2,7 @@
 /**
  * build-receipt.mjs — the precondition for a SCOPED render (beeatlas-4oa).
  *
- *   node scripts/build-receipt.mjs --write   # after a successful full `npm run build`
+ *   node scripts/build-receipt.mjs --write   # the last step of a full `pnpm run build`
  *   node scripts/build-receipt.mjs --check   # before a scoped render; exit 0 = allowed
  *   node scripts/build-receipt.mjs --invalidate  # after a FAILED publish; forces a full render next
  *
@@ -41,6 +41,11 @@
  *             empties _site via build:app and then FAILS, leaving a partial tree
  *             under a receipt whose input components all still match.
  *
+ * The receipt fingerprints the inputs when it is written, at the end of the build, and
+ * validate checked them at the start. A file edited during a local build is vouched
+ * for unchecked; on the Machine nothing can edit them then (code is in the image, and
+ * the publish lock serialises every writer of the data dir).
+ *
  * --check prints the first component that differs, so a publish log says WHY it
  * fell back to a full build rather than just that it did.
  */
@@ -71,10 +76,22 @@ const RECEIPT = join(ROOT, '.cache', 'beeatlas-build', 'receipt.json');
 // are the old ones and mutually CONSISTENT. Pages render against assets that exist.
 // That is stale-but-correct — a note publish is not a code deploy — and the nightly's
 // full build is what deploys it.
+//
+// content/ is here because _data/photos.js renders from content/species-photos.toml.
+// It also makes the receipt cover every input `pnpm run validate` reads in the repo
+// and the data dir (that file, species.json and occurrences.db, and src/ and
+// tsconfig.json for tsc), which is why build:content can skip
+// validate: a matching receipt means those inputs are the ones the last full build
+// validated before it wrote the receipt (ADR 0017, amendment of 2026-10-24).
 const RENDER_INPUTS = [
-  '_pages', '_layouts', '_includes', '_data', 'lib', 'src',
-  'eleventy.config.js', 'vite.config.ts', 'vite.sw.config.ts',
+  '_pages', '_layouts', '_includes', '_data', 'content', 'lib', 'src',
+  'eleventy.config.js', 'vite.config.ts', 'vite.sw.config.ts', 'tsconfig.json',
   'scripts/postbuild-data.mjs', 'package.json',
+  // The rules of the validations: a changed rule must run on the next publish, which only
+  // a full build does now that build:content skips validate.
+  'scripts/validate-species.mjs', 'scripts/validate-db.mjs',
+  // Outside src/, but src/ imports it, so tsc reads it.
+  'scripts/sw-precache-globs.ts',
 ];
 
 /** Every file under `path` (or the file itself), as repo-relative paths, sorted. */

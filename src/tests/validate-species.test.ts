@@ -1,8 +1,8 @@
 import { test, expect, describe } from 'vitest';
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { writeFileSync, readFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, resolve, join } from 'node:path';
+import { dirname, resolve, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 // @ts-expect-error -- .mjs source has no .d.ts; named exports are the contract (mirrors seed-species-photos.test.ts)
 import { validateSpeciesPhotos, LICENSE_WHITELIST, PHOTO_PROVENANCE, isCuratorTouched } from '../../scripts/validate-species.mjs';
@@ -215,7 +215,7 @@ ordering = 1
     const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
     expect(pkg.scripts['validate-species']).toBe('node scripts/validate-species.mjs');
     // Order: validate-species -> validate-db -> typecheck -> build:app -> eleventy
-    //        -> build:sw -> validate-bundle-size
+    //        -> build:sw -> validate-bundle-size -> postbuild-data -> build-receipt --write
     // v3.4 CUTOVER-03: validate-schema retired (dbt contract enforces the schema)
     // beeatlas-d3y: the ordering around eleventy is load-bearing, not cosmetic.
     // build:app must precede it (Eleventy reads the stashed Vite manifest at
@@ -223,7 +223,7 @@ ordering = 1
     // (vite-plugin-pwa's injectManifest globs the built site, and app/index.html
     // is Eleventy's output).
     expect(pkg.scripts.validate).toBe('pnpm run validate-species && pnpm run validate-db && pnpm run typecheck');
-    expect(pkg.scripts.build).toBe('pnpm run validate && pnpm run build:app && eleventy && pnpm run build:sw && pnpm run validate-bundle-size');
+    expect(pkg.scripts.build).toBe('pnpm run validate && pnpm run build:app && eleventy && pnpm run build:sw && pnpm run validate-bundle-size && node scripts/postbuild-data.mjs && node scripts/build-receipt.mjs --write');
     // beeatlas-bon: build:app is now a gate that runs build:bundle only when the
     // bundle's inputs moved. The gate MUST stay in the `build` chain rather than being
     // hoisted out, because on a skip it also performs the cleaning that Vite's
@@ -231,26 +231,65 @@ ordering = 1
     expect(pkg.scripts['build:app']).toBe('node scripts/build-app.mjs');
     expect(pkg.scripts['build:bundle']).toBe('vite build && node scripts/finish-bundle.mjs');
     expect(pkg.scripts['build:sw']).toBe('vite build -c vite.sw.config.ts');
-    // Model Y: the postbuild lifecycle hashes the runtime data artifacts into
-    // _site/data and writes the slim manifest (scripts/postbuild-data.mjs), then
-    // records the build receipt a scoped render checks (beeatlas-4oa).
-    expect(pkg.scripts.postbuild).toBe('node scripts/postbuild-data.mjs && node scripts/build-receipt.mjs --write');
+    // Model Y: the full build ends by hashing the runtime data artifacts into
+    // _site/data and writing the slim manifest (scripts/postbuild-data.mjs), then
+    // records the build receipt a scoped render checks (beeatlas-4oa). It is the end
+    // of `build`'s own chain, not a `postbuild` hook: a hook can be run alone, and a
+    // receipt written without validate having passed would let build:content, which
+    // skips validate, render unvalidated inputs (ADR 0017, amendment of 2026-10-24).
+    expect(pkg.scripts.postbuild).toBeUndefined();
+    expect(pkg.scripts.build).toMatch(/^pnpm run validate && .* && node scripts\/build-receipt\.mjs --write$/);
   });
 
   // beeatlas-4oa: the note-publish render path. Its SHAPE is the safety property,
   // so it is pinned here beside the full build's.
   test('build:content renders without touching the app bundle', () => {
     const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
-    expect(pkg.scripts['build:content']).toBe('pnpm run validate && eleventy && node scripts/postbuild-data.mjs');
+    expect(pkg.scripts['build:content']).toBe('node scripts/build-receipt.mjs --check && eleventy && node scripts/postbuild-data.mjs');
+    // No validate (ADR 0017, amendment of 2026-10-24): the receipt covers every input
+    // validate reads, which the full build that wrote it had already validated. So the
+    // render checks the receipt itself, first, and a direct `pnpm run build:content`
+    // (CLAUDE.md shows one) refuses rather than render unvalidated inputs.
     // build:app must NEVER appear here. It runs Vite with emptyOutDir:true (ADR
     // 0016), which deletes _site — and a scoped render only rewrites a handful of
     // pages, so it would publish a site consisting of those pages and nothing else.
     expect(pkg.scripts['build:content']).not.toMatch(/build:app/);
     // Nor build:sw: the service worker precaches the bundle, which a note cannot change.
     expect(pkg.scripts['build:content']).not.toMatch(/build:sw/);
-    // The receipt attests to a FULL build; a scoped render must not refresh it, or
-    // it would vouch for a tree it only partly produced.
-    expect(pkg.scripts['build:content']).not.toMatch(/build-receipt/);
+    // The receipt attests to a FULL build; a scoped render may check it but must not
+    // refresh it, or it would vouch for a tree it only partly produced.
+    expect(pkg.scripts['build:content']).not.toMatch(/build-receipt\.mjs --(write|invalidate)/);
+  });
+
+  // ADR 0017, amendment of 2026-10-24: build:content skips validate because a scoped
+  // render runs only under a matching receipt. That is sound only while the receipt
+  // fingerprints every file validate reads, so a new input to validate that the
+  // receipt does not cover would quietly reopen the gap. The data dir (species.json,
+  // occurrences.db) is the receipt's own `data` component; these are the repo inputs.
+  test('the build receipt covers every repo input the skipped validations read', () => {
+    const receipt = readFileSync(resolve(REPO_ROOT, 'scripts/build-receipt.mjs'), 'utf-8');
+    const list = receipt.match(/const RENDER_INPUTS = \[([\s\S]*?)\];/)?.[1] ?? '';
+    const inputs = [...list.matchAll(/'([^']+)'/g)].map(m => m[1]!);
+    // Every repo file tsc reads, asked of tsc itself, so an import from outside src/
+    // is caught too. node_modules is outside the receipt on purpose (ADR 0017).
+    const tsc = execFileSync(resolve(REPO_ROOT, 'node_modules/.bin/tsc'), ['--noEmit', '--listFilesOnly'],
+      { cwd: REPO_ROOT, encoding: 'utf-8' });
+    const typechecked = tsc.split('\n').filter(Boolean)
+      .map(f => relative(REPO_ROOT, f))
+      .filter(f => !f.startsWith('node_modules/'));
+    expect(typechecked.length).toBeGreaterThan(0);
+    const read = [
+      'scripts/validate-species.mjs', 'scripts/validate-db.mjs', // the rules themselves
+      'lib/build-data-dir.js', // which both validators import
+      'content/species-photos.toml', // validate-species
+      'tsconfig.json', // typecheck
+      ...typechecked, // typecheck
+    ];
+    for (const path of read) {
+      expect(inputs.some(i => path === i || path.startsWith(`${i}/`)), path).toBe(true);
+    }
+    expect(readFileSync(resolve(REPO_ROOT, 'scripts/validate-species.mjs'), 'utf-8'))
+      .toContain("'content/species-photos.toml'");
   });
 
   // beeatlas-bon: the gate's WIRING only. Its delete decision — which files a skip

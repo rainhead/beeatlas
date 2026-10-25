@@ -2,7 +2,7 @@
 /**
  * postbuild-data.mjs — publish the runtime data artifacts into _site/data.
  *
- * Runs as npm's `postbuild` lifecycle step (after `npm run build`). For each
+ * Runs near the end of `pnpm run build`, and in `build:content`. For each
  * runtime artifact (lib/runtime-artifacts.js) it content-hashes the source in
  * the build data dir (lib/build-data-dir.js), copies it to
  * _site/data/<basename>-<12-hex>.<ext>, and finally writes the SLIM
