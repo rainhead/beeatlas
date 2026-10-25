@@ -18,6 +18,8 @@
 #   2. Source NVM, `nvm use`, git pull --ff-only, `pnpm install --frozen-lockfile`.
 #      In the Fly image (data/runtime-env.sh) none of this: a code change arrives as
 #      a new image, and this script is the render that follows its deploy.
+#   2b. Stop here, publishing nothing, when the build receipt shows a full build of
+#      these inputs is already what is served (beeatlas-ky6d).
 #   3. Gate: `pnpm run test:data` — the data-dependent JS suites run for real
 #      here because $EXPORT_DIR exists (same gate as nightly step 4b).
 #   4. `pnpm run build` against $EXPORT_DIR (lib/build-data-dir.js resolves
@@ -99,12 +101,27 @@ else
 fi
 echo "sync done in $(_elapsed $_t0)"
 
+# 2b. Skip the render when it would reproduce the site already served (beeatlas-ky6d,
+# ADR 0045). A deploy re-rendered all ~1,700 pages even when it changed nothing a page
+# is built from, holding the publish lock for minutes on a Machine whose CPU credit the
+# restart had just reset, so a note saved meanwhile was left "publish pending".
+# --check-deploy passes only when every repo file a full build reads (`deploy`), the
+# data dir, the Vite manifest and _site's file list all match the last full build's
+# receipt. The receipt describes _site, not what is served, so also require the served
+# manifest to be _site's: merge-swap writes it last, so a match means this _site was
+# published in full. The manifest keeps naming the commit that rendered it.
+export EXPORT_DIR  # the receipt's data dir; step 3 relies on it too
+if node scripts/build-receipt.mjs --check-deploy \
+    && cmp -s "$REPO_ROOT/_site/data/manifest.json" "$SITE_ROOT/data/manifest.json"; then
+    echo "=== code publish skipped: the served site is already a full build of these inputs $(_ts) ==="
+    exit 0
+fi
+
 # 3. JS data-dependent test gate (nightly step 4b): the artifacts exist, so
 # these run for real. A failure means the rendered site would be wrong —
 # abort rather than publish.
 echo "--- JS data-dependent test gate ---"
 _t0=$(date +%s)
-export EXPORT_DIR
 if ! pnpm run test:data; then
     echo "JS DATA TEST GATE FAILED in $(_elapsed $_t0) — aborting publish" >&2
     exit 1

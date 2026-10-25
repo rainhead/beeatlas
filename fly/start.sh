@@ -147,7 +147,8 @@ cron_pid=$!
 
 # A deploy changes the site's code without changing its data, so the first boot of a
 # new image renders the site against the last published export (data/publish-code.sh
-# in container mode, ADR 0042: a release_command Machine has no volume). It takes the
+# in container mode, ADR 0042: a release_command Machine has no volume). It renders
+# only if something a page is built from changed, and otherwise exits at once (ADR 0045). It takes the
 # publish lock, so it waits for a running nightly. Not watched: a failed render leaves
 # the last good site in place, and the next nightly renders anyway.
 rendered=/data/var/rendered-commit
