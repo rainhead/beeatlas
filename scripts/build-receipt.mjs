@@ -104,12 +104,17 @@ const RENDER_INPUTS = [
   'scripts/validate-species.mjs', 'scripts/validate-db.mjs',
   // Outside src/, but src/ imports it, so tsc reads it.
   'scripts/sw-precache-globs.ts',
+  // Under data/, the pipeline tree, but _data/synonyms.js renders the synonym pages and the
+  // species redirect map straight from three of these seeds.
+  'data/dbt/seeds',
 ];
 
 // What --check-deploy leaves out of `deploy`: paths no page is built from. Everything
 // else in the repo counts, so a mistake here can only ever cost a needless render, not
 // a stale site, EXCEPT by listing something a build does read. Keep entries to code
-// that runs the pipeline, the server or the operator, and documents.
+// that runs the pipeline, the server or the operator, and documents. RENDER_INPUTS are
+// hashed even when they sit under an entry here (data/dbt/seeds under data/), so a file
+// the render is known to read cannot be left out by a broad entry.
 const DEPLOY_IGNORE = [
   // Not in the image, or put there at run time.
   '.git', '.beads', '.dolt', 'node_modules', '_site', '.cache', 'public/data',
@@ -129,8 +134,14 @@ const DEPLOY_IGNORE = [
   'scripts/build-receipt.mjs',
 ];
 
-/** The repo files `deploy` hashes: all of them but DEPLOY_IGNORE and root *.md. */
+/** The repo files `deploy` hashes: all of them but DEPLOY_IGNORE and root *.md, plus
+ * every RENDER_INPUTS file wherever it sits. */
 function deployPaths() {
+  const renderPaths = RENDER_INPUTS.flatMap(p => walk(join(ROOT, p), ROOT));
+  return [...new Set([...unignoredPaths(), ...renderPaths])].sort();
+}
+
+function unignoredPaths() {
   const ignored = new Set(DEPLOY_IGNORE);
   const base = p => p.slice(p.lastIndexOf('/') + 1);
   const skip = p => ignored.has(p)

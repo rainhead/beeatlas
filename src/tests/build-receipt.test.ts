@@ -47,6 +47,8 @@ beforeEach(() => {
     'public/pwa/icon.svg': '<svg/>',
     'scripts/build-app.mjs': '// builds the bundle',
     'scripts/fetch-data.sh': '# runs Stelis',
+    'data/dbt/seeds/occurrence_synonyms.csv': 'synonym,accepted',
+    'data/dbt/seeds/bee_traits_beegap.csv': 'genus,trait',
     'docs/adr/0001.md': 'a decision',
     'data/nightly.sh': '# the pipeline',
     'api/main.py': '# the API',
@@ -82,6 +84,9 @@ describe('a deploy renders in full', () => {
     'src/app.ts', '_pages/index.njk',
     // What the note path's receipt leaves out but a full build reads.
     'pnpm-lock.yaml', '.nvmrc', '.env.production', 'public/pwa/icon.svg', 'scripts/build-app.mjs',
+    // Under data/, which is otherwise left out, but the synonym pages are rendered from
+    // it (_data/synonyms.js), so it is a render input and wins over the broad entry.
+    'data/dbt/seeds/occurrence_synonyms.csv',
   ])('when %s changed', (rel) => {
     put(rel, 'changed');
     expect(receipt('--check-deploy')).toBe(1);
@@ -109,6 +114,11 @@ describe('a deploy renders in full', () => {
     expect(receipt('--invalidate')).toBe(0);
     expect(receipt('--check-deploy')).toBe(1);
   });
+});
+
+test('a note save also re-renders in full after a seed the pages are built from changed', () => {
+  put('data/dbt/seeds/occurrence_synonyms.csv', 'changed');
+  expect(receipt('--check')).toBe(1);
 });
 
 describe('a note save still ignores what only a deploy reads', () => {
