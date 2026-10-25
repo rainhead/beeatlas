@@ -10,7 +10,7 @@ Durable knowledge lives in a few places — keep them current; it is the product
 - **[docs/adr/](docs/adr/)** — numbered decision records with rationale and rejected alternatives. **When a decision is made, add an ADR before moving on.** Mark superseded records; don't delete them.
 - **[docs/lessons-learned.md](docs/lessons-learned.md)** — reusable engineering lessons. **[docs/concerns.md](docs/concerns.md)** — live tech debt & scaling ceiling.
 
-Work tracking: **beads (`bd`)** — issues live in the Dolt DB, not in git's branches. Use `bd` for all task tracking (not TodoWrite or markdown TODO lists). Decisions and their *why* go in `docs/adr/`; bd issues track work in flight and *reference* ADRs. **Push beads regularly, without asking** (2026-10-25): `bd dolt push` replicates the Dolt data to `refs/dolt/data` on this repo's GitHub remote and never touches `main`, so do it after filing or closing issues and before ending a session. Beads that are not pushed exist only on one machine. This is the one exception to pushing only when asked; `git push` of code still needs asking.
+Work tracking: **beads (`bd`)** — issues live in the Dolt DB, not in git's branches. Use `bd` for all task tracking (not TodoWrite or markdown TODO lists). Decisions and their *why* go in `docs/adr/`; bd issues track work in flight and *reference* ADRs. **Push beads regularly, without asking** (2026-10-25): `bd sync` pulls, checks for conflicts and pushes the Dolt data to `refs/dolt/data` on this repo's GitHub remote, and never touches `main`, so run it after filing or closing issues and before ending a session. The SessionStart hook runs it too. Beads that are not pushed exist only on one machine. This is the one exception to pushing only when asked; `git push` of code still needs asking.
 
 ## Domain Vocabulary
 
@@ -207,7 +207,7 @@ bd close <id>         # Complete work
 
 - Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
 - Run `bd prime` for detailed command reference and session close protocol
-- Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
+- Don't use `bd remember`: this repo is public, so everything in beads, memories included, can be read by anyone from `refs/dolt/data`. Keep persistent knowledge in Claude's file memory.
 
 **Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export. See https://github.com/gastownhall/beads/blob/main/docs/SYNC_CONCEPTS.md for details and anti-patterns.
 
@@ -244,11 +244,11 @@ The managed block above covers `git push`. It is **not sufficient here**: no tra
 **Also run, every session that touched issues:**
 
 ```bash
-bd dolt push        # syncs the Dolt DB to refs/dolt/data on origin
+bd sync             # pulls, then pushes the Dolt DB to refs/dolt/data on origin
 ```
 
 Why this is easy to miss: `git status` can read "up to date with origin" while every `bd create`/`bd close` from the session is still local-only — the gitignore means git has no visibility into it at all. The ref sat six days stale on 2026-07-18 for exactly this reason.
 
 One known-benign warning, so nobody spends time chasing it:
 
-- **`bd dolt show` reporting `Remotes: (none)`** — misleading. The remote comes from `sync.remote` in `.beads/config.yaml`, which `bd dolt push` reads correctly.
+- **`bd dolt show` reporting `Remotes: (none)`** — misleading. The remote comes from `sync.remote` in `.beads/config.yaml`, which `bd sync` and `bd dolt push` read correctly.
