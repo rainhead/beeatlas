@@ -10,7 +10,7 @@ Durable knowledge lives in a few places — keep them current; it is the product
 - **[docs/adr/](docs/adr/)** — numbered decision records with rationale and rejected alternatives. **When a decision is made, add an ADR before moving on.** Mark superseded records; don't delete them.
 - **[docs/lessons-learned.md](docs/lessons-learned.md)** — reusable engineering lessons. **[docs/concerns.md](docs/concerns.md)** — live tech debt & scaling ceiling.
 
-Work tracking: **beads (`bd`), local-only** — issues live in the Dolt DB, not git. Use `bd` for all task tracking (not TodoWrite or markdown TODO lists). Decisions and their *why* go in `docs/adr/`; bd issues track work in flight and *reference* ADRs.
+Work tracking: **beads (`bd`)** — issues live in the Dolt DB, not in git's branches. Use `bd` for all task tracking (not TodoWrite or markdown TODO lists). Decisions and their *why* go in `docs/adr/`; bd issues track work in flight and *reference* ADRs. **Push beads regularly, without asking** (2026-10-25): `bd dolt push` replicates the Dolt data to `refs/dolt/data` on this repo's GitHub remote and never touches `main`, so do it after filing or closing issues and before ending a session. Beads that are not pushed exist only on one machine. This is the one exception to pushing only when asked; `git push` of code still needs asking.
 
 ## Domain Vocabulary
 
