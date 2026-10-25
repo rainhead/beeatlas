@@ -48,3 +48,4 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0042](0042-beeatlas-moves-to-fly-as-one-stateful-machine.md) | BeeAtlas moves to Fly as one stateful machine | Accepted |
 | [0043](0043-itis-settles-spelling-disagreements.md) | ITIS settles spelling disagreements between name sources | Accepted |
 | [0044](0044-what-the-pipeline-writes-lives-on-the-volume.md) | What the pipeline writes lives on the volume, behind symlinks from the checkout | Accepted |
+| [0045](0045-a-deploy-renders-only-when-a-page-input-changed.md) | A deploy re-renders the site only when something a page is built from changed | Accepted |

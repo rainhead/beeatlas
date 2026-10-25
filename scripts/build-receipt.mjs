@@ -4,6 +4,7 @@
  *
  *   node scripts/build-receipt.mjs --write   # the last step of a full `pnpm run build`
  *   node scripts/build-receipt.mjs --check   # before a scoped render; exit 0 = allowed
+ *   node scripts/build-receipt.mjs --check-deploy  # on a deploy; exit 0 = the site is current
  *   node scripts/build-receipt.mjs --invalidate  # after a FAILED publish; forces a full render next
  *
  * A scoped render writes a handful of species pages ADDITIVELY over whatever is
@@ -40,6 +41,17 @@
  *             This is the one that catches the nastiest case: `npm run build`
  *             empties _site via build:app and then FAILS, leaving a partial tree
  *             under a receipt whose input components all still match.
+ *
+ * A fifth, `deploy`, is written with the others and read only by --check-deploy
+ * (beeatlas-ky6d, ADR 0045). A deploy asks a different question from a note save: not
+ * "may I render a few pages over this tree?" but "would a full build of this image
+ * produce the site already served?" A full build reads more than `render` covers: the
+ * lockfile (so node_modules), public/, .nvmrc, the .env files and the bundle scripts.
+ * So `deploy` hashes every file in the repo EXCEPT the paths in DEPLOY_IGNORE, which
+ * cannot reach a page. Listing what to leave out, rather than what to include, means a
+ * new file defaults to forcing a render, the safe direction. The note path keeps
+ * ignoring `deploy`: a dependency bump does not make a scoped render unsound (see
+ * RENDER_INPUTS), and a deploy that changes any of it renders in full anyway.
  *
  * The receipt fingerprints the inputs when it is written, at the end of the build, and
  * validate checked them at the start. A file edited during a local build is vouched
@@ -94,6 +106,48 @@ const RENDER_INPUTS = [
   'scripts/sw-precache-globs.ts',
 ];
 
+// What --check-deploy leaves out of `deploy`: paths no page is built from. Everything
+// else in the repo counts, so a mistake here can only ever cost a needless render, not
+// a stale site, EXCEPT by listing something a build does read. Keep entries to code
+// that runs the pipeline, the server or the operator, and documents.
+const DEPLOY_IGNORE = [
+  // Not in the image, or put there at run time.
+  '.git', '.beads', '.dolt', 'node_modules', '_site', '.cache', 'public/data',
+  // The pipeline (its output is the data dir, which `data` covers), the API, the
+  // Machine's own config, AWS, CI and editor settings.
+  'data', 'api', 'fly', 'fly.toml', 'infra', '.github', '.claude', '.vscode',
+  '.mcp.json', '.coderabbit.yaml', '.dockerignore', '.gitignore', '.editorconfig',
+  // Documents. Root *.md files are left out by the rule in deployPaths.
+  'docs', 'lychee.toml', 'LICENSE',
+  // Tools in scripts/ that drive the pipeline or run by hand, never in `pnpm run build`.
+  'scripts/fetch-data.sh', 'scripts/pull-published.sh', 'scripts/photo-pipeline',
+  'scripts/check-photo-availability.mjs', 'scripts/seed-species-photos.mjs',
+  'scripts/precompress-artifacts.mjs', 'scripts/make-local-manifest.js',
+  'scripts/gen-app-icons.sh', 'scripts/measure-lcp.sh', 'scripts/smoke-boot.mjs',
+  'scripts/offline-leak-check.sh', 'scripts/offline-uat.mjs',
+  // Records the build; does not shape it.
+  'scripts/build-receipt.mjs',
+];
+
+/** The repo files `deploy` hashes: all of them but DEPLOY_IGNORE and root *.md. */
+function deployPaths() {
+  const ignored = new Set(DEPLOY_IGNORE);
+  const base = p => p.slice(p.lastIndexOf('/') + 1);
+  const skip = p => ignored.has(p)
+    || ['node_modules', '__pycache__', '.pytest_cache'].includes(base(p))
+    // Root documents, and the beads files a local checkout keeps beside .beads/.
+    || (!p.includes('/') && (p.endsWith('.md') || p.startsWith('.beads')));
+  const visit = rel => {
+    if (skip(rel)) return [];
+    const abs = join(ROOT, rel);
+    const st = statSync(abs, { throwIfNoEntry: false });
+    if (!st) return [];
+    if (!st.isDirectory()) return [rel];
+    return readdirSync(abs).flatMap(name => visit(rel ? `${rel}/${name}` : name));
+  };
+  return readdirSync(ROOT).flatMap(name => visit(name)).sort();
+}
+
 /** Every file under `path` (or the file itself), as repo-relative paths, sorted. */
 function walk(path, base) {
   if (!existsSync(path)) return [];
@@ -143,6 +197,7 @@ function fingerprint() {
     // paths only: their CONTENTS are what a scoped render legitimately rewrites.
     site: sha(sitePaths.join('\n')),
     siteFiles: sitePaths.length,
+    deploy: contentDigest(deployPaths(), ROOT),
   };
 }
 
@@ -175,14 +230,17 @@ if (mode === '--write') {
   } else {
     console.log('no build receipt to invalidate — the next publish already renders in full');
   }
-} else if (mode === '--check') {
+} else if (mode === '--check' || mode === '--check-deploy') {
   if (!existsSync(RECEIPT)) {
     console.error('no build receipt — no full build has been recorded here');
     process.exit(1);
   }
   const want = JSON.parse(readFileSync(RECEIPT, 'utf8'));
   const got = fingerprint();
-  for (const k of ['render', 'vite', 'data', 'site']) {
+  // A receipt written before `deploy` existed lacks it, and so fails --check-deploy:
+  // one more full render, the safe direction.
+  const components = mode === '--check' ? ['render', 'vite', 'data', 'site'] : ['render', 'vite', 'data', 'site', 'deploy'];
+  for (const k of components) {
     if (want[k] !== got[k]) {
       console.error(`build receipt stale: ${k} changed since the last full build (${want[k]} → ${got[k]})`);
       process.exit(1);
@@ -190,6 +248,6 @@ if (mode === '--write') {
   }
   console.log(`build receipt current (${got.siteFiles} files in _site)`);
 } else {
-  console.error('usage: build-receipt.mjs --write | --check | --invalidate');
+  console.error('usage: build-receipt.mjs --write | --check | --check-deploy | --invalidate');
   process.exit(2);
 }

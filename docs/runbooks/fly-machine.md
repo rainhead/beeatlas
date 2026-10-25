@@ -18,7 +18,11 @@ don't say on their own.
   Pacific and the notes snapshot hourly, as maderas did.
 - **On the first boot of a new image,** the site is re-rendered against the last
   published export (`data/publish-code.sh`), so a code deploy shows up without waiting
-  for the nightly. A fresh volume has no export yet, so it skips that and logs why.
+  for the nightly. It skips the render, logging "code publish skipped", when the build
+  receipt shows that nothing a page is built from has changed since the served site was
+  rendered ([ADR 0045](../adr/0045-a-deploy-renders-only-when-a-page-input-changed.md));
+  the account menu's build id then still names the commit that rendered it. A fresh
+  volume has no export yet, so it skips the render and logs why.
 
 ## Logs
 
