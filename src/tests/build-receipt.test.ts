@@ -23,9 +23,13 @@ function put(rel: string, body: string) {
   writeFileSync(join(root, rel), body);
 }
 
-function receipt(mode: string): number {
+// The environment without any VITE_* variable this test process happens to carry, so
+// the cases below control them exactly.
+const BASE_ENV = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('VITE_')));
+
+function receipt(mode: string, env: Record<string, string> = {}): number {
   const r = spawnSync(process.execPath, [join(root, 'scripts/build-receipt.mjs'), mode],
-    { env: { ...process.env, EXPORT_DIR: data }, encoding: 'utf8' });
+    { env: { ...BASE_ENV, EXPORT_DIR: data, ...env }, encoding: 'utf8' });
   return r.status ?? -1;
 }
 
@@ -95,6 +99,15 @@ describe('a deploy renders in full', () => {
   test('when a file appears that nothing has classified, since that is the safe default', () => {
     put('scripts/new-build-step.mjs', '// a step someone adds to the build');
     expect(receipt('--check-deploy')).toBe(1);
+  });
+
+  // Vite bakes VITE_* variables from the environment into the bundle, ahead of .env.
+  test.each([
+    ['is set', { VITE_NOTES_API_BASE_URL: 'https://api.example' }],
+    ['is set to the empty string', { VITE_NOTES_API_BASE_URL: '' }],
+  ])('when a VITE_* variable %s that was not', (_, env) => {
+    expect(receipt('--check-deploy', env)).toBe(1);
+    expect(receipt('--check', env)).toBe(0);
   });
 
   test('when the data dir changed', () => {

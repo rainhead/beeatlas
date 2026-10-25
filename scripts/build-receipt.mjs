@@ -191,7 +191,24 @@ function statDigest(paths, base) {
   return h.digest('hex').slice(0, 16);
 }
 
-function fingerprint() {
+/**
+ * `deploy`: the files of deployPaths(), and every VITE_* variable in the environment.
+ * Vite reads those ahead of any .env file and bakes them into the bundle, so a changed
+ * value with unchanged files still needs a render; scripts/build-app.mjs hashes them
+ * for the same reason. A variable set to the empty string counts as set, as there.
+ */
+function deployDigest() {
+  const h = createHash('sha256');
+  h.update(contentDigest(deployPaths(), ROOT));
+  for (const k of Object.keys(process.env).filter(k => k.startsWith('VITE_')).sort()) {
+    h.update(`env:${JSON.stringify([k, process.env[k]])}\n`);
+  }
+  return h.digest('hex').slice(0, 16);
+}
+
+/** The receipt's components. `deploy` only when asked: the note path's --check, which a
+ * writer waits on, has no use for it. */
+function fingerprint(withDeploy) {
   const dataDir = buildDataDir(ROOT);
   const siteDir = join(ROOT, '_site');
   const manifestPath = join(ROOT, MANIFEST_PATH);
@@ -208,14 +225,14 @@ function fingerprint() {
     // paths only: their CONTENTS are what a scoped render legitimately rewrites.
     site: sha(sitePaths.join('\n')),
     siteFiles: sitePaths.length,
-    deploy: contentDigest(deployPaths(), ROOT),
+    ...(withDeploy ? { deploy: deployDigest() } : {}),
   };
 }
 
 const mode = process.argv[2];
 
 if (mode === '--write') {
-  const fp = fingerprint();
+  const fp = fingerprint(true);
   mkdirSync(dirname(RECEIPT), { recursive: true });
   // generated_at for a human reading the file; never compared.
   writeFileSync(RECEIPT, JSON.stringify({ ...fp, at: new Date().toISOString() }, null, 2) + '\n');
@@ -247,7 +264,7 @@ if (mode === '--write') {
     process.exit(1);
   }
   const want = JSON.parse(readFileSync(RECEIPT, 'utf8'));
-  const got = fingerprint();
+  const got = fingerprint(mode === '--check-deploy');
   // A receipt written before `deploy` existed lacks it, and so fails --check-deploy:
   // one more full render, the safe direction.
   const components = mode === '--check' ? ['render', 'vite', 'data', 'site'] : ['render', 'vite', 'data', 'site', 'deploy'];
