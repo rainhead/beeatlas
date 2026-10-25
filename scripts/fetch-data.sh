@@ -22,6 +22,11 @@
 #                   (absolute: this script runs stelis from STELIS_DIR)
 #   NOTES_DB_PATH   the authoritative notes store (default: stelis's; unset = harvest
 #                   sees no store — fine for data-only work, wrong for notes work)
+#   STELIS_REPORT_DIR  when set, the build writes its report there (stelis
+#                   --report-dir, st-3un): `build` holds `<number> <epoch>` and
+#                   `moved-keys` the target's moved keys; a missing file is the
+#                   cautious answer. Lets a caller skip the --last-build and
+#                   --moved-keys launches that would ask the same thing.
 #   STELIS_EXPLAIN  when set, log stelis's --explain plan (why each task runs/skips)
 #                   before building — same scope + export-dir as the build, so it is
 #                   an accurate preview of what this invocation is about to do. Set by
@@ -42,8 +47,9 @@ fi
 # keyed artifact moved in the LAST recorded build, one per line on stdout (exit 1 =
 # no basis, rebuild in full). It lives here rather than in the caller so the query
 # runs with the SAME cwd and env as the build above — which is what makes it read
-# the state dir that build wrote. Used by data/publish-notes.sh to scope the render
-# to the species whose notes actually moved (beeatlas-4oa).
+# the state dir that build wrote. data/publish-notes.sh used it to scope the render
+# to the species whose notes moved (beeatlas-4oa); it now reads the same answer from
+# the build's report (STELIS_REPORT_DIR, below), so this stays for asking by hand.
 if [[ "${1:-}" == "--moved-keys" ]]; then
     cd "$STELIS_DIR"
     exec env BEEATLAS_DIR="$REPO_ROOT" racket src/main.rkt "$@"
@@ -78,7 +84,8 @@ if [[ -n "${STELIS_EXPLAIN:-}" ]]; then
 fi
 
 env BEEATLAS_DIR="$REPO_ROOT" \
-    racket src/main.rkt --build --export-dir "$EXPORT_DIR" "$@"
+    racket src/main.rkt --build --export-dir "$EXPORT_DIR" \
+    ${STELIS_REPORT_DIR:+--report-dir "$STELIS_REPORT_DIR"} "$@"
 
 # The site's "Data as of" clock (beeatlas-923). Written HERE, beside the artifacts it
 # describes, because this is the only step that refreshes them — the site build reads
