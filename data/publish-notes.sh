@@ -132,17 +132,26 @@ _stage="notes-build"
 # 2. Scoped stelis build: only the notes suffix, targeted to the changed keys.
 echo "--- building notes (stelis, scoped) ---"
 _t0=$(date +%s)
-export DB_PATH EXPORT_DIR NOTES_DB_PATH STELIS_DIR
+# The build writes down which build it appended and which notes/ keys moved
+# (stelis st-3un), so neither needs a Racket launch of its own to ask. Emptied
+# first: Stelis clears it too, but only once it starts, and a run that fails
+# before that must not read the previous publish's answers.
+STELIS_REPORT_DIR="$VAR_DIR/stelis-report-note"
+rm -rf "$STELIS_REPORT_DIR"
+export DB_PATH EXPORT_DIR NOTES_DB_PATH STELIS_DIR STELIS_REPORT_DIR
 _fetch_rc=0
 bash "$REPO_ROOT/scripts/fetch-data.sh" --from notes-harvest notes || _fetch_rc=$?
 # stelis st-8x1: capture WHICH build the scoped run just appended, positively —
-# epoch match against this run's exported SOURCE_DATE_EPOCH. A failed build
-# appended too and deserves its not-published receipt, hence capturing before
-# the exit below; a mismatch means nothing was appended, so nothing is marked.
-_sb_line="$(cd "$STELIS_DIR" && env BEEATLAS_DIR="$REPO_ROOT" racket src/main.rkt --last-build 2>/dev/null)" || true
-if [[ -n "$_sb_line" && "${_sb_line##* }" == "$SOURCE_DATE_EPOCH" ]]; then
-    _sb_num="${_sb_line%% *}"
-    _sb_epoch="${_sb_line##* }"
+# the report names it, and its epoch must be this run's exported
+# SOURCE_DATE_EPOCH. A failed build appended too and deserves its not-published
+# receipt, hence capturing before the exit below; no report means nothing was
+# appended, so nothing is marked.
+if [[ -f "$STELIS_REPORT_DIR/build" ]]; then
+    read -r _num _epoch < "$STELIS_REPORT_DIR/build" || true
+    if [[ "${_epoch:-}" == "$SOURCE_DATE_EPOCH" ]]; then
+        _sb_num="$_num"
+        _sb_epoch="$_epoch"
+    fi
 fi
 if [[ $_fetch_rc -ne 0 ]]; then
     echo "--- notes build FAILED (rc=$_fetch_rc) in $(_elapsed $_t0) ---" >&2
@@ -159,7 +168,8 @@ echo "--- notes build done in $(_elapsed $_t0) ---"
 #   from there rather than from the API's canonical_name is what makes the render
 #   agree with the harvest by construction: a publish deferred earlier leaves two
 #   species pending, and the store digest knows that where one request does not.
-#   Non-zero exit = stelis has no basis to answer, so render everything.
+#   The build's report carries it (moved-keys, what `--moved-keys notes` prints);
+#   no file = stelis has no basis to answer, so render everything.
 #
 #   WHETHER _site may be added to. A scoped render rewrites a few pages over the
 #   last full build's output and publishes the whole tree, so that tree must BE the
@@ -172,7 +182,8 @@ _t0=$(date +%s)
 cd "$REPO_ROOT"
 
 _scoped=""
-if _moved=$(bash "$REPO_ROOT/scripts/fetch-data.sh" --moved-keys notes); then
+if [[ -f "$STELIS_REPORT_DIR/moved-keys" ]]; then
+    _moved=$(cat "$STELIS_REPORT_DIR/moved-keys")
     # Stelis reports notes/ FILENAMES; the render is keyed by canonical_name. Same
     # basename mapping _data/notes.js applies when it reads the dir (beeatlas-6x9).
     _keys=$(printf '%s' "$_moved" | sed 's/\.json$//')

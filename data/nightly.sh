@@ -474,20 +474,27 @@ export DB_PATH EXPORT_DIR NOTES_DB_PATH
 # nightly log records what Stelis decided and why. scripts/fetch-data.sh runs the
 # explain pass against the same export dir the build reads (non-fatal on error).
 export STELIS_EXPLAIN=1
+# The build writes down which build it appended (stelis st-3un), so asking needs
+# no second launch. Emptied first, so a run that fails before Stelis starts
+# cannot read the last night's answer.
+export STELIS_REPORT_DIR="$VAR_DIR/stelis-report-nightly"
+rm -rf "$STELIS_REPORT_DIR"
 cd "$REPO_ROOT"
 _stage="data-build"
 _fetch_rc=0
 pnpm run fetch-data || _fetch_rc=$?
-# stelis st-8x1: capture WHICH build the engine just appended — positively, by
-# matching its epoch against the SOURCE_DATE_EPOCH this run exported. A match
-# proves the history tail is THIS run's build (a FAILED build appended too, and
-# deserves its not-published receipt — hence capturing before the exit below);
-# a mismatch means the run died before appending, and the trap marks nothing.
-# Guarded: a capture failure costs the badge, never the run.
-_sb_line="$(cd "$STELIS_DIR" && env BEEATLAS_DIR="$REPO_ROOT" racket src/main.rkt --last-build 2>/dev/null)" || true
-if [[ -n "$_sb_line" && "${_sb_line##* }" == "$SOURCE_DATE_EPOCH" ]]; then
-    _sb_num="${_sb_line%% *}"
-    _sb_epoch="${_sb_line##* }"
+# stelis st-8x1: capture WHICH build the engine just appended — positively: the
+# report names it, and its epoch must match the SOURCE_DATE_EPOCH this run
+# exported. A FAILED build appended too, and deserves its not-published receipt,
+# hence capturing before the exit below; no report means the run died before
+# appending, and the trap marks nothing. A capture failure costs the badge,
+# never the run.
+if [[ -f "$STELIS_REPORT_DIR/build" ]]; then
+    read -r _num _epoch < "$STELIS_REPORT_DIR/build" || true
+    if [[ "${_epoch:-}" == "$SOURCE_DATE_EPOCH" ]]; then
+        _sb_num="$_num"
+        _sb_epoch="$_epoch"
+    fi
 fi
 if [[ $_fetch_rc -ne 0 ]]; then
     echo "--- data build FAILED (rc=$_fetch_rc) in $(_elapsed $_t0) ---" >&2

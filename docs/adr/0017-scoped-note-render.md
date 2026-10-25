@@ -192,3 +192,20 @@ passes, and writes it again after, so a receipt always means the gates passed. T
 not keep a rejected tree off the site. With no receipt, the next note save falls back to a
 full build of the same export and publishes it, and that path runs neither of the
 nightly's gates. This predates the amendment and is open as beeatlas-yvsd.
+
+## Amendment (2026-10-25): the key set arrives in the build's report
+
+Decision 2 is unchanged in substance: the key set is still Stelis's per-key observation of
+`notes/` in the build just run. Only the way it is asked for changes. `stelis --moved-keys
+notes` was a Racket launch of its own after the build, about 0.7 s on the Fly Machine, to
+ask for something the build already knew when it finished; `--last-build`, for the publish
+receipt, was another. Since Stelis st-3un the build writes both down when it is given a
+report directory (`STELIS_REPORT_DIR`, passed through `scripts/fetch-data.sh` as
+`--report-dir`): `moved-keys` holds what `--moved-keys notes` would have printed, and
+`build` the line `--last-build` would have printed.
+
+The exit code's contract becomes the file's presence. No `moved-keys` file means "no
+basis", and `data/publish-notes.sh` falls back to a full build, exactly as it did on a
+non-zero exit; an empty file means zero keys moved. The script empties the directory
+before the build, and Stelis clears it again when it starts, so a publish that fails early
+can never read the previous publish's answer.
