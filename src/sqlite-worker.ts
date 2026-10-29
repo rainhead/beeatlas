@@ -58,22 +58,29 @@ let _geoBuffer: ArrayBuffer | null = null;
     `[BENCHMARK] WASM instantiate: ${(t1 - t0).toFixed(0)} ms`,
   ];
 
-  // Resolve manifest URL — hard fail if missing (pipeline guarantees it exists).
-  const occurrencesDbUrl = await resolveDataUrl('occurrences_db');
-  if (occurrencesDbUrl == null) throw new Error('manifest is missing occurrences_db key');
-
   // Load the pre-built SQLite database. Read from Cache Storage FIRST (populated by
   // the page-side prime), falling back to the network. This worker is created from an
   // inline blob: URL, so it is uncontrolled whatever the SW's scope is (see sqlite.ts)
   // and a bare fetch() bypasses the SW and would fail offline; caches.match() works
   // regardless of SW control (Phase 151 offline fix).
+  const fetchDb = async (reload: boolean): Promise<Response> => {
+    const url = await resolveDataUrl('occurrences_db', { reload });
+    if (url == null) throw new Error('manifest is missing occurrences_db key');
+    let r: Response | undefined;
+    if (typeof caches !== 'undefined') {
+      r = (await caches.match(url, { cacheName: 'data-artifacts' })) ?? (await caches.match(url));
+    }
+    return r ?? await fetch(url);
+  };
+
   const tFetch0 = performance.now();
-  let resp: Response | undefined;
-  if (typeof caches !== 'undefined') {
-    resp = (await caches.match(occurrencesDbUrl, { cacheName: 'data-artifacts' }))
-      ?? (await caches.match(occurrencesDbUrl));
-  }
-  if (!resp) resp = await fetch(occurrencesDbUrl);
+  let resp = await fetchDb(false);
+  // The manifest is read cache-first, so it can name a database the server has since
+  // pruned. The 404 has an empty body, and zero bytes open as a blank database whose
+  // first query fails with "no such table: geo_blob" (beeatlas-vddd). Ask the network
+  // for the current manifest and try once more.
+  if (!resp.ok) resp = await fetchDb(true);
+  if (!resp.ok) throw new Error(`occurrences database: HTTP ${resp.status} ${resp.url}`);
   const buffer = await resp.arrayBuffer();
   const tFetch1 = performance.now();
   logs.push(
