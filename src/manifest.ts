@@ -61,11 +61,15 @@ function scheduleRevalidate(url: string): void {
 async function _fetchAndCache(url: string): Promise<Manifest> {
   const r = await fetch(url);
   if (!r.ok) throw new Error(`manifest.json: ${r.status}`);
+  // Parse before caching: a 200 that is not JSON (a captive portal's page) must not
+  // replace a cached manifest that works.
+  const copy = r.clone();
+  const manifest = await r.json() as Manifest;
   if (typeof caches !== 'undefined') {
-    try { const c = await caches.open(MANIFEST_CACHE); await c.put(url, r.clone()); }
+    try { const c = await caches.open(MANIFEST_CACHE); await c.put(url, copy); }
     catch { /* best-effort */ }
   }
-  return await r.json() as Manifest;
+  return manifest;
 }
 
 /**

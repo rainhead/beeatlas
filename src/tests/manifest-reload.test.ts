@@ -58,4 +58,14 @@ describe('resolveDataUrl', () => {
     await expect(resolveDataUrl('occurrences_db', { reload: true })).rejects.toThrow(/503/);
     expect(await resolveDataUrl('occurrences_db')).toMatch(/000000000000/);
   });
+
+  test('a reload answered with a page that is not JSON keeps the cached manifest', async () => {
+    const store = stubCaches(STALE);
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('<html>Sign in to Wi-Fi</html>')));
+    const { resolveDataUrl } = await import('../manifest.ts');
+
+    await expect(resolveDataUrl('occurrences_db', { reload: true })).rejects.toThrow();
+    expect(store.put).not.toHaveBeenCalled();
+    expect(store.cached()).toEqual(STALE);
+  });
 });
