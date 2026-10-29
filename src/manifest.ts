@@ -61,11 +61,15 @@ function scheduleRevalidate(url: string): void {
 async function _fetchAndCache(url: string): Promise<Manifest> {
   const r = await fetch(url);
   if (!r.ok) throw new Error(`manifest.json: ${r.status}`);
+  // Parse before caching: a 200 that is not JSON (a captive portal's page) must not
+  // replace a cached manifest that works.
+  const copy = r.clone();
+  const manifest = await r.json() as Manifest;
   if (typeof caches !== 'undefined') {
-    try { const c = await caches.open(MANIFEST_CACHE); await c.put(url, r.clone()); }
+    try { const c = await caches.open(MANIFEST_CACHE); await c.put(url, copy); }
     catch { /* best-effort */ }
   }
-  return await r.json() as Manifest;
+  return manifest;
 }
 
 /**
@@ -89,6 +93,8 @@ async function _fetchAndCache(url: string): Promise<Manifest> {
  * Safe because published artifacts are hashed and retained: merge-swap.sh
  * age-prunes /data only at +30 days, so a manifest cached yesterday names files
  * that still exist. The deferred refresh updates the cache for the next launch.
+ * When that fails, and a cached manifest names a file that is gone, the caller asks
+ * again with `resolveDataUrl(key, { reload: true })` (see reloadManifest).
  */
 export function loadManifest(): Promise<Manifest> {
   if (!_promise) {
@@ -204,8 +210,26 @@ export async function loadBuildId(): Promise<string | null> {
 
 type DataKey = keyof Omit<Manifest, 'generated_at' | 'build_id'>;
 
-export async function resolveDataUrl(key: DataKey): Promise<string | null> {
-  const m = await loadManifest();
+/**
+ * Fetch the manifest from the network, replacing both the cached copy and the one
+ * this realm has memoized.
+ *
+ * For a caller that found the cached manifest naming a file the server no longer has.
+ * The 30-day retention that makes cache-first safe is not a guarantee: the move to Fly
+ * (ADR 0042) started a volume holding only databases written since 2026-10-23, so a
+ * manifest cached before then named files that were gone (beeatlas-vddd).
+ */
+export function reloadManifest(): Promise<Manifest> {
+  _promise = _fetchAndCache(`${_BASE}/manifest.json`)
+    .catch((err: unknown) => { _promise = null; throw err; });
+  return _promise;
+}
+
+export async function resolveDataUrl(
+  key: DataKey,
+  { reload = false }: { reload?: boolean } = {},
+): Promise<string | null> {
+  const m = await (reload ? reloadManifest() : loadManifest());
   const file = m[key];
   return file ? `${_BASE}/${file}` : null;
 }
