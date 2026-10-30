@@ -32,17 +32,20 @@ or, after cutover, `PIPELINE_BACKUP_BUCKET` and the `beeatlas-hostess-pipeline` 
 
 ## Setting up a host
 
-1. Tools: Racket with Stelis's packages (`~/dev/stelis/scripts/preflight.sh` names any
-   missing), uv, nvm with the `.nvmrc` Node and `npm install -g pnpm@<packageManager>`
-   under it (Node 26 has no corepack), flyctl signed in, and DuckDB's `spatial` and
-   `sqlite_scanner` extensions installed for the pipeline's Python DuckDB (the
-   pipeline never downloads them; `fly/Dockerfile` shows the command).
-2. Seed `~/beeatlas-nightly` from the Machine's volume while the publish lock is free:
+1. Clone `beeatlas` and `stelis` into `~/beeatlas-nightly`; the steps below use these
+   checkouts.
+2. Tools: Racket with Stelis's packages (`~/beeatlas-nightly/stelis/scripts/preflight.sh`
+   names any missing), uv, nvm with the `.nvmrc` Node and
+   `npm install -g pnpm@<packageManager>` under it (Node 26 has no corepack), flyctl
+   signed in, and DuckDB's `spatial` and `sqlite_scanner` extensions installed for the
+   pipeline's Python DuckDB (the pipeline never downloads them; `fly/Dockerfile` shows
+   the command).
+3. Seed `~/beeatlas-nightly` from the Machine's volume while the publish lock is free:
    `raw ecdysis-zip geography-cache burke-cache dlt dbt-target var/beeatlas.duckdb
    var/baseline var/stelis var/export`, as one `tar` through `flyctl ssh console`, under
    `flock /data/var/publish.lock` as the `app` user. Or restore the DuckDB and the Stelis
    state from the pipeline bucket (`db/`, `stelis/`) with `data/s3_backup.py restore`.
-3. Clone `beeatlas` and `stelis` into `~/beeatlas-nightly`, and write `nightly.env`.
+   Then write `nightly.env`.
 4. Install the units and turn on lingering, so the timer runs with nobody logged in.
    Copy them, from main, rather than linking them into the checkout: each run moves the
    checkout to the Machine's commit, which can be older than the units. For the same
@@ -51,7 +54,10 @@ or, after cutover, `PIPELINE_BACKUP_BUCKET` and the `beeatlas-hostess-pipeline` 
 
    ```bash
    mkdir -p ~/.config/systemd/user
-   cp ~/dev/beeatlas/infra/hostess/beeatlas-nightly.{service,timer} ~/.config/systemd/user/
+   for u in service timer; do
+     git -C ~/beeatlas-nightly/beeatlas show origin/main:infra/hostess/beeatlas-nightly.$u \
+       > ~/.config/systemd/user/beeatlas-nightly.$u
+   done
    systemctl --user daemon-reload && systemctl --user enable --now beeatlas-nightly.timer
    loginctl enable-linger
    ```
