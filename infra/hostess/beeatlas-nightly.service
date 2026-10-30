@@ -1,0 +1,25 @@
+# The BeeAtlas nightly on Hostess (ADR 0046). A systemd user unit, COPIED (not
+# linked) into ~/.config/systemd/user: the checkout it comes from is moved to the
+# Machine's commit every night, which can be older than this file.
+# docs/runbooks/hostess-nightly.md. Started by beeatlas-nightly.timer.
+[Unit]
+Description=BeeAtlas nightly data build
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Secrets and per-host switches (Ecdysis, the backup key, the healthcheck): the
+# runbook lists them. Mode 600, outside any checkout.
+EnvironmentFile=%h/.config/beeatlas/nightly.env
+# Run main's infra/hostess/nightly.sh from a copy outside the checkout, for the
+# reason above: the checkout's own copy may not exist at the Machine's commit.
+ExecStartPre=/usr/bin/git -C %h/beeatlas-nightly/beeatlas fetch -q origin
+ExecStartPre=/bin/sh -c 'git -C %h/beeatlas-nightly/beeatlas show origin/main:infra/hostess/nightly.sh > %h/beeatlas-nightly/nightly.sh'
+ExecStart=/bin/bash %h/beeatlas-nightly/nightly.sh
+# An ordinary night takes about five minutes on Hostess; a full rebuild is still
+# well inside this. The stop signal reaches the whole group, which is what
+# data/nightly.sh's signal handler expects.
+TimeoutStartSec=2h
+KillMode=control-group
+Nice=10

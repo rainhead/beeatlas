@@ -195,6 +195,51 @@ for (const [backupBucketId, backupBucketCf] of backupBucketEntries) {
   );
 } // end per-backup-bucket assertions
 
+// ── ADR 0046: Hostess's pipeline user ──────────────────────────────────────
+// The nightly on Hostess backs up to the pipeline bucket and must reach nothing
+// else: the authoritative bucket holds the notes store, which Hostess never holds.
+// No delete, as for beeatlas-pipeline.
+{
+  const hostessUsers = Object.entries(cfResources).filter(([, r]: [string, any]) =>
+    r.Type === 'AWS::IAM::User' && r.Properties?.UserName === 'beeatlas-hostess-pipeline',
+  );
+  assert.equal(hostessUsers.length, 1, 'Expected exactly one beeatlas-hostess-pipeline user');
+  const hostessUserId = hostessUsers[0][0];
+  const statements: any[] = Object.values(cfResources)
+    .filter((r: any) => r.Type === 'AWS::IAM::Policy' &&
+      (r.Properties?.Users ?? []).some((u: any) => u?.Ref === hostessUserId))
+    .flatMap((r: any) => r.Properties.PolicyDocument.Statement);
+  assert.ok(statements.length > 0, 'the Hostess pipeline user needs its grants');
+  for (const st of statements) {
+    const actions: string[] = [].concat(st.Action);
+    for (const res of [].concat(st.Resource).map((x: any) => JSON.stringify(x))) {
+      assert.ok(res.includes('PipelineBackupBucket'),
+        `the Hostess pipeline user reaches beyond the pipeline bucket: ${res}`);
+    }
+    assert.ok(!actions.some((a) => a === 's3:DeleteObject' || a === 's3:*'),
+      'the Hostess pipeline user must not delete: versioning is the recovery layer');
+  }
+}
+
+// ── The operator's policy (rainhead) ───────────────────────────────────────
+// Deploys through CDK's bootstrap roles and rotates the beeatlas-* users' keys,
+// and nothing else: no wildcard action, no resource outside those two families.
+{
+  const policies = Object.values(cfResources).filter((r: any) =>
+    r.Type === 'AWS::IAM::ManagedPolicy' && r.Properties?.ManagedPolicyName === 'beeatlas-operator',
+  ) as any[];
+  assert.equal(policies.length, 1, 'Expected exactly one beeatlas-operator policy');
+  assert.deepEqual(policies[0].Properties.Users, ['rainhead'], 'beeatlas-operator attaches to rainhead alone');
+  for (const st of policies[0].Properties.PolicyDocument.Statement) {
+    const actions: string[] = [].concat(st.Action);
+    assert.ok(!actions.some((a) => a.endsWith('*')), `beeatlas-operator grants a wildcard action: ${actions}`);
+    for (const res of [].concat(st.Resource).map((x: any) => JSON.stringify(x))) {
+      assert.ok(res.includes(':role/cdk-beeatlas-*') || res.includes(':user/beeatlas-*'),
+        `beeatlas-operator reaches beyond the CDK roles and beeatlas-* users: ${res}`);
+    }
+  }
+}
+
 // ── beeatlas-lwqi: the notes replica's user ────────────────────────────────
 // Litestream must delete (it retires WAL segments and snapshots), which the pipeline
 // user above may not. Its own user may, under replica/ in the authoritative bucket and
@@ -235,8 +280,8 @@ for (const [backupBucketId, backupBucketCf] of backupBucketEntries) {
   const pipeline = backupBucketEntries.find(([id]) => id.startsWith('PipelineBackupBucket'))![1];
   const pipelineRules: any[] = pipeline.Properties.LifecycleConfiguration.Rules;
   for (const r of pipelineRules.filter((r) => r.ExpirationInDays !== undefined)) {
-    assert.ok(r.Prefix === 'db/' || r.Prefix === 'raw/',
-      `pipeline bucket expiry must be scoped to db/ or raw/, never the basemap (got ${r.Prefix})`);
+    assert.ok(['db/', 'raw/', 'stelis/'].includes(r.Prefix),
+      `pipeline bucket expiry must be scoped to db/, raw/ or stelis/, never the basemap (got ${r.Prefix})`);
   }
   assert.ok(pipelineRules.some((r) => r.Prefix === 'basemap/' && r.ExpirationInDays === undefined),
     'the basemap/ prefix needs its own rule, with no current-object expiry');

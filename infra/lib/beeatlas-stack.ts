@@ -234,11 +234,11 @@ function handler(event) {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       versioned: true,
       lifecycleRules: [
-        // The nightly's state (db/, raw/) is rewritten every night, so a current
-        // object never ages; the expiry only clears what the nightly stopped writing.
-        // Scoped to those prefixes, which held every object when it was scoped
-        // (2026-10-22).
-        ...['db/', 'raw/'].map((prefix) => ({
+        // The nightly's state (db/, raw/, and the Stelis state dir under stelis/
+        // since ADR 0046) is rewritten every night, so a current object never ages;
+        // the expiry only clears what the nightly stopped writing. Scoped to those
+        // prefixes, which held every object when it was scoped (2026-10-22).
+        ...['db/', 'raw/', 'stelis/'].map((prefix) => ({
           prefix,
           expiration: cdk.Duration.days(180),
           noncurrentVersionExpiration: cdk.Duration.days(180),
@@ -271,6 +271,53 @@ function handler(event) {
     new cdk.CfnOutput(this, 'PipelineBackupBucketName', {
       value: pipelineBackupBucket.bucketName,
       description: 'Pipeline backup bucket → PIPELINE_BACKUP_BUCKET on the Fly app (nightly.sh backup trap)',
+    });
+
+    // ── Hostess's pipeline user (beeatlas-hostess-pipeline) ──────────────
+    // The nightly runs on Hostess (ADR 0046), which backs up the DuckDB and the
+    // Stelis state. It gets the pipeline bucket ONLY. beeatlas-pipeline above can
+    // also read the authoritative backup bucket, which holds the notes store, and
+    // Hostess is meant never to hold that store. Same grants as the pipeline user
+    // on this bucket, and no DeleteObject. The access key is made outside CDK, as
+    // for beeatlas-pipeline, and lives in Hostess's nightly.env.
+    const hostessPipelineUser = new iam.User(this, 'HostessPipelineUser', {
+      userName: 'beeatlas-hostess-pipeline',
+    });
+    hostessPipelineUser.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:PutObject', 's3:GetObject'],
+      resources: [pipelineBackupBucket.arnForObjects('*')],
+    }));
+    hostessPipelineUser.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:ListBucket'],
+      resources: [pipelineBackupBucket.bucketArn],
+    }));
+
+    // ── The operator (IAM user rainhead, made by hand in 2018) ───────────
+    // What Hostess uses to deploy this app and rotate its pipeline keys, instead of
+    // the root account: assume CDK's bootstrap roles (qualifier beeatlas, both
+    // regions) and manage the access keys of the beeatlas-* users. It replaces
+    // AdministratorAccess, which is detached by hand. This narrows everyday calls,
+    // not what a deploy can do: CloudFormation's execution role still has
+    // AdministratorAccess. The user's own inline policy (access-rainhead-files) is
+    // left as it was.
+    const operator = iam.User.fromUserName(this, 'OperatorUser', 'rainhead');
+    new iam.ManagedPolicy(this, 'OperatorPolicy', {
+      managedPolicyName: 'beeatlas-operator',
+      users: [operator],
+      statements: [
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: ['sts:AssumeRole', 'sts:TagSession'],
+          resources: [`arn:aws:iam::${this.account}:role/cdk-beeatlas-*`],
+        }),
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: ['iam:CreateAccessKey', 'iam:DeleteAccessKey', 'iam:UpdateAccessKey', 'iam:ListAccessKeys'],
+          resources: [`arn:aws:iam::${this.account}:user/beeatlas-*`],
+        }),
+      ],
     });
 
   }
