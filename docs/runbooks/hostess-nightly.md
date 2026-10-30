@@ -43,10 +43,15 @@ or, after cutover, `PIPELINE_BACKUP_BUCKET` and the `beeatlas-hostess-pipeline` 
    `flock /data/var/publish.lock` as the `app` user. Or restore the DuckDB and the Stelis
    state from the pipeline bucket (`db/`, `stelis/`) with `data/s3_backup.py restore`.
 3. Clone `beeatlas` and `stelis` into `~/beeatlas-nightly`, and write `nightly.env`.
-4. Install the units and turn on lingering, so the timer runs with nobody logged in:
+4. Install the units and turn on lingering, so the timer runs with nobody logged in.
+   Copy them, from main, rather than linking them into the checkout: each run moves the
+   checkout to the Machine's commit, which can be older than the units. For the same
+   reason the service runs a copy of main's `nightly.sh` from outside the checkout.
+   Copy them again when they change on main.
 
    ```bash
-   ln -s ~/beeatlas-nightly/beeatlas/infra/hostess/beeatlas-nightly.{service,timer} ~/.config/systemd/user/
+   mkdir -p ~/.config/systemd/user
+   cp ~/dev/beeatlas/infra/hostess/beeatlas-nightly.{service,timer} ~/.config/systemd/user/
    systemctl --user daemon-reload && systemctl --user enable --now beeatlas-nightly.timer
    loginctl enable-linger
    ```
@@ -58,7 +63,9 @@ or, after cutover, `PIPELINE_BACKUP_BUCKET` and the `beeatlas-hostess-pipeline` 
   `~/beeatlas-nightly/beeatlas`, and run the wrapper from the development checkout with
   `NIGHTLY_COMMIT=<sha>`, as a transient unit so it outlives the shell:
   `systemd-run --user --collect -p EnvironmentFile=$HOME/.config/beeatlas/nightly.env
-  --setenv=NIGHTLY_COMMIT=<sha> /bin/bash infra/hostess/nightly.sh`. Never send such a
-  build to the Machine.
+  --setenv=NIGHTLY_COMMIT=<sha> /bin/bash $HOME/dev/beeatlas/infra/hostess/nightly.sh`
+  (absolute: a transient unit does not start in the current directory). Such a run
+  backs up nothing and sends no healthcheck ping, whatever `nightly.env` says. Never
+  send its build to the Machine.
 - A night Hostess sleeps through is not made up during the day. The data stays a day
   older, and once the healthcheck is switched on, its missing ping raises the alarm.

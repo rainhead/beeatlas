@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # The nightly on Hostess (ADR 0046). Checks out the commit the Fly Machine is
 # running, sets up Hostess's layout, and runs data/nightly.sh from that commit.
-# Started by beeatlas-nightly.timer beside this file; setting up and operating it:
-# docs/runbooks/hostess-nightly.md.
+# Setting up and operating it: docs/runbooks/hostess-nightly.md.
 #
-# The body is one function, called on the last line, so that bash has read all of
-# this file before the checkout below rewrites it.
+# beeatlas-nightly.service does not run this file where it sits: it copies main's
+# version out of the checkout first and runs the copy. The checkout below can move
+# to a commit older than this file, and a service that ran it in place would then
+# have nothing to start the next night. The body is one function, called on the last
+# line, so that bash has read all of it before anything changes underneath.
 
 set -euo pipefail
 
@@ -41,9 +43,14 @@ main() {
     # deployed: build another commit, which must already be in the checkout. Never
     # for a run whose build is sent to the Machine, which would then render note
     # saves with different code from the code that built the site.
+    # Such a run backs up nothing and pings nobody, whatever nightly.env says: its
+    # DuckDB must not replace production's backup, nor its success stand in for a
+    # night's.
     if [[ -n "${NIGHTLY_COMMIT:-}" ]]; then
-        echo "WARN: NIGHTLY_COMMIT set — building $NIGHTLY_COMMIT, not the Machine's $sha" >&2
+        echo "WARN: NIGHTLY_COMMIT set — building $NIGHTLY_COMMIT, not the Machine's $sha;" \
+            "no backup, no healthcheck ping" >&2
         sha="$NIGHTLY_COMMIT"
+        export SKIP_PIPELINE_BACKUP=1 HEALTHCHECK_URL=
     fi
     # --force: these checkouts belong to the nightly and hold nothing of anyone's. The
     # integration gate restores its baseline into public/data/, which has tracked
