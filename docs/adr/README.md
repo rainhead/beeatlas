@@ -45,7 +45,8 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0039](0039-design-proofing-surface.md) | /design proofs components from fixtures, never from the database | Accepted |
 | [0040](0040-a-record-card-reads-context-first.md) | A record card reads context first, and there is only one card | Accepted |
 | [0041](0041-other-records-are-an-overlay-not-the-default-view.md) | "Other records" are an overlay, not the default view | Accepted |
-| [0042](0042-beeatlas-moves-to-fly-as-one-stateful-machine.md) | BeeAtlas moves to Fly as one stateful machine | Accepted |
+| [0042](0042-beeatlas-moves-to-fly-as-one-stateful-machine.md) | BeeAtlas moves to Fly as one stateful machine | Accepted (pipeline half superseded by [0046](0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md)) |
 | [0043](0043-itis-settles-spelling-disagreements.md) | ITIS settles spelling disagreements between name sources | Accepted |
 | [0044](0044-what-the-pipeline-writes-lives-on-the-volume.md) | What the pipeline writes lives on the volume, behind symlinks from the checkout | Accepted |
 | [0045](0045-a-deploy-renders-only-when-a-page-input-changed.md) | A deploy re-renders the site only when something a page is built from changed | Accepted |
+| [0046](0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md) | The nightly runs on Hostess, and the Machine keeps only the interactive parts | Accepted |

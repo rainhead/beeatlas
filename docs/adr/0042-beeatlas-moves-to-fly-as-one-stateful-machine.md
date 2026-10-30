@@ -1,7 +1,7 @@
 # 0042 — BeeAtlas moves to Fly as one stateful machine
 
 Date: 2026-09-02
-Status: Accepted
+Status: Accepted; the pipeline half (the nightly runs on the Machine, beside the API) is superseded by [0046](0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md)
 Supersedes the hosting half of [0007](0007-pipeline-runs-as-maderas-cron.md) (the pipeline still
 runs as a cron; the host stops being maderas). Retires [0036](0036-http2-needs-a-threaded-mpm.md)
 and the mechanism — not the principle — of [0037](0037-no-waf-in-front-of-a-static-site.md) at
