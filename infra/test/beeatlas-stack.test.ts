@@ -221,6 +221,25 @@ for (const [backupBucketId, backupBucketCf] of backupBucketEntries) {
   }
 }
 
+// ── The operator's policy (rainhead) ───────────────────────────────────────
+// Deploys through CDK's bootstrap roles and rotates the beeatlas-* users' keys,
+// and nothing else: no wildcard action, no resource outside those two families.
+{
+  const policies = Object.values(cfResources).filter((r: any) =>
+    r.Type === 'AWS::IAM::ManagedPolicy' && r.Properties?.ManagedPolicyName === 'beeatlas-operator',
+  ) as any[];
+  assert.equal(policies.length, 1, 'Expected exactly one beeatlas-operator policy');
+  assert.deepEqual(policies[0].Properties.Users, ['rainhead'], 'beeatlas-operator attaches to rainhead alone');
+  for (const st of policies[0].Properties.PolicyDocument.Statement) {
+    const actions: string[] = [].concat(st.Action);
+    assert.ok(!actions.some((a) => a.endsWith('*')), `beeatlas-operator grants a wildcard action: ${actions}`);
+    for (const res of [].concat(st.Resource).map((x: any) => JSON.stringify(x))) {
+      assert.ok(res.includes(':role/cdk-beeatlas-*') || res.includes(':user/beeatlas-*'),
+        `beeatlas-operator reaches beyond the CDK roles and beeatlas-* users: ${res}`);
+    }
+  }
+}
+
 // ── beeatlas-lwqi: the notes replica's user ────────────────────────────────
 // Litestream must delete (it retires WAL segments and snapshots), which the pipeline
 // user above may not. Its own user may, under replica/ in the authoritative bucket and

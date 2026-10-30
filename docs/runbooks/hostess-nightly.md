@@ -30,6 +30,22 @@ Ecdysis sign-in, and either the trial's `HEALTHCHECK_URL=` and `SKIP_PIPELINE_BA
 or, after cutover, `PIPELINE_BACKUP_BUCKET` and the `beeatlas-hostess-pipeline` key
 (`infra/lib/beeatlas-stack.ts`; the key is made outside CDK).
 
+## AWS on Hostess
+
+Two identities, kept apart on purpose:
+
+- **`beeatlas-hostess-pipeline`**, in `nightly.env`: the nightly's backups. It reaches
+  the pipeline bucket and nothing else, not the bucket that holds the notes store's
+  backups.
+- **`rainhead`**, as the AWS profile `beeatlas-operator`: an operator running
+  `cdk diff`/`cdk deploy` and rotating the `beeatlas-*` users' keys. Its policy,
+  `beeatlas-operator` (`infra/lib/beeatlas-stack.ts`), allows assuming CDK's bootstrap
+  roles and managing those keys, so a deploy works and most other calls are refused.
+  It is not small: CloudFormation's execution role has `AdministratorAccess`, and the
+  user's hand-made inline policy `access-rainhead-files` grants `s3:*` on every
+  object in the account. Never name this profile `beeatlas`, which `data/nightly.sh`
+  would use for backups in preference to the pipeline key.
+
 ## Setting up a host
 
 1. Clone `beeatlas` and `stelis` into `~/beeatlas-nightly`; the steps below use these

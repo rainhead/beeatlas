@@ -294,5 +294,31 @@ function handler(event) {
       resources: [pipelineBackupBucket.bucketArn],
     }));
 
+    // ── The operator (IAM user rainhead, made by hand in 2018) ───────────
+    // What Hostess uses to deploy this app and rotate its pipeline keys, instead of
+    // the root account: assume CDK's bootstrap roles (qualifier beeatlas, both
+    // regions) and manage the access keys of the beeatlas-* users. It replaces
+    // AdministratorAccess, which is detached by hand. This narrows everyday calls,
+    // not what a deploy can do: CloudFormation's execution role still has
+    // AdministratorAccess. The user's own inline policy (access-rainhead-files) is
+    // left as it was.
+    const operator = iam.User.fromUserName(this, 'OperatorUser', 'rainhead');
+    new iam.ManagedPolicy(this, 'OperatorPolicy', {
+      managedPolicyName: 'beeatlas-operator',
+      users: [operator],
+      statements: [
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: ['sts:AssumeRole', 'sts:TagSession'],
+          resources: [`arn:aws:iam::${this.account}:role/cdk-beeatlas-*`],
+        }),
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: ['iam:CreateAccessKey', 'iam:DeleteAccessKey', 'iam:UpdateAccessKey', 'iam:ListAccessKeys'],
+          resources: [`arn:aws:iam::${this.account}:user/beeatlas-*`],
+        }),
+      ],
+    });
+
   }
 }
