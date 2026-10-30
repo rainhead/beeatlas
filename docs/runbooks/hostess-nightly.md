@@ -62,6 +62,18 @@ or, after cutover, `PIPELINE_BACKUP_BUCKET` and the `beeatlas-hostess-pipeline` 
    loginctl enable-linger
    ```
 
+During the trial, while the Machine's own nightly still runs at 03:00, start Hostess's
+at 04:30 instead. The Machine's nightly holds the publish lock for its whole run, and
+Hostess copies the Machine's `notes/` under that lock, waiting at most ten minutes.
+Remove the drop-in at cutover:
+
+```bash
+mkdir -p ~/.config/systemd/user/beeatlas-nightly.timer.d
+printf '[Timer]\nOnCalendar=\nOnCalendar=*-*-* 04:30:00 America/Los_Angeles\n' \
+  > ~/.config/systemd/user/beeatlas-nightly.timer.d/trial.conf
+systemctl --user daemon-reload
+```
+
 ## Running it
 
 - Now: `systemctl --user start beeatlas-nightly.service`; the log is in `log/`.
