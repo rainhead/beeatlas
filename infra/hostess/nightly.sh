@@ -62,6 +62,15 @@ main() {
     git -C "$STELIS_DIR" fetch -q origin
     git -C "$STELIS_DIR" checkout -q --force --detach "$stelis_sha"
     echo "  beeatlas $sha, stelis $stelis_sha"
+    # A commit from before ADR 0046 has a data/nightly.sh that would pull on this
+    # detached checkout and harvest notes from the empty store. Say so, rather than
+    # fail somewhere inside it.
+    if ! grep -q BEEATLAS_CODE_PINNED "$checkout/data/nightly.sh"; then
+        echo "FATAL: the Machine runs $sha, whose data/nightly.sh predates the nightly on" >&2
+        echo "Hostess (ADR 0046). Deploy a later commit to the Machine; until then its" >&2
+        echo "own schedule must run the nightly (fly/crontab)." >&2
+        exit 78  # EX_CONFIG
+    fi
 
     # The volume's layout (fly/Dockerfile, ADR 0044): what the pipeline writes inside
     # the checkout lives in BASE_DIR, behind symlinks, so a checkout never carries
