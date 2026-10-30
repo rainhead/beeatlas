@@ -105,8 +105,12 @@ back to a full render, so that render's memory peak sets the floor.
 - Hostess holds a Fly token that can open SSH to this app, as root, and so can read `notes.db` and
   the API's secrets. A compromise of Hostess is therefore a compromise of production. The scripts
   drop to the `app` user, but the token itself does not limit that. It also holds the Ecdysis
-  credentials and a key for the pipeline bucket. The Fly secrets for the ingests are removed once
-  nothing on the Machine reads them.
+  credentials, a key for the pipeline bucket alone (`beeatlas-hostess-pipeline`), and the
+  operator's key (IAM user `rainhead`), which deploys this app through CDK's bootstrap roles. That
+  user keeps, by choice, a hand-made inline policy granting `s3:*` on every object in the
+  account, so Hostess *can* read the notes store's backups: "Hostess never holds the notes store"
+  is true of what the nightly copies, not of what its credentials allow. The Fly secrets for the
+  ingests are removed once nothing on the Machine reads them.
 - Before the Machine stops running the pipeline, its caches move to Hostess: the raw downloads,
   the Ecdysis ZIP (behind sign-in at the source), the geography and Burke caches, dlt's loader
   state and the integration baseline. The Machine's old Stelis state dir is archived, not left in
