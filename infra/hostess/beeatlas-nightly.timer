@@ -1,0 +1,12 @@
+# 03:00 Pacific, the hour the Machine's nightly ran (fly/crontab). A night Hostess
+# sleeps through is not made up during the day (no Persistent=): the data stays a
+# day older and the missing healthcheck ping says so.
+[Unit]
+Description=BeeAtlas nightly data build, 03:00 Pacific
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 America/Los_Angeles
+Unit=beeatlas-nightly.service
+
+[Install]
+WantedBy=timers.target

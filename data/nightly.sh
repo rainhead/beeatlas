@@ -54,6 +54,11 @@
 # the S3 pulls (DuckDB, taxa, baseline) — state now lives on this host under
 # $VAR_DIR. Only the offsite backup trap remains.
 #
+# On Hostess (ADR 0046) infra/hostess/nightly.sh runs this with the layout below
+# under ~/beeatlas-nightly, BEEATLAS_CODE_PINNED (it has already checked out the
+# code, so step 1 pulls nothing) and NOTES_FROM_FLY_APP (step 3a takes the Machine's
+# notes/). docs/runbooks/hostess-nightly.md.
+#
 # Layout (the /var/www htdocs+var convention; see
 # docs/runbooks/serve-from-maderas.md for the migration):
 #   $BASE_DIR/htdocs  — SITE_ROOT, the Apache DocumentRoot
@@ -106,15 +111,26 @@ HEALTHCHECK_URL="${HEALTHCHECK_URL-https://hc-ping.com/411cd80a-965b-408c-8f89-b
 # bucket) was DELETED by st-vjd, and a silent upload to a dead bucket would
 # look like a backup while `|| true` swallowed every failure. Fail loud
 # instead — the missed healthcheck ping is the alarm.
-if [[ -z "${PIPELINE_BACKUP_BUCKET:-}" ]]; then
+#
+# SKIP_PIPELINE_BACKUP=1 is the one way past that, for a trial run on a second host
+# while the production host still backs up (beeatlas-uibw.6): the trial's DuckDB must
+# not replace production's backup. It is announced, like SKIP_INTEGRATION_GATE, and
+# a trial runs with HEALTHCHECK_URL empty, so it cannot pass for a backed-up night.
+if [[ -n "${SKIP_PIPELINE_BACKUP:-}" ]]; then
+    echo "WARN: SKIP_PIPELINE_BACKUP set — this run backs up NOTHING offsite." >&2
+elif [[ -z "${PIPELINE_BACKUP_BUCKET:-}" ]]; then
     echo "FATAL: PIPELINE_BACKUP_BUCKET is not set (crontab must pass the" >&2
     echo "PipelineBackupBucketName stack output) — refusing to run without" >&2
     echo "a real offsite backup destination (st-vjd)." >&2
     exit 78  # EX_CONFIG
 fi
-BACKUP_BUCKET="$PIPELINE_BACKUP_BUCKET"
+BACKUP_BUCKET="${PIPELINE_BACKUP_BUCKET:-}"
 AWS_PROFILE="${AWS_PROFILE:-beeatlas}"
 DB_S3_KEY="db/beeatlas.duckdb"
+# The Stelis state dir, as one archive: its build history is the provenance of every
+# artifact, and nothing rebuilds it. Under stelis/, which has db/'s lifecycle.
+STELIS_S3_KEY="stelis/state.tar.gz"
+STELIS_ARCHIVE="$VAR_DIR/stelis-state.tar.gz"
 TAXA_S3_KEY="raw/taxa.csv.gz"
 TAXA_CACHE_S3_KEY="raw/taxa_cache.json"
 TAXA_PATH="$SCRIPT_DIR/raw/taxa.csv.gz"
@@ -253,6 +269,14 @@ STELIS_DIR="${STELIS_DIR:-$HOME/dev/stelis}"
 export STELIS_DIR
 if in_container; then
     describe_code
+elif [[ -n "${BEEATLAS_CODE_PINNED:-}" ]]; then
+    # Hostess (ADR 0046): infra/hostess/nightly.sh has already checked out the commit
+    # the Machine is running, and Stelis at that commit's fly/stelis-commit, both
+    # detached. Pulling either would move this run off the code that will render
+    # note saves over what it builds.
+    describe_code
+    echo "  stelis: $(git -C "$STELIS_DIR" rev-parse --short HEAD) (pinned by fly/stelis-commit)"
+    (cd "$STELIS_DIR" && raco make src/main.rkt)
 else
     git pull --ff-only
 
@@ -406,11 +430,23 @@ _sb_epoch=""
 trap '
 _exit_rc=$?
 _backup_ok=1
-[[ -f "$DB_PATH" ]] && echo "--- backing up DuckDB (trap) --- sha256=$(_hash "$DB_PATH")"
-AWS_PROFILE="$AWS_PROFILE" uv run --directory "$SCRIPT_DIR" python s3_backup.py upload \
-    --bucket "$BACKUP_BUCKET" \
-    "$DB_S3_KEY=$DB_PATH" "$TAXA_S3_KEY=$TAXA_PATH" "$TAXA_CACHE_S3_KEY=$TAXA_CACHE_PATH" \
-    || _backup_ok=""
+if [[ -n "${SKIP_PIPELINE_BACKUP:-}" ]]; then
+    echo "--- offsite backup SKIPPED (SKIP_PIPELINE_BACKUP) ---"
+else
+    [[ -f "$DB_PATH" ]] && echo "--- backing up DuckDB (trap) --- sha256=$(_hash "$DB_PATH")"
+    _stelis_backup=()
+    if [[ -d "$STELIS_STATE_DIR" ]] && tar -C "$(dirname "$STELIS_STATE_DIR")" -czf "$STELIS_ARCHIVE" "$(basename "$STELIS_STATE_DIR")"; then
+        _stelis_backup=("$STELIS_S3_KEY=$STELIS_ARCHIVE")
+    else
+        echo "WARN: could not archive the Stelis state dir $STELIS_STATE_DIR" >&2
+        _backup_ok=""
+    fi
+    AWS_PROFILE="$AWS_PROFILE" uv run --directory "$SCRIPT_DIR" python s3_backup.py upload \
+        --bucket "$BACKUP_BUCKET" \
+        "$DB_S3_KEY=$DB_PATH" "$TAXA_S3_KEY=$TAXA_PATH" "$TAXA_CACHE_S3_KEY=$TAXA_CACHE_PATH" \
+        "${_stelis_backup[@]}" \
+        || _backup_ok=""
+fi
 # stelis st-8x1 + st-9rf: publish receipt, then the served operator page. AFTER
 # the backups — nothing below may block them — and each guarded (|| true): a
 # broken stelis checkout degrades to a stale badge, never a lost backup or a
@@ -501,6 +537,32 @@ if [[ $_fetch_rc -ne 0 ]]; then
     exit "$_fetch_rc"
 fi
 echo "--- data build done in $(_elapsed $_t0) ---"
+
+# 3a. Hostess (ADR 0046) holds no notes store: NOTES_DB_PATH there is an empty one,
+# so the build above harvested no notes. Replace that notes/ with the one the Machine
+# last published, so the site rendered here carries the notes, and the Machine's
+# next harvest finds the notes/ it wrote and stays partial. Before the gates, which
+# then judge the tree that is sent. A Machine that cannot be reached stops the run:
+# a site without its notes must not be published.
+if [[ -n "${NOTES_FROM_FLY_APP:-}" ]]; then
+    _stage="machine-notes"
+    echo "--- taking notes/ from the Machine ($NOTES_FROM_FLY_APP) ---"
+    _incoming="$EXPORT_DIR/.notes-incoming"
+    rm -rf "$_incoming"
+    mkdir -p "$_incoming"
+    # /data/var/export is the Machine's EXPORT_DIR (fly/Dockerfile). tar through
+    # `flyctl ssh console` arrives byte for byte (checked against sha256, 2026-10-30).
+    "${FLYCTL:-flyctl}" ssh console -q -a "$NOTES_FROM_FLY_APP" -C 'tar -C /data/var/export -cf - notes' \
+        | tar -C "$_incoming" -xf -
+    if [[ ! -d "$_incoming/notes" ]]; then
+        echo "FATAL: the Machine sent no notes/ directory — aborting publish" >&2
+        exit 1
+    fi
+    rm -rf "$EXPORT_DIR/notes"
+    mv "$_incoming/notes" "$EXPORT_DIR/notes"
+    rmdir "$_incoming"
+    echo "  notes for $(find "$EXPORT_DIR/notes" -name '*.json' | wc -l) species"
+fi
 
 # 3b. Compact the DuckDB. Every CREATE OR REPLACE the build does leaves the old
 # table's blocks free inside the file, which never shrinks on its own — by

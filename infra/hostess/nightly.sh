@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# The nightly on Hostess (ADR 0046). Checks out the commit the Fly Machine is
+# running, sets up Hostess's layout, and runs data/nightly.sh from that commit.
+# Started by beeatlas-nightly.timer beside this file; setting up and operating it:
+# docs/runbooks/hostess-nightly.md.
+#
+# The body is one function, called on the last line, so that bash has read all of
+# this file before the checkout below rewrites it.
+
+set -euo pipefail
+
+main() {
+    BASE_DIR="${BASE_DIR:-$HOME/beeatlas-nightly}"
+    local checkout="$BASE_DIR/beeatlas"
+    export STELIS_DIR="$BASE_DIR/stelis"
+    FLY_APP="${FLY_APP:-beeatlas}"
+    export FLYCTL="${FLYCTL:-$HOME/.fly/bin/flyctl}"
+
+    mkdir -p "$BASE_DIR/log"
+    exec >> "$BASE_DIR/log/nightly-$(date +%F).log" 2>&1
+    echo "=== hostess nightly $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+
+    # systemd starts this with a bare PATH. Racket and uv are installed per user;
+    # node comes from nvm, which data/nightly.sh activates from .nvmrc.
+    export PATH="$HOME/.local/racket/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
+    local tool
+    for tool in racket raco uv git; do
+        command -v "$tool" > /dev/null || { echo "FATAL: $tool is not on PATH ($PATH)" >&2; exit 78; }
+    done
+    [[ -x "$FLYCTL" ]] || { echo "FATAL: no flyctl at $FLYCTL" >&2; exit 78; }
+
+    # The commit the Machine runs is its image's GITHUB_SHA. The manifest's build_id
+    # is not it: that names the commit that last rendered (ADR 0045).
+    local sha
+    sha=$("$FLYCTL" ssh console -q -a "$FLY_APP" -C 'printenv GITHUB_SHA' 2> /dev/null | tr -d '\r\n')
+    if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+        echo "FATAL: could not read the Machine's GITHUB_SHA (got '$sha')" >&2
+        exit 69  # EX_UNAVAILABLE
+    fi
+    # For testing a change to this script or to data/nightly.sh before it is
+    # deployed: build another commit, which must already be in the checkout. Never
+    # for a run whose build is sent to the Machine, which would then render note
+    # saves with different code from the code that built the site.
+    if [[ -n "${NIGHTLY_COMMIT:-}" ]]; then
+        echo "WARN: NIGHTLY_COMMIT set — building $NIGHTLY_COMMIT, not the Machine's $sha" >&2
+        sha="$NIGHTLY_COMMIT"
+    fi
+    # --force: these checkouts belong to the nightly and hold nothing of anyone's. The
+    # integration gate restores its baseline into public/data/, which has tracked
+    # files, and a checkout that refused to overwrite them would stop every night.
+    git -C "$checkout" fetch -q origin
+    git -C "$checkout" checkout -q --force --detach "$sha"
+    local stelis_sha
+    stelis_sha=$(cat "$checkout/fly/stelis-commit")
+    git -C "$STELIS_DIR" fetch -q origin
+    git -C "$STELIS_DIR" checkout -q --force --detach "$stelis_sha"
+    echo "  beeatlas $sha, stelis $stelis_sha"
+
+    # The volume's layout (fly/Dockerfile, ADR 0044): what the pipeline writes inside
+    # the checkout lives in BASE_DIR, behind symlinks, so a checkout never carries
+    # state and the build receipt never counts it. Listed in .git/info/exclude
+    # because a .gitignore pattern ending in / does not match a symlink.
+    local link target
+    while read -r link target; do
+        mkdir -p "$BASE_DIR/$target"
+        if [[ ! -L "$checkout/$link" ]]; then
+            rm -rf "${checkout:?}/$link"
+            ln -s "$BASE_DIR/$target" "$checkout/$link"
+        fi
+        grep -qxF "/$link" "$checkout/.git/info/exclude" || echo "/$link" >> "$checkout/.git/info/exclude"
+    done << 'EOF'
+data/raw raw
+data/.ecdysis_cache ecdysis-zip
+data/.geography_cache geography-cache
+data/.burke_cache burke-cache
+.cache cache
+_site site
+data/dbt/target dbt-target
+EOF
+
+    # The same environment the image sets. SITE_ROOT does not exist on Hostess, so
+    # data/nightly.sh skips the merge-swap; the handoff to the Machine replaces it
+    # (beeatlas-uibw.4, .5).
+    export BASE_DIR
+    export SITE_ROOT="$BASE_DIR/htdocs"
+    export VAR_DIR="$BASE_DIR/var"
+    export STELIS_STATE_DIR="$VAR_DIR/stelis"
+    export DB_PATH="$VAR_DIR/beeatlas.duckdb"
+    export EXPORT_DIR="$VAR_DIR/export"
+    export BASELINE_DIR="$VAR_DIR/baseline"
+    export DLT_DATA_DIR="$BASE_DIR/dlt"
+    export TZ=America/Los_Angeles
+    export BEEATLAS_CODE_PINNED=1
+    export NOTES_FROM_FLY_APP="$FLY_APP"
+
+    # Hostess never holds the notes store (ADR 0046). The build reads an empty one,
+    # made afresh from this commit's migrations so it always has their schema, and
+    # data/nightly.sh then takes the Machine's published notes/.
+    export NOTES_DB_PATH="$BASE_DIR/notes/empty.db"
+    mkdir -p "$BASE_DIR/notes"
+    rm -f "$NOTES_DB_PATH"
+    (cd "$checkout/data" && uv run --frozen alembic -c notes_store/migrations/alembic.ini upgrade head) > /dev/null
+
+    exec bash "$checkout/data/nightly.sh"
+}
+
+main "$@"

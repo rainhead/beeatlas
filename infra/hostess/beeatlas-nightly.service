@@ -1,0 +1,19 @@
+# The BeeAtlas nightly on Hostess (ADR 0046). Installed as a systemd user unit:
+# docs/runbooks/hostess-nightly.md. Started by beeatlas-nightly.timer.
+[Unit]
+Description=BeeAtlas nightly data build
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Secrets and per-host switches (Ecdysis, the backup key, the healthcheck): the
+# runbook lists them. Mode 600, outside any checkout.
+EnvironmentFile=%h/.config/beeatlas/nightly.env
+ExecStart=/bin/bash %h/beeatlas-nightly/beeatlas/infra/hostess/nightly.sh
+# An ordinary night takes about five minutes on Hostess; a full rebuild is still
+# well inside this. The stop signal reaches the whole group, which is what
+# data/nightly.sh's signal handler expects.
+TimeoutStartSec=2h
+KillMode=control-group
+Nice=10
