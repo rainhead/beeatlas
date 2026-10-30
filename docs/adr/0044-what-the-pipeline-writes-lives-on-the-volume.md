@@ -1,7 +1,7 @@
 # 0044 — What the pipeline writes lives on the volume, behind symlinks from the checkout
 
 Date: 2026-10-22
-Status: Accepted
+Status: Accepted; for the pipeline's own caches and state, superseded by [0046](0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md), which moves the pipeline to Hostess
 Implements part of [0042](0042-beeatlas-moves-to-fly-as-one-stateful-machine.md) (the image and the
 volume); `beeatlas-3je9`.
 
