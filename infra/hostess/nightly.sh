@@ -34,7 +34,9 @@ main() {
     # The commit the Machine runs is its image's GITHUB_SHA. The manifest's build_id
     # is not it: that names the commit that last rendered (ADR 0045).
     local sha
-    sha=$("$FLYCTL" ssh console -q -a "$FLY_APP" -C 'printenv GITHUB_SHA' 2> /dev/null | tr -d '\r\n')
+    # `|| true`, so a failed call reaches the message below instead of ending the run
+    # under set -e with no reason given; flyctl's own error goes to the log.
+    sha=$("$FLYCTL" ssh console -q -a "$FLY_APP" -C 'printenv GITHUB_SHA' | tr -d '\r\n') || true
     if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
         echo "FATAL: could not read the Machine's GITHUB_SHA (got '$sha')" >&2
         exit 69  # EX_UNAVAILABLE

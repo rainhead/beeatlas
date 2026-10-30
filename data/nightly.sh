@@ -552,7 +552,11 @@ if [[ -n "${NOTES_FROM_FLY_APP:-}" ]]; then
     mkdir -p "$_incoming"
     # /data/var/export is the Machine's EXPORT_DIR (fly/Dockerfile). tar through
     # `flyctl ssh console` arrives byte for byte (checked against sha256, 2026-10-30).
-    "${FLYCTL:-flyctl}" ssh console -q -a "$NOTES_FROM_FLY_APP" -C 'tar -C /data/var/export -cf - notes' \
+    # Under the Machine's publish lock, as the app user (fly/deploy.sh does the same),
+    # so a note save cannot be half-way through rewriting notes/ while it is packed.
+    # A lock held past ten minutes fails the copy, and the check below stops the run.
+    "${FLYCTL:-flyctl}" ssh console -q -a "$NOTES_FROM_FLY_APP" \
+        -C 'setpriv --reuid=app --regid=app --init-groups flock -w 600 /data/var/publish.lock tar -C /data/var/export -cf - notes' \
         | tar -C "$_incoming" -xf -
     if [[ ! -d "$_incoming/notes" ]]; then
         echo "FATAL: the Machine sent no notes/ directory — aborting publish" >&2
