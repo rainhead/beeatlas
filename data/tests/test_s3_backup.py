@@ -229,7 +229,7 @@ def _exit_trap() -> str:
     return src[start:end]
 
 
-def _run_nightly_end(tmp_path, run_rc: int, backup_rc: int) -> tuple[int, str, list[str]]:
+def _run_nightly_end(tmp_path, run_rc: int, backup_rc: int, extra: str = "") -> tuple[int, str, list[str]]:
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     calls = tmp_path / "calls"
@@ -247,9 +247,11 @@ def _run_nightly_end(tmp_path, run_rc: int, backup_rc: int) -> tuple[int, str, l
         'DB_S3_KEY=db/beeatlas.duckdb\nTAXA_S3_KEY=raw/taxa.csv.gz\nTAXA_CACHE_S3_KEY=raw/taxa_cache.json\n'
         f'TAXA_PATH="{tmp_path}/taxa.csv.gz"\nTAXA_CACHE_PATH="{tmp_path}/taxa_cache.json"\n'
         f'STELIS_DIR="{tmp_path}"\nSTELIS_STATE_DIR="{tmp_path}/stelis"\nSITE_ROOT="{tmp_path}/site"\n'
+        f'STELIS_S3_KEY=stelis/state.tar.gz\nSTELIS_ARCHIVE="{tmp_path}/stelis-state.tar.gz"\n'
         "HEALTHCHECK_URL=https://hc-ping.invalid/check\n"
         '_sb_num=""\n'
         "_hash() { echo fakehash; }\n"
+        + extra
         + _exit_trap()
         + f"\nexit {run_rc}\n"
     )
@@ -272,6 +274,31 @@ def test_a_good_night_whose_backup_failed_withholds_the_ping(tmp_path):
     assert rc == 74, out
     assert not any(c.startswith("curl") for c in calls), calls
     assert "offsite backup did not" in out
+
+
+def test_no_stelis_state_dir_is_nothing_to_back_up(tmp_path):
+    rc, out, calls = _run_nightly_end(tmp_path, run_rc=0, backup_rc=0)
+    assert rc == 0, out
+    assert "stelis/state.tar.gz=" not in calls[0]
+
+
+def test_the_stelis_state_dir_is_backed_up_beside_the_duckdb(tmp_path):
+    """ADR 0046: the build history is the provenance of every artifact; nothing rebuilds it."""
+    (tmp_path / "stelis").mkdir()
+    (tmp_path / "stelis" / "history.rktd").write_text("()")
+    rc, out, calls = _run_nightly_end(tmp_path, run_rc=0, backup_rc=0)
+    assert rc == 0, out
+    assert f"stelis/state.tar.gz={tmp_path}/stelis-state.tar.gz" in calls[0]
+    assert (tmp_path / "stelis-state.tar.gz").stat().st_size > 0
+
+
+def test_a_trial_run_skips_the_backup(tmp_path):
+    """SKIP_PIPELINE_BACKUP (beeatlas-uibw.6): no upload, and the run is not failed for it."""
+    rc, out, calls = _run_nightly_end(tmp_path, run_rc=0, backup_rc=1,
+                                      extra="SKIP_PIPELINE_BACKUP=1\nHEALTHCHECK_URL=\n")
+    assert rc == 0, out
+    assert not any("s3_backup.py" in c for c in calls), calls
+    assert "offsite backup SKIPPED" in out
 
 
 def test_a_failed_night_still_backs_up_keeps_its_code_and_does_not_ping(tmp_path):

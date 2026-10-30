@@ -434,12 +434,16 @@ if [[ -n "${SKIP_PIPELINE_BACKUP:-}" ]]; then
     echo "--- offsite backup SKIPPED (SKIP_PIPELINE_BACKUP) ---"
 else
     [[ -f "$DB_PATH" ]] && echo "--- backing up DuckDB (trap) --- sha256=$(_hash "$DB_PATH")"
+    # No state dir yet (a host before its first build) is nothing to lose; a state dir
+    # that cannot be archived is a failed backup.
     _stelis_backup=()
-    if [[ -d "$STELIS_STATE_DIR" ]] && tar -C "$(dirname "$STELIS_STATE_DIR")" -czf "$STELIS_ARCHIVE" "$(basename "$STELIS_STATE_DIR")"; then
-        _stelis_backup=("$STELIS_S3_KEY=$STELIS_ARCHIVE")
-    else
-        echo "WARN: could not archive the Stelis state dir $STELIS_STATE_DIR" >&2
-        _backup_ok=""
+    if [[ -d "$STELIS_STATE_DIR" ]]; then
+        if tar -C "$(dirname "$STELIS_STATE_DIR")" -czf "$STELIS_ARCHIVE" "$(basename "$STELIS_STATE_DIR")"; then
+            _stelis_backup=("$STELIS_S3_KEY=$STELIS_ARCHIVE")
+        else
+            echo "WARN: could not archive the Stelis state dir $STELIS_STATE_DIR" >&2
+            _backup_ok=""
+        fi
     fi
     AWS_PROFILE="$AWS_PROFILE" uv run --directory "$SCRIPT_DIR" python s3_backup.py upload \
         --bucket "$BACKUP_BUCKET" \
