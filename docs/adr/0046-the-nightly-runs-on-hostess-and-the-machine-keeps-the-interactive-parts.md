@@ -55,8 +55,8 @@ and moving it into this repository
 are left for when the graph next changes, which is when ADR 0020 said beeatlas would move.
 
 **Hostess builds at the commit the Machine is running.** A systemd user timer starts the run at
-03:00 Pacific, with lingering enabled so it runs while nobody is logged in; a missed night is not
-made up during the day. The run reads the Machine's `GITHUB_SHA` (the manifest's `build_id` names
+03:00 Pacific, with lingering enabled so it runs while nobody is logged in; a night missed while
+Hostess was off runs once at the next boot, at low priority. The run reads the Machine's `GITHUB_SHA` (the manifest's `build_id` names
 the commit that last rendered, not the one deployed) and checks out that commit, detached, in a
 checkout of its own, never the development checkout, with Stelis at `fly/stelis-commit`. All of
 its state lives outside that checkout, because the build receipt's deploy component counts
@@ -99,9 +99,10 @@ back to a full render, so that render's memory peak sets the floor.
 
 ## Consequences
 
-- If Hostess is off or asleep at 03:00, there is no nightly, and the data stays a day older. Note
-  saves, sign-in and serving do not depend on Hostess. The healthcheck ping moves to Hostess and is
-  sent only after a publish, so a missed or failed night still alerts.
+- If Hostess is off at 03:00, the nightly waits for the next boot, and the data is older by
+  however long that takes. Note saves, sign-in and serving do not depend on Hostess. The
+  healthcheck ping moves to Hostess and is sent only after a publish, so a late or failed night
+  still alerts.
 - Hostess holds a Fly token that can open SSH to this app, as root, and so can read `notes.db` and
   the API's secrets. A compromise of Hostess is therefore a compromise of production. The scripts
   drop to the `app` user, but the token itself does not limit that. It also holds the Ecdysis

@@ -101,5 +101,6 @@ systemctl --user daemon-reload
   (absolute: a transient unit does not start in the current directory). Such a run
   backs up nothing and sends no healthcheck ping, whatever `nightly.env` says. Never
   send its build to the Machine.
-- A night Hostess sleeps through is not made up during the day. The data stays a day
-  older, and once the healthcheck is switched on, its missing ping raises the alarm.
+- A run missed while Hostess was off happens once at the next boot (the timer is
+  `Persistent`), at `Nice=10`. Until then the data is older, and once the healthcheck is
+  switched on, its late ping raises the alarm.
