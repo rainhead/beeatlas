@@ -1,11 +1,12 @@
-# 03:00 Pacific, the hour the Machine's nightly ran (fly/crontab). A night Hostess
-# sleeps through is not made up during the day (no Persistent=): the data stays a
-# day older and the missing healthcheck ping says so.
+# 03:00 Pacific, the hour the Machine's nightly ran (fly/crontab). Persistent: a run
+# missed while Hostess was off happens once at the next boot, whatever the hour. It
+# runs at Nice=10 (the service), so it yields to whatever else Hostess is doing.
 [Unit]
 Description=BeeAtlas nightly data build, 03:00 Pacific
 
 [Timer]
 OnCalendar=*-*-* 03:00:00 America/Los_Angeles
+Persistent=true
 Unit=beeatlas-nightly.service
 
 [Install]
