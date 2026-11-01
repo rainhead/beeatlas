@@ -12,6 +12,8 @@ on:
 # One deploy at a time, queued rather than cancelled: an interrupted switch could leave
 # the Machine half replaced, and a queued one waits its turn for the lock anyway.
 # queue: max keeps every pending run (up to 100); by default GitHub cancels all but one.
+# A queued run whose commit is no longer the tip of main by its turn stops itself (see
+# the job's first step), so only the newest waiting commit is built and deployed.
 concurrency:
   group: fly-deploy
   cancel-in-progress: false
@@ -25,10 +27,21 @@ jobs:
     timeout-minutes: 170
     permissions:
       contents: read
+      actions: write # require-current-tip cancels a run that a newer push overtook
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # A re-run always checks out its original commit, so re-running an old deploy
+      # would build and switch production back to it. The deploy stops unless this
+      # commit is still the tip: cancelled (grey) when a newer commit's run will deploy
+      # it, red for a re-run, never green. Copied from SalishSea.io's deploy, whose
+      # decision 024 has the reasoning.
+      - name: Refuse to deploy a superseded commit
+        uses: ./.github/actions/require-current-tip
+        with:
+          token: ${{ github.token }}
+          phase: before the build
       # flyctl's own release is pinned below; the action only installs it, and installs
       # no `fly` alias, so the script calls `flyctl`.
       - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
@@ -38,6 +51,15 @@ jobs:
         run: fly/deploy.sh build
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      # Last check before the switch, the first change to production: a merge can land
+      # during the build. One landing while the switch waits for the publish lock is
+      # harmless: this commit is still newer than production, and the newer one's run
+      # switches after it.
+      - name: Re-check the tip before switching
+        uses: ./.github/actions/require-current-tip
+        with:
+          token: ${{ github.token }}
+          phase: before the switch
       - name: Switch the Machine under the publish lock
         run: fly/deploy.sh switch
         env:
