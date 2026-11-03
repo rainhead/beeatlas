@@ -151,3 +151,49 @@ cross-repository move on the critical path. Deferred, not rejected.
 
 **Run the pipeline in GitHub Actions.** Rejected for 0042's reason: Stelis is fast because its state
 and the DuckDB stay warm between runs, and CI would restore and save them every night.
+
+## Amendment (2026-11-03): which species the finishing step re-renders, and how its outcome reaches Hostess
+
+Built in `beeatlas-uibw.4`, `.5` and `.10`: [`data/send-build.sh`](../../data/send-build.sh)
+sends, [`data/finish-publish.sh`](../../data/finish-publish.sh) finishes, and
+[`data/fly-lib.sh`](../../data/fly-lib.sh) retries the calls between them.
+
+**The species re-rendered are not only those the harvest moves.** The decision above says the
+species whose notes moved since the Machine's state dir last looked are "a superset of those
+whose notes changed while the nightly ran". They are not. A note saved on the Machine while
+Hostess builds is published at once, and the Machine's state dir observes it then. When the
+finishing step's harvest runs, that note has not moved since the last look, so the harvest does
+not name it, yet Hostess's staged pages were rendered from the copy of `notes/` it took before
+the save, and do not have it. Publishing them as they are would take the note off the site
+until the next save or night. So the finishing step also re-renders every species whose
+`notes/` file differs between Hostess's copy and the Machine's own, in either direction: added,
+changed or deleted. Rehearsed on 2026-11-03 against a copy of the Machine's state dir: with the
+harvest cached and moving nothing, the difference named all six species whose notes had gone,
+and they were re-rendered.
+
+**The export keeps the Machine's `notes/`.** The staged export is installed with the Machine's
+own `notes/` in place of Hostess's copy, because that is what the Machine's state dir last
+observed; the harvest then moves exactly the notes saved since.
+
+**The install withdraws the build receipt first and puts the staged one in place last.** Each tree
+(the export, `_site`, Vite's manifest, the receipt) is copied beside the live one and renamed into
+place, but several trees cannot change at one instant. A finishing step that dies part way leaves
+no receipt, so the next note save or deploy renders in full from whatever the trees then hold.
+
+**The outcome travels as the last line of output.** `flyctl ssh console` reports any failure of
+the remote command as exit 1, so the finishing step prints `finish-publish: published`, `stale`,
+`busy` or `failed`, and Hostess reads that line. `stale` makes `data/nightly.sh` exit 79, and
+Hostess's wrapper builds again at the Machine's new commit, once, and only if that commit has
+really changed.
+
+**Publishing is switched on separately.** Hostess sends and checks its build every night, but asks
+the Machine to finish only when `FINISH_PUBLISH` is set in its `nightly.env`. It stays unset
+during the parallel trial (`beeatlas-uibw.6`), while the Machine's own nightly publishes; setting
+it is part of the cutover.
+
+**Calls to the Machine are retried when Fly fails, not when the command does.** Reading the
+Machine's commit, copying its `notes/`, the rsync and the check are retried after 30, 60 and 120
+seconds when flyctl fails before the remote command has run, as Fly's API did with a 503 on
+2026-11-01. A remote command that ran and failed is not retried. The finishing step is never
+retried, because a dropped connection does not stop it on the Machine; a no-op is retried just
+before it instead.

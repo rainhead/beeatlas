@@ -6,14 +6,13 @@
 # beeatlas-nightly.service does not run this file where it sits: it copies main's
 # version out of the checkout first and runs the copy. The checkout below can move
 # to a commit older than this file, and a service that ran it in place would then
-# have nothing to start the next night. The body is one function, called on the last
-# line, so that bash has read all of it before anything changes underneath.
+# have nothing to start the next night. The body is functions, and the only call is
+# on the last line, so that bash has read all of it before anything changes underneath.
 
 set -euo pipefail
 
 main() {
     BASE_DIR="${BASE_DIR:-$HOME/beeatlas-nightly}"
-    local checkout="$BASE_DIR/beeatlas"
     export STELIS_DIR="$BASE_DIR/stelis"
     FLY_APP="${FLY_APP:-beeatlas}"
     export FLYCTL="${FLYCTL:-$HOME/.fly/bin/flyctl}"
@@ -31,16 +30,56 @@ main() {
     done
     [[ -x "$FLYCTL" ]] || { echo "FATAL: no flyctl at $FLYCTL" >&2; exit 78; }
 
-    # The commit the Machine runs is its image's GITHUB_SHA. The manifest's build_id
-    # is not it: that names the commit that last rendered (ADR 0045).
-    local sha
-    # `|| true`, so a failed call reaches the message below instead of ending the run
-    # under set -e with no reason given; flyctl's own error goes to the log.
-    sha=$("$FLYCTL" ssh console -q -a "$FLY_APP" -C 'printenv GITHUB_SHA' | tr -d '\r\n') || true
-    if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
-        echo "FATAL: could not read the Machine's GITHUB_SHA (got '$sha')" >&2
-        exit 69  # EX_UNAVAILABLE
-    fi
+    # A deploy that lands while this run builds leaves the build made from code the
+    # Machine no longer runs, and its check on the Machine fails: data/nightly.sh exits
+    # 79. Then build again, once, at the Machine's new commit. A second 79, or a 79 with
+    # the Machine still at the same commit, is a failure like any other.
+    local attempt sha rc
+    for attempt in 1 2; do
+        sha=$(_machine_sha) || exit 69  # EX_UNAVAILABLE
+        # Called plainly, so that set -e stops the run on any failure inside it; only
+        # data/nightly.sh's status is caught. (A function called as `f || rc=$?` runs
+        # with set -e off throughout.)
+        _prepare_at "$sha"
+        rc=0
+        bash "$BASE_DIR/beeatlas/data/nightly.sh" || rc=$?
+        if [[ $rc -eq 79 && $attempt -eq 1 && -z "${NIGHTLY_COMMIT:-}" ]]; then
+            local now
+            now=$(_machine_sha) || exit 69
+            if [[ "$now" != "$sha" ]]; then
+                echo "=== the Machine moved from $sha to $now during the build; building again ==="
+                continue
+            fi
+        fi
+        exit "$rc"
+    done
+}
+
+# The commit the Machine runs is its image's GITHUB_SHA. The manifest's build_id is
+# not it: that names the commit that last rendered (ADR 0045). Retried, because Fly's
+# API fails now and then (beeatlas-uibw.10). data/fly-lib.sh does this for the run's
+# other calls, but it is in the checkout, which is still at the previous run's commit.
+_machine_sha() {
+    local wait sha
+    for wait in 30 60 120 ""; do
+        sha=$("$FLYCTL" ssh console -q -a "$FLY_APP" -C 'printenv GITHUB_SHA' | tr -d '\r\n') || true
+        if [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "$sha"
+            return 0
+        fi
+        [[ -n "$wait" ]] || break
+        echo "  could not read the Machine's GITHUB_SHA (got '$sha'); trying again in ${wait}s" >&2
+        sleep "$wait"
+    done
+    echo "FATAL: could not read the Machine's GITHUB_SHA (got '$sha')" >&2
+    return 1
+}
+
+# _prepare_at SHA: check out SHA and lay out the checkout and the environment for its
+# data/nightly.sh. The exports are the run's, so this is not called in a subshell.
+_prepare_at() {
+    local sha="$1"
+    local checkout="$BASE_DIR/beeatlas"
     # For testing a change to this script or to data/nightly.sh before it is
     # deployed: build another commit, which must already be in the checkout. Never
     # for a run whose build is sent to the Machine, which would then render note
@@ -100,7 +139,8 @@ EOF
     # SEND_TO_FLY_APP has data/nightly.sh send the build to the Machine's staging
     # directory instead of merge-swapping (data/send-build.sh), over flyctl, with the
     # SSH-only FLY_API_TOKEN from nightly.env. A commit from before that change ignores
-    # the variable and sends nothing. Finishing the publish there is beeatlas-uibw.5.
+    # the variable and sends nothing. FINISH_PUBLISH, from nightly.env, then has the
+    # Machine publish it (data/finish-publish.sh); unset during the parallel trial.
     export BASE_DIR
     export SITE_ROOT="$BASE_DIR/htdocs"
     export VAR_DIR="$BASE_DIR/var"
@@ -127,8 +167,6 @@ EOF
     mkdir -p "$BASE_DIR/notes"
     rm -f "$NOTES_DB_PATH"
     (cd "$checkout/data" && uv run --frozen alembic -c notes_store/migrations/alembic.ini upgrade head) > /dev/null
-
-    exec bash "$checkout/data/nightly.sh"
 }
 
 main "$@"

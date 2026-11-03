@@ -76,6 +76,9 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # in_container, use_pinned_node, describe_code: host checkout vs the Fly image.
 # shellcheck source=data/runtime-env.sh
 . "$SCRIPT_DIR/runtime-env.sh"
+# fly_retry and fly_reachable, for the calls Hostess makes to the Machine (ADR 0046).
+# shellcheck source=data/fly-lib.sh
+. "$SCRIPT_DIR/fly-lib.sh"
 
 BASE_DIR="${BASE_DIR:-/var/www/beeatlas.net}"
 SITE_ROOT="${SITE_ROOT:-$BASE_DIR/htdocs}"
@@ -553,16 +556,20 @@ if [[ -n "${NOTES_FROM_FLY_APP:-}" ]]; then
     _stage="machine-notes"
     echo "--- taking notes/ from the Machine ($NOTES_FROM_FLY_APP) ---"
     _incoming="$EXPORT_DIR/.notes-incoming"
-    rm -rf "$_incoming"
-    mkdir -p "$_incoming"
     # /data/var/export is the Machine's EXPORT_DIR (fly/Dockerfile). tar through
     # `flyctl ssh console` arrives byte for byte (checked against sha256, 2026-10-30).
     # Under the Machine's publish lock, as the app user (fly/deploy.sh does the same),
     # so a note save cannot be half-way through rewriting notes/ while it is packed.
     # A lock held past ten minutes fails the copy, and the check below stops the run.
-    "${FLYCTL:-flyctl}" ssh console -q -a "$NOTES_FROM_FLY_APP" \
-        -C 'setpriv --reuid=app --regid=app --init-groups flock -w 600 /data/var/publish.lock tar -C /data/var/export -cf - notes' \
-        | tar -C "$_incoming" -xf -
+    # Retried when Fly's API fails (data/fly-lib.sh), each time into an empty directory.
+    _copy_notes() {
+        rm -rf "$_incoming"
+        mkdir -p "$_incoming"
+        "${FLYCTL:-flyctl}" ssh console -q -a "$NOTES_FROM_FLY_APP" \
+            -C 'setpriv --reuid=app --regid=app --init-groups flock -w 600 /data/var/publish.lock tar -C /data/var/export -cf - notes' \
+            | tar -C "$_incoming" -xf -
+    }
+    fly_retry _copy_notes
     if [[ ! -d "$_incoming/notes" ]]; then
         echo "FATAL: the Machine sent no notes/ directory — aborting publish" >&2
         exit 1
@@ -675,18 +682,60 @@ node scripts/build-receipt.mjs --write
 # note-write path (data/publish-notes.sh). Exit 3 = SITE_ROOT absent, which
 # for the nightly is a skip (fresh host), not a failure.
 #
-# On Hostess (SEND_TO_FLY_APP, ADR 0046) there is no SITE_ROOT: the build goes to a
-# staging directory on the Machine instead, and is checked there against the
-# Machine's checkout (data/send-build.sh). Nothing finishes the publish from the
-# staged copy yet (beeatlas-uibw.5), so the run publishes nothing, as before.
+# On Hostess (SEND_TO_FLY_APP, ADR 0046) there is no SITE_ROOT. The build goes to a
+# staging directory on the Machine and is checked there against the Machine's checkout
+# (data/send-build.sh). With FINISH_PUBLISH set, the Machine then publishes it with
+# the notes from its live store (data/finish-publish.sh); without it, during the
+# parallel trial, the run stops there and publishes nothing.
+#
+# Exit 79 means the Machine now runs other code than this build was made with, and
+# infra/hostess/nightly.sh then builds again at the Machine's commit. 75 means a lock
+# on the Machine was held too long; nothing changed there.
 _published=""
 if [[ -n "${SEND_TO_FLY_APP:-}" ]]; then
     _stage="send-build"
     echo "--- sending the build to the Machine ($SEND_TO_FLY_APP) ---"
     _t0=$(date +%s)
-    bash "$SCRIPT_DIR/send-build.sh"
-    echo "sent and checked in $(_elapsed $_t0); not published (beeatlas-uibw.5)"
+    _send_rc=0
+    bash "$SCRIPT_DIR/send-build.sh" || _send_rc=$?
+    if [[ $_send_rc -eq 79 ]]; then
+        _stage="stale"
+        exit 79
+    elif [[ $_send_rc -ne 0 ]]; then
+        exit "$_send_rc"
+    fi
+    echo "sent and checked in $(_elapsed $_t0)"
     _stage="sent"
+    if [[ -n "${FINISH_PUBLISH:-}" ]]; then
+        _stage="finish-publish"
+        echo "--- publishing on the Machine ---"
+        _t0=$(date +%s)
+        # Not retried: it publishes, and a dropped connection does not stop it on the
+        # Machine. Only the no-op before it is (fly_reachable). Its outcome is its last
+        # line, because flyctl reports any remote failure as exit 1.
+        fly_reachable "$SEND_TO_FLY_APP"
+        _finish_log="$VAR_DIR/finish-publish.log"
+        "${FLYCTL:-flyctl}" ssh console -q -a "$SEND_TO_FLY_APP" \
+            -C 'setpriv --reuid=app --regid=app --init-groups bash /app/data/finish-publish.sh' 2>&1 \
+            | tr -d '\r' | tee "$_finish_log" || true
+        _finish=$(sed -n 's/^finish-publish: //p' "$_finish_log" | tail -1)
+        case "$_finish" in
+            published)
+                _published=1
+                echo "published on the Machine in $(_elapsed $_t0)" ;;
+            stale)
+                _stage="stale"
+                exit 79 ;;
+            busy)
+                echo "a lock on the Machine was held too long; nothing published" >&2
+                exit 75 ;;
+            *)
+                echo "the Machine did not publish (outcome '${_finish:-none reported}')" >&2
+                exit 1 ;;
+        esac
+    else
+        echo "not published: FINISH_PUBLISH is not set (the parallel trial, beeatlas-uibw.6)"
+    fi
 else
     _stage="merge-swap"
     echo "--- publishing into $SITE_ROOT ---"

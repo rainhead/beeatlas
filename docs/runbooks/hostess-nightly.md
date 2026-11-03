@@ -9,8 +9,37 @@ what an operator needs that the scripts don't say on their own.
 
 A run that passes every gate sends its build to `/data/staging` on the Machine's volume
 and checks it there against the Machine's checkout with the build receipt
-([`data/send-build.sh`](../../data/send-build.sh)). Nothing yet publishes from the
-staged copy (`beeatlas-uibw.5`), so the Machine's own nightly still publishes.
+([`data/send-build.sh`](../../data/send-build.sh)). With `FINISH_PUBLISH=1` in
+`nightly.env`, the Machine then publishes it, with the notes from its live store
+([`data/finish-publish.sh`](../../data/finish-publish.sh)). During the parallel trial
+(`beeatlas-uibw.6`) that line is absent and the Machine's own nightly publishes.
+
+## What a run's last lines mean
+
+- `published on the Machine` — the site serves tonight's build. Only this advances the
+  integration baseline, marks the build published in Stelis and pings the healthcheck.
+- `not published: FINISH_PUBLISH is not set` — the trial: sent and checked, no more.
+- `the Machine moved from <sha> to <sha> during the build; building again` — a deploy
+  landed mid-run, so the staged build failed its check. The run builds once more at the
+  new commit; a second mismatch fails the run.
+- `a lock on the Machine was held too long` — something held the publish lock for ten
+  minutes. Nothing changed on the Machine; the next night publishes.
+- `the Machine did not publish (outcome 'failed')` — the finishing step's own output is
+  in the log above, and in `var/finish-publish.log`. If it failed after it began
+  installing, it withdrew the build receipt, so the next note save renders in full.
+- `the call to the Machine failed (rc=…); trying again in 30s` — Fly's API or the
+  tunnel failed; the call is retried three times over about four minutes.
+
+## Cutover
+
+Once the trial has shown a few nights of sent and checked builds (`beeatlas-uibw.6`):
+
+1. Remove the nightly from the Machine's schedule (`fly/crontab`) and deploy
+   (`beeatlas-uibw.7`). This comes first: the Machine's nightly holds the publish lock
+   for its whole run, and a Hostess run started at the same hour would wait on it.
+2. Add `FINISH_PUBLISH=1` to `nightly.env`, and replace the trial's `HEALTHCHECK_URL=`
+   and `SKIP_PIPELINE_BACKUP=1` with the backup settings described below.
+3. Remove the timer's trial drop-in (below), so the run starts at 03:00.
 
 ## Layout
 
