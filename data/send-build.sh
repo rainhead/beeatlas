@@ -72,10 +72,17 @@ fly_retry _send
 echo "  checking the staged build against the Machine's checkout"
 _check_log=$(mktemp)
 trap 'rm -f "$_check_log"' EXIT
+# Both of flyctl's streams go to the log, which the stale test below reads, so the
+# "Process exited" line fly_retry looks for on standard error is passed on to it there.
 _check() {
+    local rc=0
     "$FLYCTL" ssh console -q -a "$FLY_APP" -C "$AS_APP flock -w 600 $STAGING_LOCK \
 env EXPORT_DIR=$STAGING/export BEEATLAS_SITE_DIR=$STAGING/site BEEATLAS_CACHE_DIR=$STAGING/cache \
-node /app/scripts/build-receipt.mjs --check" 2>&1 | tr -d '\r' | tee "$_check_log"
+node /app/scripts/build-receipt.mjs --check" 2>&1 | tr -d '\r' | tee "$_check_log" || rc=$?
+    if [[ $rc -ne 0 ]] && grep -q 'Process exited with status' "$_check_log"; then
+        grep 'Process exited with status' "$_check_log" >&2
+    fi
+    return "$rc"
 }
 # A check that ran and failed is not retried (fly_retry sees the remote exit). It is
 # stale only when the receipt says so: the Machine's checkout no longer matches the one
