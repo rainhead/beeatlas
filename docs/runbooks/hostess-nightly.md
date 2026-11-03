@@ -7,9 +7,10 @@ at 03:00 Pacific. It checks out the commit the Machine is running and runs
 [`data/nightly.sh`](../../data/nightly.sh) from it, with the layout below. This page is
 what an operator needs that the scripts don't say on their own.
 
-Until the handoff exists (`beeatlas-uibw.4`, `.5`) the run builds and gates but sends
-nothing: there is no `SITE_ROOT` on Hostess, so `data/nightly.sh` skips the merge-swap,
-and the Machine's own nightly still publishes.
+A run that passes every gate sends its build to `/data/staging` on the Machine's volume
+and checks it there against the Machine's checkout with the build receipt
+([`data/send-build.sh`](../../data/send-build.sh)). Nothing yet publishes from the
+staged copy (`beeatlas-uibw.5`), so the Machine's own nightly still publishes.
 
 ## Layout
 
@@ -26,9 +27,27 @@ Everything lives under `~/beeatlas-nightly`, laid out like the Machine's volume
 - `log/nightly-<date>.log` — the whole run's output.
 
 Secrets and per-host switches are in `~/.config/beeatlas/nightly.env` (mode 600): the
-Ecdysis sign-in, and either the trial's `HEALTHCHECK_URL=` and `SKIP_PIPELINE_BACKUP=1`
-or, after cutover, `PIPELINE_BACKUP_BUCKET` and the `beeatlas-hostess-pipeline` key
-(`infra/lib/beeatlas-stack.ts`; the key is made outside CDK).
+Ecdysis sign-in, the Fly token below, and either the trial's `HEALTHCHECK_URL=` and
+`SKIP_PIPELINE_BACKUP=1` or, after cutover, `PIPELINE_BACKUP_BUCKET` and the
+`beeatlas-hostess-pipeline` key (`infra/lib/beeatlas-stack.ts`; the key is made outside
+CDK).
+
+## Reaching the Machine
+
+Every call the run makes to the Machine goes through `flyctl ssh console`: reading its
+`GITHUB_SHA`, copying its `notes/`, and sending the build, which runs rsync with
+[`data/fly-rsh.sh`](../../data/fly-rsh.sh) as its remote shell. They are authorised by
+`FLY_API_TOKEN` in `nightly.env`, a token that can open SSH to the beeatlas app and
+nothing else (`flyctl tokens create ssh -a beeatlas`; listing apps with it is refused).
+The value contains a space, so it is written in double quotes. SSH arrives as root, which
+is why each command drops to the `app` user with `setpriv`, and why a compromise of
+Hostess is one of production (ADR 0046's consequences). To replace the token, create a
+new one, put it in `nightly.env`, and revoke the old one by its name, `hostess nightly
+(beeatlas-uibw.4)` (`flyctl tokens list`, `flyctl tokens revoke`).
+
+`flyctl ssh console -C` runs its command without a shell. Send anything longer than one
+command as a script on standard input, `-C 'sh -s' < script.sh`; see
+[lessons-learned](../lessons-learned.md) for what a quoted script did instead.
 
 ## AWS on Hostess
 
@@ -61,7 +80,7 @@ Two identities, kept apart on purpose:
    var/baseline var/stelis var/export`, as one `tar` through `flyctl ssh console`, under
    `flock /data/var/publish.lock` as the `app` user. Or restore the DuckDB and the Stelis
    state from the pipeline bucket (`db/`, `stelis/`) with `data/s3_backup.py restore`.
-   Then write `nightly.env`.
+   Then write `nightly.env`, including the Fly token (above).
 4. Install the units and turn on lingering, so the timer runs with nobody logged in.
    Copy them, from main, rather than linking them into the checkout: each run moves the
    checkout to the Machine's commit, which can be older than the units. For the same

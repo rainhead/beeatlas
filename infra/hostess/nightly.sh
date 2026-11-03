@@ -50,7 +50,7 @@ main() {
     # night's.
     if [[ -n "${NIGHTLY_COMMIT:-}" ]]; then
         echo "WARN: NIGHTLY_COMMIT set — building $NIGHTLY_COMMIT, not the Machine's $sha;" \
-            "no backup, no healthcheck ping" >&2
+            "no backup, no healthcheck ping, nothing sent to the Machine" >&2
         sha="$NIGHTLY_COMMIT"
         export SKIP_PIPELINE_BACKUP=1 HEALTHCHECK_URL=
     fi
@@ -96,9 +96,11 @@ _site site
 data/dbt/target dbt-target
 EOF
 
-    # The same environment the image sets. SITE_ROOT does not exist on Hostess, so
-    # data/nightly.sh skips the merge-swap; the handoff to the Machine replaces it
-    # (beeatlas-uibw.4, .5).
+    # The same environment the image sets. SITE_ROOT does not exist on Hostess:
+    # SEND_TO_FLY_APP has data/nightly.sh send the build to the Machine's staging
+    # directory instead of merge-swapping (data/send-build.sh), over flyctl, with the
+    # SSH-only FLY_API_TOKEN from nightly.env. A commit from before that change ignores
+    # the variable and sends nothing. Finishing the publish there is beeatlas-uibw.5.
     export BASE_DIR
     export SITE_ROOT="$BASE_DIR/htdocs"
     export VAR_DIR="$BASE_DIR/var"
@@ -110,6 +112,11 @@ EOF
     export TZ=America/Los_Angeles
     export BEEATLAS_CODE_PINNED=1
     export NOTES_FROM_FLY_APP="$FLY_APP"
+    # A run of another commit (NIGHTLY_COMMIT) builds with code the Machine does not
+    # run, so it sends nothing, as it backs up nothing.
+    if [[ -z "${NIGHTLY_COMMIT:-}" ]]; then
+        export SEND_TO_FLY_APP="$FLY_APP"
+    fi
 
     # Hostess never holds the notes store (ADR 0046). The build reads an empty one,
     # made afresh from this commit's migrations so it always has their schema, and

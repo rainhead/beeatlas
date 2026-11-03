@@ -64,13 +64,24 @@
 
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { join, relative, dirname } from 'node:path';
+import { join, relative, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDataDir } from '../lib/build-data-dir.js';
 import { MANIFEST_PATH } from '../lib/vite-manifest.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const RECEIPT = join(ROOT, '.cache', 'beeatlas-build', 'receipt.json');
+// Where the built tree is: the checkout's _site and .cache, unless these name another
+// copy of it. Hostess sends its build to a staging directory on the Machine (ADR 0046),
+// and the Machine checks that copy against its own checkout before using it. The data
+// dir already moves the same way, with EXPORT_DIR (lib/build-data-dir.js). Absolute,
+// or relative to the working directory.
+const SITE_DIR = process.env.BEEATLAS_SITE_DIR ? resolve(process.env.BEEATLAS_SITE_DIR) : join(ROOT, '_site');
+const CACHE_DIR = process.env.BEEATLAS_CACHE_DIR ? resolve(process.env.BEEATLAS_CACHE_DIR) : join(ROOT, '.cache');
+// Spelled out for the default: api/main.py deletes the receipt at that path itself, and
+// api/tests/test_notes_routes.py checks the two agree.
+const RECEIPT = process.env.BEEATLAS_CACHE_DIR
+  ? join(CACHE_DIR, 'beeatlas-build', 'receipt.json')
+  : join(ROOT, '.cache', 'beeatlas-build', 'receipt.json');
 
 // Everything that PRODUCES _site — not merely everything Eleventy reads. Paths are
 // relative to the repo root; a missing one is simply absent from the digest (a
@@ -210,8 +221,9 @@ function deployDigest() {
  * writer waits on, has no use for it. */
 function fingerprint(withDeploy) {
   const dataDir = buildDataDir(ROOT);
-  const siteDir = join(ROOT, '_site');
-  const manifestPath = join(ROOT, MANIFEST_PATH);
+  const siteDir = SITE_DIR;
+  // MANIFEST_PATH is relative to the checkout, under .cache.
+  const manifestPath = join(CACHE_DIR, relative('.cache', MANIFEST_PATH));
 
   const renderPaths = RENDER_INPUTS.flatMap(p => walk(join(ROOT, p), ROOT));
   // notes/ is the one thing a note publish is ALLOWED to have changed.
