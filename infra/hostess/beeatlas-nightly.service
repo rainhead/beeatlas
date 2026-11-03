@@ -16,9 +16,11 @@ Type=oneshot
 EnvironmentFile=%h/.config/beeatlas/nightly.env
 # A run the timer makes up after Hostess wakes from sleep starts within seconds of
 # the wake, before NetworkManager has reconnected (on 2026-11-02 the network was
-# back 10 s after the fetch failed). So retry the fetch every 5 s for up to 5
-# minutes before giving up. `$$` is a literal `$`: systemd expands `$` itself.
-ExecStartPre=/bin/sh -c 'n=0; until git -C %h/beeatlas-nightly/beeatlas fetch -q origin; do n=$$((n + 1)); if [ $$n -ge 60 ]; then echo "git fetch still failing after 5 minutes; giving up" >&2; exit 1; fi; sleep 5; done'
+# back 10 s after the fetch failed). So retry the fetch every 5 s for 5 minutes
+# before giving up, allowing each attempt a minute so that a fetch that hangs
+# instead of failing is retried too. `$$` and `%%` are a literal `$` and `%`:
+# systemd expands both itself.
+ExecStartPre=/bin/sh -c 'end=$$(($$(date +%%s) + 300)); until timeout 60 git -C %h/beeatlas-nightly/beeatlas fetch -q origin; do if [ $$(date +%%s) -ge $$end ]; then echo "git fetch still failing after 5 minutes; giving up" >&2; exit 1; fi; sleep 5; done'
 # Run main's infra/hostess/nightly.sh from a copy outside the checkout, for the
 # reason in the first comment: the checkout's own copy may not exist at the
 # Machine's commit.
