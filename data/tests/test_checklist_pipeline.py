@@ -33,10 +33,6 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 def checklist_db(tmp_path, monkeypatch):
     """Isolated DuckDB. load_checklist() reads DB_PATH env at call time.
 
-    Bootstraps a minimal ecdysis_data.occurrences table because Plan 05's
-    extension to load_checklist() materializes canonical_name on it; in
-    production run.py STEPS guarantees ecdysis runs before checklist.
-
     Phase 135 Plan 03: SYNONYMS_PATH / UNMATCHED_PATH patches removed —
     reconcile() was retired per D-07 (RCN-06); those constants no longer exist.
 
@@ -59,15 +55,6 @@ def checklist_db(tmp_path, monkeypatch):
     # re-read; save/restore achieves the same without re-executing the module body).
     old_db_path = mod.DB_PATH
     mod.DB_PATH = db_path
-
-    # Pre-create ecdysis_data tables (mirrors prod ordering invariant).
-    # identifications added beeatlas-fc4: load_checklist() now materializes
-    # canonical_name on it too.
-    con = duckdb.connect(db_path)
-    con.execute("CREATE SCHEMA ecdysis_data")
-    con.execute("CREATE TABLE ecdysis_data.occurrences (scientific_name VARCHAR)")
-    con.execute("CREATE TABLE ecdysis_data.identifications (coreid VARCHAR, scientific_name VARCHAR)")
-    con.close()
 
     yield db_path, mod
 
@@ -122,14 +109,6 @@ def checklist_sample_db(request):
     mod._TAXA_ANCESTRY = None
 
     con = duckdb.connect(":memory:")
-    # Bootstrap ecdysis_data tables BEFORE calling load_checklist()
-    # (T-76-04 prod ordering invariant: run.py STEPS guarantees ecdysis runs before checklist;
-    # the canonical_name materializations called at end of load_checklist require
-    # the tables to exist — RESEARCH §3 / Pattern D; identifications added beeatlas-fc4).
-    con.execute("CREATE SCHEMA ecdysis_data")
-    con.execute("CREATE TABLE ecdysis_data.occurrences (scientific_name VARCHAR)")
-    con.execute("CREATE TABLE ecdysis_data.identifications (coreid VARCHAR, scientific_name VARCHAR)")
-
     # Load the 8-row sample through the real CSV→DuckDB path.
     mod.load_checklist(con=con)
 
@@ -766,114 +745,3 @@ def test_single_synonym_source():
             f"checklist_synonyms.csv must have no active synonym mappings per D-07 "
             f"(RCN-06). Found {len(rows)} data rows: {rows[:3]}"
         )
-
-
-# ---------------------------------------------------------------------------
-# quick-260702-lvc: New fast-tier test for the set-based UPDATE conversion.
-# ---------------------------------------------------------------------------
-
-
-def test_update_occurrences_canonical_name_maps_distinct_names():
-    """Set-based UPDATE maps distinct scientific_names to canonical form.
-
-    Guards _update_occurrences_canonical_name() using a fresh in-memory
-    connection with real rows (not the zero-row occurrence table in
-    checklist_sample_db). Verifies:
-    - Two rows sharing a trinomial scientific_name both receive the binomial
-      canonical_name (duplicate rows handled by the JOIN, not per-row loop)
-    - An authority-bearing name has its authority stripped
-    - A row with NULL scientific_name keeps canonical_name NULL (no join match)
-    """
-    import duckdb as _duckdb
-    import checklist_pipeline as _mod
-
-    con = _duckdb.connect(":memory:")
-    try:
-        con.execute("CREATE SCHEMA ecdysis_data")
-        con.execute(
-            "CREATE TABLE ecdysis_data.occurrences "
-            "(scientific_name VARCHAR, canonical_name VARCHAR)"
-        )
-        con.execute("""
-            INSERT INTO ecdysis_data.occurrences VALUES
-            ('Bombus melanopygus mixtus', NULL),
-            ('Bombus melanopygus mixtus', NULL),
-            ('Andrena fulva (Müller, 1766)', NULL),
-            (NULL, NULL)
-        """)
-
-        _mod._update_occurrences_canonical_name(con)
-
-        rows = con.execute(
-            "SELECT scientific_name, canonical_name "
-            "FROM ecdysis_data.occurrences "
-            "ORDER BY scientific_name NULLS LAST"
-        ).fetchall()
-
-        # Both Bombus trinomial rows -> 'bombus melanopygus'
-        bombus = [r for r in rows if r[0] == "Bombus melanopygus mixtus"]
-        assert len(bombus) == 2, f"expected 2 Bombus rows, got {len(bombus)}"
-        for sci, canon in bombus:
-            expected = normalize_scientific_name(sci)
-            assert canon == expected, f"{sci!r}: got {canon!r}, expected {expected!r}"
-
-        # Authority-bearing Andrena -> 'andrena fulva'
-        andrena = [r for r in rows if r[0] == "Andrena fulva (Müller, 1766)"]
-        assert len(andrena) == 1
-        assert andrena[0][1] == "andrena fulva", (
-            f"authority not stripped: {andrena[0][1]!r}"
-        )
-
-        # NULL scientific_name -> canonical_name stays NULL
-        null_rows = [r for r in rows if r[0] is None]
-        assert len(null_rows) == 1
-        assert null_rows[0][1] is None, (
-            f"NULL scientific_name row got canonical_name={null_rows[0][1]!r}, expected NULL"
-        )
-    finally:
-        con.close()
-
-
-def test_update_identifications_canonical_name_handles_subgenus_forms():
-    """beeatlas-fc4: identifications get the same canonical_name materialization.
-
-    The load-bearing case is the parenthetical-subgenus determination
-    'Lasioglossum (Dialictus)' — it must canonicalize to the genus
-    ('lasioglossum'), never be misread as a binomial.
-    """
-    import duckdb as _duckdb
-    import checklist_pipeline as _mod
-
-    con = _duckdb.connect(":memory:")
-    try:
-        con.execute("CREATE SCHEMA ecdysis_data")
-        con.execute(
-            "CREATE TABLE ecdysis_data.identifications "
-            "(coreid VARCHAR, scientific_name VARCHAR)"
-        )
-        con.execute("""
-            INSERT INTO ecdysis_data.identifications VALUES
-            ('1', 'Lasioglossum (Dialictus)'),
-            ('2', 'Colletes consors pascoensis'),
-            ('3', 'undetermined'),
-            ('4', NULL)
-        """)
-
-        _mod._update_identifications_canonical_name(con)
-
-        rows = dict(con.execute(
-            "SELECT coreid, canonical_name FROM ecdysis_data.identifications"
-        ).fetchall())
-
-        assert rows["1"] == "lasioglossum", (
-            f"subgenus form must fold to genus, got {rows['1']!r}"
-        )
-        assert rows["2"] == "colletes consors", (
-            f"trinomial must fold to binomial, got {rows['2']!r}"
-        )
-        # The sentinel canonicalizes like any string; filtering it is the
-        # intermediate model's job, not the materialization's.
-        assert rows["3"] == "undetermined"
-        assert rows["4"] is None
-    finally:
-        con.close()

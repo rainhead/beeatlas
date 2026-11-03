@@ -60,49 +60,6 @@ def reload_pipeline(tmp_path, monkeypatch, request):
     return checklist_pipeline
 
 
-def _bootstrap_occurrences(con: duckdb.DuckDBPyConnection) -> None:
-    con.execute("CREATE SCHEMA IF NOT EXISTS ecdysis_data")
-    con.execute(
-        "CREATE TABLE ecdysis_data.occurrences (scientific_name VARCHAR)"
-    )
-
-
-def test_update_occurrences_adds_canonical_name_column(reload_pipeline):  # NOT skipped — _update_occurrences_canonical_name is still live
-    mod = reload_pipeline
-    con = duckdb.connect(":memory:")
-    _bootstrap_occurrences(con)
-    con.execute(
-        "INSERT INTO ecdysis_data.occurrences VALUES "
-        "('Lasioglossum (Dialictus) zonulum'), "
-        "('Andrena fulva (Müller, 1766)'), (NULL), ('')"
-    )
-    mod._update_occurrences_canonical_name(con)
-    rows = con.execute(
-        "SELECT scientific_name, canonical_name FROM ecdysis_data.occurrences"
-    ).fetchall()
-    by_sci = {r[0]: r[1] for r in rows}
-    assert by_sci["Lasioglossum (Dialictus) zonulum"] == "lasioglossum zonulum"
-    assert by_sci["Andrena fulva (Müller, 1766)"] == "andrena fulva"
-    assert by_sci[None] is None
-    assert by_sci[""] is None
-
-
-def test_update_occurrences_is_idempotent(reload_pipeline):  # NOT skipped — _update_occurrences_canonical_name is still live
-    mod = reload_pipeline
-    con = duckdb.connect(":memory:")
-    _bootstrap_occurrences(con)
-    con.execute(
-        "INSERT INTO ecdysis_data.occurrences VALUES ('Bombus vosnesenskii')"
-    )
-    mod._update_occurrences_canonical_name(con)
-    # Second call — column already exists; ALTER TABLE ... IF NOT EXISTS guard.
-    mod._update_occurrences_canonical_name(con)
-    val = con.execute(
-        "SELECT canonical_name FROM ecdysis_data.occurrences"
-    ).fetchone()[0]
-    assert val == normalize_scientific_name("Bombus vosnesenskii")
-
-
 def _bootstrap_for_reconcile(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("CREATE SCHEMA IF NOT EXISTS ecdysis_data")
     con.execute("CREATE SCHEMA IF NOT EXISTS checklist_data")
