@@ -37,34 +37,46 @@ output is on the volume, one file a day per job, kept 30 days:
 
 ```sh
 fly ssh console -C 'ls /data/log'
-fly ssh console -C 'tail -n 50 /data/log/nightly-2026-10-23.log'
+fly ssh console -C 'tail -n 50 /data/log/notes-backup-2026-11-03.log'
 ```
+
+The nightly's log is on Hostess, `~/beeatlas-nightly/log/nightly-<date>.log`, and holds
+the finishing step's output too. `/data/log/nightly-*.log` stops at 2026-11-03.
 
 ## Running a job by hand
 
 Jobs run as `app`, never root, so files on the volume stay `app`'s:
 
 ```sh
-fly ssh console -C 'setpriv --reuid=app --regid=app --init-groups /app/fly/logged.sh nightly bash /app/data/nightly.sh'
+fly ssh console -C 'setpriv --reuid=app --regid=app --init-groups /app/fly/logged.sh notes-backup /app/data/.venv/bin/python /app/data/backup_notes.py'
 ```
 
-The nightly takes the publish lock, so it waits for a running note publish and never
-interleaves with one.
+Over Fly SSH, `HOME` stays `/root` after `setpriv`, and `app` cannot read it. Anything
+that looks under `~`, such as DuckDB's extensions or nvm, needs `env HOME=/home/app`
+before the command; `data/finish-publish.sh` sets it itself. And `-C` runs no shell: send
+anything longer than one command as a script, `-C '… sh -s' < script.sh`.
+
+Do not run `data/nightly.sh` here. It is still in the image (until `beeatlas-uibw.7`),
+but the nightly runs on Hostess: a run here would publish a build that Hostess's next run
+does not know about, and back up over Hostess's DuckDB. To run the nightly now, start it
+on Hostess ([hostess-nightly.md](hostess-nightly.md#running-it)).
 
 ## Stopping
 
 `fly machine stop`, a deploy, and Fly's own restarts all send SIGTERM and allow
-`kill_timeout`, 300 seconds, before SIGKILL. The schedule is stopped first, and a
-running nightly gets the signal itself, so its EXIT trap still uploads the offsite
-backup. The API stops next, and Caddy last.
+`kill_timeout`, 300 seconds, before SIGKILL. The schedule is stopped first, then the
+API, and Caddy last. A publish cut off part way leaves a site that serves
+(`data/merge-swap.sh`); a finishing step cut off after it began installing has withdrawn
+the build receipt, so the next note save renders in full.
 
 ## Deploying
 
 Deploys run [`fly/deploy.sh`](../../fly/deploy.sh), from the **Fly deploy** workflow
 (by hand until cutover) or locally. It builds the image on Fly's builder, then takes
-the publish lock on the Machine before replacing it. A running nightly therefore
-finishes first, which the workflow waits up to two hours for, and no note publish can
-start during the switch. The new Machine's first boot re-renders the site under the
+the publish lock on the Machine before replacing it. A running publish (a note save, or
+the finishing step of Hostess's nightly) therefore finishes first, and none can start
+during the switch. A deploy that lands while Hostess is building makes that night's
+build fail its check on the Machine, and Hostess builds again at the new commit. The new Machine's first boot re-renders the site under the
 same lock.
 
 ## The basemap

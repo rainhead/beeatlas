@@ -63,6 +63,28 @@ Detects observations that have been deleted from iNaturalist or removed from the
 
 Run periodically alongside the main pipeline to keep soft-delete state current.
 
+## Before the first build
+
+A full build (`pnpm run fetch-data` at the repository root, which runs Stelis) needs four
+things that nothing installs for you:
+
+- **DuckDB's `spatial` and `sqlite_scanner` extensions**, for the Python DuckDB in
+  `.venv`. The pipeline never downloads them; without `spatial`, `places-validation`
+  fails and blocks dbt and everything after it. Install them once with the command the
+  image uses (the `INSTALL spatial` line in [`fly/Dockerfile`](../fly/Dockerfile)).
+- **A notes store**, named by `NOTES_DB_PATH`. Unset, Stelis looks for
+  `/opt/beeatlas-store/notes.db` and `notes-harvest` fails. An empty one will do: make it
+  with the `alembic ... upgrade head` command in [`api/README.md`](../api/README.md) and
+  export `NOTES_DB_PATH`.
+- **Stelis's Racket packages.** `scripts/preflight.sh` in the Stelis checkout prints the
+  `raco pkg install` line for any that are missing.
+- **The Ecdysis sign-in**, in the gitignored `.dlt/secrets.toml` under
+  `[sources.ecdysis]`. The values are the Fly secrets `SOURCES__ECDYSIS__USERNAME` and
+  `SOURCES__ECDYSIS__PASSWORD`.
+
+With Node 26, which ships no corepack, install pnpm with npm under that Node, at the
+version `package.json`'s `packageManager` names.
+
 ## Loading data
 
 Install dependencies:
@@ -71,7 +93,7 @@ Install dependencies:
 uv sync
 ```
 
-Run pipelines in order:
+The nightly runs every loader through Stelis. To run one by hand, in this order:
 
 ```bash
 uv run python inaturalist_pipeline.py
@@ -119,26 +141,10 @@ The geographies pipeline always does a full reload. The projects pipeline skips 
 
 ### Nightly pipeline timing
 
-Measured 2026-05-17 on maderas (two consecutive runs):
-
-| Stage | Typical time |
-|---|---|
-| sync + deps (pnpm frozen install) | ~1s |
-| DuckDB pull from S3 | ~3s |
-| ecdysis (dlt load) | 90–115s, or ~58s when the change-probe skips the ZIP build |
-| resolve-taxon-ids | ~50s |
-| taxon-lineage-extended | 135–155s |
-| waba | ~9s |
-| checklist | ~7s |
-| anti-entropy | ~2s |
-| inaturalist / projects / ecdysis-links | <2s each |
-| dbt-build | 10–13s |
-| topology-postprocess | ~2s |
-| species-export / species-maps / feeds | <2s each |
-| S3 upload + CloudFront invalidation | ~30s |
-| **Total** | **~6 min** |
-
-Dominant costs: `taxon-lineage-extended` (~2.5 min) and `ecdysis` (~1.5–2 min) together account for ~75% of runtime. `dbt-build` is fast (10–13s) despite rebuilding the full mart. The ecdysis load varies with daily record volume — and on a day the source hasn't moved, the change-probe drops it to ~58s by reusing the cached ZIP ([ADR 0023](../docs/adr/0023-ecdysis-change-probe.md)).
+Each task's time and memory peak are in the build's own output and in Stelis's build
+log (`/build-log.html` for the nightly). The nightly runs on Hostess; [ADR 0046](../docs/adr/0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md)
+has the measurements that moved it there, against the Fly Machine. On an ordinary night
+the data build takes two to three minutes on Hostess, and the whole run about six.
 
 ### Species page LCP (PERF-02)
 

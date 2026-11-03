@@ -43,10 +43,13 @@ pnpm run diff      # cdk diff --all   — always review first
 pnpm run deploy    # cdk deploy --all — or: pnpm exec cdk deploy BeeAtlasStack
 ```
 
-Application deploys (the site itself) do **not** go through this stack — the
-Fly Machine's nightly builds and merge-swaps the site into the root Caddy serves
-(`data/nightly.sh`), and every push to `main` deploys the image (the Fly deploy
-workflow). CDK is for the infrastructure, not the content.
+Application deploys (the site itself) do **not** go through this stack. The nightly
+builds the site on Hostess (`data/nightly.sh`, [ADR 0046](../docs/adr/0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md))
+and the Fly Machine merge-swaps it into the root Caddy serves, and every push to `main`
+deploys the image (the Fly deploy workflow). CDK is for the infrastructure, not the
+content. It does define the IAM user the nightly backs up as from Hostess,
+`beeatlas-hostess-pipeline`, which reaches the pipeline bucket alone; its key is made
+outside CDK.
 
 ### Toolchain
 
