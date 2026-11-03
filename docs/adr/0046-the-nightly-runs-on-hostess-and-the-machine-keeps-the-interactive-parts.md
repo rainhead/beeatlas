@@ -197,3 +197,11 @@ seconds when flyctl fails before the remote command has run, as Fly's API did wi
 2026-11-01. A remote command that ran and failed is not retried. The finishing step is never
 retried, because a dropped connection does not stop it on the Machine; a no-op is retried just
 before it instead.
+
+**Two operator pages after the cutover.** Stelis's page for a state dir used to be served at
+`/build-log.html` by whatever had just published. After the cutover the nightly builds in
+Hostess's state dir and only note saves and the finishing step build in the Machine's, so the
+page would have described note harvests and never the nightly (`beeatlas-uibw.11`).
+`/build-log.html` stays the nightly's: Hostess sends it at the end of every run, after it has
+recorded whether the run published, failed nights included. The Machine's page is served beside
+it, at `/build-log-notes.html`.

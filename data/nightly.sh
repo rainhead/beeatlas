@@ -472,6 +472,13 @@ if [[ -n "${_sb_num:-}" ]]; then
 fi
 if [[ -f "$STELIS_STATE_DIR/build-log.html" && -d "$SITE_ROOT" ]]; then
     cp "$STELIS_STATE_DIR/build-log.html" "$SITE_ROOT/build-log.html" || true
+elif [[ -f "$STELIS_STATE_DIR/build-log.html" && -n "${SEND_TO_FLY_APP:-}" && -n "${FINISH_PUBLISH:-}" ]]; then
+    # Hostess (ADR 0046): the page goes to the site root on the Machine, after the mark
+    # above, so it says whether tonight published. Every night, failed ones included.
+    FLY_APP="$SEND_TO_FLY_APP" fly_retry rsync -t \
+        -e "$SCRIPT_DIR/fly-rsh.sh" \
+        --rsync-path="setpriv --reuid=app --regid=app --init-groups rsync" \
+        "$STELIS_STATE_DIR/build-log.html" "machine:/data/htdocs/build-log.html" || true
 fi
 if [[ $_exit_rc -eq 0 && -z "$_backup_ok" ]]; then
     echo "FATAL: the run succeeded but its offsite backup did not (s3_backup above);" >&2

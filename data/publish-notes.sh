@@ -131,8 +131,11 @@ _invalidate_receipt_on_failure() {
         ( cd "$STELIS_DIR" && env BEEATLAS_DIR="$REPO_ROOT" racket src/main.rkt \
             --mark-publish "$_sb_num" "$_sb_epoch" "$_outcome" "${_stage:-unknown}" "${PUBLISH_PATH:-note}" ) || true
     fi
+    # The Machine's state dir holds the note saves' builds and the finishing step's,
+    # not the nightly's, which runs on Hostess and sends /build-log.html itself
+    # (ADR 0046); so this state dir's page is served beside it.
     if [[ -f "$STELIS_STATE_DIR/build-log.html" && -d "$SITE_ROOT" ]]; then
-        cp "$STELIS_STATE_DIR/build-log.html" "$SITE_ROOT/build-log.html" || true
+        cp "$STELIS_STATE_DIR/build-log.html" "$SITE_ROOT/build-log-notes.html" || true
     fi
 }
 trap _invalidate_receipt_on_failure EXIT

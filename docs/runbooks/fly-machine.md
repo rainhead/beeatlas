@@ -14,8 +14,8 @@ don't say on their own.
   which replicates the notes store continuously
   ([notes-store-dr.md §6](notes-store-dr.md#6-litestream-continuous-replication-on-fly)).
   If it exits it is restarted after ten seconds, and the site keeps serving meanwhile.
-- **The schedule** ([`fly/crontab`](../../fly/crontab)) runs the nightly at 03:00
-  Pacific and the notes snapshot hourly, as maderas did.
+- **The schedule** ([`fly/crontab`](../../fly/crontab)) runs the notes snapshot hourly.
+  The nightly has run on Hostess since 2026-11-03 (below).
 - **Hostess's nightly** ([ADR 0046](../adr/0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md),
   [hostess-nightly.md](hostess-nightly.md)) reaches the Machine over Fly SSH. It sends
   its build to `/data/staging` under `/data/var/staging.lock`, and, once the cutover has

@@ -129,6 +129,16 @@ def test_pages_and_manifest_are_swapped(layout):
     assert (root / "data" / "manifest.json").read_text() == '{"new": true}'
 
 
+@pytest.mark.parametrize("page", ["build-log.html", "build-log-notes.html"])
+def test_the_operator_pages_written_beside_the_site_survive_the_page_swap(layout, page):
+    """Neither is in _site: the nightly's is sent from Hostess, the note saves' copied by
+    data/publish-notes.sh (ADR 0046). The page tree's --delete must leave both."""
+    repo, root = layout
+    write(root / page, "the operator page")
+    assert run(repo, root).returncode == 0
+    assert (root / page).read_text() == "the operator page"
+
+
 @pytest.mark.parametrize("path, reported", [
     ("species.json", "species.json"),
     # A hash somewhere in the name is not enough: the whole name must be the form
