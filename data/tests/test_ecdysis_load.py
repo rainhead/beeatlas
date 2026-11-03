@@ -30,10 +30,13 @@ IDENTIFICATIONS = (
 
 
 def _archive(occurrences: str = OCCURRENCES, identifications: str = IDENTIFICATIONS) -> bytes:
+    """Byte for byte the same for the same contents: writestr with a bare name stamps
+    each entry with the current time, which would make two calls differ."""
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
-        zf.writestr("occurrences.tab", occurrences)
-        zf.writestr("identifications.tab", identifications)
+        for name, text in (("occurrences.tab", occurrences),
+                           ("identifications.tab", identifications)):
+            zf.writestr(zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0)), text)
     return buf.getvalue()
 
 
@@ -94,19 +97,23 @@ def test_a_missing_record_reloads(db, monkeypatch):
 
 
 def test_a_failed_load_is_not_recorded_as_loaded(db, monkeypatch):
-    """The record is dropped before a load, so a load that fails part way is
-    retried on the next run even though the archive has not changed."""
-    _load(monkeypatch, _archive())
-    monkeypatch.setattr(ecdysis_pipeline, "_loader_fingerprint", lambda: "changed")
+    """The record is dropped before a load, so a load that fails part way is retried
+    even by a run that matches the record it replaced: here, a deploy of new loader
+    code whose load fails, then a rollback to the code that made the record."""
+    first = _load(monkeypatch, _archive())
+    original = ecdysis_pipeline._loader_fingerprint
 
     def fail(*_args, **_kwargs):
         raise RuntimeError("load failed")
 
-    monkeypatch.setattr(ecdysis_pipeline.dlt, "pipeline", fail)
-    with pytest.raises(RuntimeError):
-        _load(monkeypatch, _archive())
-    with duckdb.connect(db) as con:
-        assert not ecdysis_pipeline._archive_already_loaded(con, "anything", "changed")
+    with monkeypatch.context() as m:
+        m.setattr(ecdysis_pipeline, "_loader_fingerprint", lambda: "new code")
+        m.setattr(ecdysis_pipeline.dlt, "pipeline", fail)
+        with pytest.raises(RuntimeError):
+            _load(m, _archive())
+    assert ecdysis_pipeline._loader_fingerprint is original
+
+    assert _load(monkeypatch, _archive()) != first
 
 
 def test_canonical_name_is_set_whether_or_not_the_load_ran(db, monkeypatch):
