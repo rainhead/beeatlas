@@ -1,5 +1,7 @@
 # Cutover: maderas to Fly
 
+> **DONE 2026-10-23, and since superseded for the nightly.** The Machine ran the nightly from this cutover until 2026-11-03, when it moved to Hostess ([ADR 0046](../adr/0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md), [hostess-nightly.md](hostess-nightly.md)). Kept for the history; operate production with [fly-machine.md](fly-machine.md).
+
 The order for moving beeatlas.net, www and api.beeatlas.net from maderas to the Fly
 Machine (beeatlas-j65i, [ADR 0042](../adr/0042-beeatlas-moves-to-fly-as-one-stateful-machine.md)).
 Each step says what it protects against. The trial

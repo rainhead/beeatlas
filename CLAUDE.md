@@ -45,10 +45,13 @@ Config the engineering skills (`to-issues`, `to-prd`, `grill-with-docs`, `improv
 - AWS via CDK in `infra/` is now only DNS, the beeatlas.com→.net redirect, and two
   backup buckets. Production is one Fly Machine with one volume
   ([ADR 0042](docs/adr/0042-beeatlas-moves-to-fly-as-one-stateful-machine.md)): Caddy,
-  the API and the schedule side by side. **Every push to `main` deploys** (the Fly
-  deploy workflow, `fly/deploy.sh`), API included. Operating it:
-  [docs/runbooks/fly-machine.md](docs/runbooks/fly-machine.md). maderas, the Linode
-  that served production until 2026-10-23, no longer runs anything of BeeAtlas's.
+  the API, note publishing and an hourly notes snapshot side by side. **Every push to
+  `main` deploys** (the Fly deploy workflow, `fly/deploy.sh`), API included. Operating
+  it: [docs/runbooks/fly-machine.md](docs/runbooks/fly-machine.md). The nightly data
+  build runs on Hostess, Peter's workstation, which sends its build to the Machine to
+  publish ([ADR 0046](docs/adr/0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md),
+  [docs/runbooks/hostess-nightly.md](docs/runbooks/hostess-nightly.md)). maderas, the
+  Linode that served production until 2026-10-23, no longer runs anything of BeeAtlas's.
 
 ## Running Locally
 
@@ -60,6 +63,8 @@ script must be named in the relevant `pnpm-workspace.yaml` (`allowBuilds`) as tr
 false, or `pnpm install --frozen-lockfile` fails in every workflow.
 
 ```bash
+# A first data build needs DuckDB extensions, a notes store and Stelis's Racket
+# packages that nothing installs for you: data/README.md, "Before the first build".
 pnpm run dev      # Eleventy + Vite middleware. Serves no /sw.js, so offline needs a build.
 pnpm test         # Vitest. NOTE: excludes *.data.test.ts — see below.
 pnpm run test:data  # …which the deploy gate runs. Run it before pushing anything in src/.

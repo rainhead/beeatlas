@@ -1,5 +1,7 @@
 # A trial nightly on Fly, beside production
 
+> **DONE 2026-10-23, and since superseded for the nightly.** The Machine ran the nightly from this cutover until 2026-11-03, when it moved to Hostess ([ADR 0046](../adr/0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md), [hostess-nightly.md](hostess-nightly.md)). Kept for the history; operate production with [fly-machine.md](fly-machine.md).
+
 Before cutover, the Fly Machine runs the nightly while maderas still serves
 production (beeatlas-f21l). The trial has two jobs. It shows the nightly runs on the
 Machine: its time, its memory, and a build from empty Stelis state. And it shows the
