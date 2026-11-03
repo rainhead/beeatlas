@@ -116,6 +116,8 @@ EOF
     # run, so it sends nothing, as it backs up nothing.
     if [[ -z "${NIGHTLY_COMMIT:-}" ]]; then
         export SEND_TO_FLY_APP="$FLY_APP"
+    else
+        unset SEND_TO_FLY_APP  # including one inherited from the environment
     fi
 
     # Hostess never holds the notes store (ADR 0046). The build reads an empty one,
