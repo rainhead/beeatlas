@@ -78,9 +78,11 @@ things that nothing installs for you:
   export `NOTES_DB_PATH`.
 - **Stelis's Racket packages.** `scripts/preflight.sh` in the Stelis checkout prints the
   `raco pkg install` line for any that are missing.
-- **The Ecdysis sign-in**, in the gitignored `.dlt/secrets.toml` under
-  `[sources.ecdysis]`. The values are the Fly secrets `SOURCES__ECDYSIS__USERNAME` and
-  `SOURCES__ECDYSIS__PASSWORD`.
+- **The Ecdysis sign-in**, either in the gitignored `.dlt/secrets.toml` under
+  `[sources.ecdysis]` or as the environment variables `SOURCES__ECDYSIS__USERNAME` and
+  `SOURCES__ECDYSIS__PASSWORD`, which dlt reads the same way. The nightly on Hostess
+  takes the variables from its `nightly.env`
+  ([hostess-nightly.md](../docs/runbooks/hostess-nightly.md)).
 
 With Node 26, which ships no corepack, install pnpm with npm under that Node, at the
 version `package.json`'s `packageManager` names.
