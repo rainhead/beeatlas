@@ -6,9 +6,10 @@ Reads the WA bee checklist TSV (Bartholomew et al. 2024) and writes:
 
 Both tables use CREATE OR REPLACE — full refresh on every run. No dlt cursor.
 
-Phase 76 / D-01, D-02, D-04, D-05. Plan 05 extends this module with the
-occurrences-side canonical_name materialization and the synonyms.csv-driven
-reconciliation flow with checklist_unmatched.csv writeback.
+Phase 76 / D-01, D-02, D-04, D-05. Plan 05 extended this module with the
+occurrences-side canonical_name materialization, since moved to the ecdysis
+loader (ADR 0023 amendment), and the synonyms.csv-driven reconciliation flow
+with checklist_unmatched.csv writeback.
 
 Phase 135 Plan 03:
   - Added canonical_name VARCHAR to checklist_records_full (RCN-01).
@@ -299,63 +300,6 @@ def _coord_flag(lat: float | None, lon: float | None) -> str:
     return "out_of_bbox"
 
 
-def _materialize_canonical_name(con: duckdb.DuckDBPyConnection, table: str) -> None:
-    """Materialize canonical_name on an ecdysis_data table with a scientific_name column.
-
-    The ecdysis pipeline uses write_disposition='replace', so this column is
-    dropped and re-added on every nightly run. The IF NOT EXISTS guard keeps
-    the SQL safe in both cold and warm DB states (per RESEARCH.md
-    Runtime State Inventory).
-
-    Pure-Python canonicalize is called per DISTINCT scientific_name (~few
-    thousand distinct values), then mapped back via UPDATE.
-    """
-    con.execute(
-        f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS canonical_name VARCHAR"
-    )
-    rows = con.execute(f"""
-        SELECT DISTINCT scientific_name FROM {table}
-        WHERE scientific_name IS NOT NULL AND scientific_name != ''
-    """).fetchall()
-    mapping: list[tuple[str | None, str]] = [
-        (normalize_scientific_name(r[0]), r[0]) for r in rows
-    ]
-    if mapping:
-        canon_col, sci_col = zip(*mapping)
-        arrow_tbl = pa.table({
-            "canonical_name": pa.array(canon_col),
-            "scientific_name": pa.array(sci_col),
-        })
-        try:
-            con.register("_canon_map", arrow_tbl)
-            con.execute(
-                f"UPDATE {table} AS o "
-                "SET canonical_name = m.canonical_name "
-                "FROM _canon_map AS m "
-                "WHERE o.scientific_name = m.scientific_name"
-            )
-        finally:
-            con.unregister("_canon_map")
-    updated = con.execute(
-        f"SELECT count(*) FROM {table} WHERE canonical_name IS NOT NULL"
-    ).fetchone()[0]
-    print(f"{table} canonical_name: {updated} rows updated")  # noqa: T201
-
-
-def _update_occurrences_canonical_name(con: duckdb.DuckDBPyConnection) -> None:
-    _materialize_canonical_name(con, "ecdysis_data.occurrences")
-
-
-def _update_identifications_canonical_name(con: duckdb.DuckDBPyConnection) -> None:
-    """Canonical join keys for identification names (beeatlas-fc4).
-
-    Same normalization as occurrences so 'Lasioglossum (Dialictus)' and
-    authority-bearing forms land on the shared canonical vocabulary that
-    int_synonyms and the taxon-id bridge key on.
-    """
-    _materialize_canonical_name(con, "ecdysis_data.identifications")
-
-
 def _load_checklist_records(con: duckdb.DuckDBPyConnection) -> None:
     """Load individual occurrence records from wa_bee_checklist_records.tsv
     into checklist_data.checklist_records (scientificName, county, year, month).
@@ -401,7 +345,7 @@ def _compute_canonical_names_for_records(
 ) -> dict[str | None, str | None]:
     """Build a verbatim_name -> canonical_name mapping for checklist_records_full rows.
 
-    Mirrors the _update_occurrences_canonical_name() pattern: operate on
+    Mirrors ecdysis_pipeline.materialize_canonical_names(): operate on
     DISTINCT values to avoid redundant work, then map back.
 
     Per RCN-01 / D-05:
@@ -662,8 +606,9 @@ def load_checklist(con: "duckdb.DuckDBPyConnection | None" = None) -> None:
 
         _load_checklist_records(con)
         _load_checklist_records_full(con)
-        _update_occurrences_canonical_name(con)
-        _update_identifications_canonical_name(con)
+        # canonical_name on ecdysis_data's tables is the ecdysis loader's own
+        # (ecdysis_pipeline.materialize_canonical_names, ADR 0023 amendment): it
+        # used to be written here, into another task's output.
         # D-07 / RCN-06: the old disjoint synonym step was retired here.
         # Synonym resolution now flows through occurrence_synonyms / int_synonyms.
     finally:

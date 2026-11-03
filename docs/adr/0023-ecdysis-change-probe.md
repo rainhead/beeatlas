@@ -1,6 +1,6 @@
 # ADR 0023: The Ecdysis loader asks whether the source moved before paying to rebuild it
 
-**Status:** Accepted (implemented 2026-07-23 – 2026-07-31; issues beeatlas-29j, beeatlas-u15, stelis st-8bj)
+**Status:** Accepted (implemented 2026-07-23 – 2026-07-31; issues beeatlas-29j, beeatlas-u15, stelis st-8bj). Amended 2026-11-02: an archive already loaded is not loaded again (beeatlas-4uez).
 
 ---
 
@@ -116,3 +116,42 @@ it lives in one function so there is a single home for that knowledge.
 **A `records`-quantified answer on the total-moved path.** Would cost a second query to
 quantify a question already answered; the contract permits `records: null`, so we
 short-circuit instead.
+
+## Amendment (2026-11-02): an archive already loaded is not loaded again, and the loader owns `canonical_name`
+
+The probe spared the ZIP build, but the dlt load after it still replaced both tables
+every night with the rows they already held. Stelis's peak-memory figures (stelis
+`st-1hi.1`) showed that load was the nightly's largest process, at about 2.4 GB, and
+it took about 20 s (beeatlas-4uez). Two decisions follow, and the second is what makes
+the first safe.
+
+**The loader records what it loaded and skips a load it already made.** After a load,
+it writes one row to `ecdysis_data.loaded_archive`: the archive's sha256 and a
+fingerprint of the code that turns an archive into rows (this file, the dlt version and
+the Python version, since the csv module once changed how the archive parsed,
+beeatlas-3je9). A run whose archive and fingerprint both match skips the dlt load. The
+row lives in the DuckDB beside the tables it describes, so a restored or replaced
+database carries its own record, and the row is dropped before each load, so a load that
+fails part way is never taken for a complete one. The check is on the bytes, not on the
+probe's verdict, so it covers every path to an archive: the probe, the TTL cache, and a
+failed download that falls back to the cache. On a night when nothing changed, the step
+measured 0.6 s and 198 MB on Hostess, against 34.5 s and 2.5 GB for a load.
+
+**`canonical_name` on `ecdysis_data.occurrences` and `.identifications` is the
+loader's, set on every run.** The checklist task used to add it, writing into the
+ecdysis task's output after the load had emptied the column. That was harmless while
+every night reloaded, because the column was always rebuilt in the same order. With
+the load skipped, the tables would keep the previous night's values. Stelis's digest of
+`ecdysis_data` covers every column except dlt's own, so the digest it records after the
+ecdysis task (column empty) and the content the next night (column filled) would
+differ, and every night after a real change would read as a change. Now the loader sets
+the column itself, whether or not it loaded, so a change to `canonical_name.py` still
+reaches tables it did not reload, and the content Stelis sees after the ecdysis task is
+the content every later task reads. Only the first build after this change sees
+`ecdysis_data` as changed.
+
+To force a load of the archive already on disk, drop `ecdysis_data.loaded_archive`.
+`ECDYSIS_CACHE_TTL_SECONDS=0` does not force one: it only bypasses the TTL cache, after
+which the probe may still reuse the cached ZIP, and a fetched archive loads only if its
+bytes differ from the one recorded. Making the load itself use less memory, for the
+nights it does run, is beeatlas-4uez's second half and a separate issue (beeatlas-0kri).

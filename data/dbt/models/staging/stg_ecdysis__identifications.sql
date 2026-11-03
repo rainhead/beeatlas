@@ -9,7 +9,7 @@
 -- happens in int_ecdysis_identifications.
 --
 -- canonical_name is materialized at load time by
--- checklist_pipeline._update_identifications_canonical_name (data/canonical_name.py
+-- ecdysis_pipeline.materialize_canonical_names (data/canonical_name.py
 -- — the single NORMALIZATION authority: stripping subgenus parens, authority
 -- strings, and trinomial tails is its job, never SQL's. Downstream SQL may still
 -- inspect name SHAPE — e.g. int_ecdysis_identifications' rank derivation — but

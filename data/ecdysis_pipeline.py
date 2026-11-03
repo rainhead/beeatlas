@@ -1,7 +1,9 @@
 import csv
+import hashlib
 import io
 import json
 import os
+import sys
 import time
 import zipfile
 from dataclasses import dataclass
@@ -10,8 +12,11 @@ from urllib import parse
 
 import dlt
 import duckdb
+import pyarrow as pa
 import requests
 from bs4 import BeautifulSoup
+
+from canonical_name import normalize_scientific_name
 
 DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
 
@@ -421,18 +426,15 @@ def _iter_tab_file(zf: zipfile.ZipFile, filename: str):
 
 
 @dlt.source(name="ecdysis")
-def ecdysis_source(dataset_id: int = dlt.config.value):
-    """Load occurrence data from an Ecdysis (Symbiota) dataset.
+def ecdysis_source(zip_bytes: bytes):
+    """Occurrences and identifications from an Ecdysis (Symbiota) dataset's ZIP.
 
     Args:
-        dataset_id: Ecdysis dataset ID.
-                    Auto-loaded from config.toml [sources.ecdysis] dataset_id.
+        zip_bytes: the archive, as _download_zip returns it.
 
     Example:
-        pipeline.run(ecdysis_source())
-        pipeline.run(ecdysis_source(dataset_id=44))
+        pipeline.run(ecdysis_source(_download_zip(44)))
     """
-    zip_bytes = _download_zip(dataset_id)
 
     @dlt.resource(name="occurrences", primary_key="id", write_disposition="replace")
     def occurrences():
@@ -445,6 +447,114 @@ def ecdysis_source(dataset_id: int = dlt.config.value):
             yield from _iter_tab_file(zf, "identifications.tab")
 
     return occurrences(), identifications()
+
+
+# --- Skipping a load the tables already hold (ADR 0023 amendment) ---------------
+# The change-probe spares the ZIP build, but the dlt load that follows it took about
+# 2.4 GB and 20 s every night, to replace both tables with the rows they already
+# held. So the loader records what it last loaded, and loads again only when that
+# differs: the archive's bytes, or the code that turns them into rows. The record
+# is a table beside the two it describes, so it travels with them when the DuckDB
+# is restored from a backup or replaced, and can never describe some other copy.
+LOADED_ARCHIVE_TABLE = "ecdysis_data.loaded_archive"
+ECDYSIS_TABLES = ("ecdysis_data.occurrences", "ecdysis_data.identifications")
+
+
+def _loader_fingerprint() -> str:
+    """What decides the rows a given archive becomes: this file, dlt and Python.
+
+    This file holds the parsing rules (_iter_tab_file's quoting and delimiter); dlt
+    normalizes the column names and types; Python's csv module did once change how
+    an archive parsed (3.14.9, beeatlas-3je9). A change to any of them reloads once,
+    including a change that turns out not to matter, which is the safe direction.
+    """
+    h = hashlib.sha256()
+    h.update(Path(__file__).read_bytes())
+    h.update(f"\0dlt {dlt.__version__}\0python {sys.version}".encode())
+    return h.hexdigest()
+
+
+def _archive_already_loaded(con: duckdb.DuckDBPyConnection, archive_sha256: str,
+                            loader: str) -> bool:
+    """True iff both tables exist and were last loaded from this archive by this loader."""
+    present = con.execute(
+        "SELECT count(*) FROM information_schema.tables "
+        "WHERE table_schema = 'ecdysis_data' "
+        "AND table_name IN ('occurrences', 'identifications', 'loaded_archive')"
+    ).fetchone()[0]
+    if present != 3:
+        return False
+    row = con.execute(
+        f"SELECT archive_sha256, loader FROM {LOADED_ARCHIVE_TABLE}"
+    ).fetchall()
+    return row == [(archive_sha256, loader)]
+
+
+def _forget_loaded_archive(con: duckdb.DuckDBPyConnection) -> None:
+    """Drop the record before a load, so a load that fails part way, having replaced
+    one table but not the other, can never be taken for a complete one."""
+    con.execute(f"DROP TABLE IF EXISTS {LOADED_ARCHIVE_TABLE}")
+
+
+def _record_loaded_archive(con: duckdb.DuckDBPyConnection, archive_sha256: str,
+                           loader: str) -> None:
+    con.execute(
+        f"CREATE OR REPLACE TABLE {LOADED_ARCHIVE_TABLE} "
+        "(archive_sha256 VARCHAR, loader VARCHAR, loaded_at TIMESTAMPTZ)"
+    )
+    con.execute(
+        f"INSERT INTO {LOADED_ARCHIVE_TABLE} VALUES (?, ?, now())",
+        [archive_sha256, loader],
+    )
+
+
+def _materialize_canonical_name(con: duckdb.DuckDBPyConnection, table: str) -> None:
+    """Set canonical_name on an ecdysis_data table from its scientific_name.
+
+    normalize_scientific_name is called once per DISTINCT scientific_name (a few
+    thousand), then mapped back with one UPDATE. A row whose scientific_name is
+    NULL or empty keeps a NULL canonical_name. The result depends only on
+    scientific_name, so running it again on rows it already set changes nothing.
+    """
+    con.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS canonical_name VARCHAR")
+    rows = con.execute(f"""
+        SELECT DISTINCT scientific_name FROM {table}
+        WHERE scientific_name IS NOT NULL AND scientific_name != ''
+    """).fetchall()
+    mapping = [(normalize_scientific_name(r[0]), r[0]) for r in rows]
+    if mapping:
+        canon_col, sci_col = zip(*mapping)
+        arrow_tbl = pa.table({
+            "canonical_name": pa.array(canon_col, type=pa.string()),
+            "scientific_name": pa.array(sci_col, type=pa.string()),
+        })
+        try:
+            con.register("_canon_map", arrow_tbl)
+            con.execute(
+                f"UPDATE {table} AS o "
+                "SET canonical_name = m.canonical_name "
+                "FROM _canon_map AS m "
+                "WHERE o.scientific_name = m.scientific_name"
+            )
+        finally:
+            con.unregister("_canon_map")
+    updated = con.execute(
+        f"SELECT count(*) FROM {table} WHERE canonical_name IS NOT NULL"
+    ).fetchone()[0]
+    print(f"  {table} canonical_name: {updated} rows set")  # noqa: T201
+
+
+def materialize_canonical_names(con: duckdb.DuckDBPyConnection) -> None:
+    """canonical_name on both tables: the join key that int_synonyms, the taxon-id
+    bridge and the checklist key on, so that 'Lasioglossum (Dialictus)' and an
+    authority-bearing name land on the shared vocabulary (beeatlas-fc4).
+
+    The loader's own column, set on every run, whether or not it loaded: a skipped
+    load must still pick up a change to canonical_name.py. It used to be written by
+    the checklist task, into this task's output, after the load had dropped it.
+    """
+    for table in ECDYSIS_TABLES:
+        _materialize_canonical_name(con, table)
 
 
 def _extract_inat_id(html: str | None) -> int | None:
@@ -536,14 +646,38 @@ def ecdysis_links_source(
     return occurrence_links()
 
 
-def load_ecdysis() -> None:
-    pipeline = dlt.pipeline(
-        pipeline_name="ecdysis",
-        destination=dlt.destinations.duckdb(DB_PATH),
-        dataset_name="ecdysis_data",
-    )
-    load_info = pipeline.run(ecdysis_source())
-    print(load_info)  # noqa: T201
+def load_ecdysis(dataset_id: int | None = None) -> None:
+    if dataset_id is None:
+        dataset_id = dlt.config["sources.ecdysis.dataset_id"]
+    zip_bytes = _download_zip(dataset_id)
+    archive_sha256 = hashlib.sha256(zip_bytes).hexdigest()
+    loader = _loader_fingerprint()
+
+    with duckdb.connect(DB_PATH) as con:
+        con.execute("CREATE SCHEMA IF NOT EXISTS ecdysis_data")
+        skip = _archive_already_loaded(con, archive_sha256, loader)
+        if not skip:
+            _forget_loaded_archive(con)
+
+    if skip:
+        print(  # noqa: T201
+            f"  ecdysis_data already holds this archive (sha256 {archive_sha256[:12]}); "
+            "not reloading"
+        )
+    else:
+        pipeline = dlt.pipeline(
+            pipeline_name="ecdysis",
+            destination=dlt.destinations.duckdb(DB_PATH),
+            dataset_name="ecdysis_data",
+        )
+        load_info = pipeline.run(ecdysis_source(zip_bytes))
+        load_info.raise_on_failed_jobs()
+        print(load_info)  # noqa: T201
+
+    with duckdb.connect(DB_PATH) as con:
+        materialize_canonical_names(con)
+        if not skip:
+            _record_loaded_archive(con, archive_sha256, loader)
 
 
 def load_links() -> None:
