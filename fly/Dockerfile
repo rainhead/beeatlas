@@ -204,6 +204,8 @@ RUN caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 # data/publish-notes.sh already take: VAR_DIR for the DuckDB, the export, the baseline,
 # the Stelis state and the publish lock; SITE_ROOT for what Caddy serves; the notes
 # store; dlt's working directory. fly/prepare-volume.sh creates them on first boot.
+# /data/staging is where Hostess sends its build (data/send-build.sh, ADR 0046), under
+# /data/var/staging.lock; rsync creates it on the first send.
 # dbt/target exists by now (run.sh --identity makes its sandbox), so it is removed
 # first; without that the link would land INSIDE it and dbt would write to the image.
 RUN ln -s /data/raw /app/data/raw \

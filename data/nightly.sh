@@ -56,8 +56,9 @@
 #
 # On Hostess (ADR 0046) infra/hostess/nightly.sh runs this with the layout below
 # under ~/beeatlas-nightly, BEEATLAS_CODE_PINNED (it has already checked out the
-# code, so step 1 pulls nothing) and NOTES_FROM_FLY_APP (step 3a takes the Machine's
-# notes/). docs/runbooks/hostess-nightly.md.
+# code, so step 1 pulls nothing), NOTES_FROM_FLY_APP (step 3a takes the Machine's
+# notes/) and SEND_TO_FLY_APP (step 6 sends the build to the Machine's staging
+# directory instead of merge-swapping). docs/runbooks/hostess-nightly.md.
 #
 # Layout (the /var/www htdocs+var convention; see
 # docs/runbooks/serve-from-maderas.md for the migration):
@@ -673,21 +674,35 @@ node scripts/build-receipt.mjs --write
 # lives in data/merge-swap.sh — THE publish contract, shared with the st-nee
 # note-write path (data/publish-notes.sh). Exit 3 = SITE_ROOT absent, which
 # for the nightly is a skip (fresh host), not a failure.
-_stage="merge-swap"
-echo "--- publishing into $SITE_ROOT ---"
-_t0=$(date +%s)
+#
+# On Hostess (SEND_TO_FLY_APP, ADR 0046) there is no SITE_ROOT: the build goes to a
+# staging directory on the Machine instead, and is checked there against the
+# Machine's checkout (data/send-build.sh). Nothing finishes the publish from the
+# staged copy yet (beeatlas-uibw.5), so the run publishes nothing, as before.
 _published=""
-_swap_rc=0
-# MERGE_SWAP_VERIFY: once a day, check the live data files' bytes, not only their names.
-MERGE_SWAP_VERIFY=1 BASE_DIR="$BASE_DIR" SITE_ROOT="$SITE_ROOT" bash "$SCRIPT_DIR/merge-swap.sh" || _swap_rc=$?
-if [[ $_swap_rc -eq 0 ]]; then
-    _published=1
-    echo "published in $(_elapsed $_t0)"
-elif [[ $_swap_rc -eq 3 ]]; then
-    _stage="site-root-absent"
-    echo "NOTE: SITE_ROOT $SITE_ROOT absent — publish skipped (install: docs/runbooks/serve-from-maderas.md)" >&2
+if [[ -n "${SEND_TO_FLY_APP:-}" ]]; then
+    _stage="send-build"
+    echo "--- sending the build to the Machine ($SEND_TO_FLY_APP) ---"
+    _t0=$(date +%s)
+    bash "$SCRIPT_DIR/send-build.sh"
+    echo "sent and checked in $(_elapsed $_t0); not published (beeatlas-uibw.5)"
+    _stage="sent"
 else
-    exit $_swap_rc
+    _stage="merge-swap"
+    echo "--- publishing into $SITE_ROOT ---"
+    _t0=$(date +%s)
+    _swap_rc=0
+    # MERGE_SWAP_VERIFY: once a day, check the live data files' bytes, not only their names.
+    MERGE_SWAP_VERIFY=1 BASE_DIR="$BASE_DIR" SITE_ROOT="$SITE_ROOT" bash "$SCRIPT_DIR/merge-swap.sh" || _swap_rc=$?
+    if [[ $_swap_rc -eq 0 ]]; then
+        _published=1
+        echo "published in $(_elapsed $_t0)"
+    elif [[ $_swap_rc -eq 3 ]]; then
+        _stage="site-root-absent"
+        echo "NOTE: SITE_ROOT $SITE_ROOT absent — publish skipped (install: docs/runbooks/serve-from-maderas.md)" >&2
+    else
+        exit $_swap_rc
+    fi
 fi
 
 # 7. Snapshot the baseline for tomorrow's gate — only after a successful

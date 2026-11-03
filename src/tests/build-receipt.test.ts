@@ -143,3 +143,46 @@ describe('a note save still ignores what only a deploy reads', () => {
     expect(receipt('--check-deploy')).toBe(1);
   });
 });
+
+// ADR 0046: Hostess sends its build to a staging directory on the Machine, which checks
+// that copy against its own checkout. BEEATLAS_SITE_DIR and BEEATLAS_CACHE_DIR name the
+// copy, as EXPORT_DIR already names the data dir. rsync -t keeps modification times to
+// the nanosecond, as `cp -a` does here, and the data component compares them.
+describe('a copy of the built tree, checked where it was sent', () => {
+  let staged: string;
+  beforeEach(() => {
+    staged = mkdtempSync(join(tmpdir(), 'receipt-staged-'));
+    const trees: [string, string][] = [[join(root, '_site'), 'site'], [join(root, '.cache'), 'cache'], [data, 'export']];
+    for (const [from, to] of trees) {
+      expect(spawnSync('cp', ['-a', `${from}/.`, join(staged, to)]).status).toBe(0);
+    }
+  });
+  afterEach(() => rmSync(staged, { recursive: true, force: true }));
+
+  const stagedEnv = () => ({
+    EXPORT_DIR: join(staged, 'export'),
+    BEEATLAS_SITE_DIR: join(staged, 'site'),
+    BEEATLAS_CACHE_DIR: join(staged, 'cache'),
+  });
+
+  test('passes the check against the checkout', () => {
+    rmSync(join(root, '_site'), { recursive: true });
+    rmSync(join(root, '.cache'), { recursive: true });
+    expect(receipt('--check', stagedEnv())).toBe(0);
+  });
+
+  test('fails it when a page went missing on the way', () => {
+    rmSync(join(staged, 'site/index.html'));
+    expect(receipt('--check', stagedEnv())).toBe(1);
+  });
+
+  test('fails it when the copy lost the sub-second part of a modification time', () => {
+    const file = join(staged, 'export/species.json');
+    expect(spawnSync('touch', ['-d', '2026-01-02 03:04:05', file]).status).toBe(0);
+    expect(spawnSync('touch', ['-d', '2026-01-02 03:04:05.5', join(data, 'species.json')]).status).toBe(0);
+    expect(receipt('--write')).toBe(0);
+    rmSync(join(staged, 'cache'), { recursive: true });
+    expect(spawnSync('cp', ['-a', `${join(root, '.cache')}/.`, join(staged, 'cache')]).status).toBe(0);
+    expect(receipt('--check', stagedEnv())).toBe(1);
+  });
+});
