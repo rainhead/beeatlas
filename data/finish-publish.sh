@@ -30,6 +30,13 @@
 #                  withdrawn, so the next note save or deploy renders in full.
 set -euo pipefail
 
+# Over Fly SSH, HOME is root's even after setpriv has dropped to the app user, and the
+# app user cannot read it. DuckDB looks for its extensions under HOME, so Stelis could
+# not read the notes store's keys through sqlite_scanner and the first publish failed
+# (2026-11-03). Take HOME from the user this runs as, as a login would.
+HOME="$(getent passwd "$(id -un)" | cut -d: -f6)"
+export HOME
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 VAR_DIR="${VAR_DIR:-/data/var}"

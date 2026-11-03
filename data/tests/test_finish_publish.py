@@ -26,7 +26,7 @@ STAND_IN = """#!/usr/bin/env bash
 python3 - "$CALLED" <<'PY'
 import json, os, sys
 json.dump({k: os.environ.get(k) for k in
-           ("PUBLISH_LOCK_HELD", "EXTRA_RENDER_KEYS", "PUBLISH_PATH")},
+           ("PUBLISH_LOCK_HELD", "EXTRA_RENDER_KEYS", "PUBLISH_PATH", "HOME")},
           open(sys.argv[1], "w"))
 PY
 exit "${STAND_IN_EXIT:-0}"
@@ -178,3 +178,12 @@ def test_a_check_that_fails_for_another_reason_is_a_failure_not_stale(machine):
     assert r.returncode == 1
     assert outcome(r) == "finish-publish: failed"
     assert (machine["export"] / "species.json").read_text() == "last night"
+
+
+def test_home_is_the_running_users_whatever_the_caller_passed(machine):
+    """Over Fly SSH, HOME is root's after setpriv; DuckDB then cannot find sqlite_scanner
+    and the harvest cannot read the notes store's keys (the first publish, 2026-11-03)."""
+    import pwd
+    assert finish(machine, HOME="/root").returncode == 0
+    called = json.loads(machine["called"].read_text())
+    assert called["HOME"] == pwd.getpwuid(os.getuid()).pw_dir
