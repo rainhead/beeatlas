@@ -29,6 +29,16 @@
 # untouched by a note write.
 #
 # Env contract mirrors data/nightly.sh ($BASE_DIR htdocs+var layout).
+#
+# data/finish-publish.sh runs this too, to finish publishing the nightly that Hostess
+# built (ADR 0046), and sets three variables the API never does:
+#   PUBLISH_LOCK_HELD=1  the caller already holds the publish lock, on file
+#                        descriptor 200, which this inherits; take it again and the
+#                        two would wait on each other.
+#   EXTRA_RENDER_KEYS    more species to re-render, one canonical_name per line, beside
+#                        those whose notes the harvest moved.
+#   PUBLISH_PATH         the path recorded in the publish receipt: note (the default)
+#                        or nightly.
 
 set -euo pipefail
 
@@ -77,10 +87,12 @@ echo "=== note publish $(_ts) ==="
 mkdir -p "$VAR_DIR" "$EXPORT_DIR"
 
 # 1. Publish lock, shared with the nightly. Bounded wait, then EX_TEMPFAIL.
-exec 200>"$VAR_DIR/publish.lock"
-if ! flock -w "${PUBLISH_LOCK_WAIT:-60}" 200; then
-    echo "publish lock busy after ${PUBLISH_LOCK_WAIT:-60}s — the holder bakes the committed note" >&2
-    exit 75
+if [[ -z "${PUBLISH_LOCK_HELD:-}" ]]; then
+    exec 200>"$VAR_DIR/publish.lock"
+    if ! flock -w "${PUBLISH_LOCK_WAIT:-60}" 200; then
+        echo "publish lock busy after ${PUBLISH_LOCK_WAIT:-60}s — the holder bakes the committed note" >&2
+        exit 75
+    fi
 fi
 
 # Node via NVM (the systemd user service has no login shell environment); in the
@@ -117,10 +129,13 @@ _invalidate_receipt_on_failure() {
         local _outcome="not-published"
         [[ -n "${_note_published:-}" ]] && _outcome="published"
         ( cd "$STELIS_DIR" && env BEEATLAS_DIR="$REPO_ROOT" racket src/main.rkt \
-            --mark-publish "$_sb_num" "$_sb_epoch" "$_outcome" "${_stage:-unknown}" note ) || true
+            --mark-publish "$_sb_num" "$_sb_epoch" "$_outcome" "${_stage:-unknown}" "${PUBLISH_PATH:-note}" ) || true
     fi
+    # The Machine's state dir holds the note saves' builds and the finishing step's,
+    # not the nightly's, which runs on Hostess and sends /build-log.html itself
+    # (ADR 0046); so this state dir's page is served beside it.
     if [[ -f "$STELIS_STATE_DIR/build-log.html" && -d "$SITE_ROOT" ]]; then
-        cp "$STELIS_STATE_DIR/build-log.html" "$SITE_ROOT/build-log.html" || true
+        cp "$STELIS_STATE_DIR/build-log.html" "$SITE_ROOT/build-log-notes.html" || true
     fi
 }
 trap _invalidate_receipt_on_failure EXIT
@@ -187,6 +202,9 @@ if [[ -f "$STELIS_REPORT_DIR/moved-keys" ]]; then
     # Stelis reports notes/ FILENAMES; the render is keyed by canonical_name. Same
     # basename mapping _data/notes.js applies when it reads the dir (beeatlas-6x9).
     _keys=$(printf '%s' "$_moved" | sed 's/\.json$//')
+    if [[ -n "${EXTRA_RENDER_KEYS:-}" ]]; then
+        _keys=$(printf '%s\n%s\n' "$_keys" "$EXTRA_RENDER_KEYS" | grep . | sort -u || true)
+    fi
     if node scripts/build-receipt.mjs --check; then
         _scoped=yes
     fi

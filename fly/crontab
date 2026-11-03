@@ -4,9 +4,10 @@
 # (fly/logged.sh). Their environment is the Machine's: fly.toml's [env] plus the Fly
 # secrets other than the API's (fly/start.sh).
 
-# The nightly (data/nightly.sh): build, gate, publish, back up. Needs
-# PIPELINE_BACKUP_BUCKET, the AWS key, and the loaders' SOURCES__ECDYSIS__* secrets.
-0 3 * * * /app/fly/logged.sh nightly bash /app/data/nightly.sh
+# No nightly: since 2026-11-03 it runs on Hostess (ADR 0046,
+# docs/runbooks/hostess-nightly.md), which sends its build here and runs
+# data/finish-publish.sh over Fly SSH. data/nightly.sh stays in the image for an
+# operator to run by hand while the image still carries the pipeline (beeatlas-uibw.7).
 
 # The notes store's hourly snapshot (docs/runbooks/notes-store-dr.md §3), as on
 # maderas. Needs NOTES_BACKUP_BUCKET and the AWS key.

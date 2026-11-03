@@ -9,8 +9,48 @@ what an operator needs that the scripts don't say on their own.
 
 A run that passes every gate sends its build to `/data/staging` on the Machine's volume
 and checks it there against the Machine's checkout with the build receipt
-([`data/send-build.sh`](../../data/send-build.sh)). Nothing yet publishes from the
-staged copy (`beeatlas-uibw.5`), so the Machine's own nightly still publishes.
+([`data/send-build.sh`](../../data/send-build.sh)). With `FINISH_PUBLISH=1` in
+`nightly.env`, the Machine then publishes it, with the notes from its live store
+([`data/finish-publish.sh`](../../data/finish-publish.sh)). Without that line the run
+sends and checks only, which is how the parallel trial ran (`beeatlas-uibw.6`) while the
+Machine's own nightly still published. Hostess has published the nightly since the
+cutover on 2026-11-03, and the Machine's schedule no longer runs one.
+
+The operator page, `/build-log.html`, is the nightly's, sent from Hostess when
+`data/nightly.sh` exits, failed runs included. A run that fails before that script
+starts, in the wrapper (reading the Machine's commit, or the first `git fetch`), sends no
+page, so the one served is still the last run's; its failure is only in
+`log/nightly-<date>.log`. The Machine's own builds (note saves and the finishing step)
+have theirs at `/build-log-notes.html`.
+
+## What a run's last lines mean
+
+- `published on the Machine` — the site serves tonight's build. Only this advances the
+  integration baseline, marks the build published in Stelis and pings the healthcheck.
+- `not published: FINISH_PUBLISH is not set` — sent and checked, no more, as in the
+  trial. Since the cutover this means `nightly.env` has lost its `FINISH_PUBLISH=1`.
+- `the Machine moved from <sha> to <sha> during the build; building again` — a deploy
+  landed mid-run, so the staged build failed its check. The run builds once more at the
+  new commit; a second mismatch fails the run.
+- `a lock on the Machine was held too long` — something held the publish lock for ten
+  minutes. Nothing changed on the Machine; the next night publishes.
+- `the Machine did not publish (outcome 'failed')` — the finishing step's own output is
+  in the log above, and in `var/finish-publish.log`. If it failed after it began
+  installing, it withdrew the build receipt, so the next note save renders in full.
+- `the call to the Machine failed (rc=…); trying again in 30s` — Fly's API or the
+  tunnel failed; the call is retried three times over about four minutes.
+
+## Cutover
+
+Done on 2026-11-03, in this order:
+
+1. Remove the nightly from the Machine's schedule (`fly/crontab`) and deploy
+   (`beeatlas-uibw.7`). This comes first: the Machine's nightly holds the publish lock
+   for its whole run, and a Hostess run started at the same hour would wait on it.
+2. Add `FINISH_PUBLISH=1` to `nightly.env`, and replace the trial's `HEALTHCHECK_URL=`
+   and `SKIP_PIPELINE_BACKUP=1` with the backup settings described below.
+3. Remove the timer's trial drop-in, `~/.config/systemd/user/beeatlas-nightly.timer.d/trial.conf`,
+   so the run starts at 03:00.
 
 ## Layout
 
@@ -27,10 +67,10 @@ Everything lives under `~/beeatlas-nightly`, laid out like the Machine's volume
 - `log/nightly-<date>.log` — the whole run's output.
 
 Secrets and per-host switches are in `~/.config/beeatlas/nightly.env` (mode 600): the
-Ecdysis sign-in, the Fly token below, and either the trial's `HEALTHCHECK_URL=` and
-`SKIP_PIPELINE_BACKUP=1` or, after cutover, `PIPELINE_BACKUP_BUCKET` and the
-`beeatlas-hostess-pipeline` key (`infra/lib/beeatlas-stack.ts`; the key is made outside
-CDK).
+Ecdysis sign-in, the Fly token below, `FINISH_PUBLISH=1`, and `PIPELINE_BACKUP_BUCKET`
+with the `beeatlas-hostess-pipeline` key (`infra/lib/beeatlas-stack.ts`; the key is made
+outside CDK). A second host on trial instead has `HEALTHCHECK_URL=` and
+`SKIP_PIPELINE_BACKUP=1`, and no `FINISH_PUBLISH`.
 
 ## Reaching the Machine
 
@@ -97,17 +137,10 @@ Two identities, kept apart on purpose:
    loginctl enable-linger
    ```
 
-During the trial, while the Machine's own nightly still runs at 03:00, start Hostess's
-at 04:30 instead. The Machine's nightly holds the publish lock for its whole run, and
-Hostess copies the Machine's `notes/` under that lock, waiting at most ten minutes.
-Remove the drop-in at cutover:
-
-```bash
-mkdir -p ~/.config/systemd/user/beeatlas-nightly.timer.d
-printf '[Timer]\nOnCalendar=\nOnCalendar=*-*-* 04:30:00 America/Los_Angeles\n' \
-  > ~/.config/systemd/user/beeatlas-nightly.timer.d/trial.conf
-systemctl --user daemon-reload
-```
+A host on trial beside one that publishes should start later than 03:00, with a timer
+drop-in setting another `OnCalendar=` (the trial used 04:30): the publishing run holds
+the Machine's publish lock while it finishes, and the trial copies the Machine's `notes/`
+under that lock, waiting at most ten minutes.
 
 ## Running it
 

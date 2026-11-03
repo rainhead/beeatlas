@@ -89,11 +89,13 @@ BEEATLAS_RENDER_KEYS='agapostemon virescens' pnpm run build:content
 Each entry is the part you could break without noticing. The reasoning is in the
 linked ADR — read it before changing anything an entry calls load-bearing.
 
-- **Pipeline.** `data/nightly.sh`, run at 03:00 Pacific by the Machine's schedule
-  (`fly/crontab`), is the single repo entry point and owns everything up to the
-  merge-swap publish; the crontab knows only how to start it. Change deployment
-  behaviour there, not in the crontab. The image carries the code, so a code change
-  reaches the nightly by deploying, not by a `git pull`.
+- **Pipeline.** `data/nightly.sh` is the single repo entry point and owns everything up
+  to the publish. Since 2026-11-03 it runs on Hostess at 03:00 Pacific, from a systemd
+  timer, at the commit the Machine runs, and the Machine publishes the build Hostess sends
+  ([ADR 0046](docs/adr/0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md),
+  [docs/runbooks/hostess-nightly.md](docs/runbooks/hostess-nightly.md)). So a code change
+  reaches the nightly by deploying, not by a `git pull`, and the Machine's schedule
+  (`fly/crontab`) no longer runs it.
   **Stelis** is the data engine (ADR 0007 Amendment) — a content-addressed graph over
   `data/`, env-driven by `DB_PATH`/`EXPORT_DIR`/`NOTES_DB_PATH`, invoked via
   `pnpm run fetch-data`. It knows nothing about S3, git, or the site render. It replaced
