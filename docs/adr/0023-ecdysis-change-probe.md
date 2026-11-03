@@ -150,6 +150,8 @@ reaches tables it did not reload, and the content Stelis sees after the ecdysis 
 the content every later task reads. Only the first build after this change sees
 `ecdysis_data` as changed.
 
-`ECDYSIS_CACHE_TTL_SECONDS=0` still forces a fresh archive, and so a load. Making the
-load itself use less memory, for the nights it does run, is beeatlas-4uez's second
-half and a separate issue.
+To force a load of the archive already on disk, drop `ecdysis_data.loaded_archive`.
+`ECDYSIS_CACHE_TTL_SECONDS=0` does not force one: it only bypasses the TTL cache, after
+which the probe may still reuse the cached ZIP, and a fetched archive loads only if its
+bytes differ from the one recorded. Making the load itself use less memory, for the
+nights it does run, is beeatlas-4uez's second half and a separate issue (beeatlas-0kri).
