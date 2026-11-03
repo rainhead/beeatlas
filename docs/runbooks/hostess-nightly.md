@@ -16,9 +16,12 @@ sends and checks only, which is how the parallel trial ran (`beeatlas-uibw.6`) w
 Machine's own nightly still published. Hostess has published the nightly since the
 cutover on 2026-11-03, and the Machine's schedule no longer runs one.
 
-The operator page, `/build-log.html`, is the nightly's, sent from Hostess at the end of
-every run, failed ones included. The Machine's own builds (note saves and the finishing
-step) have theirs at `/build-log-notes.html`.
+The operator page, `/build-log.html`, is the nightly's, sent from Hostess when
+`data/nightly.sh` exits, failed runs included. A run that fails before that script
+starts, in the wrapper (reading the Machine's commit, or the first `git fetch`), sends no
+page, so the one served is still the last run's; its failure is only in
+`log/nightly-<date>.log`. The Machine's own builds (note saves and the finishing step)
+have theirs at `/build-log-notes.html`.
 
 ## What a run's last lines mean
 
