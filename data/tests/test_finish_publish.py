@@ -169,3 +169,12 @@ def test_a_failed_publish_is_reported_as_failed(machine):
     r = finish(machine, STAND_IN_EXIT="1")
     assert r.returncode == 1
     assert outcome(r) == "finish-publish: failed"
+
+
+def test_a_check_that_fails_for_another_reason_is_a_failure_not_stale(machine):
+    """Stale sends Hostess off to build again, so only the receipt's own verdict counts."""
+    (machine["staging"] / "cache/beeatlas-build/receipt.json").unlink()
+    r = finish(machine)
+    assert r.returncode == 1
+    assert outcome(r) == "finish-publish: failed"
+    assert (machine["export"] / "species.json").read_text() == "last night"

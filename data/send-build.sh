@@ -70,15 +70,23 @@ _send() {
 fly_retry _send
 
 echo "  checking the staged build against the Machine's checkout"
+_check_log=$(mktemp)
+trap 'rm -f "$_check_log"' EXIT
 _check() {
     "$FLYCTL" ssh console -q -a "$FLY_APP" -C "$AS_APP flock -w 600 $STAGING_LOCK \
 env EXPORT_DIR=$STAGING/export BEEATLAS_SITE_DIR=$STAGING/site BEEATLAS_CACHE_DIR=$STAGING/cache \
-node /app/scripts/build-receipt.mjs --check" | tr -d '\r'
+node /app/scripts/build-receipt.mjs --check" 2>&1 | tr -d '\r' | tee "$_check_log"
 }
-# A check that ran and failed is not retried (fly_retry sees the remote exit): the
-# Machine's checkout no longer matches the one this build was made from, almost always
-# because a deploy landed after the run read the Machine's commit.
-if ! fly_retry _check; then
-    echo "  the staged build does not match the Machine's checkout" >&2
-    exit "$EX_STALE"
+# A check that ran and failed is not retried (fly_retry sees the remote exit). It is
+# stale only when the receipt says so: the Machine's checkout no longer matches the one
+# this build was made from, almost always because a deploy landed after the run read
+# the Machine's commit. Any other failure (the lock, the connection) is just a failure.
+_check_rc=0
+fly_retry _check || _check_rc=$?
+if [[ $_check_rc -ne 0 ]]; then
+    if grep -q '^build receipt stale:' "$_check_log"; then
+        echo "  the staged build does not match the Machine's checkout" >&2
+        exit "$EX_STALE"
+    fi
+    exit "$_check_rc"
 fi

@@ -61,10 +61,16 @@ cd "$REPO_ROOT"
 for d in "$STAGING/export" "$STAGING/site" "$STAGING/cache/beeatlas-build" "$STAGING/cache/beeatlas-vite"; do
     [[ -d "$d" ]] || { echo "nothing staged: no $d" >&2; exit 1; }
 done
-# 1.
-if ! EXPORT_DIR="$STAGING/export" BEEATLAS_SITE_DIR="$STAGING/site" BEEATLAS_CACHE_DIR="$STAGING/cache" \
-        node scripts/build-receipt.mjs --check; then
-    _outcome=stale; exit 79
+# 1. Stale only when the receipt says so; any other failure of the check is a failure.
+_check_rc=0
+_check_out=$(EXPORT_DIR="$STAGING/export" BEEATLAS_SITE_DIR="$STAGING/site" BEEATLAS_CACHE_DIR="$STAGING/cache" \
+        node scripts/build-receipt.mjs --check 2>&1) || _check_rc=$?
+echo "$_check_out"
+if [[ $_check_rc -ne 0 ]]; then
+    if grep -q '^build receipt stale:' <<< "$_check_out"; then
+        _outcome=stale; exit 79
+    fi
+    exit 1
 fi
 
 # 2. Each tree is copied beside its live one and renamed into place, so it is always
