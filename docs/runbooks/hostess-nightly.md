@@ -101,6 +101,8 @@ systemctl --user daemon-reload
   (absolute: a transient unit does not start in the current directory). Such a run
   backs up nothing and sends no healthcheck ping, whatever `nightly.env` says. Never
   send its build to the Machine.
-- A run missed while Hostess was off happens once at the next boot (the timer is
-  `Persistent`), at `Nice=10`. Until then the data is older, and once the healthcheck is
+- A run missed while Hostess was asleep or off happens once when it wakes or next boots
+  (the timer is `Persistent`), at `Nice=10`. A run made up on wake starts before the
+  network is back, so the service retries its first `git fetch` for up to five minutes
+  before failing. Until the run succeeds the data is older, and once the healthcheck is
   switched on, its late ping raises the alarm.

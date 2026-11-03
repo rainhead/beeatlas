@@ -2,19 +2,26 @@
 # linked) into ~/.config/systemd/user: the checkout it comes from is moved to the
 # Machine's commit every night, which can be older than this file.
 # docs/runbooks/hostess-nightly.md. Started by beeatlas-nightly.timer.
+#
+# No After=network-online.target: a user manager has no such unit, so the line
+# would be ignored, and the system's stays active through a suspend anyway. The
+# fetch below waits for the network itself instead (beeatlas-uibw.9).
 [Unit]
 Description=BeeAtlas nightly data build
-Wants=network-online.target
-After=network-online.target
 
 [Service]
 Type=oneshot
 # Secrets and per-host switches (Ecdysis, the backup key, the healthcheck): the
 # runbook lists them. Mode 600, outside any checkout.
 EnvironmentFile=%h/.config/beeatlas/nightly.env
+# A run the timer makes up after Hostess wakes from sleep starts within seconds of
+# the wake, before NetworkManager has reconnected (on 2026-11-02 the network was
+# back 10 s after the fetch failed). So retry the fetch every 5 s for up to 5
+# minutes before giving up. `$$` is a literal `$`: systemd expands `$` itself.
+ExecStartPre=/bin/sh -c 'n=0; until git -C %h/beeatlas-nightly/beeatlas fetch -q origin; do n=$$((n + 1)); if [ $$n -ge 60 ]; then echo "git fetch still failing after 5 minutes; giving up" >&2; exit 1; fi; sleep 5; done'
 # Run main's infra/hostess/nightly.sh from a copy outside the checkout, for the
-# reason above: the checkout's own copy may not exist at the Machine's commit.
-ExecStartPre=/usr/bin/git -C %h/beeatlas-nightly/beeatlas fetch -q origin
+# reason in the first comment: the checkout's own copy may not exist at the
+# Machine's commit.
 ExecStartPre=/bin/sh -c 'git -C %h/beeatlas-nightly/beeatlas show origin/main:infra/hostess/nightly.sh > %h/beeatlas-nightly/nightly.sh'
 ExecStart=/bin/bash %h/beeatlas-nightly/nightly.sh
 # An ordinary night takes about five minutes on Hostess; a full rebuild is still
