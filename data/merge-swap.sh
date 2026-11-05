@@ -46,7 +46,7 @@ BASE_DIR="${BASE_DIR:-/var/www/beeatlas.net}"
 SITE_ROOT="${SITE_ROOT:-$BASE_DIR/htdocs}"
 
 if [[ ! -d "$SITE_ROOT" ]]; then
-    echo "NOTE: SITE_ROOT $SITE_ROOT absent — nothing to publish into (install: docs/runbooks/serve-from-maderas.md)" >&2
+    echo "NOTE: SITE_ROOT $SITE_ROOT absent — nothing to publish into (layout: BASE_DIR and SITE_ROOT in fly/Dockerfile)" >&2
     exit 3
 fi
 

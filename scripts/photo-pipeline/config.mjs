@@ -365,7 +365,7 @@ export const informationScore = (parts) =>
 /**
  * Downscale to 512px, portably.
  *
- * sips ships with macOS and nothing else; maderas (Ubuntu) has vips and ImageMagick. The
+ * sips ships with macOS and nothing else; a Linux server needs vips or ImageMagick installed. The
  * pipeline needs to run in both places -- the laptop for interactive work, the server for
  * long pulls, where the network is better and a 14-hour job does not block a laptop.
  *

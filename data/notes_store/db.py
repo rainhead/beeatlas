@@ -19,7 +19,7 @@ from pathlib import Path
 from sqlalchemy import create_engine, event
 
 # Module-level default path. Override via NOTES_DB_PATH env var (D-15: outside
-# EXPORT_DIR, public/data/, and the beeatlas.duckdb path on maderas).
+# EXPORT_DIR, public/data/, and the pipeline's beeatlas.duckdb).
 NOTES_DB_PATH = Path(os.environ.get("NOTES_DB_PATH", "/opt/beeatlas-store/notes.db"))
 
 

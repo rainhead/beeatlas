@@ -191,7 +191,7 @@ def _cmd_validate(spec: dict) -> None:
 def _cmd_pull_plan(spec: dict, args) -> None:
     """Emit TSV: name, hashed, source_file for every hashed artifact the live
     manifest names. (st-vjd repurposed this from baseline-pull-plan: the live
-    slim manifest names exactly the runtime artifacts maderas serves, and ALL
+    slim manifest names exactly the runtime artifacts production serves, and ALL
     of them are pullable — baseline_diff selects integration-gate diffables,
     a different, narrower set.)
 

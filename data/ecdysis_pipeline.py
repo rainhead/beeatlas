@@ -41,7 +41,8 @@ ECDYSIS_CACHE_TTL_SECONDS = int(os.environ.get("ECDYSIS_CACHE_TTL_SECONDS", "216
 # The login form has NO CSRF token (no pre-GET needed); the real credential form's
 # submit control is `action=login` and its username field is `login` (verified live
 # 2026-06-24 — see 163-RESEARCH.md Q1). Credentials live in data/.dlt/secrets.toml
-# [sources.ecdysis] (gitignored, maderas-only) and are NEVER logged.
+# [sources.ecdysis] (gitignored) or in SOURCES__ECDYSIS__USERNAME/PASSWORD, as on
+# Hostess (data/README.md), and are NEVER logged.
 ECDYSIS_LOGIN_URL = "https://ecdysis.org/profile/index.php"
 ECDYSIS_DOWNLOAD_URL = "https://ecdysis.org/collections/download/downloadhandler.php"
 _ZIP_MAGIC = b"PK\x03\x04"  # ZIP local-file-header magic bytes

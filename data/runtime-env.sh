@@ -1,8 +1,9 @@
 # Sourced by data/nightly.sh, data/publish-notes.sh and data/publish-code.sh: what
 # differs between the two places they run (beeatlas-h6mo).
 #
-#   a host checkout   maderas: a git clone the nightly updates itself, beside a Stelis
-#                     clone it updates too, with node reached through nvm.
+#   a host checkout   Hostess: git clones of BeeAtlas and Stelis that the nightly's
+#                     wrapper moves to the Machine's commit before each run
+#                     (BEEATLAS_CODE_PINNED), with node reached through nvm.
 #   the Fly image     BEEATLAS_CONTAINER=1 (fly/Dockerfile): the code, Stelis and every
 #                     dependency were fixed when the image was built. Nothing is pulled
 #                     or installed at runtime; a change ships as a new image. A nightly

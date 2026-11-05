@@ -6,9 +6,9 @@ the notes store to the authoritative backup bucket. One module means one way to
 find credentials and one way to fail (beeatlas-gcdo.1, beeatlas-pqfr).
 
 CREDENTIALS. The named profile (AWS_PROFILE, default "beeatlas") when this machine
-has it, which is how maderas runs. Otherwise the key pair in the environment
-(AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY), which is how a container receives
-them, as Fly secrets. Otherwise a refusal that says which of the two is missing.
+has it (maderas ran that way; no current host does). Otherwise the key pair in the
+environment (AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY), which is how the Fly
+Machine receives them, as Fly secrets, and how Hostess's nightly.env supplies them. Otherwise a refusal that says which of the two is missing.
 The fallback exists because boto3 treats an AWS_PROFILE naming a profile that is
 not configured as fatal, even when a key pair is right there in the environment;
 the AWS CLI's --profile did the same, and the nightly's `|| true` hid it.

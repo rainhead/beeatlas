@@ -40,13 +40,15 @@ export NOTES_DB_PATH=/opt/beeatlas-store/notes.db
 
 ## 2. Bootstrap (First-Time Setup)
 
-Run once on maderas before starting the app or running any backup.
+Run once on a new host with no store, before starting the app or running any backup.
+The Fly Machine does not need it: it restores the store from its Litestream replica
+(§6). These steps were written for maderas, which served production until 2026-10-23.
 
 ### 2a. Create the store directory
 
-maderas has **no passwordless sudo**, so the store lives in the operator's home dir
-(outside `/tmp/beeatlas-export`, `/tmp/beeatlas.duckdb`, and the git checkout — which is
-all that STORE-04 requires). Actual deployed path: `~/beeatlas-store/notes.db`.
+On a host without passwordless sudo (maderas was one), put the store in the operator's
+home dir, outside `/tmp/beeatlas-export`, `/tmp/beeatlas.duckdb` and the git checkout,
+which is all that STORE-04 requires. maderas used `~/beeatlas-store/notes.db`.
 
 ```bash
 mkdir -p ~/beeatlas-store
@@ -57,8 +59,7 @@ export NOTES_DB_PATH=$HOME/beeatlas-store/notes.db
 
 ```bash
 cd ~/dev/beeatlas/data
-NOTES_DB_PATH=/opt/beeatlas-store/notes.db \
-  uv run alembic -c notes_store/migrations/alembic.ini upgrade head
+uv run alembic -c notes_store/migrations/alembic.ini upgrade head
 ```
 
 This creates `notes.db` (if it doesn't exist), applies the initial schema, and records
@@ -67,8 +68,7 @@ This creates `notes.db` (if it doesn't exist), applies the initial schema, and r
 ### 2c. (Optional) Seed sample notes
 
 ```bash
-NOTES_DB_PATH=/opt/beeatlas-store/notes.db \
-  uv run python -m notes_store.seed
+uv run python -m notes_store.seed
 ```
 
 ### 2d. Confirm WAL mode is persisted
@@ -80,7 +80,7 @@ are checkpointed away on clean close, so an idle store showing just `notes.db` i
 correct. What Phase 179's read-only harvest needs is WAL *mode*, not the sidecar files.
 
 ```bash
-uv run python -c "import sqlite3,os; print(sqlite3.connect(os.path.expanduser('~/beeatlas-store/notes.db')).execute('PRAGMA journal_mode').fetchone()[0])"
+uv run python -c "import sqlite3,os; print(sqlite3.connect(os.environ['NOTES_DB_PATH']).execute('PRAGMA journal_mode').fetchone()[0])"
 # expect: wal
 ```
 
@@ -212,6 +212,11 @@ The 2026-10-24 row is the first drill against the Fly Machine, the day after cut
 
 This demonstrates that a full `nightly.sh` pipeline run does NOT touch `notes.db`
 or the backup bucket — confirming physical and IAM separation (D-17).
+
+The proof below was recorded on maderas in 2026-07, when the nightly and the store
+shared a host. They no longer do: the nightly runs on Hostess, which never holds the
+store and reads the Machine's published notes instead
+([ADR 0046](../adr/0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md)).
 
 ### 5a. Record pre-nightly baselines
 

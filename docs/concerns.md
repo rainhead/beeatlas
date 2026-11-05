@@ -203,8 +203,6 @@ The dbt-spike-findings.md §Prerequisites section documents five explicit prereq
 
 ## Known State (from CLAUDE.md)
 
-**Lambda CDK artifacts exist but are inactive:** Infrastructure-as-code definitions for AWS Lambda exist in `infra/`, but the active execution path is `data/nightly.sh` running on a maderas machine (nightly cron). The Lambda artifacts are stale and should not be used for deployments.
-
 **Schema validation gate:** `scripts/validate-schema.mjs` runs before every CI build as a parquet schema gate. This is the last line of defense before production deployment to CloudFront.
 
 ---

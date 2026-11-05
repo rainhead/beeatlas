@@ -140,7 +140,7 @@ const DEPLOY_IGNORE = [
   'scripts/check-photo-availability.mjs', 'scripts/seed-species-photos.mjs',
   'scripts/precompress-artifacts.mjs', 'scripts/make-local-manifest.js',
   'scripts/gen-app-icons.sh', 'scripts/measure-lcp.sh', 'scripts/smoke-boot.mjs',
-  'scripts/offline-leak-check.sh', 'scripts/offline-uat.mjs',
+  'scripts/offline-uat.mjs',
   // Records the build; does not shape it.
   'scripts/build-receipt.mjs',
 ];

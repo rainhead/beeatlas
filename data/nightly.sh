@@ -60,9 +60,9 @@
 # notes/) and SEND_TO_FLY_APP (step 6 sends the build to the Machine's staging
 # directory instead of merge-swapping). docs/runbooks/hostess-nightly.md.
 #
-# Layout (the /var/www htdocs+var convention; see
-# docs/runbooks/serve-from-maderas.md for the migration):
-#   $BASE_DIR/htdocs  — SITE_ROOT, the Apache DocumentRoot
+# Layout (the htdocs+var convention; fly/Dockerfile sets BASE_DIR=/data on the
+# Fly Machine):
+#   $BASE_DIR/htdocs  — SITE_ROOT, the root Caddy serves
 #   $BASE_DIR/var     — pipeline state: beeatlas.duckdb, export/, baseline/,
 #                       publish.lock
 
@@ -96,11 +96,11 @@ DB_PATH="${DB_PATH:-$VAR_DIR/beeatlas.duckdb}"
 EXPORT_DIR="${EXPORT_DIR:-$VAR_DIR/export}"
 BASELINE_DIR="${BASELINE_DIR:-$VAR_DIR/baseline}"
 # Notes store: the notes-harvest step reads the SAME authoritative
-# SQLite store the write API (systemd beeatlas-api) writes to. Must match the
-# API's NOTES_DB_PATH (~/.config/systemd/user/beeatlas-api.service) and the
-# go-live runbook (docs/runbooks/notes-write-launch-gate.md §A4), NOT the code
-# default in notes_store/db.py (/opt/beeatlas-store/notes.db, which is unused on
-# maderas). Without this export the harvest reads a nonexistent store and emits
+# SQLite store the write API writes to. On the Fly Machine both get
+# NOTES_DB_PATH from the image (fly/Dockerfile); on Hostess the notes come from
+# the Machine instead (NOTES_FROM_FLY_APP). The fallback here is a development
+# checkout's store, NOT the code default in notes_store/db.py
+# (/opt/beeatlas-store/notes.db, which nothing uses). Without this export the harvest reads a nonexistent store and emits
 # an empty notes/ dir — no author note ever reaches the static site.
 NOTES_DB_PATH="${NOTES_DB_PATH:-$HOME/beeatlas-store/notes.db}"
 # Set but EMPTY disables the ping: a trial run (beeatlas-f21l) must not report to
@@ -755,7 +755,7 @@ else
         echo "published in $(_elapsed $_t0)"
     elif [[ $_swap_rc -eq 3 ]]; then
         _stage="site-root-absent"
-        echo "NOTE: SITE_ROOT $SITE_ROOT absent — publish skipped (install: docs/runbooks/serve-from-maderas.md)" >&2
+        echo "NOTE: SITE_ROOT $SITE_ROOT absent — publish skipped (layout: BASE_DIR and SITE_ROOT in fly/Dockerfile)" >&2
     else
         exit $_swap_rc
     fi

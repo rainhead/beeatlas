@@ -33,8 +33,8 @@ _SESSION = _CFG.get("session", {})
 
 # Each secret may also arrive as an environment variable, which wins over the toml:
 # that is how the Fly Machine receives them (Fly secrets are environment variables),
-# with no secrets file written to disk (beeatlas-cjyz). maderas keeps its file. The
-# same precedence WRITES_ENABLED below has always had.
+# with no secrets file written to disk (beeatlas-cjyz). A development checkout reads
+# the file. The same precedence WRITES_ENABLED below has always had.
 #
 # Surrounding whitespace is stripped from either source: no client id, secret or
 # signing key has any, and a pasted one does. A leading space in INAT_CLIENT_ID
@@ -56,7 +56,7 @@ SESSION_SIGNING_KEY: str = _secret("SESSION_SIGNING_KEY", _SESSION.get("signing_
 # secrets.toml switches the app into local-development mode — a separate dev
 # iNat app registration whose redirect points at the local api/serve.py
 # process. This can never fire in production without the operator rewriting
-# maderas's secrets.toml to a URI that iNat's prod app would refuse anyway.
+# production's secrets to a URI that iNat's prod app would refuse anyway.
 _PROD_REDIRECT_URI = "https://api.beeatlas.net/auth/callback"
 _DEV_REDIRECT_PREFIXES = ("http://localhost:", "http://127.0.0.1:")
 
@@ -118,8 +118,7 @@ _SERVE = _CFG.get("serve", {})
 # WRITES_ENABLED env var — added in 178-05 as a Rule-3 blocking fix, before
 # this toml key existed — always overrides the toml value when set, so an
 # operator can flip the gate (e.g. from the systemd unit / cron entry) without
-# touching the secrets file. See 178-06/178-08 for where the operator sets
-# this true on maderas after confirming the restore.
+# touching the secrets file. The Fly Machine sets it in fly.toml's [env].
 _env_writes_enabled = os.environ.get("WRITES_ENABLED")
 WRITES_ENABLED: bool
 if _env_writes_enabled is not None:
@@ -131,7 +130,7 @@ else:
 # synchronously republishes the site (data/publish-notes.sh). Default False so
 # tests, CI, and dev checkouts never shell out to a build; the operator flips
 # it on (systemd unit env, or `[launch] note_publish_enabled` in secrets.toml)
-# once the maderas htdocs+var layout exists (Model Y step C). While off,
+# wherever the htdocs+var layout exists, as it does on the Fly Machine. While off,
 # writes still succeed and respond "publish": "pending" — the nightly bakes
 # them. Same precedence pattern as WRITES_ENABLED: env override > toml >
 # default-off.
