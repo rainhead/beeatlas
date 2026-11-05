@@ -59,8 +59,7 @@ export NOTES_DB_PATH=$HOME/beeatlas-store/notes.db
 
 ```bash
 cd ~/dev/beeatlas/data
-NOTES_DB_PATH=/opt/beeatlas-store/notes.db \
-  uv run alembic -c notes_store/migrations/alembic.ini upgrade head
+uv run alembic -c notes_store/migrations/alembic.ini upgrade head
 ```
 
 This creates `notes.db` (if it doesn't exist), applies the initial schema, and records
@@ -69,8 +68,7 @@ This creates `notes.db` (if it doesn't exist), applies the initial schema, and r
 ### 2c. (Optional) Seed sample notes
 
 ```bash
-NOTES_DB_PATH=/opt/beeatlas-store/notes.db \
-  uv run python -m notes_store.seed
+uv run python -m notes_store.seed
 ```
 
 ### 2d. Confirm WAL mode is persisted
@@ -82,7 +80,7 @@ are checkpointed away on clean close, so an idle store showing just `notes.db` i
 correct. What Phase 179's read-only harvest needs is WAL *mode*, not the sidecar files.
 
 ```bash
-uv run python -c "import sqlite3,os; print(sqlite3.connect(os.path.expanduser('~/beeatlas-store/notes.db')).execute('PRAGMA journal_mode').fetchone()[0])"
+uv run python -c "import sqlite3,os; print(sqlite3.connect(os.environ['NOTES_DB_PATH']).execute('PRAGMA journal_mode').fetchone()[0])"
 # expect: wal
 ```
 
