@@ -9,13 +9,12 @@
 // neither half is observable from the other:
 //
 //   - the build writes `.br` / `.gz` siblings of every hashed artifact, and the
-//     vhost's rewrite is written to find files with exactly those names;
-//   - the DEFLATE type list names the type Apache actually serves JavaScript as.
+//     server's precompressed lookup is written to find files with exactly those names;
+//   - only those hashed names are cached as immutable, never the manifest beside them.
 //
-// The Apache config is tested as text because there is no Apache here. That is
-// weaker than a request against the real server (the runbook's §10 curl is that
-// check) but it catches the specific way this broke: a list of MIME types that
-// someone reads as correct because the type they picture is the type they wrote.
+// The Caddyfile is tested as text because there is no Caddy here. That is weaker
+// than a request against the real server (fly/serving-matrix.sh is that check), but
+// it catches an edit that quietly drops an encoding or widens the immutable rule.
 import { describe, test, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -32,7 +31,7 @@ import { RUNTIME_ARTIFACTS } from '../../lib/runtime-artifacts.js';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const read = (p: string) => readFileSync(resolve(ROOT, p), 'utf8');
 
-const CONF = 'infra/maderas/beeatlas-compression.conf';
+const CADDYFILE = 'fly/Caddyfile';
 
 /** Roughly the shape of the thing this exists for: repetitive, highly compressible. */
 const compressible = Buffer.from('SQLite format 3\0' + 'a,b,c,1,2,3;'.repeat(20_000));
@@ -73,70 +72,33 @@ describe('the build writes the compressed siblings the server looks for', () => 
   });
 });
 
-describe('the vhost serves those siblings, under the original URL', () => {
-  const conf = read(CONF);
+describe('Caddy serves those siblings, under the original URL', () => {
+  const conf = read(CADDYFILE);
 
-  test('the rewrite matches a hashed artifact and nothing else', () => {
+  test('file_server looks for the suffixes the build writes, brotli first', () => {
+    // Caddy's `precompressed br gzip` looks for <file>.br, then <file>.gz, and
+    // serves the first one the client accepts. br is ~20% smaller than gzip on the
+    // database, so the order is the build's order.
+    const named = conf.match(/^\s*precompressed\s+([^\n{}]+)$/m)?.[1]?.trim().split(/\s+/);
+    const suffixOf: Record<string, string> = { br: '.br', gzip: '.gz', zstd: '.zst' };
+    expect(named?.map((n) => suffixOf[n])).toEqual(
+      compressedVariants(compressible).map((v: { suffix: string }) => v.suffix));
+  });
+
+  test('the immutable rule matches a hashed artifact and nothing else', () => {
     // The literal pattern out of the config, run here as a JS regex — the syntax is
     // common to both engines, and the point is which URLs it selects.
-    const patterns = [...conf.matchAll(/^RewriteRule\s+"([^"]+)"/gm)].map(m => new RegExp(m[1]!));
-    expect(patterns).toHaveLength(2);
-
-    for (const re of patterns) {
-      expect(re.test('/data/occurrences-0123456789ab.db')).toBe(true);
-      expect(re.test('/data/counties-0123456789ab.geojson')).toBe(true);
-      // Never the manifest: it is rewritten every publish under a fixed name and
-      // served no-cache, so a stale sibling beside it would be servable.
-      expect(re.test('/data/manifest.json')).toBe(false);
-      // Never an unhashed or nested path — the stable dirs belong to mod_deflate.
-      expect(re.test('/data/feeds/all.xml')).toBe(false);
-      expect(re.test('/data/occurrences.db')).toBe(false);
-      // Never a variant itself, or a rewritten request would rewrite again.
-      expect(re.test('/data/occurrences-0123456789ab.db.gz')).toBe(false);
-    }
-  });
-
-  test('brotli is offered before gzip', () => {
-    // Both rules end in [L], so the first one whose conditions hold wins, and br is
-    // ~20% smaller than gzip on the database.
-    expect(conf.indexOf('.br" [E=')).toBeLessThan(conf.indexOf('.gz" [E='));
-  });
-
-  test('the encodings named in the config are the suffixes the build writes', () => {
-    for (const { suffix, encoding } of compressedVariants(compressible)) {
-      expect(conf).toContain(`AddEncoding ${encoding} ${suffix}`);
-    }
-  });
-
-  test('.gz stops being a content type, so the response describes the artifact', () => {
-    // /etc/mime.types has `application/gzip gz`, and for the trailing extension the
-    // type beats the encoding — so without this the gzip variant of the database is
-    // served as application/gzip: a response describing its own encoding. Measured
-    // against Apache 2.4.58 on maderas, before and after. Nothing on the client
-    // reads the type today, which is precisely why it would have gone unnoticed.
-    expect(conf).toMatch(/<FilesMatch\s+"\\\.gz\$">\s*\n\s*RemoveType \.gz\s*\n\s*<\/FilesMatch>/);
-  });
-
-  test('the DEFLATE list names the type Apache serves JavaScript as', () => {
-    // THE regression: the list said application/javascript, /etc/mime.types says
-    // text/javascript, and so the whole bundle shipped raw while the css beside it
-    // did not. Anything read out of /etc/mime.types belongs on this list by that
-    // name, not by the name the spec used to use.
-    const list = conf.match(/AddOutputFilterByType DEFLATE([\s\S]*?)\n\n/)?.[1] ?? '';
-    expect(list).toContain('text/javascript');
-    expect(list).toContain('text/css');
-    expect(list).toContain('application/json');
-    expect(list).toContain('application/wasm');
-  });
-
-  test('both vhosts get it from one file, rather than each keeping a copy', () => {
-    // The :443 vhost is generated on the host by certbot and had already drifted
-    // from the tracked :80 one. An Include is the only version of this that stays
-    // true; the runbook adds the same line to the clone.
-    const vhost = read('infra/maderas/beeatlas.net.conf');
-    expect(vhost).toContain('Include /etc/apache2/beeatlas-compression.conf');
-    expect(vhost).not.toContain('AddOutputFilterByType');
-    expect(read('docs/runbooks/serve-from-maderas.md')).toContain('beeatlas-compression.conf');
+    const pattern = conf.match(/^\s*@hashed path_regexp (\S+)$/m)?.[1];
+    expect(pattern).toBeDefined();
+    const re = new RegExp(pattern!);
+    expect(re.test('/data/occurrences-0123456789ab.db')).toBe(true);
+    expect(re.test('/data/occurrences-0123456789ab.db.br')).toBe(true);
+    expect(re.test('/data/counties-0123456789ab.geojson')).toBe(true);
+    // Never the manifest: it is rewritten every publish under a fixed name and must
+    // revalidate, or a client keeps asking for artifacts that no longer exist.
+    expect(re.test('/data/manifest.json')).toBe(false);
+    expect(re.test('/data/feeds/all.xml')).toBe(false);
+    expect(re.test('/data/occurrences.db')).toBe(false);
   });
 });
 

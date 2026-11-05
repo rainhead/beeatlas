@@ -11,7 +11,7 @@ The `data/` pytest suite splits into two tiers based on *what* each test validat
 | Tier | Decision criterion | When it runs |
 |------|-------------------|--------------|
 | **Build-time** | Validates *code* — logic, transforms, schema contracts, unit behavior | Every push / local dev (`cd data && uv run pytest`) |
-| **Nightly / integration** | Validates *datasets* — real committed CSV/parquet files, built dbt artifacts | Nightly cron on maderas; opt-in locally with `-m integration` |
+| **Nightly / integration** | Validates *datasets* — real committed CSV/parquet files, built dbt artifacts | The nightly, on Hostess; opt-in locally with `-m integration` |
 
 The marker decision criterion is **"does this test validate code or validate data?"** — not "is it slow." A slow code test belongs in the build-time tier (and gets fixtures to make it faster, Phase 140). A dataset-validation test gets `@pytest.mark.integration` regardless of speed.
 
@@ -21,7 +21,7 @@ The marker decision criterion is **"does this test validate code or validate dat
 
 ## Per-Tier Measured Runtimes (Phase 142 after-numbers)
 
-Measured on maderas (the dev/production host), 2026-06-07, with `pytest-randomly` randomized order.
+Measured on maderas (then the production host), 2026-06-07, with `pytest-randomly` randomized order.
 
 | Tier | Before (Phase 139 estimate) | After (Phase 142 measured) | Notes |
 |------|----------------------------|---------------------------|-------|
@@ -44,7 +44,7 @@ These targets drive the v4.8 milestone. The baseline numbers above are the befor
 | Tier | Target | Type | Enforced by |
 |------|--------|------|-------------|
 | Build-time | `< 5 min` | Hard gate | CI (Phase 143, TCI-02) — fails the PR if exceeded |
-| Nightly / integration | `~10 min` | Stretch goal | Not CI-enforced; aspirational to keep maderas cron lean; real dataset checks that genuinely need more time are allowed |
+| Nightly / integration | `~10 min` | Stretch goal | Not CI-enforced; aspirational to keep the nightly lean; real dataset checks that genuinely need more time are allowed |
 
 ---
 

@@ -335,10 +335,10 @@ describe.skipIf(SKIP_BUILD)('build output', () => {
     }
   });
 
-  test('the Apache redirect map lists every synonym redirect', () => {
-    // infra/maderas/beeatlas-species-redirects.conf points RewriteMap at this
-    // file in the docroot. If the build stops emitting it, Apache keeps serving
-    // whatever it last read and new folds silently fall back to meta refresh.
+  test('the species redirect map lists every synonym redirect', () => {
+    // fly/caddy-redirects.sh turns this file in the site root into Caddy's 301
+    // rules. If the build stops emitting it, Caddy keeps the rules it last read
+    // and new synonyms silently fall back to the meta-refresh page.
     const map = readFileSync(resolve(ROOT, '_site/species-redirects.map'), 'utf-8');
     const entries = new Map(
       map

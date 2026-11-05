@@ -3,8 +3,8 @@
 DEV_MODE turns on iff the gitignored api/secrets.toml carries a loopback
 redirect_uri (a separate dev iNat app registration). It admits loopback
 origins through the CSRF origin gate and drops the Secure cookie flag so
-the full OAuth flow can run against http://localhost without a maderas
-round-trip. Production behavior (the D-12/D-13 exact-match pin, the strict
+the full OAuth flow can run against http://localhost without a round-trip
+to production. Production behavior (the D-12/D-13 exact-match pin, the strict
 origin allow-list) must be provably unchanged when DEV_MODE is off.
 """
 

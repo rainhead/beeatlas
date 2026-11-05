@@ -5,6 +5,10 @@ the contribution that must go live in seconds is **notes** — fully: correct
 bylines and the no‑JS/first‑paint case, visible to *everyone*, not just the
 author who wrote it. Mechanism is open; litestream was floated.
 
+Written when maderas served production. It has since been replaced by the Fly
+Machine ([ADR 0042](adr/0042-beeatlas-moves-to-fly-as-one-stateful-machine.md)), so
+read "maderas" below as the server that holds the notes store.
+
 ---
 
 ## 1. The problem, precisely

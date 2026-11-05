@@ -74,7 +74,7 @@ def build() -> None:
     if not RAW_TAXA.exists():
         raise FileNotFoundError(
             f"{RAW_TAXA} not found — the iNat backbone is required for taxon_id "
-            "reconciliation. On maderas it is pulled from S3 by the nightly; locally "
+            "reconciliation. The nightly's host keeps it between runs; locally, "
             "run the taxa-download pipeline step first."
         )
     burke = _download_burke()

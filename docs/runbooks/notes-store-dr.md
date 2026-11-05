@@ -40,13 +40,15 @@ export NOTES_DB_PATH=/opt/beeatlas-store/notes.db
 
 ## 2. Bootstrap (First-Time Setup)
 
-Run once on maderas before starting the app or running any backup.
+Run once on a new host with no store, before starting the app or running any backup.
+The Fly Machine does not need it: it restores the store from its Litestream replica
+(§6). These steps were written for maderas, which served production until 2026-10-23.
 
 ### 2a. Create the store directory
 
-maderas has **no passwordless sudo**, so the store lives in the operator's home dir
-(outside `/tmp/beeatlas-export`, `/tmp/beeatlas.duckdb`, and the git checkout — which is
-all that STORE-04 requires). Actual deployed path: `~/beeatlas-store/notes.db`.
+On a host without passwordless sudo (maderas was one), put the store in the operator's
+home dir, outside `/tmp/beeatlas-export`, `/tmp/beeatlas.duckdb` and the git checkout,
+which is all that STORE-04 requires. maderas used `~/beeatlas-store/notes.db`.
 
 ```bash
 mkdir -p ~/beeatlas-store
@@ -212,6 +214,11 @@ The 2026-10-24 row is the first drill against the Fly Machine, the day after cut
 
 This demonstrates that a full `nightly.sh` pipeline run does NOT touch `notes.db`
 or the backup bucket — confirming physical and IAM separation (D-17).
+
+The proof below was recorded on maderas in 2026-07, when the nightly and the store
+shared a host. They no longer do: the nightly runs on Hostess, which never holds the
+store and reads the Machine's published notes instead
+([ADR 0046](../adr/0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md)).
 
 ### 5a. Record pre-nightly baselines
 

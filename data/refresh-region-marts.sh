@@ -31,7 +31,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # EXPORT_DIR defaults to the repo's public/data — right for a dev checkout, and
 # WRONG on a deployed host, where nightly.sh uses $BASE_DIR/var/export instead. The
-# first run of this script on maderas went to the checkout and reported success
+# first run of this script on a deployed host (maderas, since retired) went to the checkout and reported success
 # while the directory the nightly actually reads was untouched. So: when a
 # deployed-looking export dir exists and EXPORT_DIR was not set explicitly, refuse
 # to guess.

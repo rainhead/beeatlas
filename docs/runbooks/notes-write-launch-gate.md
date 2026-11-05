@@ -1,5 +1,7 @@
 # Notes Write Layer — Go-Live Runbook + WRITE-04 Launch Gate
 
+> **RETIRED 2026-10-24.** This is how the write API went live on maderas, behind Apache, in 2026-07. BeeAtlas moved to the Fly app on 2026-10-23 ([ADR 0042](../adr/0042-beeatlas-moves-to-fly-as-one-stateful-machine.md)), where Caddy proxies the API (`fly/Caddyfile`) and `fly.toml` sets the write switches. Kept for the history; operate production with [fly-machine.md](fly-machine.md).
+
 **Covers:** WRITE-01 (served on real infra via Waitress + Apache `mod_proxy_http`) +
 WRITE-04 (public writes gated on the proven restore)
 **Phase:** 178 (Thin Write Layer + iNat OAuth)

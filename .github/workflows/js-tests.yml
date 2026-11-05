@@ -3,8 +3,8 @@ name: JS tests
 # The CI test legs that survived deploy.yml's deletion (Model Y, stelis ADR
 # 0007 Amendment: "The GH-Actions deploy leg retires (CI test legs remain)").
 # Build/smoke/Lighthouse are NOT here: `npm run build` needs the data dir
-# (fetch-data or pull-published), which CI does not have — the nightly on
-# maderas is where the built site is exercised.
+# (fetch-data or pull-published), which CI does not have — the nightly (on
+# Hostess) is where the built site is exercised.
 #
 # Same reason, and the one this workflow originally got wrong (beeatlas-6q2):
 # `npm test` must stay data-free. Any suite that reads the pipeline's artifacts

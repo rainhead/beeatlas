@@ -1,10 +1,10 @@
 """BeeAtlas auth + write API — Flask (WSGI) app.
 
 This is BeeAtlas's app-level auth + write service, relocated from the
-Phase-177 `data/notes_app/main.py` skeleton per D-15. On maderas the app is
-served by Waitress (a persistent, pure-Python WSGI server) behind
-Apache `mod_proxy_http` at `api.beeatlas.net` (Waitress serve entrypoint in
-`api/serve.py`).
+Phase-177 `data/notes_app/main.py` skeleton per D-15. On the Fly Machine the
+app is served by Waitress (a persistent, pure-Python WSGI server) behind
+Caddy at `api.beeatlas.net` (Waitress serve entrypoint in `api/serve.py`;
+the proxy rules in `fly/Caddyfile`).
 
 This plan (178-06) wires the full auth/write HTTP surface, composing the
 already-tested `api/oauth.py`, `api/session.py`, `api/auth.py`, and

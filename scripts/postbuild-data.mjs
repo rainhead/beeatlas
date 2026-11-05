@@ -14,7 +14,7 @@
  *
  * Each hashed artifact also gets pre-compressed `.br` / `.gz` siblings, which the
  * serving layer hands back under the artifact's own URL (lib/precompress.js,
- * infra/maderas/beeatlas-compression.conf, docs/adr/0024). The manifest does not
+ * fly/Caddyfile, docs/adr/0024). The manifest does not
  * mention them and the client never asks for one by name: the hash is of the
  * UNCOMPRESSED source either way, so the URL keeps meaning the same bytes.
  * Their BYTES are copied from `<data dir>/compressed/` when stelis's `precompress`

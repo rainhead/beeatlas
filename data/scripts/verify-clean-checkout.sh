@@ -33,7 +33,7 @@ echo "Worktree:   $WORKTREE"
 git -C "$REPO_ROOT" worktree add --detach "$WORKTREE" HEAD
 
 # Strip built/un-checked-in assets to simulate a clean checkout.
-# These are the assets that exist on maderas after a nightly run but would
+# These are the assets that exist on the nightly's host after a run but would
 # not be present in a fresh clone or CI environment.
 rm -rf \
     "$WORKTREE/data/dbt/target" \

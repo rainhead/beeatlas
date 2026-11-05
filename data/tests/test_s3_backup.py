@@ -45,7 +45,7 @@ def aws_files(tmp_path, monkeypatch):
 
 
 def test_a_configured_profile_is_used(aws_files):
-    """maderas: the beeatlas profile exists, so it supplies the credentials."""
+    """A host with the beeatlas profile (maderas had one) uses it for the credentials."""
     config, creds = aws_files
     config.write_text("[profile beeatlas]\nregion = us-west-2\n")
     creds.write_text("[beeatlas]\naws_access_key_id = AKIAPROFILE\naws_secret_access_key = s\n")

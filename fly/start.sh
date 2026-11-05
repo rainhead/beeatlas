@@ -141,7 +141,7 @@ if [ -n "${API_ENABLED:-}" ] && [ "${API_ENABLED}" != 0 ]; then
 fi
 
 # The schedule (fly/crontab), in the image's TZ, America/Los_Angeles, which
-# supercronic honors: the nightly at 03:00 Pacific, as on maderas, not 03:00 UTC.
+# supercronic honors, so a job at 03:00 runs at 03:00 Pacific, not 03:00 UTC.
 supercronic /app/fly/crontab &
 cron_pid=$!
 

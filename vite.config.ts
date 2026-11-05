@@ -106,7 +106,6 @@ export default defineConfig({
       '/basemap/tiles': { target: 'https://beeatlas.net', changeOrigin: true },
     },
     allowedHosts: [
-      'maderas.amandrai.net',
       // Tailscale MagicDNS name — lets `tailscale serve` proxy the dev server over
       // HTTPS for on-device (iOS) testing, which needs a secure context for
       // geolocation + PWA install. (Phase 152 UAT.)
@@ -217,7 +216,7 @@ export default defineConfig({
       // *.data.test.ts need the pipeline's artifacts (species.json, higher_taxa.json,
       // …) resolved by lib/build-data-dir.js — EXPORT_DIR if set, else public/data,
       // which is gitignored. A clean CI checkout has neither, so they are excluded
-      // from the default run and executed by the nightly on maderas, where the data
+      // from the default run and executed by the nightly (on Hostess), where the data
       // genuinely exists (data/nightly.sh, after `npm run fetch-data`).
       //
       // Do NOT "fix" a red CI run by deleting this exclusion or by pointing the

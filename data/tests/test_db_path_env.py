@@ -3,8 +3,9 @@
 Two outlier bugs (anti_entropy_pipeline hardcoded path — dceaf74; dbt
 profiles.yml hardcoded path — ed038e3) had the same shape: a code path
 used its default DB file regardless of DB_PATH, so it worked on local
-dev (where defaults coincide) and broke on maderas (where nightly.sh
-sets DB_PATH=/tmp/beeatlas.duckdb to use the S3-restored snapshot).
+dev (where defaults coincide) and broke on the deployed host of the time,
+maderas (where nightly.sh then set DB_PATH=/tmp/beeatlas.duckdb to use the
+S3-restored snapshot).
 
 The convention is: read DB_PATH from env, fall back to a local-dev
 relative path. This test enforces the convention textually so a future

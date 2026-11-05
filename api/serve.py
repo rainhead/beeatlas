@@ -35,11 +35,10 @@ for _p in (str(_REPO_ROOT), str(_DATA_DIR)):
         sys.path.insert(0, _p)
 
 # Pitfall 5: the code's built-in NOTES_DB_PATH default (/opt/beeatlas-store/
-# notes.db) does not match the real maderas deployment -- maderas has no
-# passwordless sudo, so /opt/... was never actually usable (see
-# docs/runbooks/notes-store-dr.md). Set the real operator path UNLESS an env
-# override is already present (e.g. set by the systemd unit / cron entry) --
-# this MUST happen before importing anything that imports notes_store.db,
+# notes.db) is not where any deployment keeps the store: the Fly image sets
+# NOTES_DB_PATH=/data/notes/notes.db (fly/Dockerfile), and a development
+# checkout uses the path below. Set it UNLESS an env override is already
+# present -- this MUST happen before importing anything that imports notes_store.db,
 # since NOTES_DB_PATH is read at that module's import time.
 os.environ.setdefault("NOTES_DB_PATH", os.path.expanduser("~/beeatlas-store/notes.db"))
 

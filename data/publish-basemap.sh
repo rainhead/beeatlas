@@ -79,7 +79,7 @@ case "$ARCHIVE" in
 esac
 
 [[ -d "$BASEMAP_DIR" ]] || {
-    echo "NOTE: BASEMAP_DIR $BASEMAP_DIR absent (install: docs/runbooks/serve-from-maderas.md)" >&2
+    echo "NOTE: BASEMAP_DIR $BASEMAP_DIR absent (layout: BASE_DIR and SITE_ROOT in fly/Dockerfile)" >&2
     exit 3
 }
 # Already published here and not staged: an earlier run published it and then failed
