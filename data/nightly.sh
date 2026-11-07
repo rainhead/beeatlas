@@ -27,6 +27,9 @@
 #      exit aborts the publish below via `set -euo pipefail`). On success it
 #      stamps $EXPORT_DIR/generated_at — the site's "Data as of" clock, which
 #      only this step may advance (beeatlas-923).
+#   4b. Stelis edge check (`--verify-edges`, skipped by SKIP_STELIS_GATE): each
+#      covered task re-run with only its declared inputs; a bad edge aborts the
+#      publish. Needs the finished build, so it follows step 4.
 #   5. Integration gate: ALL @integration tests must pass (fresh dbt sandbox
 #      vs. the step-3 baseline) or the publish is aborted — stale data stays
 #      live until fixed.
@@ -352,6 +355,22 @@ fi
 #
 # 40-65s on this host across two runs (measured 2026-08-04), against an hour for
 # the data build — so it goes BEFORE that build rather than after.
+#
+# The gate reads the same DB_PATH, EXPORT_DIR and NOTES_DB_PATH the build does, so
+# they are exported HERE, before it. They used to be exported only at the data build,
+# so the gate saw whatever fallback the tests defaulted to — the shape of the stale
+# DuckDB bug in beeatlas-6jdo. Nothing between the assignments near the top and
+# this point reads them as unset.
+#
+# Some tests check the pipeline against a finished build: they are told where to
+# find one by STELIS_REFERENCE_DIR, and last night's export serves. With
+# STELIS_REQUIRE_GATED=1 a test that would have skipped for lack of one fails
+# instead, so the gate cannot pass by skipping (beeatlas-d14m: from 2026-10-22 they
+# looked in /var/tmp/stelis-out, which only a plain --build fills, and skipped
+# every night). The first run on a host has no previous export, so there the
+# requirement is dropped, loudly. The check that a task's declared inputs and
+# outputs are true runs after the data build (stage "verify-edges").
+export DB_PATH EXPORT_DIR NOTES_DB_PATH
 _stage="stelis-gate"
 echo "--- stelis preflight + test gate ---"
 _t0=$(date +%s)
@@ -361,7 +380,15 @@ if [[ -n "${SKIP_STELIS_GATE:-}" ]]; then
 else
     bash "$STELIS_DIR/scripts/preflight.sh"          # exits 78 on a provisioning gap
     _stelis_test_state="$(mktemp -d)"
-    if ! (cd "$STELIS_DIR" &&           BEEATLAS_DIR="$REPO_ROOT" STELIS_STATE_DIR="$_stelis_test_state"           raco test src/*-test.rkt); then
+    # generated_at is stamped by a successful data build, so it marks an export
+    # that is a finished reference build.
+    _require_gated=1
+    if [[ ! -f "$EXPORT_DIR/generated_at" ]]; then
+        _require_gated=""
+        echo "WARN: no previous build in $EXPORT_DIR — first run on this layout?" >&2
+        echo "WARN: the Stelis tests that need a finished build are UNRUN this once." >&2
+    fi
+    if ! (cd "$STELIS_DIR" &&           BEEATLAS_DIR="$REPO_ROOT" STELIS_STATE_DIR="$_stelis_test_state"           STELIS_REFERENCE_DIR="$EXPORT_DIR" env ${_require_gated:+STELIS_REQUIRE_GATED=1} raco test src/*-test.rkt); then
         rm -rf "$_stelis_test_state"
         echo "STELIS TEST GATE FAILED in $(_elapsed $_t0) — aborting publish" >&2
         # State the outcome and the reason for ABORTING; do not name a cause.
@@ -517,7 +544,7 @@ fi
 # narrowed Stelis to the data engine — the site render below is top-level.
 echo "--- building data (stelis fetch-data) ---"
 _t0=$(date +%s)
-export DB_PATH EXPORT_DIR NOTES_DB_PATH
+# DB_PATH, EXPORT_DIR and NOTES_DB_PATH are already exported (before the stelis gate).
 # STELIS_DIR is set and exported in step 1, which also syncs that checkout.
 # Log the content-addressed plan (why each task runs/skips) before building, so the
 # nightly log records what Stelis decided and why. scripts/fetch-data.sh runs the
@@ -550,6 +577,25 @@ if [[ $_fetch_rc -ne 0 ]]; then
     exit "$_fetch_rc"
 fi
 echo "--- data build done in $(_elapsed $_t0) ---"
+
+# Edge check: re-run each covered task in a directory seeded with only its declared
+# inputs, and compare its outputs with the declared ones. It needs the finished build
+# in $EXPORT_DIR, so it cannot be part of the test gate before the build. About 10 s.
+_stage="verify-edges"
+echo "--- stelis edge check ---"
+_t0=$(date +%s)
+if [[ -n "${SKIP_STELIS_GATE:-}" ]]; then
+    echo "WARN: SKIP_STELIS_GATE set — BYPASSING the stelis edge check." >&2
+    echo "WARN: this publishes with the declared task inputs and outputs UNVERIFIED." >&2
+elif ! (cd "$STELIS_DIR" && racket src/main.rkt --verify-edges --export-dir "$EXPORT_DIR"); then
+    echo "STELIS EDGE CHECK FAILED in $(_elapsed $_t0) — aborting publish" >&2
+    echo "--verify-edges exited non-zero, so the declared inputs and outputs of the" >&2
+    echo "tasks it covers are unverified and this run will not publish on them. The" >&2
+    echo "report above is the cause — this gate cannot name it." >&2
+    exit 1
+else
+    echo "stelis edge check passed in $(_elapsed $_t0)"
+fi
 
 # 3a. Hostess (ADR 0046) holds no notes store: NOTES_DB_PATH there is an empty one,
 # so the build above harvested no notes. Replace that notes/ with the one the Machine
