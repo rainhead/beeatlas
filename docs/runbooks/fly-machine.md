@@ -56,10 +56,13 @@ that looks under `~`, such as DuckDB's extensions or nvm, needs `env HOME=/home/
 before the command; `data/finish-publish.sh` sets it itself. And `-C` runs no shell: send
 anything longer than one command as a script, `-C '… sh -s' < script.sh`.
 
-Do not run `data/nightly.sh` here. It is still in the image (until `beeatlas-uibw.7`),
-but the nightly runs on Hostess: a run here would publish a build that Hostess's next run
-does not know about, and back up over Hostess's DuckDB. To run the nightly now, start it
-on Hostess ([hostess-nightly.md](hostess-nightly.md#running-it)).
+The nightly cannot run here. The image holds only what serving, the API, a note save
+and a deploy's render need: no dbt, no ingests, no DuckDB of the pipeline's and none of
+its caches (`beeatlas-uibw.7`), and `data/nightly.sh` refuses to start in it. To run the
+nightly now, start it on Hostess ([hostess-nightly.md](hostess-nightly.md#running-it)).
+[`fly/offline-gate.sh`](../../fly/offline-gate.sh) runs the Machine's own work in the
+image, with no network, against a copy of an export: a deploy's render, then a note
+save. Run it before changing what the image installs.
 
 ## Stopping
 

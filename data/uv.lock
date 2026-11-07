@@ -103,26 +103,14 @@ wheels = [
 name = "beeatlas-data"
 version = "0.1.0"
 source = { virtual = "." }
+default-groups = ["dev", "pipeline"]
 dependencies = [
     { name = "alembic" },
-    { name = "beautifulsoup4" },
     { name = "boto3" },
-    { name = "dateparser" },
-    { name = "dbt-core" },
-    { name = "dbt-duckdb" },
-    { name = "dlt", extra = ["duckdb"] },
-    { name = "duckdb" },
     { name = "flask" },
     { name = "flask-cors" },
     { name = "markdown-it-py" },
     { name = "nh3" },
-    { name = "numpy" },
-    { name = "pillow" },
-    { name = "pyarrow" },
-    { name = "pygbif" },
-    { name = "pyogrio" },
-    { name = "rapidfuzz" },
-    { name = "rasterio" },
     { name = "requests" },
     { name = "sqlalchemy" },
     { name = "waitress" },
@@ -133,28 +121,30 @@ dev = [
     { name = "pytest" },
     { name = "pytest-randomly" },
 ]
+pipeline = [
+    { name = "beautifulsoup4" },
+    { name = "dateparser" },
+    { name = "dbt-core" },
+    { name = "dbt-duckdb" },
+    { name = "dlt", extra = ["duckdb"] },
+    { name = "duckdb" },
+    { name = "numpy" },
+    { name = "pillow" },
+    { name = "pyarrow" },
+    { name = "pygbif" },
+    { name = "pyogrio" },
+    { name = "rapidfuzz" },
+    { name = "rasterio" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.19.1" },
-    { name = "beautifulsoup4" },
     { name = "boto3", specifier = ">=1.43.69" },
-    { name = "dateparser" },
-    { name = "dbt-core", specifier = ">=1.12.6,<2" },
-    { name = "dbt-duckdb", specifier = ">=1.11.0,<2" },
-    { name = "dlt", extras = ["duckdb"], specifier = ">=1.30.0" },
-    { name = "duckdb", specifier = ">=1.5.5,<2" },
     { name = "flask", specifier = ">=3.1.2" },
     { name = "flask-cors", specifier = ">=6.0.5" },
     { name = "markdown-it-py", specifier = ">=4.2.0" },
     { name = "nh3", specifier = ">=0.3.6" },
-    { name = "numpy", specifier = ">=2.5.2" },
-    { name = "pillow", specifier = ">=12.3.0" },
-    { name = "pyarrow", specifier = ">=25.0.1" },
-    { name = "pygbif" },
-    { name = "pyogrio", specifier = ">=0.11" },
-    { name = "rapidfuzz" },
-    { name = "rasterio", specifier = ">=1.5.1" },
     { name = "requests" },
     { name = "sqlalchemy", specifier = ">=2.0.52,<3" },
     { name = "waitress", specifier = ">=3.0.2" },
@@ -164,6 +154,21 @@ requires-dist = [
 dev = [
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-randomly", specifier = ">=4.1.0" },
+]
+pipeline = [
+    { name = "beautifulsoup4" },
+    { name = "dateparser" },
+    { name = "dbt-core", specifier = ">=1.12.6,<2" },
+    { name = "dbt-duckdb", specifier = ">=1.11.0,<2" },
+    { name = "dlt", extras = ["duckdb"], specifier = ">=1.30.0" },
+    { name = "duckdb", specifier = ">=1.5.5,<2" },
+    { name = "numpy", specifier = ">=2.5.2" },
+    { name = "pillow", specifier = ">=12.3.0" },
+    { name = "pyarrow", specifier = ">=25.0.1" },
+    { name = "pygbif" },
+    { name = "pyogrio", specifier = ">=0.11" },
+    { name = "rapidfuzz" },
+    { name = "rasterio", specifier = ">=1.5.1" },
 ]
 
 [[package]]
