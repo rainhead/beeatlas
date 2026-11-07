@@ -5,8 +5,7 @@
 
 # No nightly: since 2026-11-03 it runs on Hostess (ADR 0046,
 # docs/runbooks/hostess-nightly.md), which sends its build here and runs
-# data/finish-publish.sh over Fly SSH. data/nightly.sh stays in the image for an
-# operator to run by hand while the image still carries the pipeline (beeatlas-uibw.7).
+# data/finish-publish.sh over Fly SSH. The image carries no pipeline (beeatlas-uibw.7).
 
 # The notes store's hourly snapshot (docs/runbooks/notes-store-dr.md §3). Needs NOTES_BACKUP_BUCKET and the AWS key.
 0 * * * * /app/fly/logged.sh notes-backup /app/data/.venv/bin/python /app/data/backup_notes.py

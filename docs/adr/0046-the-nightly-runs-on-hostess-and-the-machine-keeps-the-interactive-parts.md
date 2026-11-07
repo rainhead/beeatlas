@@ -205,3 +205,45 @@ page would have described note harvests and never the nightly (`beeatlas-uibw.11
 `/build-log.html` stays the nightly's: Hostess sends it at the end of every run, after it has
 recorded whether the run published, failed nights included. The Machine's page is served beside
 it, at `/build-log-notes.html`.
+
+## Amendment (2026-11-07): what the image keeps, the Machine's size, and its state dir
+
+Built in `beeatlas-uibw.7`.
+
+**The Python dependencies are split, not duplicated.** [`data/pyproject.toml`](../../data/pyproject.toml)'s
+own dependencies are what the Machine imports: the API, the notes store and its migrations, the
+note harvest and the notes backup. The ingests and dbt are a `pipeline` dependency group, which
+`[tool.uv] default-groups` installs on every bare `uv sync`, so Hostess, CI and a development
+checkout are unchanged. The image sets `UV_NO_DEFAULT_GROUPS` for its whole environment, not only
+for the sync, because Stelis launches the note harvest with a bare `uv run`, which must find the
+environment in sync rather than reach for the groups it lacks. The image also drops the DuckDB
+Python extensions, `data/`'s Node tree (mapshaper) and the volume links for the pipeline's caches,
+and `data/nightly.sh` refuses to start in it. It went from 843 MB to 398 MB uncompressed. Editing
+`pyproject.toml` and `uv.lock` is code for every Python task in the graph, so the first nightly
+after this change re-runs them all, as the 2026-10-30 night did, which on Hostess takes about five
+minutes.
+
+**A note save needs no pipeline at all, and the gate proves it.** [`fly/offline-gate.sh`](../../fly/offline-gate.sh)'s
+second form used to run the whole nightly in the image. It now runs what the Machine runs, with
+the network off and no pipeline DuckDB: a deploy's render (the JS data tests and a full render)
+against a copy of an export, a first note publish from a notes store it seeds itself, then one
+edited note, which must harvest and render exactly one species. It passed on 2026-11-07 against
+Hostess's export.
+
+**The Machine is `shared-cpu-2x` with 2 GB**, down from 4 GB. The gate's memory limit
+(`GATE_MEMORY`) is the measurement: the deploy render passed under 1.3 GB and was killed under
+1.0 GB, in the JS data tests; a full render alone peaked near 0.6 GB and a note save near 0.3 GB.
+Caddy, the API and Litestream hold about 0.25 GB beside it. Two CPUs stay, so a deploy's render
+holds the publish lock that note saves wait on for no longer than before.
+
+**The Machine's Stelis state dir is kept where it is and not backed up.** It holds the history of
+the note saves and finishing steps, which are its only writers now, and it is derived: lost, the
+next note save finds no earlier observation, harvests every species and renders in full by
+itself, which is what a fresh volume does. A backup would buy back about a minute of one save.
+What the Machine's nightly left behind on the volume (the pipeline's DuckDB, its caches, dbt's
+sandbox, dlt's state, the integration baseline and the nightly's reports) is archived once to the
+pipeline bucket and removed. Hostess holds and backs up its own copies of all of it.
+
+**Two Fly secrets go**, `SOURCES__ECDYSIS__USERNAME` and `SOURCES__ECDYSIS__PASSWORD`, which only
+the ingests read. `PIPELINE_BACKUP_BUCKET` and the AWS key stay: `data/publish-basemap.sh` backs
+archives up to that bucket from the Machine, and the hourly notes snapshot uses the key.

@@ -3,7 +3,7 @@
 #
 #   fly/logged.sh <name> <command> [args...]
 #
-# Fly's log buffer will not hold a nightly's few hundred lines, and a log that falls
+# Fly's log buffer will not hold a long job's output, and a log that falls
 # out of it is gone. So the job's output goes to $LOG_DIR/<name>-<date>.log (one file
 # a day, appended to, kept 30 days), and only a start line and an end line, with the
 # exit status and the log's last lines, go to Fly's log. The job's exit status is
@@ -11,7 +11,7 @@
 #
 # A stop signals the job's whole process group (fly/start.sh), which reaches both
 # this script and the job. This script waits on; it does not pass the signal on
-# again, which would land a second SIGTERM in the middle of the nightly's backup.
+# again, which would land a second SIGTERM in the middle of the job's cleanup.
 
 set -uo pipefail
 

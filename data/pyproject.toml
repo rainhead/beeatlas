@@ -1,28 +1,38 @@
 [project]
 name = "beeatlas-data"
 version = "0.1.0"
-description = "dlt pipelines for Washington Bee Atlas data ingestion"
+description = "BeeAtlas's data pipeline, the notes store and the write API's Python"
 readme = "README.md"
 requires-python = ">=3.14"
+# What the Fly Machine runs (ADR 0046): the write API, the notes store and its
+# migrations, the note harvest and the notes store's backup. The image installs
+# these alone (fly/Dockerfile sets UV_NO_DEFAULT_GROUPS), so anything a note save,
+# the API or the Machine's schedule imports belongs here, not in `pipeline`.
 dependencies = [
-    "dlt[duckdb]>=1.30.0",
-    "duckdb>=1.5.5,<2",
-    "pyarrow>=25.0.1",
-    "pyogrio>=0.11",  # GDAL-bundling reader for the PAD-US wilderness GDB (attribute-filter pushdown; see geographies_pipeline)
-    "rasterio>=1.5.1",  # /vsicurl COG point-sampling of the USGS 3DEP DEM (see dem_elevation)
-    "requests",
-    "beautifulsoup4",
-    "boto3>=1.43.69",
-    "dateparser",
-    "pygbif",
-    "rapidfuzz",
-    "alembic>=1.19.1",
     "sqlalchemy>=2.0.52,<3",
+    "alembic>=1.19.1",
     "flask>=3.1.2",
     "waitress>=3.0.2",
     "flask-cors>=6.0.5",
     "nh3>=0.3.6",
     "markdown-it-py>=4.2.0",
+    "requests",
+    "boto3>=1.43.69",
+]
+
+[dependency-groups]
+# The nightly's ingests and transforms, which run on Hostess (ADR 0046) and in CI,
+# never on the Machine.
+pipeline = [
+    "dlt[duckdb]>=1.30.0",
+    "duckdb>=1.5.5,<2",
+    "pyarrow>=25.0.1",
+    "pyogrio>=0.11",  # GDAL-bundling reader for the PAD-US wilderness GDB (attribute-filter pushdown; see geographies_pipeline)
+    "rasterio>=1.5.1",  # /vsicurl COG point-sampling of the USGS 3DEP DEM (see dem_elevation)
+    "beautifulsoup4",
+    "dateparser",
+    "pygbif",
+    "rapidfuzz",
     "numpy>=2.5.2",
     "pillow>=12.3.0",
     # The transform layer, run by dbt/run.sh. Below 2: dbt v2 is a different
@@ -30,12 +40,15 @@ dependencies = [
     "dbt-core>=1.12.6,<2",
     "dbt-duckdb>=1.11.0,<2",
 ]
-
-[dependency-groups]
 dev = [
     "pytest>=9.1.1",
     "pytest-randomly>=4.1.0",
 ]
+
+[tool.uv]
+# A bare `uv sync` or `uv run`, on Hostess, in CI or in development, installs
+# everything. The Machine's image opts out of both groups.
+default-groups = ["pipeline", "dev"]
 
 [tool.pytest.ini_options]
 pythonpath = [".", ".."]

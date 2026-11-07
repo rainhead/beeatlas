@@ -17,9 +17,8 @@
 #   2. Source NVM, `nvm use` the .nvmrc-pinned node, git pull BOTH repos —
 #      this one and the stelis checkout that owns the task graph, since a
 #      change spanning the two ships only if both move (beeatlas-cwh) —
-#      `pnpm install --frozen-lockfile` in both Node trees, uv sync. In the Fly
-#      image (BEEATLAS_CONTAINER, data/runtime-env.sh) none of this runs: the
-#      code, Stelis and the dependencies are the image's.
+#      `pnpm install --frozen-lockfile` in both Node trees, uv sync. It does not
+#      run in the Fly image at all (BEEATLAS_CONTAINER), which has no pipeline.
 #   3. Restore the integration-gate baseline (last PUBLISHED artifacts,
 #      snapshotted in step 7) into public/data/.
 #   4. `pnpm run fetch-data` — Stelis (github.com/rainhead/stelis) builds the
@@ -79,6 +78,13 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # fly_retry and fly_reachable, for the calls Hostess makes to the Machine (ADR 0046).
 # shellcheck source=data/fly-lib.sh
 . "$SCRIPT_DIR/fly-lib.sh"
+
+# Not on the Fly Machine: since ADR 0046 the nightly runs on Hostess, and the image
+# carries none of the pipeline (no dbt, no ingests, no caches; beeatlas-uibw.7).
+if in_container; then
+    echo "data/nightly.sh: the nightly runs on Hostess, not in the Fly image, which has no pipeline (ADR 0046, docs/runbooks/hostess-nightly.md)" >&2
+    exit 2
+fi
 
 BASE_DIR="${BASE_DIR:-/var/www/beeatlas.net}"
 SITE_ROOT="${SITE_ROOT:-$BASE_DIR/htdocs}"
@@ -260,10 +266,6 @@ flock 200
 # 1. Sync source + dependencies. NVM is required for node tooling: the site build
 # (root package.json) and the pipeline's mapshaper (data/package.json, called by
 # data/topology_postprocess.py). Both trees are installed below.
-#
-# In the Fly image there is nothing to sync (beeatlas-h6mo): the image IS the
-# deploy, with Stelis pinned by digest, so pulling would move this run past the
-# pin. The pull, the Stelis pull and compile, and the installs are host-only.
 _stage="sync"
 echo "--- syncing source + dependencies ---"
 _t0=$(date +%s)
@@ -271,9 +273,7 @@ cd "$REPO_ROOT"
 use_pinned_node
 STELIS_DIR="${STELIS_DIR:-$HOME/dev/stelis}"
 export STELIS_DIR
-if in_container; then
-    describe_code
-elif [[ -n "${BEEATLAS_CODE_PINNED:-}" ]]; then
+if [[ -n "${BEEATLAS_CODE_PINNED:-}" ]]; then
     # Hostess (ADR 0046): infra/hostess/nightly.sh has already checked out the commit
     # the Machine is running, and Stelis at that commit's fly/stelis-commit, both
     # detached. Pulling either would move this run off the code that will render
@@ -408,11 +408,9 @@ _pnpm_sync() {
     echo "  pnpm[$label]: installing from lockfile"
     ( cd "$dir" && pnpm install --frozen-lockfile )
 }
-if ! in_container; then
-    _pnpm_sync "$REPO_ROOT" site
-    _pnpm_sync "$SCRIPT_DIR" data
-    (cd "$SCRIPT_DIR" && uv sync)
-fi
+_pnpm_sync "$REPO_ROOT" site
+_pnpm_sync "$SCRIPT_DIR" data
+(cd "$SCRIPT_DIR" && uv sync)
 cd "$SCRIPT_DIR"
 echo "sync done in $(_elapsed $_t0)"
 

@@ -3,8 +3,8 @@
 #
 #   fly/prepare-volume.sh            # as root, at boot, before dropping to app
 #
-# Creates every directory the scripts, the Stelis graph and the symlinks in the
-# checkout write to, and hands the volume to `app`, since Fly mounts it owned by root.
+# Creates every directory the publish scripts, the Stelis graph and the symlinks in
+# the checkout write to, and hands the volume to `app`, since Fly mounts it owned by root.
 # Idempotent: a directory that exists is left as it is, and chown touches only the
 # top level of each (the DuckDB and the site are large; recursing over them every
 # boot is not free). The entrypoint (beeatlas-ryli) calls this first.
@@ -14,22 +14,15 @@ set -euo pipefail
 root=${BASE_DIR:-/data}
 
 dirs=(
-    "$root/var"             # VAR_DIR: beeatlas.duckdb, export/, baseline/, publish.lock
+    "$root/var"             # VAR_DIR: export/, the Stelis state, publish.lock, staging.lock
     "$root/var/stelis"      # STELIS_STATE_DIR: the observation history and cache
     "$root/var/export"      # EXPORT_DIR
-    "$root/var/baseline"    # BASELINE_DIR: the integration gate's last-published copy
     "$root/htdocs"          # SITE_ROOT: what Caddy serves
     "$root/basemap"         # the PMTiles archives, outside every publish path
     "$root/notes"           # the authoritative notes store (NOTES_DB_PATH)
-    "$root/raw"             # /app/data/raw: taxa.csv.gz, taxa_cache.json, ecdysis_cache/
-    "$root/ecdysis-zip"     # /app/data/.ecdysis_cache: the Ecdysis export ZIP
-    "$root/geography-cache" # /app/data/.geography_cache: boundary downloads
-    "$root/burke-cache"     # /app/data/.burke_cache: build_target_hosts.py's pages
     "$root/cache"           # /app/.cache: the build receipt
     "$root/site"            # /app/_site: the rendered site before merge-swap
-    "$root/dbt-target"      # /app/data/dbt/target: dbt's sandbox
-    "$root/dlt"             # DLT_DATA_DIR: dlt's pipeline working directories
-    "$root/log"             # the nightly's log (beeatlas-ryli)
+    "$root/log"             # the schedule's and the deploy render's logs (fly/logged.sh)
     "$root/caddy"           # CADDY_SNIPPETS: fly/caddy-redirects.sh's species redirects
 )
 for d in "${dirs[@]}"; do

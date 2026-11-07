@@ -10,15 +10,17 @@
 # every push to main after (beeatlas-j65i).
 #
 # Why the lock. A deploy replaces the one Machine in place, which stops whatever it was
-# doing. The nightly, a note publish and the post-deploy render serialize on the
-# publish lock, $VAR_DIR/publish.lock; a deployer from outside the Machine was not one of
-# them. So `switch` takes that lock on the Machine first, waiting out a running nightly
-# (LOCK_WAIT, longer than any nightly has taken), and holds it while Fly replaces the
-# Machine. The new Machine's first boot renders the site under the same lock.
+# doing. A note publish, the finishing step of Hostess's nightly (data/finish-publish.sh)
+# and the post-deploy render serialize on the publish lock, $VAR_DIR/publish.lock; a
+# deployer from outside the Machine was not one of them. So `switch` takes that lock on
+# the Machine first, waiting out a running publish (LOCK_WAIT; it was sized for the
+# nightly, when the nightly ran here, and is far longer than a publish takes), and
+# holds it while Fly replaces the Machine. The new Machine's first boot renders the
+# site under the same lock.
 #
-# Two layers stand behind it. A stop that does land mid-nightly gives the nightly
-# SIGTERM and kill_timeout, 300 s, for its backup (fly/start.sh). And a publish killed
-# at any point leaves a site that serves (data/merge-swap.sh says why).
+# Two layers stand behind it. A stop that does land mid-job gives the job SIGTERM and
+# kill_timeout, 300 s, to finish (fly/start.sh). And a publish killed at any point
+# leaves a site that serves (data/merge-swap.sh says why).
 #
 # flyctl by that name: the workflow's setup-flyctl installs no `fly` alias.
 set -euo pipefail
@@ -95,7 +97,7 @@ switch() {
         rm -f "$lock_log"
     }
     trap release EXIT
-    echo "waiting for the publish lock on $APP (a running nightly holds it until it ends)..."
+    echo "waiting for the publish lock on $APP (a running publish holds it until it ends)..."
     # A local deadline too, with a minute's slack for the SSH connection: a session that
     # stalls before the remote flock starts would otherwise wait with no end.
     deadline=$((SECONDS + LOCK_WAIT + 60))

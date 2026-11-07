@@ -2,7 +2,7 @@
 # The Machine's one process (beeatlas-ryli, ADR 0042): Caddy, the write API and the
 # schedule side by side, under this script. One process, on purpose. Fly's
 # [processes] would put each on a Machine of its own, and a volume attaches to one
-# Machine; the synchronous note publish needs the API, the Stelis state, the DuckDB,
+# Machine; the synchronous note publish needs the API, the Stelis state, the export,
 # the checkout and the site root on one filesystem. Do not split them.
 #
 # The same shape as salishsea's fly/start.sh. If Caddy or the schedule exits, or
@@ -32,9 +32,10 @@ caddy_pid='' api_pid='' cron_pid='' watchdog_pid=''
 
 # The process groups of supercronic's running jobs. supercronic puts each job in a
 # group of its own and, stopping, waits for the jobs without signalling them, so a
-# stop would end a running nightly with Fly's SIGKILL and skip its EXIT trap, the
-# offsite backup. Signalling the job's group instead is what a terminal's ^C does,
-# which is the path data/nightly.sh's signal handler was written for.
+# stop would end a running job with Fly's SIGKILL, leaving it no time to clean up.
+# Signalling the job's group instead is what a terminal's ^C does. (It was written for
+# the nightly's offsite backup, when the nightly ran here; the notes snapshot is the
+# only job now.)
 job_groups() {
     local stat fields
     for stat in /proc/[0-9]*/stat; do
@@ -46,9 +47,9 @@ job_groups() {
 }
 
 # Stopping. Fly sends SIGTERM (fly.toml's kill_signal) and SIGKILLs after
-# kill_timeout, 300 s, the most it allows. The schedule goes first, so a running
-# nightly gets its signal and time for its backup; then the API, then Caddy, which
-# serves until the end.
+# kill_timeout, 300 s, the most it allows. The schedule goes first, so a running job
+# gets its signal and time to finish; then the API, then Caddy, which serves until the
+# end.
 # shellcheck disable=SC2329 # invoked by the trap and the watchdog below
 stop() {
     local status=${1:-0}
@@ -85,8 +86,8 @@ caddy_pid=$!
 # together: a stop reaches Litestream, which stops the API and makes its final sync.
 # A fresh volume first gets the store back from the replica; with a store present
 # that does nothing. With neither a store nor a replica the restore fails and the API
-# stays down rather than start an empty store, which the next nightly would publish
-# as a site with nobody's notes: putting a store in place is a deliberate act (the
+# stays down rather than start an empty store, which the next publish would put on
+# the site as a site with nobody's notes: putting a store in place is a deliberate act (the
 # cutover, or a restore by hand).
 #
 # Replication is continuous while S3 is reachable. During an outage the API still
@@ -149,8 +150,8 @@ cron_pid=$!
 # new image renders the site against the last published export (data/publish-code.sh
 # in container mode, ADR 0042: a release_command Machine has no volume). It renders
 # only if something a page is built from changed, and otherwise exits at once (ADR 0045). It takes the
-# publish lock, so it waits for a running nightly. Not watched: a failed render leaves
-# the last good site in place, and the next nightly renders anyway.
+# publish lock, so it waits for a running publish. Not watched: a failed render leaves
+# the last good site in place, and the next nightly's publish renders anyway.
 rendered=/data/var/rendered-commit
 if [ "$(cat "$rendered" 2> /dev/null || true)" != "${GITHUB_SHA:-}" ] && [ -d /data/var/export ]; then
     (
