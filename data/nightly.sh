@@ -587,7 +587,7 @@ _t0=$(date +%s)
 if [[ -n "${SKIP_STELIS_GATE:-}" ]]; then
     echo "WARN: SKIP_STELIS_GATE set — BYPASSING the stelis edge check." >&2
     echo "WARN: this publishes with the declared task inputs and outputs UNVERIFIED." >&2
-elif ! (cd "$STELIS_DIR" && racket src/main.rkt --verify-edges --export-dir "$EXPORT_DIR"); then
+elif ! (cd "$STELIS_DIR" && env BEEATLAS_DIR="$REPO_ROOT" racket src/main.rkt --verify-edges --export-dir "$EXPORT_DIR"); then
     echo "STELIS EDGE CHECK FAILED in $(_elapsed $_t0) — aborting publish" >&2
     echo "--verify-edges exited non-zero, so the declared inputs and outputs of the" >&2
     echo "tasks it covers are unverified and this run will not publish on them. The" >&2
