@@ -1,15 +1,21 @@
 version: 2
-updates:
-  # GitHub Actions — weekly, minor+patch grouped
-  - package-ecosystem: "github-actions"
-    directory: "/"
+
+# One pull request a month covering every update — npm in all three pnpm
+# projects, uv, and GitHub Actions together — instead of one pull request per
+# ecosystem and directory each week. Most of those were closed unmerged because
+# the next week's bump replaced them. Majors join the group too; ignore rules
+# below still apply inside it. Security fixes don't wait for the month: they
+# come from Dependabot security updates (repository settings), as their own PRs.
+multi-ecosystem-groups:
+  monthly:
     schedule:
-      interval: "weekly"
-    groups:
-      actions-minor-patch:
-        update-types:
-          - "minor"
-          - "patch"
+      interval: monthly
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    multi-ecosystem-group: monthly
+    patterns: ['*']
 
   # `npm` is also Dependabot's name for the pnpm ecosystem; what it needs from us
   # is a lockfile format it groks, and pnpm 11 writes lockfileVersion 9, which it
@@ -19,67 +25,37 @@ updates:
   #
   # Each directory below is its own pnpm project with its own pnpm-lock.yaml and
   # pnpm-workspace.yaml — not a workspace, so each needs its own entry here.
-  #
-  # npm — root package.json / pnpm-lock.yaml, weekly, minor+patch grouped
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    groups:
-      npm-minor-patch:
-        update-types:
-          - "minor"
-          - "patch"
+  - package-ecosystem: npm
+    directory: /
+    multi-ecosystem-group: monthly
+    patterns: ['*']
     ignore:
       # @types/node tracks the Node major (.nvmrc → 26); don't let it jump ahead
       # of the runtime (types for Node 27 APIs would typecheck but fail at run).
       # Bump this major by hand when the Node version moves.
-      - dependency-name: "@types/node"
-        update-types: ["version-update:semver-major"]
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
 
-  # npm — infra/ AWS CDK project (package.json / pnpm-lock.yaml), weekly, minor+patch grouped
-  - package-ecosystem: "npm"
-    directory: "/infra"
-    schedule:
-      interval: "weekly"
-    groups:
-      infra-npm-minor-patch:
-        update-types:
-          - "minor"
-          - "patch"
+  # infra/ is the AWS CDK project. CI builds, tests and runs `cdk synth` on it
+  # (since 390aa075), so a broken bump fails the PR checks instead of passing.
+  - package-ecosystem: npm
+    directory: /infra
+    multi-ecosystem-group: monthly
+    patterns: ['*']
     ignore:
-      # @types/node tracks the Node major (.nvmrc → 26); don't let it jump ahead
-      # of the runtime. Bump this major by hand when the Node version moves.
-      - dependency-name: "@types/node"
-        update-types: ["version-update:semver-major"]
-      # The typescript major ignore that lived here was removed with beeatlas-fa7:
-      # infra/ no longer runs ts-node (which TS 7, the native port, broke by
-      # dropping the `ts.sys` JS API surface), so TS 7.0.2 is now in use and
-      # majors are safe to offer again. infra/ is covered by CI as of 390aa075
-      # (build + test + `cdk synth`), so a repeat of PR #55 would now fail the
-      # PR checks instead of passing them all-green while broken.
+      # Same reason as the root entry: hold @types/node to the Node major.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
 
-  # npm — data/ pipeline Node tooling (mapshaper), weekly, minor+patch grouped.
-  # This tree was split out of the root package.json in beeatlas-dqh; without an
-  # entry here it would be a 227-package dependency tree that nothing watches,
-  # which is the opposite of the point of splitting it.
-  - package-ecosystem: "npm"
-    directory: "/data"
-    schedule:
-      interval: "weekly"
-    groups:
-      data-npm-minor-patch:
-        update-types:
-          - "minor"
-          - "patch"
+  # data/ holds the pipeline's Node tooling (mapshaper), split out of the root
+  # package.json in beeatlas-dqh. Without an entry here it would be a dependency
+  # tree that nothing watches.
+  - package-ecosystem: npm
+    directory: /data
+    multi-ecosystem-group: monthly
+    patterns: ['*']
 
-  # uv — data/ pyproject.toml / uv.lock, weekly, minor+patch grouped
-  - package-ecosystem: "uv"
-    directory: "/data"
-    schedule:
-      interval: "weekly"
-    groups:
-      python-minor-patch:
-        update-types:
-          - "minor"
-          - "patch"
+  - package-ecosystem: uv
+    directory: /data
+    multi-ecosystem-group: monthly
+    patterns: ['*']
