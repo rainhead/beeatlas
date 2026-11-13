@@ -59,3 +59,11 @@ updates:
     directory: /data
     multi-ecosystem-group: monthly
     patterns: ['*']
+    ignore:
+      # DuckDB 2.0 is a deliberate move, not a routine bump: the pipeline's SQL
+      # needs changes (2.0 refuses the `x -> f(x)` lambda), and the DuckDB
+      # command-line program pinned in fly/downloads.tsv and Stelis's CI must
+      # move with this library in the same change. Which release line every
+      # project shares is undecided (workbench-gp3). Until then, hold the major.
+      - dependency-name: duckdb
+        update-types: ['version-update:semver-major']
