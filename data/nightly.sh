@@ -17,8 +17,9 @@
 #   2. Source NVM, `nvm use` the .nvmrc-pinned node, git pull BOTH repos —
 #      this one and the stelis checkout that owns the task graph, since a
 #      change spanning the two ships only if both move (beeatlas-cwh) —
-#      `pnpm install --frozen-lockfile` in both Node trees, uv sync. It does not
-#      run in the Fly image at all (BEEATLAS_CONTAINER), which has no pipeline.
+#      `pnpm install --frozen-lockfile` in both Node trees, uv sync. It refuses to
+#      run in the Machine's image, which has no pipeline, and in the nightly image
+#      (BEEATLAS_NIGHTLY_IMAGE, ADR 0047) it pulls and installs nothing.
 #   3. Restore the integration-gate baseline (last PUBLISHED artifacts,
 #      snapshotted in step 7) into public/data/.
 #   4. `pnpm run fetch-data` — Stelis (github.com/rainhead/stelis) builds the
@@ -56,11 +57,14 @@
 # the S3 pulls (DuckDB, taxa, baseline) — state now lives on this host under
 # $VAR_DIR. Only the offsite backup trap remains.
 #
-# On Hostess (ADR 0046) infra/hostess/nightly.sh runs this with the layout below
-# under ~/beeatlas-nightly, BEEATLAS_CODE_PINNED (it has already checked out the
-# code, so step 1 pulls nothing), NOTES_FROM_FLY_APP (step 3a takes the Machine's
-# notes/) and SEND_TO_FLY_APP (step 6 sends the build to the Machine's staging
-# directory instead of merge-swapping). docs/runbooks/hostess-nightly.md.
+# On Hostess (ADR 0046, ADR 0047) this runs in the nightly image, the nightly target of
+# fly/Dockerfile, which infra/hostess/nightly.sh builds at the Machine's commit and runs
+# with ~/beeatlas-nightly as /data. The image sets the layout below and
+# BEEATLAS_NIGHTLY_IMAGE (the code and every dependency are the image's, so step 1
+# pulls and installs nothing); the wrapper adds NOTES_FROM_FLY_APP (step 3a takes the
+# Machine's notes/) and SEND_TO_FLY_APP (step 6 sends the build to the Machine's
+# staging directory instead of merge-swapping). BEEATLAS_CODE_PINNED is the host
+# checkout form that came before the image. docs/runbooks/hostess-nightly.md.
 #
 # Layout (the htdocs+var convention; fly/Dockerfile sets BASE_DIR=/data on the
 # Fly Machine):
@@ -82,10 +86,12 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 # shellcheck source=data/fly-lib.sh
 . "$SCRIPT_DIR/fly-lib.sh"
 
-# Not on the Fly Machine: since ADR 0046 the nightly runs on Hostess, and the image
-# carries none of the pipeline (no dbt, no ingests, no caches; beeatlas-uibw.7).
-if in_container; then
-    echo "data/nightly.sh: the nightly runs on Hostess, not in the Fly image, which has no pipeline (ADR 0046, docs/runbooks/hostess-nightly.md)" >&2
+# Not on the Fly Machine: since ADR 0046 the nightly runs on Hostess, and the Machine's
+# image carries none of the pipeline (no dbt, no ingests, no caches; beeatlas-uibw.7).
+# The one container it runs in is the nightly's own image (ADR 0047), which Hostess
+# builds from the nightly target of fly/Dockerfile.
+if in_container && ! in_nightly_image; then
+    echo "data/nightly.sh: the nightly runs on Hostess, in the nightly image, not in the Machine's, which has no pipeline (ADR 0046, ADR 0047, docs/runbooks/hostess-nightly.md)" >&2
     exit 2
 fi
 
@@ -276,7 +282,12 @@ cd "$REPO_ROOT"
 use_pinned_node
 STELIS_DIR="${STELIS_DIR:-$HOME/dev/stelis}"
 export STELIS_DIR
-if [[ -n "${BEEATLAS_CODE_PINNED:-}" ]]; then
+if in_nightly_image; then
+    # The nightly image (ADR 0047): the commit, Stelis and every dependency were fixed
+    # when Hostess built it, at the Machine's commit, and Stelis is compiled in it.
+    # Nothing to pull, compile or install.
+    describe_code
+elif [[ -n "${BEEATLAS_CODE_PINNED:-}" ]]; then
     # Hostess (ADR 0046): infra/hostess/nightly.sh has already checked out the commit
     # the Machine is running, and Stelis at that commit's fly/stelis-commit, both
     # detached. Pulling either would move this run off the code that will render
@@ -435,9 +446,13 @@ _pnpm_sync() {
     echo "  pnpm[$label]: installing from lockfile"
     ( cd "$dir" && pnpm install --frozen-lockfile )
 }
-_pnpm_sync "$REPO_ROOT" site
-_pnpm_sync "$SCRIPT_DIR" data
-(cd "$SCRIPT_DIR" && uv sync)
+# The nightly image installed both trees and the Python environment from the lockfiles
+# when it was built; there is nothing to do, and no network should be needed to do it.
+if ! in_nightly_image; then
+    _pnpm_sync "$REPO_ROOT" site
+    _pnpm_sync "$SCRIPT_DIR" data
+    (cd "$SCRIPT_DIR" && uv sync)
+fi
 cd "$SCRIPT_DIR"
 echo "sync done in $(_elapsed $_t0)"
 

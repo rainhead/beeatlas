@@ -1,7 +1,8 @@
 # 0046 — The nightly runs on Hostess, and the Machine keeps only the interactive parts
 
 Date: 2026-10-30
-Status: Accepted
+Status: Accepted; amended by [0047](0047-the-nightly-runs-in-a-container-on-hostess.md), which runs
+the nightly in a container built from `fly/Dockerfile` instead of from host checkouts
 Supersedes the pipeline half of [0042](0042-beeatlas-moves-to-fly-as-one-stateful-machine.md)
 ("the API does not split from the pipeline") and, with it, the parts of
 [0044](0044-what-the-pipeline-writes-lives-on-the-volume.md) that put the pipeline's caches on the

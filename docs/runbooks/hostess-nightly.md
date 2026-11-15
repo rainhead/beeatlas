@@ -3,9 +3,13 @@
 The nightly data build runs on Hostess, Peter's workstation, not on the Fly Machine
 ([ADR 0046](../adr/0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md)).
 A systemd user timer starts [`infra/hostess/nightly.sh`](../../infra/hostess/nightly.sh)
-at 03:00 Pacific. It checks out the commit the Machine is running and runs
-[`data/nightly.sh`](../../data/nightly.sh) from it, with the layout below. This page is
-what an operator needs that the scripts don't say on their own.
+at 03:00 Pacific. It builds the nightly image (the `nightly` target of
+[`fly/Dockerfile`](../../fly/Dockerfile)) at the commit the Machine is running, and runs it
+with the layout below mounted at `/data`. Inside, [`fly/nightly-entry.sh`](../../fly/nightly-entry.sh)
+runs [`data/nightly.sh`](../../data/nightly.sh). The image holds the Machine's toolchain plus
+the pipeline, so nothing the run uses is installed on Hostess
+([ADR 0047](../adr/0047-the-nightly-runs-in-a-container-on-hostess.md)). This page is what an
+operator needs that the scripts don't say on their own.
 
 A run that passes every gate sends its build to `/data/staging` on the Machine's volume
 and checks it there against the Machine's checkout with the build receipt
@@ -18,7 +22,8 @@ cutover on 2026-11-03, and the Machine's schedule no longer runs one.
 
 The operator page, `/build-log.html`, is the nightly's, sent from Hostess when
 `data/nightly.sh` exits, failed runs included. A run that fails before that script
-starts, in the wrapper (reading the Machine's commit, or the first `git fetch`), sends no
+starts, in the wrapper or the container's entry script (reading the Machine's commit, the
+first `git fetch`, building the image, or making the empty notes store), sends no
 page, so the one served is still the last run's; its failure is only in
 `log/nightly-<date>.log`. The Machine's own builds (note saves and the finishing step)
 have theirs at `/build-log-notes.html`.
@@ -40,7 +45,26 @@ have theirs at `/build-log-notes.html`.
 - `the call to the Machine failed (rc=…); trying again in 30s` — Fly's API or the
   tunnel failed; the call is retried three times over about four minutes.
 
-## Cutover
+## Cutover to the container
+
+The nightly ran from host checkouts until `beeatlas-n1o7`. To move a host that does:
+
+1. Deploy the change, so the Machine runs a commit whose `fly/Dockerfile` has the
+   `nightly` target; the wrapper stops with a message otherwise.
+2. Copy the new units from main (below, step 4 of setting up a host) and
+   `systemctl --user daemon-reload`.
+3. Move what the old checkout kept between nights into the layout, so the first run
+   does not rebuild it: `data/dedup_candidate_pairs.csv`, `data/lineage_unresolved.csv`
+   and `data/inactive_unresolved.csv` into `checkout-files/`, and `data/dbt/logs/` into
+   `dbt-logs/`.
+4. Start a run by hand and follow its log. Its first image build takes a few minutes.
+
+Keep the host's Racket, uv, nvm and the `stelis/` checkout for two weeks: an older
+wrapper, which a revert brings back, runs the nightly from them. Then remove them, and
+point Racket's `stelis` link back at `~/dev/stelis` if the nightly's checkout still has it
+(`raco pkg show -i`; `beeatlas-ey8e`).
+
+## Cutover from the Machine
 
 Done on 2026-11-03, in this order:
 
@@ -57,20 +81,28 @@ Done on 2026-11-03, in this order:
 Everything lives under `~/beeatlas-nightly`, laid out like the Machine's volume
 (`fly/Dockerfile` names the same paths under `/data`):
 
-- `beeatlas/`, `stelis/` — checkouts that belong to the nightly. Each run checks them
-  out detached, with `--force`; never work in them.
+- `beeatlas/` — a clone that belongs to the nightly, where the Machine's commit is
+  fetched. The image is built from `git archive` of the commit, never from this working
+  tree, so nothing in it reaches a run; never work in it.
 - `var/` — the DuckDB, the export, the integration baseline and the Stelis state dir.
-- `raw/`, `ecdysis-zip/`, `dlt/`, `dbt-target/`, `cache/`, `site/` and the other caches,
-  reached from the checkout through symlinks the wrapper makes.
+- `raw/`, `ecdysis-zip/`, `dlt/`, `dbt-target/`, `dbt-logs/`, `cache/`, `site/` and the
+  other caches, and `checkout-files/` (three CSV files Stelis's gates write into `data/`):
+  reached from the checkout inside the image through symlinks the image makes.
+- `fly-home/` — flyctl's config folder inside the container.
 - `notes/empty.db` — an empty notes store, remade every run. Hostess never holds the
   real one: the run takes the Machine's published `notes/` instead.
-- `log/nightly-<date>.log` — the whole run's output.
+- `log/nightly-<date>.log` — the whole run's output, the image build included.
+
+Files there are owned by Hostess's user, because the image's `app` user has the same
+uid and gid, 1000; the wrapper refuses to run as any other.
 
 Secrets and per-host switches are in `~/.config/beeatlas/nightly.env` (mode 600): the
 Ecdysis sign-in, the Fly token below, `FINISH_PUBLISH=1`, and `PIPELINE_BACKUP_BUCKET`
 with the `beeatlas-hostess-pipeline` key (`infra/lib/beeatlas-stack.ts`; the key is made
 outside CDK). A second host on trial instead has `HEALTHCHECK_URL=` and
-`SKIP_PIPELINE_BACKUP=1`, and no `FINISH_PUBLISH`.
+`SKIP_PIPELINE_BACKUP=1`, and no `FINISH_PUBLISH`. Every name in the file reaches the
+container, and so do the one-run switches the wrapper lists (`PASS_THROUGH`); nothing
+else of the host's environment does.
 
 ## Reaching the Machine
 
@@ -107,14 +139,10 @@ Two identities, kept apart on purpose:
 
 ## Setting up a host
 
-1. Clone `beeatlas` and `stelis` into `~/beeatlas-nightly`; the steps below use these
-   checkouts.
-2. Tools: Racket with Stelis's packages (`~/beeatlas-nightly/stelis/scripts/preflight.sh`
-   names any missing), uv, nvm with the `.nvmrc` Node and
-   `npm install -g pnpm@<packageManager>` under it (Node 26 has no corepack), flyctl
-   signed in, and DuckDB's `spatial` and `sqlite_scanner` extensions installed for the
-   pipeline's Python DuckDB (the pipeline never downloads them; `fly/Dockerfile` shows
-   the command).
+1. Clone `beeatlas` into `~/beeatlas-nightly/beeatlas`.
+2. Tools: git, Docker (the user in the `docker` group), and flyctl at `~/.fly/bin/flyctl`,
+   which reads the Machine's commit before there is an image. Everything else the run
+   uses is in the image. The user must be uid and gid 1000.
 3. Seed `~/beeatlas-nightly` from the Machine's volume while the publish lock is free:
    `raw ecdysis-zip geography-cache burke-cache dlt dbt-target var/beeatlas.duckdb
    var/baseline var/stelis var/export`, as one `tar` through `flyctl ssh console`, under
@@ -122,10 +150,9 @@ Two identities, kept apart on purpose:
    state from the pipeline bucket (`db/`, `stelis/`) with `data/s3_backup.py restore`.
    Then write `nightly.env`, including the Fly token (above).
 4. Install the units and turn on lingering, so the timer runs with nobody logged in.
-   Copy them, from main, rather than linking them into the checkout: each run moves the
-   checkout to the Machine's commit, which can be older than the units. For the same
-   reason the service runs a copy of main's `nightly.sh` from outside the checkout.
-   Copy them again when they change on main.
+   Copy them from main rather than linking them into the checkout, and copy them again
+   when they change there. The service likewise runs a copy of main's `nightly.sh`, so
+   that wrapper must work with whatever commit the Machine runs.
 
    ```bash
    mkdir -p ~/.config/systemd/user
@@ -146,15 +173,29 @@ under that lock, waiting at most ten minutes.
 
 - Now: `systemctl --user start beeatlas-nightly.service`; the log is in `log/`.
 - A change that is not deployed yet: commit it, fetch the commit into
-  `~/beeatlas-nightly/beeatlas`, and run the wrapper from the development checkout with
-  `NIGHTLY_COMMIT=<sha>`, as a transient unit so it outlives the shell:
+  `~/beeatlas-nightly/beeatlas` (from the development checkout, `git -C
+  ~/beeatlas-nightly/beeatlas fetch ~/dev/beeatlas <branch>`, needs no push), and run the
+  wrapper from the development checkout with `NIGHTLY_COMMIT=<sha>`, as a transient unit
+  so it outlives the shell:
   `systemd-run --user --collect -p EnvironmentFile=$HOME/.config/beeatlas/nightly.env
   --setenv=NIGHTLY_COMMIT=<sha> /bin/bash $HOME/dev/beeatlas/infra/hostess/nightly.sh`
   (absolute: a transient unit does not start in the current directory). Such a run
-  backs up nothing and sends no healthcheck ping, whatever `nightly.env` says. Never
-  send its build to the Machine.
+  backs up nothing and sends no healthcheck ping, whatever `nightly.env` says, and sends
+  nothing to the Machine. To try it without touching the real state, give it a copy of
+  the layout with `--setenv=BASE_DIR=<copy>`: the container is named after the layout,
+  so it runs beside the real one.
+- Images and the build cache: the wrapper keeps the image it ran and the newest other
+  `beeatlas-nightly` image, and trims Docker's build cache to 20 GB. That cache is the
+  whole host's, so the limit applies to every project's builds on Hostess.
+- The image alone: `bash fly/nightly-smoke.sh beeatlas-nightly:<sha>` checks that the
+  pipeline's tools load in it, as CI does.
+- Stopping a run: `systemctl --user stop beeatlas-nightly.service`. The signal reaches
+  every process in the container, the run makes its backups, and the stop waits up to
+  fifteen minutes for that. A container left running after its unit stopped (`docker ps`)
+  is stopped by the unit's `ExecStopPost`; by hand, `docker stop -t 600 <name>`.
 - A run missed while Hostess was asleep or off happens once when it wakes or next boots
-  (the timer is `Persistent`), at `Nice=10`. A run made up on wake starts before the
+  (the timer is `Persistent`), at a lower CPU share than other containers
+  (`--cpu-shares 512`). A run made up on wake starts before the
   network is back, so the service retries its first `git fetch` for up to five minutes
   before failing. Until the run succeeds the data is older, and once the healthcheck is
   switched on, its late ping raises the alarm.

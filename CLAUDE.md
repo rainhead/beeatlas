@@ -100,7 +100,11 @@ linked ADR — read it before changing anything an entry calls load-bearing.
   ([ADR 0046](docs/adr/0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md),
   [docs/runbooks/hostess-nightly.md](docs/runbooks/hostess-nightly.md)). So a code change
   reaches the nightly by deploying, not by a `git pull`, and the Machine's schedule
-  (`fly/crontab`) no longer runs it.
+  (`fly/crontab`) no longer runs it. It runs in a container: the `nightly` target of
+  `fly/Dockerfile`, which shares a `base` stage with the Machine's (`machine`) target, so
+  the two have one toolchain and nothing the nightly uses is installed on Hostess
+  ([ADR 0047](docs/adr/0047-the-nightly-runs-in-a-container-on-hostess.md)). A change to
+  `base` changes the Machine's image too.
   **Stelis** is the data engine (ADR 0007 Amendment) — a content-addressed graph over
   `data/`, env-driven by `DB_PATH`/`EXPORT_DIR`/`NOTES_DB_PATH`, invoked via
   `pnpm run fetch-data`. It knows nothing about S3, git, or the site render. It replaced

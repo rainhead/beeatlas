@@ -1,4 +1,15 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
+#
+# Two images from one file, as two targets that share a `base` stage:
+#
+#   machine   the Fly Machine's, below; fly/deploy.sh and the fly-image workflow
+#             name it explicitly
+#   nightly   the nightly's, which Hostess builds at the Machine's commit and runs
+#             (ADR 0047): the base, plus the pipeline (see its stage)
+#
+# The syntax line is pinned by digest (what the dockerfile:1 tag named on
+# 2026-09-30) so that a build whose layers are all cached does not ask Docker Hub
+# anything.
 #
 # The beeatlas Fly machine (ADR 0042, beeatlas-3je9): one image holding everything
 # the write API, a note save's publish and a deploy's render run on, pinned, so that
@@ -68,8 +79,8 @@ FROM ${STELIS_IMAGE} AS stelis
 FROM ${NODE_IMAGE} AS node
 RUN npm install -g pnpm@11.22.0
 
-# --- the machine ------------------------------------------------------------------
-FROM ${DEBIAN_IMAGE}
+# --- the base: what the Machine and the nightly share ------------------------------
+FROM ${DEBIAN_IMAGE} AS base
 # libssl3: the Stelis engine's sha package opens libcrypto through Racket's FFI
 # (Stelis ADR 0017). libatomic1: node 26 links against it. rsync and flock
 # (util-linux): merge-swap.sh and the publish lock. curl and the CA store: the
@@ -173,6 +184,113 @@ RUN duckdb -c "INSTALL sqlite_scanner" \
 WORKDIR /app
 COPY --chown=app:app package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
+
+# --- the nightly (ADR 0047) -------------------------------------------------------------
+# The base, plus what only the pipeline runs: the default dependency groups (dlt, dbt,
+# the ingests, and the integration gate's pytest), DuckDB's spatial extension for the
+# Python library, the pipeline's node tooling (mapshaper), flyctl for the calls to the
+# Machine, sqlite3 (Stelis's notes-digest test skips without it, and the nightly's gate
+# counts a skip as a failure), and tini. Everything the build writes lives under /data,
+# which Hostess mounts from ~/beeatlas-nightly, laid out as the Machine's volume is.
+FROM base AS nightly
+USER root
+# tini -g: a stop signal reaches the whole process group, which data/nightly.sh's
+# signal handler expects (systemd's KillMode=control-group did that on the host).
+# libexpat1: the GDAL inside the rasterio and pyogrio wheels links against it, and
+# it is the one library any wheel or addon here finds missing (checked with ldd).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libexpat1 sqlite3 tini \
+ && rm -rf /var/lib/apt/lists/*
+# flyctl, pinned in a file of the nightly's own so that the Machine's layers do not
+# move when it does. fetch.sh reads the downloads.tsv beside it. `flyctl version`
+# writes a config dir under HOME, which is app's and must stay free for the link below.
+COPY fly/fetch.sh /tmp/nightly-fetch/fetch.sh
+COPY fly/nightly-downloads.tsv /tmp/nightly-fetch/downloads.tsv
+RUN /tmp/nightly-fetch/fetch.sh flyctl /tmp/flyctl.tgz \
+ && tar -xzf /tmp/flyctl.tgz -C /usr/local/bin flyctl && rm /tmp/flyctl.tgz \
+ && HOME=/tmp/flyctl-home flyctl version && rm -rf /tmp/flyctl-home
+USER app
+
+# The default groups (data/pyproject.toml), which the base leaves out. "0", not empty:
+# uv rejects an empty value, and an ENV cannot unset one. Set for every later `uv
+# run` too, so each finds the environment in sync. dbt/run.sh --identity is Stelis's
+# runtime probe, and the proof that dbt loads.
+ENV UV_NO_DEFAULT_GROUPS=0
+WORKDIR /app/data
+COPY --chown=app:app data/dbt/run.sh ./dbt/run.sh
+RUN uv sync --frozen \
+ && bash dbt/run.sh --identity
+# spatial and sqlite_scanner for the pipeline's duckdb (uv.lock's version). The CLI's
+# sqlite_scanner is in the base. An extension is built per DuckDB version, so each
+# binary installs its own, under app's ~/.duckdb/extensions.
+RUN uv run --frozen --no-sync python -c "import duckdb; c = duckdb.connect(); c.execute('INSTALL spatial'); c.execute('INSTALL sqlite_scanner'); c.execute('LOAD spatial')" \
+ && find "$HOME/.duckdb/extensions" -name '*.duckdb_extension' | sort
+# data/'s pnpm project (ADR 0038): mapshaper, for data/topology_postprocess.py.
+WORKDIR /app
+COPY --chown=app:app data/package.json data/pnpm-lock.yaml data/pnpm-workspace.yaml ./data/
+RUN cd data && pnpm install --frozen-lockfile
+
+# The commit. Hostess builds from `git archive` of it, so nothing the old checkout
+# held that git does not track reaches the image (infra/hostess/nightly.sh). A tar
+# context on standard input is not filtered by .dockerignore, so Hostess's image also
+# holds the tracked paths that file lists (infra/, .github/, public/data/places.*),
+# which CI's build of this target, from a directory, leaves out. Nothing the run
+# reads is among them.
+COPY --chown=app:app . /app/
+RUN cd /opt/stelis && BEEATLAS_DIR=/app SOURCE_DATE_EPOCH=1700000000 racket src/main.rkt --project beeatlas --help > /dev/null
+
+# What the pipeline writes inside the checkout, as symlinks into /data: the same
+# table infra/hostess/nightly.sh used to make in the host checkout, plus what that
+# checkout kept between nights without a link (the three CSVs Stelis's gates write
+# into data/, and dbt's logs). flyctl's config dir is kept too, so a run does not
+# start flyctl from nothing (the SSH-only token, docs/runbooks/hostess-nightly.md).
+RUN set -e; \
+    while read -r link target; do \
+        rm -rf "/app/$link"; \
+        ln -s "/data/$target" "/app/$link"; \
+        test -L "/app/$link"; \
+    done <<'EOF'
+data/raw raw
+data/.ecdysis_cache ecdysis-zip
+data/.geography_cache geography-cache
+data/.burke_cache burke-cache
+.cache cache
+_site site
+data/dbt/target dbt-target
+data/dbt/logs dbt-logs
+data/dedup_candidate_pairs.csv checkout-files/dedup_candidate_pairs.csv
+data/lineage_unresolved.csv checkout-files/lineage_unresolved.csv
+data/inactive_unresolved.csv checkout-files/inactive_unresolved.csv
+EOF
+RUN ln -s /data/fly-home /home/app/.fly
+
+# The environment infra/hostess/nightly.sh used to export on the host. HOME stays
+# /home/app. NOTES_DB_PATH is an empty store, made afresh each run by
+# fly/nightly-entry.sh: Hostess never holds the real one (ADR 0046), and the run
+# takes the Machine's published notes/ instead. BEEATLAS_NIGHTLY_IMAGE lets
+# data/nightly.sh run in a container, which it refuses in the Machine's image.
+ENV BEEATLAS_CONTAINER=1 \
+    BEEATLAS_NIGHTLY_IMAGE=1 \
+    pnpm_config_verify_deps_before_run=false \
+    BASE_DIR=/data \
+    SITE_ROOT=/data/htdocs \
+    VAR_DIR=/data/var \
+    STELIS_STATE_DIR=/data/var/stelis \
+    DB_PATH=/data/var/beeatlas.duckdb \
+    EXPORT_DIR=/data/var/export \
+    BASELINE_DIR=/data/var/baseline \
+    DLT_DATA_DIR=/data/dlt \
+    NOTES_DB_PATH=/data/notes/empty.db \
+    TZ=America/Los_Angeles
+ARG GITHUB_SHA
+RUN test -n "$GITHUB_SHA" || { echo "build-arg GITHUB_SHA is required: the build receipt and the clean geojsons stamp it, and the image holds no .git to read it from" >&2; exit 1; }
+ENV GITHUB_SHA=${GITHUB_SHA}
+WORKDIR /app
+ENTRYPOINT ["tini", "-g", "--"]
+CMD ["bash", "/app/fly/nightly-entry.sh"]
+
+# --- the machine ------------------------------------------------------------------
+FROM base AS machine
 
 # The checkout itself (.dockerignore leaves out .git, node_modules, the beads
 # database and every path the volume owns), and the proof that Stelis loads the

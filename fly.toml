@@ -27,6 +27,9 @@ kill_timeout = 300
 
 [build]
   dockerfile = "fly/Dockerfile"
+  # The file has two targets (machine, nightly); this app is the Machine. Named, so
+  # that the order of the stages decides nothing.
+  build-target = "machine"
 
 # Not secrets. The secrets are set with `fly secrets set` (fly/Dockerfile names them).
 [env]

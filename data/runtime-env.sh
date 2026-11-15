@@ -4,16 +4,22 @@
 #   a host checkout   Hostess: git clones of BeeAtlas and Stelis that the nightly's
 #                     wrapper moves to the Machine's commit before each run
 #                     (BEEATLAS_CODE_PINNED), with node reached through nvm.
-#   the Fly image     BEEATLAS_CONTAINER=1 (fly/Dockerfile): the code, Stelis and every
+#   an image          BEEATLAS_CONTAINER=1 (fly/Dockerfile): the code, Stelis and every
 #                     dependency were fixed when the image was built. Nothing is pulled
 #                     or installed at runtime; a change ships as a new image. A nightly
 #                     that pulled here would move past the pinned Stelis at 3am and undo
 #                     what the image is for, and without .git it could not pull anyway.
+#                     Two images set it: the Machine's (the machine target) and the
+#                     nightly's (the nightly target, which also sets
+#                     BEEATLAS_NIGHTLY_IMAGE=1; ADR 0047).
 #
 # Everything else, the publish contract above all, is the same in both.
 
-# True inside the Fly image.
+# True inside either image.
 in_container() { [[ -n "${BEEATLAS_CONTAINER:-}" ]]; }
+
+# True inside the nightly's image only.
+in_nightly_image() { [[ -n "${BEEATLAS_NIGHTLY_IMAGE:-}" ]]; }
 
 # Put .nvmrc's node on PATH. On a host, nvm selects it, from the repo root where
 # .nvmrc is; in the image, node is the image's own and already on PATH.
