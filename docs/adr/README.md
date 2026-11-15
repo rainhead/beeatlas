@@ -49,4 +49,5 @@ Decisions with rationale and rejected alternatives. Add a new numbered record wh
 | [0043](0043-itis-settles-spelling-disagreements.md) | ITIS settles spelling disagreements between name sources | Accepted |
 | [0044](0044-what-the-pipeline-writes-lives-on-the-volume.md) | What the pipeline writes lives on the volume, behind symlinks from the checkout | Accepted |
 | [0045](0045-a-deploy-renders-only-when-a-page-input-changed.md) | A deploy re-renders the site only when something a page is built from changed | Accepted |
-| [0046](0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md) | The nightly runs on Hostess, and the Machine keeps only the interactive parts | Accepted |
+| [0046](0046-the-nightly-runs-on-hostess-and-the-machine-keeps-the-interactive-parts.md) | The nightly runs on Hostess, and the Machine keeps only the interactive parts | Accepted (amended by [0047](0047-the-nightly-runs-in-a-container-on-hostess.md): in a container, not from host checkouts) |
+| [0047](0047-the-nightly-runs-in-a-container-on-hostess.md) | The nightly runs in a container on Hostess, built from the Machine's Dockerfile | Accepted |

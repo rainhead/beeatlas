@@ -1,7 +1,7 @@
-# The BeeAtlas nightly on Hostess (ADR 0046). A systemd user unit, COPIED (not
-# linked) into ~/.config/systemd/user: the checkout it comes from is moved to the
-# Machine's commit every night, which can be older than this file.
-# docs/runbooks/hostess-nightly.md. Started by beeatlas-nightly.timer.
+# The BeeAtlas nightly on Hostess (ADR 0046), run in the nightly image (ADR 0047).
+# A systemd user unit, COPIED (not linked) into ~/.config/systemd/user, from main:
+# copy it again when it changes there. docs/runbooks/hostess-nightly.md. Started by
+# beeatlas-nightly.timer.
 #
 # No After=network-online.target: a user manager has no such unit, so the line
 # would be ignored, and the system's stays active through a suspend anyway. The
@@ -21,14 +21,25 @@ EnvironmentFile=%h/.config/beeatlas/nightly.env
 # instead of failing is retried too. `$$` and `%%` are a literal `$` and `%`:
 # systemd expands both itself.
 ExecStartPre=/bin/sh -c 'end=$$(($$(date +%%s) + 300)); until timeout 60 git -C %h/beeatlas-nightly/beeatlas fetch -q origin; do if [ $$(date +%%s) -ge $$end ]; then echo "git fetch still failing after 5 minutes; giving up" >&2; exit 1; fi; sleep 5; done'
-# Run main's infra/hostess/nightly.sh from a copy outside the checkout, for the
-# reason in the first comment: the checkout's own copy may not exist at the
-# Machine's commit.
+# Run main's infra/hostess/nightly.sh, copied out of the fetched origin/main. The
+# checkout's working tree is never updated (the wrapper builds from `git archive`),
+# so its own copy is whatever was last checked out there.
 ExecStartPre=/bin/sh -c 'git -C %h/beeatlas-nightly/beeatlas show origin/main:infra/hostess/nightly.sh > %h/beeatlas-nightly/nightly.sh'
 ExecStart=/bin/bash %h/beeatlas-nightly/nightly.sh
-# An ordinary night takes about five minutes on Hostess; a full rebuild is still
-# well inside this. The stop signal reaches the whole group, which is what
-# data/nightly.sh's signal handler expects.
+# An ordinary night takes about ten minutes on Hostess, a night that rebuilds the
+# image a few more; a full rebuild is still well inside this.
 TimeoutStartSec=2h
+# The run is a container (ADR 0047), which is not in this unit's control group: only
+# the docker CLI is. The stop signal reaches the CLI, which passes it to the
+# container's tini, which passes it to the whole process group there, as
+# data/nightly.sh's signal handler expects. The run's backups take about a minute,
+# so the stop waits up to fifteen. If the CLI is killed before the container has
+# finished, the container would run on, holding the publish lock: ExecStopPost stops
+# it, again with ten minutes' grace. Only the container this invocation started,
+# found by the label the wrapper gives it: a run the wrapper was only waiting for, or
+# one started by hand, is not this unit's to stop, and ExecStopPost also runs when an
+# earlier step failed. `-` because there is usually nothing to stop. `$$` is a
+# literal `$`; the shell expands INVOCATION_ID, which systemd sets.
 KillMode=control-group
-Nice=10
+TimeoutStopSec=15min
+ExecStopPost=-/bin/sh -c 'test -n "$$INVOCATION_ID" && docker ps -q --filter "label=beeatlas-nightly.invocation=$$INVOCATION_ID" | xargs -r docker stop -t 600'
