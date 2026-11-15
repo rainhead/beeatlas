@@ -141,7 +141,7 @@ def test_a_skipped_load_leaves_the_tables_as_they_were(db, monkeypatch):
         with duckdb.connect(db) as con:
             return {
                 t: sorted(con.execute(
-                    f"SELECT COLUMNS(c -> NOT starts_with(c, '_dlt_'))::VARCHAR FROM {t}"
+                    f"SELECT COLUMNS(lambda c: NOT starts_with(c, '_dlt_'))::VARCHAR FROM {t}"
                 ).fetchall(), key=str)
                 for t in ecdysis_pipeline.ECDYSIS_TABLES
             }

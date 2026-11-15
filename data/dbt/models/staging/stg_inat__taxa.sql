@@ -19,7 +19,7 @@ SELECT
     rank_level::INTEGER                                     AS rank_level,
     active = 'true'                                         AS active,
     CASE WHEN ancestry IS NULL OR ancestry = '' THEN []
-         ELSE list_transform(string_split(ancestry, '/'), x -> x::INTEGER)
+         ELSE list_transform(string_split(ancestry, '/'), lambda x: x::INTEGER)
     END                                                     AS ancestor_ids
 FROM read_csv(
     '../raw/taxa.csv.gz',

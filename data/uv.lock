@@ -161,7 +161,7 @@ pipeline = [
     { name = "dbt-core", specifier = ">=1.12.6,<2" },
     { name = "dbt-duckdb", specifier = ">=1.11.0,<2" },
     { name = "dlt", extras = ["duckdb"], specifier = ">=1.30.0" },
-    { name = "duckdb", specifier = ">=1.5.5,<3" },
+    { name = "duckdb", specifier = ">=2.0.0,<3" },
     { name = "numpy", specifier = ">=2.5.2" },
     { name = "pillow", specifier = ">=12.3.0" },
     { name = "pyarrow", specifier = ">=25.0.1" },

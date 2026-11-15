@@ -91,7 +91,7 @@ FROM ${DEBIAN_IMAGE} AS base
 # lock, and ps for whoever is on the Machine.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      ca-certificates curl libatomic1 libssl3 media-types procps rsync unzip util-linux \
+      ca-certificates curl libatomic1 libssl3 media-types procps rsync util-linux \
  && rm -rf /var/lib/apt/lists/*
 
 # Everything runs as `app`, and everything app writes beside what it reads (pnpm,
@@ -116,8 +116,8 @@ COPY fly/fetch.sh fly/downloads.tsv /tmp/fetch/
 RUN /tmp/fetch/fetch.sh uv /tmp/uv.tgz \
  && tar -xzf /tmp/uv.tgz -C /usr/local/bin --strip-components=1 uv-x86_64-unknown-linux-gnu/uv uv-x86_64-unknown-linux-gnu/uvx \
  && rm /tmp/uv.tgz && uv --version
-RUN /tmp/fetch/fetch.sh duckdb /tmp/duckdb.zip \
- && unzip -q /tmp/duckdb.zip -d /usr/local/bin && rm /tmp/duckdb.zip && duckdb --version
+RUN /tmp/fetch/fetch.sh duckdb /tmp/duckdb.tgz \
+ && tar -xzf /tmp/duckdb.tgz -C /usr/local/bin duckdb && rm /tmp/duckdb.tgz && duckdb --version
 RUN /tmp/fetch/fetch.sh litestream /tmp/litestream.tgz \
  && tar -xzf /tmp/litestream.tgz -C /usr/local/bin litestream && rm /tmp/litestream.tgz && litestream version
 RUN /tmp/fetch/fetch.sh pmtiles /tmp/pmtiles.tgz \
