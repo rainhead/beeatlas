@@ -45,7 +45,7 @@ asserted AS (
             WHEN qualifier_class IN ('hedge_epithet', 'hedge_bare')
                 THEN COALESCE(t1_anchor, face_anchor, face_id)
             WHEN qualifier_class = 'slash' AND t1_aos IS NOT NULL AND t2_aos IS NOT NULL
-                THEN list_filter(t1_aos, x -> list_contains(t2_aos, x))[-1]
+                THEN list_filter(t1_aos, lambda x: list_contains(t2_aos, x))[-1]
             WHEN qualifier_class = 'refine_subg' AND t1_id IS NOT NULL
                 THEN t1_id
             ELSE face_id

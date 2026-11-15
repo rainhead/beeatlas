@@ -42,7 +42,7 @@ SELECT
     taxon__name                                AS taxon_name,
     taxon__rank                                AS taxon_rank,
     CASE WHEN taxon__ancestor_ids IS NULL OR taxon__ancestor_ids = '' THEN NULL
-         ELSE list_transform(string_split(taxon__ancestor_ids, ','), x -> CAST(x AS INTEGER))
+         ELSE list_transform(string_split(taxon__ancestor_ids, ','), lambda x: CAST(x AS INTEGER))
     END                                        AS ancestor_ids
 FROM deduped
 WHERE rn = 1

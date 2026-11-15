@@ -8,11 +8,12 @@
 --   4. Both sides carry non-NULL coordinates
 --   5. ST_Distance_Sphere <= 1000.0 m (D-07)
 --
--- CRITICAL AXIS-ORDER TRAP: ST_Distance_Sphere uses ST_Point(lat, lon) — LATITUDE FIRST.
--- This is the OPPOSITE of ST_Point(lon, lat) used everywhere else for ST_Within.
--- Verified 2026-06-08 (Pitfall 1, 136-RESEARCH.md): wrong order silently produces ~59 km
--- per degree instead of ~111 km, blowing the 1 km window wide open.
--- Every ST_Point feeding ST_Distance_Sphere in this file uses ST_Point(lat, lon).
+-- Axis order: ST_Point(lon, lat), longitude first, as everywhere else in the pipeline.
+-- ST_Distance_Sphere reads it that way only because the dbt profile sets
+-- geometry_always_xy = true. Before DuckDB 2.0 this function always took latitude
+-- first, and the wrong order silently gave ~59 km per degree instead of ~111 km
+-- (verified 2026-06-08), blowing the 1 km window wide open. 2.0 refuses to run it
+-- until the setting is chosen, so a connection without it fails rather than drifts.
 --
 -- D-05: Collector token-set filter (Python _collectors_match) is applied DOWNSTREAM in
 -- write_dedup_candidates() — raw collector strings carried here for Python filtering.
@@ -55,10 +56,10 @@ SELECT
     cl.lon        AS checklist_lon,
     ec.ecdysis_lat,
     ec.ecdysis_lon,
-    -- CRITICAL: ST_Distance_Sphere uses ST_Point(lat, lon) — lat FIRST (see header comment)
+    -- ST_Point(lon, lat): longitude first (see the header comment)
     ST_Distance_Sphere(
-        ST_Point(cl.lat, cl.lon),
-        ST_Point(ec.ecdysis_lat, ec.ecdysis_lon)
+        ST_Point(cl.lon, cl.lat),
+        ST_Point(ec.ecdysis_lon, ec.ecdysis_lat)
     )             AS distance_m,
     cl.year       AS checklist_year,
     cl.month      AS checklist_month,
@@ -88,9 +89,9 @@ JOIN ecdysis_dated ec
     AND ABS(cl.lat - ec.ecdysis_lat) <= 0.012
     AND ABS(cl.lon - ec.ecdysis_lon) <= 0.016
     -- Precise 1 km window (D-07: DEDUP_DISTANCE_THRESHOLD_M = 1000.0 m)
-    -- CRITICAL: ST_Point(lat, lon) — lat FIRST for ST_Distance_Sphere (see header)
+    -- ST_Point(lon, lat): longitude first (see the header comment)
     AND ST_Distance_Sphere(
-            ST_Point(cl.lat, cl.lon),
-            ST_Point(ec.ecdysis_lat, ec.ecdysis_lon)
+            ST_Point(cl.lon, cl.lat),
+            ST_Point(ec.ecdysis_lon, ec.ecdysis_lat)
         ) <= 1000.0
 -- D-05: collector filter applied in Python (checklist_dedup.write_dedup_candidates)

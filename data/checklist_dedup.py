@@ -24,8 +24,8 @@ DEDUP_CANDIDATE_CSV = Path(__file__).parent / "dedup_candidate_pairs.csv"
 DEDUP_DECISIONS_CSV = Path(__file__).parent / "dbt" / "seeds" / "dedup_decisions.csv"
 
 # D-07: 1.0 km proximity threshold — tunable named constant.
-# Any spatial SQL using this threshold must use ST_Distance_Sphere(ST_Point(lat, lon), ...)
-# (latitude first) — opposite of ST_Point(lon, lat) used for ST_Within elsewhere.
+# Spatial SQL using this threshold calls ST_Distance_Sphere(ST_Point(lon, lat), ...),
+# longitude first, on a connection with geometry_always_xy = true (data/dbt/profiles.yml).
 DEDUP_DISTANCE_THRESHOLD_M = 1000.0
 
 # WR-03: characters that trigger spreadsheet formula evaluation if a CSV cell begins
