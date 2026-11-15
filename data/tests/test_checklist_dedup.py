@@ -18,6 +18,7 @@ import re
 
 import duckdb
 import pytest
+import yaml
 
 import checklist_dedup
 
@@ -29,10 +30,19 @@ import checklist_dedup
 _MODELS_DIR = pathlib.Path(__file__).parent.parent / "dbt/models/intermediate"
 
 
+_PROFILE_SETTINGS = yaml.safe_load(
+    (pathlib.Path(__file__).parent.parent / "dbt/profiles.yml").read_text()
+)["beeatlas"]["outputs"]["sandbox"]["settings"]
+
+
 def _make_dedup_con():
-    """Return an in-memory DuckDB connection with spatial loaded."""
+    """Return an in-memory DuckDB connection with spatial loaded and the dbt
+    profile's settings applied, so the model SQL runs as it does under dbt
+    (geometry_always_xy decides ST_Distance_Sphere's axis order)."""
     con = duckdb.connect(":memory:")
     con.execute("INSTALL spatial; LOAD spatial")
+    for name, value in _PROFILE_SETTINGS.items():
+        con.execute(f"SET {name} = {value!r}")
     return con
 
 
@@ -474,8 +484,9 @@ def test_collector_normalization():
 def test_distance_1km_window():
     """DUP-02: A pair just inside 1.0 km is a candidate; a pair just outside is not.
 
-    Guards the lat-first ST_Distance_Sphere axis order:
-    ST_Distance_Sphere(ST_Point(lat, lon), ST_Point(lat2, lon2)) — latitude first.
+    Guards the ST_Distance_Sphere axis order: ST_Point(lon, lat), longitude first,
+    under the profile's geometry_always_xy = true. Swapped axes read the 0.011 deg
+    step as longitude (~830 m at lat 47), so the outside pair would come in.
     ~0.008 deg lat ≈ 890 m (inside); ~0.011 deg ≈ 1.22 km (outside).
 
     RED: placeholder SQL (WHERE false) returns no rows; inside-pair assertion fails.
@@ -487,18 +498,18 @@ def test_distance_1km_window():
 
     # Verify axis order independently (these assertions are always green)
     dist_inside = con.execute(
-        "SELECT ST_Distance_Sphere(ST_Point(47.0, -120.0), ST_Point(?, -120.0)) AS d",
+        "SELECT ST_Distance_Sphere(ST_Point(-120.0, 47.0), ST_Point(-120.0, ?)) AS d",
         [inside_lat],
     ).fetchone()[0]
     assert dist_inside < 1000.0, (
-        f"Expected ~890 m, got {dist_inside:.1f} m — check ST_Point(lat, lon) axis order"
+        f"Expected ~890 m, got {dist_inside:.1f} m — check ST_Point(lon, lat) axis order"
     )
     dist_outside = con.execute(
-        "SELECT ST_Distance_Sphere(ST_Point(47.0, -120.0), ST_Point(?, -120.0)) AS d",
+        "SELECT ST_Distance_Sphere(ST_Point(-120.0, 47.0), ST_Point(-120.0, ?)) AS d",
         [outside_lat],
     ).fetchone()[0]
     assert dist_outside > 1000.0, (
-        f"Expected >1000 m, got {dist_outside:.1f} m — check ST_Point(lat, lon) axis order"
+        f"Expected >1000 m, got {dist_outside:.1f} m — check ST_Point(lon, lat) axis order"
     )
 
     # Now test the candidate filter: inside → candidate, outside → not

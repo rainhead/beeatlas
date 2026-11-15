@@ -14,6 +14,11 @@ beeatlas:
       threads: 4
       extensions:
         - spatial                       # declarative: INSTALL + LOAD spatial on each connection
+      settings:
+        # Spatial functions read ST_Point(x, y) as (longitude, latitude). DuckDB 2.0
+        # refuses ST_Distance_Sphere until this is set (int_dedup_candidates), and 2.1
+        # makes true the default.
+        geometry_always_xy: true
       # No json: it is built into DuckDB since 1.5, and dbt-duckdb's INSTALL of a
       # built-in extension downloads it anyway, which the offline image cannot.
       external_root: target/sandbox     # base path for materialized='external' relative locations
