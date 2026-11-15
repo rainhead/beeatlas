@@ -75,8 +75,10 @@ for the first to finish, as the host nightly queued on the publish lock.
 **Stopping reaches the whole run.** The container is not in the systemd unit's control group; only the
 docker CLI is. systemd's stop signal reaches the CLI, which passes it to the container's `tini -g`,
 which passes it to every process there, as `data/nightly.sh`'s signal handler expects. The unit waits
-up to fifteen minutes for the backups, then `ExecStopPost` stops any container still running with ten
-minutes' grace, so a run cannot outlive its unit holding the publish lock.
+up to fifteen minutes for the backups, then `ExecStopPost` stops the container if it is still running,
+with ten minutes' grace, so a run cannot outlive its unit holding the publish lock. It finds the
+container by a label carrying the systemd invocation that started it, so it never stops a run started
+by hand, or one the wrapper was only waiting for.
 
 **CI builds both targets.** The `fly-image` workflow builds the nightly target on every change and runs
 [`fly/nightly-smoke.sh`](../../fly/nightly-smoke.sh), which checks that the pipeline's tools load, so a
@@ -109,8 +111,8 @@ change that breaks the nightly's image fails on the pull request rather than at 
   move, and the nightly and the Machine both get them from the next deploy.
 - An ordinary night spends a minute or two more building the image's last layers. A night after a
   lockfile change rebuilds the dependency layers too.
-- Docker's build cache and the last two nightly images are kept on Hostess (the wrapper prunes the
-  rest, and the cache beyond 20 GB).
+- The image a run used and the newest other nightly image are kept on Hostess; the wrapper removes
+  the rest, and trims Docker's build cache, which every project on Hostess shares, to 20 GB.
 - The Machine's image is unchanged by the split: built from `main` and from the change with the same
   arguments, the two machine images had identical settings (environment, command, user, working
   directory) and differed only in the files the change edits (2026-11-14).
